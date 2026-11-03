@@ -298,7 +298,7 @@ describe('novo treino e edição', () => {
       { tipo: 'serie', repeticoes: 5, esforco: { duracaoS: 180, zona: 'Z5' }, recuperacao: { duracaoS: 180, zona: 'Z1' } },
       { tipo: 'bloco', papel: 'desaquecimento', duracaoS: 600, zona: 'Z1' },
     ];
-    const estruturado = () => treino({ data: '2026-11-06', duracaoMin: 47, zona: 'Z5', estresseManual: null, nomeTreino: '5 × 3 min no VO2', modeloId: 'vo2-5x3-ciclismo', passos });
+    const estruturado = () => treino({ data: '2026-11-06', duracaoMin: 47, zona: 'Z5', estresseManual: null, nomeTreino: 'Cinco Vezes, Por Quê?', modeloId: 'vo2-5x3-ciclismo', passos });
 
     describe('escolher da biblioteca no editor', () => {
       const proprio = { id: 'meu1', userId: 'u1', nome: 'Meu limiar', esporte: 'ciclismo', foco: 'limiar', nivel: 'intermediario', descricao: '', passos };
@@ -312,7 +312,7 @@ describe('novo treino e edição', () => {
         const grupos = [...lista.querySelectorAll('optgroup')].map((g) => g.label);
         expect(grupos).toEqual(['VO2máx', 'Limiar', 'Tempo', 'Over-under', 'Pirâmide', 'Fartlek', 'Sprints', 'Progressivo', 'Subidas']);
         const opcao = lista.querySelector('option[value="vo2-5x3-ciclismo"]');
-        expect(opcao.textContent).toBe('5 × 3 min no VO2 · Intermediário · 52 min');
+        expect(opcao.textContent).toBe('Cinco Vezes, Por Quê? · Intermediário · 52 min');
         expect(lista.querySelector('option[value$="-corrida"]')).toBeNull(); // só o esporte escolhido
       });
 
@@ -321,7 +321,7 @@ describe('novo treino e edição', () => {
         botao('Novo treino').click();
         preencher({ 'tr-modelo': 'vo2-5x3-ciclismo' });
         const editor = raiz.querySelector('#editor-treino');
-        expect(editor.querySelector('.treino-estrutura strong').textContent).toBe('5 × 3 min no VO2');
+        expect(editor.querySelector('.treino-estrutura strong').textContent).toBe('Cinco Vezes, Por Quê?');
         expect(editor.querySelector('.treino-estrutura svg.perfil-treino')).not.toBeNull();
         expect(editor.querySelector('#tr-duracao').disabled).toBe(true);
         expect(editor.querySelector('#tr-duracao').value).toBe('52');
@@ -351,7 +351,7 @@ describe('novo treino e edição', () => {
         expect(m.criarTreino).toHaveBeenCalledTimes(1);
         const [uid, valores, estimado] = m.criarTreino.mock.calls[0];
         expect(uid).toBe('u1');
-        expect(valores).toMatchObject({ data: '2026-11-09', esporte: 'ciclismo', zona: 'Z4', nomeTreino: '3 × 10 min no limiar', modeloId: 'lim-3x10-ciclismo', observacoes: 'Na avenida' });
+        expect(valores).toMatchObject({ data: '2026-11-09', esporte: 'ciclismo', zona: 'Z4', nomeTreino: 'Meia Hora de Sofrência', modeloId: 'lim-3x10-ciclismo', observacoes: 'Na avenida' });
         expect(valores.passos.length).toBeGreaterThan(0);
         expect(estimado).toBeGreaterThan(0);
       });
@@ -384,10 +384,10 @@ describe('novo treino e edição', () => {
         const lista = raiz.querySelector('#tr-modelo');
         expect(lista.value).toBe('vo2-5x3-ciclismo');
         preencher({ 'tr-modelo': 'tempo-20-ciclismo' });
-        expect(raiz.querySelector('.treino-estrutura strong').textContent).toBe('20 min em ritmo de tempo');
+        expect(raiz.querySelector('.treino-estrutura strong').textContent).toBe('Cruzeiro com Opinião');
         enviar(raiz.querySelector('#editor-treino form'));
         await tick();
-        expect(m.atualizarTreino.mock.calls[0][1]).toMatchObject({ nomeTreino: '20 min em ritmo de tempo', modeloId: 'tempo-20-ciclismo', zona: 'Z3' });
+        expect(m.atualizarTreino.mock.calls[0][1]).toMatchObject({ nomeTreino: 'Cruzeiro com Opinião', modeloId: 'tempo-20-ciclismo', zona: 'Z3' });
       });
     });
 
@@ -395,7 +395,7 @@ describe('novo treino e edição', () => {
       m.treinos = [estruturado()];
       abrir();
       const chip = celula('2026-11-06').querySelector('.chip-treino');
-      expect(chip.querySelector('.chip-titulo').textContent).toBe('5 × 3 min no VO2 · 47min');
+      expect(chip.querySelector('.chip-titulo').textContent).toBe('Cinco Vezes, Por Quê? · 47min');
       expect(chip.querySelector('.chip-sub').textContent).toMatch(/^~[0-9]+ · plano$/);
     });
 
@@ -404,7 +404,7 @@ describe('novo treino e edição', () => {
       abrir();
       celula('2026-11-06').querySelector('.chip-treino').click();
       const editor = raiz.querySelector('#editor-treino');
-      expect(editor.querySelector('.treino-estrutura strong').textContent).toBe('5 × 3 min no VO2');
+      expect(editor.querySelector('.treino-estrutura strong').textContent).toBe('Cinco Vezes, Por Quê?');
       expect(editor.querySelector('.treino-estrutura svg.perfil-treino')).not.toBeNull();
       expect([...editor.querySelectorAll('.treino-estrutura-passos li')].map((li) => li.textContent)).toEqual(['10 min Z2', '5 × 3 min Z5 / 3 min Z1', '10 min Z1']);
       expect(editor.querySelector('#tr-duracao').disabled).toBe(true);
@@ -422,7 +422,7 @@ describe('novo treino e edição', () => {
       expect(m.atualizarTreino).toHaveBeenCalledTimes(1);
       const [id, valores, estimado] = m.atualizarTreino.mock.calls[0];
       expect(id).toBe('t1');
-      expect(valores).toMatchObject({ nomeTreino: '5 × 3 min no VO2', modeloId: 'vo2-5x3-ciclismo', zona: 'Z5', duracaoMin: 47, observacoes: 'Na serra' });
+      expect(valores).toMatchObject({ nomeTreino: 'Cinco Vezes, Por Quê?', modeloId: 'vo2-5x3-ciclismo', zona: 'Z5', duracaoMin: 47, observacoes: 'Na serra' });
       expect(valores.passos).toEqual(passos);
       expect(estimado).toBeGreaterThan(0);
     });
@@ -434,7 +434,7 @@ describe('novo treino e edição', () => {
       botao('Duplicar para a próxima semana').click();
       await tick();
       const [, valores] = m.criarTreino.mock.calls[0];
-      expect(valores).toMatchObject({ data: '2026-11-13', nomeTreino: '5 × 3 min no VO2' });
+      expect(valores).toMatchObject({ data: '2026-11-13', nomeTreino: 'Cinco Vezes, Por Quê?' });
       expect(valores.passos).toEqual(passos);
     });
   });

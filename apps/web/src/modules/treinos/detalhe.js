@@ -118,7 +118,7 @@ export function criarDetalheTreino({ uid, modelo, configs, hoje, aoFechar, aoEdi
     h(
       'div',
       { class: 'bloco-topo' },
-      h('div', null, h('h2', null, modelo.nome), modelo.apelido ? h('p', { class: 'treino-apelido' }, `“${modelo.apelido}”`) : null),
+      h('div', null, h('h2', null, modelo.nome), modelo.especificacao ? h('p', { class: 'treino-apelido' }, modelo.especificacao) : null),
       h('button', { class: 'btn btn-secundario', type: 'button', onClick: aoFechar }, 'Fechar'),
     ),
     h(

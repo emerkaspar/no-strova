@@ -48,7 +48,7 @@ export function criarAbaSugestoes({ uid, hoje, esporte, nivel, treinos, configs,
       h(
         'div',
         { class: 'sugestao-corpo' },
-        h('strong', null, s.modelo.nome, s.modelo.apelido ? h('span', { class: 'texto-secundario' }, ` “${s.modelo.apelido}”`) : null, ' ', h('span', { class: `chip-foco chip-foco-${s.intensidade}` }, FOCOS[s.modelo.foco]?.rotulo ?? s.modelo.foco)),
+        h('strong', null, s.modelo.nome, s.modelo.especificacao ? h('span', { class: 'texto-secundario' }, ` (${s.modelo.especificacao})`) : null, ' ', h('span', { class: `chip-foco chip-foco-${s.intensidade}` }, FOCOS[s.modelo.foco]?.rotulo ?? s.modelo.foco)),
         perfilDoTreino(s.modelo.passos, { altura: 36 }),
         h('p', { class: 'treino-resumo' }, textoResumo(s.modelo, config)),
         h('p', { class: 'texto-secundario' }, s.motivo),

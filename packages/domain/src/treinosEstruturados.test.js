@@ -153,11 +153,15 @@ describe('catálogo', () => {
       for (const nivel of Object.keys(NIVEIS)) expect(modelosDoCatalogo({ esporte, nivel }).length).toBeGreaterThanOrEqual(8);
       expect(new Set(doEsporte.map((m) => m.nome)).size).toBe(doEsporte.length); // nomes distintos no mesmo esporte
     }
+    // nomes únicos em todo o catálogo (identificam o treino no relógio) e cabem nos 32 bytes do campo do FIT
+    const nomes = CATALOGO_TREINOS.filter((m) => m.esporte === 'ciclismo' || m.id.startsWith('tiros')).map((m) => m.nome);
+    expect(new Set(nomes).size).toBe(nomes.length);
+    for (const m of CATALOGO_TREINOS) expect(new TextEncoder().encode(m.nome).length).toBeLessThan(32);
   });
 
   it('filtros e busca por id', () => {
     expect(modelosDoCatalogo({ esporte: 'corrida', foco: 'sprint' }).every((m) => m.esporte === 'corrida' && m.foco === 'sprint')).toBe(true);
-    expect(modeloPorId('vo2-5x3-ciclismo').nome).toBe('5 × 3 min no VO2');
+    expect(modeloPorId('vo2-5x3-ciclismo')).toMatchObject({ nome: 'Cinco Vezes, Por Quê?', especificacao: '5 × 3 min no VO2' });
     expect(modeloPorId('x')).toBeNull();
     expect(modeloPorId('meu', [{ id: 'meu', nome: 'Meu' }]).nome).toBe('Meu');
   });

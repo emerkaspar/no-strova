@@ -22,7 +22,7 @@ export function criarCartaoTreino({ modelo, config, acoes = [], aoAbrir }) {
     h(
       'div',
       { class: 'treino-cabecalho' },
-      h('div', null, h('h3', { class: 'treino-nome' }, modelo.nome), modelo.apelido ? h('p', { class: 'treino-apelido' }, `“${modelo.apelido}”`) : null),
+      h('div', null, h('h3', { class: 'treino-nome' }, modelo.nome), modelo.especificacao ? h('p', { class: 'treino-apelido' }, modelo.especificacao) : null),
       h('span', { class: `chip-foco chip-foco-${foco?.intensidade ?? 'moderada'}` }, foco?.rotulo ?? modelo.foco),
     ),
     perfilDoTreino(modelo.passos),

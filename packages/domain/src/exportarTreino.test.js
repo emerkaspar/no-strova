@@ -111,7 +111,7 @@ describe('gerarFitDoTreino', () => {
   });
 
   it('o nome do arquivo vem do nome do treino, sem acentos e símbolos', () => {
-    expect(nomeArquivo).toBe('5-3-min-no-VO2.fit');
+    expect(nomeArquivo).toBe('Cinco-Vezes-Por-Que.fit');
   });
 
   it('sem configuração de FC, o alvo fica aberto', () => {

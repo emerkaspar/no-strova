@@ -206,7 +206,7 @@ describe('aba Biblioteca', () => {
     aba('Biblioteca');
     const c = raiz.querySelector('.treino-cartao');
     expect(c.querySelector('.treino-nome').textContent.length).toBeGreaterThan(3);
-    expect(c.querySelector('.treino-apelido').textContent).toMatch(/^“.+”$/);
+    expect(c.querySelector('.treino-apelido').textContent).toMatch(/\d/); // especificação técnica (ex.: 5 × 3 min no VO2)
     expect(c.querySelector('svg.perfil-treino rect.perfil-barra')).not.toBeNull();
     expect(c.querySelector('.treino-resumo').textContent).toMatch(/^.+ · Z[1-5] · ~[0-9]+ de HRSS$/);
   });
