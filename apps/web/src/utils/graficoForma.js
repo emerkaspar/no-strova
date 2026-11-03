@@ -7,7 +7,7 @@ const L = 760;
 const A = 340;
 const MARGEM_BASE = { topo: 16, base: 30, esquerda: 44 };
 const ALTURA_BARRAS = 0.22; // fração da área útil
-const ROTULO_SERIE = { fitness: 'Fitness', fadiga: 'Fadiga', forma: 'Forma' };
+const ROTULO_SERIE = { fitness: 'Condicionamento', fadiga: 'Fadiga', forma: 'Forma' };
 
 function svg(nome, atributos = {}, ...filhos) {
   const el = document.createElementNS(NS, nome);

@@ -48,7 +48,7 @@ describe('destaqueDoInicio: a Forma aparece sempre, em qualquer zona', () => {
     expect(d.cta).toEqual({ rotulo: 'Planejar treino', href: '#/plano' });
   });
 
-  it('"Forma amanhã" é Fitness − Fadiga de hoje (o efeito do treino de hoje) e mostra a zona de amanhã', () => {
+  it('"Forma amanhã" é Condicionamento − Fadiga de hoje (o efeito do treino de hoje) e mostra a zona de amanhã', () => {
     const serie = serieDe([{ data: '2026-11-03', estresse: 51 }], '2026-11-03');
     const hoje = serie.at(-1);
     const amanha = serieDe([{ data: '2026-11-03', estresse: 51 }], '2026-11-04').at(-1);
@@ -62,7 +62,7 @@ describe('destaqueDoInicio: a Forma aparece sempre, em qualquer zona', () => {
     const dia = (forma) => ({ data: '2026-11-03', estresse: 0, fitness: 0, fadiga: 0, forma, faixa: 'x' });
     const zonaDe = (forma) => destaqueDoInicio([dia(forma), dia(forma)]);
     expect([zonaDe(30).zona, zonaDe(30).chip]).toEqual(['transicao', 'Zona de transição']);
-    expect([zonaDe(10).zona, zonaDe(10).chip]).toEqual(['freshness', 'Zona fresca']);
+    expect([zonaDe(10).zona, zonaDe(10).chip]).toEqual(['freshness', 'Zona descansada']);
     expect([zonaDe(0).zona, zonaDe(0).chip]).toEqual(['neutral', 'Zona neutra']);
     expect([zonaDe(-19).zona, zonaDe(-19).chip]).toEqual(['optimal', 'Zona ótima']);
     expect([zonaDe(-40).zona, zonaDe(-40).chip]).toEqual(['overload', 'Zona de sobrecarga']);
@@ -86,7 +86,7 @@ describe('destaqueDoInicio: a Forma aparece sempre, em qualquer zona', () => {
     expect(dado(destaqueDoInicio(serieDe(treino, '2026-11-05')), 'ultimo')).toMatchObject({ valor: 'Há 4 dias', nota: '62 de HRSS' });
   });
 
-  it('Fitness mostra a variação em 7 dias: sobe com treino, cai parado, fica estável com carga constante', () => {
+  it('Condicionamento mostra a variação em 7 dias: sobe com treino, cai parado, fica estável com carga constante', () => {
     const sobe = serieDe(Array.from({ length: 8 }, (_, i) => ({ data: somarDias('2026-10-25', i), estresse: 80 })), '2026-11-01');
     expect(dado(destaqueDoInicio(sobe), 'fitness').nota).toMatch(/^▲ \d+,\d em 7 dias$/);
 

@@ -7,7 +7,7 @@
 App web de planejamento e análise de treino para quem pedala e corre, com foco em ciclismo. Inspirado no Elevate (https://github.com/thomaschampagne/elevate, licença MPL-2.0), usado só como **referência de cálculo**: não é fork, o código é reescrito na nossa stack. Cópia local do Elevate para consulta fica **fora** do monorepo (ex.: `../elevate-ref`).
 
 Diferenciais em relação ao Elevate:
-1. **Projeção no gráfico:** o usuário planeja treinos futuros e o gráfico de Fitness/Fadiga/Forma continua nos dias seguintes.
+1. **Projeção no gráfico:** o usuário planeja treinos futuros e o gráfico de Condicionamento/Fadiga/Forma continua nos dias seguintes.
 2. **Controle de peso** integrado ao treino, com metas.
 3. **Sugestões com Gemini** (treinos e metas de peso).
 
@@ -30,7 +30,7 @@ Diferenciais em relação ao Elevate:
 - **Somente frequência cardíaca.** Estresse da atividade = **HRSS**, replicando o método do Elevate (ler a referência para a fórmula exata, constantes e tratamento de zonas).
 - Configurações do atleta **com data de vigência**: FC máxima, FC de repouso, LTHR (limiar), sexo (constante do TRIMP), peso e altura. O cálculo usa a configuração vigente na data da atividade; mudar a configuração permite recalcular o histórico.
 - Estresse diário = soma das atividades do dia.
-- **Fitness** = média móvel exponencial do estresse diário (42 dias). **Fadiga** = idem (7 dias). **Forma** = Fitness − Fadiga **do dia anterior** (a Forma de hoje usa os valores de ontem, como no Elevate e na convenção do TrainingPeaks). Faixas de Forma (Transição, Freshness, Neutral, Optimal, Overload) como no Elevate; ver "Fitness, Fadiga e Forma (Fase 3)".
+- **Condicionamento** = média móvel exponencial do estresse diário (42 dias). **Fadiga** = idem (7 dias). **Forma** = Condicionamento − Fadiga **do dia anterior** (a Forma de hoje usa os valores de ontem, como no Elevate e na convenção do TrainingPeaks). Faixas de Forma (Transição, Descansado, Neutra, Ótima, Sobrecarga) como no Elevate; ver "Condicionamento, Fadiga e Forma (Fase 3)".
 - **Projeção:** para dias futuros, o estresse diário vem dos treinos planejados ainda não realizados. Dias passados usam só o realizado. O gráfico mostra o passado sólido e o futuro tracejado.
 - Os cálculos rodam no cliente a partir dos estresses diários (resposta instantânea ao editar o plano) e as mesmas funções são reutilizadas nas Functions quando necessário.
 
@@ -77,9 +77,9 @@ Diferenciais em relação ao Elevate:
 - **Intensidade do treino planejado:** zona predominante Z1–Z5, com override manual do estresse estimado.
 - **Passado, hoje e futuro na projeção:** passado usa só o realizado; hoje usa o maior entre planejado e realizado; futuro usa o planejado.
 - **Vínculo planejado × realizado:** o app sugere (mesmo dia e esporte) e o usuário confirma. Treino vinculado não soma duas vezes.
-- **Curva única** de Fitness/Fadiga/Forma na v1 (sem filtro por esporte).
-- **Fitness inicial = 0.** EMA como no Elevate: `ema = ema + (estresse − ema) × (1 − e^(−1/N))`, com N = 42 (Fitness) e N = 7 (Fadiga).
-- **Faixas de Forma**: ver "Fitness, Fadiga e Forma (Fase 3)" (corrigidas na Fase 3 conforme o guia do Elevate).
+- **Curva única** de Condicionamento/Fadiga/Forma na v1 (sem filtro por esporte).
+- **Condicionamento inicial = 0.** EMA como no Elevate: `ema = ema + (estresse − ema) × (1 − e^(−1/N))`, com N = 42 (Condicionamento) e N = 7 (Fadiga).
+- **Faixas de Forma**: ver "Condicionamento, Fadiga e Forma (Fase 3)" (corrigidas na Fase 3 conforme o guia do Elevate).
 - **Calorias:** usa as do arquivo quando existirem; senão estima por Keytel (FC, peso, sexo e idade), sempre rotuladas como "estimadas". O perfil coleta `dataNascimento`.
 - **Recalcular histórico** (após mudar a configuração do atleta): somente por botão com confirmação, nunca automático.
 - **Duplicidade:** upload rejeitado com aviso se o hash do arquivo ou o par início + duração já existir.
@@ -109,26 +109,26 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 
 Como o HRSS do Elevate usa só a FC média e o tempo em movimento, a atividade guarda `fcMedia`, `tempoMovimentoS` e `zona`; isso basta para recalcular o HRSS com qualquer configuração sem reler o arquivo (não há `fcHistograma`). O doc `configsAtleta` tem id `{uid}_{yyyymmdd da vigência}`, então salvar a mesma data substitui a configuração.
 
-## Fitness, Fadiga e Forma (Fase 3)
+## Condicionamento, Fadiga e Forma (Fase 3)
 
 Implementado em `packages/domain/src/forma.js`, replicando o Elevate (`fitness.service.ts` e o guia do Fitness Trend):
 
 - **Estresse do dia** = soma do HRSS das atividades do dia (`estresseDiario`). Dia sem treino vale 0.
-- `Fitness(d) = Fitness(d−1) + (estresse(d) − Fitness(d−1)) × (1 − e^(−1/42))`; Fadiga igual, com 7 no lugar de 42.
-- **Forma(d) = Fitness(d−1) − Fadiga(d−1).** A série começa **um dia antes da primeira atividade**, com Fitness, Fadiga e Forma em 0 (Fitness inicial = 0), e segue até hoje, com decaimento nos dias sem treino.
+- `Condicionamento(d) = Condicionamento(d−1) + (estresse(d) − Condicionamento(d−1)) × (1 − e^(−1/42))`; Fadiga igual, com 7 no lugar de 42.
+- **Forma(d) = Condicionamento(d−1) − Fadiga(d−1).** A série começa **um dia antes da primeira atividade**, com Condicionamento, Fadiga e Forma em 0 (Condicionamento inicial = 0), e segue até hoje, com decaimento nos dias sem treino.
 - **Faixas de Forma** (guia do Elevate; limite inferior exclusivo):
 
 | Faixa | Forma | Significado |
 |---|---|---|
-| Transição | > +25 | Pausa longa (doença, lesão, fim de temporada): Fitness em queda |
-| Freshness | +5 a +25 | Em forma e descansado: pronto para prova ou dias fortes |
-| Neutral | −10 a +5 | Semana de descanso ou recuperação |
-| Optimal | −30 a −10 | Zona ideal para construir Fitness |
-| Overload | < −30 | Sobrecarga: descanse |
+| Transição | > +25 | Pausa longa (doença, lesão, fim de temporada): Condicionamento em queda |
+| Descansado | +5 a +25 | Em forma e descansado: pronto para prova ou dias fortes |
+| Neutra | −10 a +5 | Semana de descanso ou recuperação |
+| Ótima | −30 a −10 | Zona ideal para construir Condicionamento |
+| Sobrecarga | < −30 | Sobrecarga: descanse |
 
 - **Agregação:** o trigger `onAtividadeWrite` recalcula o documento do dia (`estresseDiario/{uid}_{yyyymmdd}`: `estresse`, `kcal`, `qtdAtividades`) a cada criação, exclusão ou recálculo de atividade. Recalcular o dia inteiro a partir das atividades torna as retentativas do trigger inofensivas. Sem atividades no dia, o documento é removido.
 - **Atividades anteriores ao trigger:** a tela de Forma pede `reconstruirEstresseDiario` uma vez por sessão quando não há nenhum dia agregado. A callable regrava todos os dias do usuário e remove os que não têm mais atividade.
-- **Tela** (`#/forma`): indicadores de hoje (Fitness, Fadiga, Forma com a faixa e sua descrição, carga de 7 dias), gráfico em SVG sem biblioteca com as três linhas, as faixas de Forma ao fundo, barras opcionais de estresse diário e tooltip por dia, e legenda das faixas. Períodos: 30 dias, 90 dias (padrão), 6 meses, 1 ano e tudo.
+- **Tela** (`#/forma`): indicadores de hoje (Condicionamento, Fadiga, Forma com a faixa e sua descrição, carga de 7 dias), gráfico em SVG sem biblioteca com as três linhas, as faixas de Forma ao fundo, barras opcionais de estresse diário e tooltip por dia, e legenda das faixas. Períodos: 30 dias, 90 dias (padrão), 6 meses, 1 ano e tudo.
 
 ## Cálculo do HRSS (Fase 2)
 
@@ -196,7 +196,7 @@ Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras 
 ## Projeção
 - **Regras do estresse por dia** (`estressesParaProjecao`): dias passados usam só o **realizado**; **hoje** usa o **maior** entre realizado e planejado; dias futuros usam o **planejado**. Só treinos com status `planejado` contam (o vinculado já está no realizado; o pulado não existe).
 - **Horizonte** (`horizonteDaProjecao`): até o último treino planejado ou a data da meta **mais 14 dias**, com teto de **90 dias** a partir de hoje (uma meta mais distante estende a série até ela, para poder ser avaliada). Sem plano nem meta, termina hoje. O Início mostra só os próximos 14 dias.
-- A série reaproveita o cálculo do Fitness/Fadiga/Forma (Forma de um dia = Fitness − Fadiga do dia anterior); o passado não muda com o plano. Cada dia ganha `projetado`.
+- A série reaproveita o cálculo do Condicionamento/Fadiga/Forma (Forma de um dia = Condicionamento − Fadiga do dia anterior); o passado não muda com o plano. Cada dia ganha `projetado`.
 
 ## Meta de forma
 - "**Chegar com Forma X na data Y**": X de −60 a +60, Y entre hoje e 365 dias. **Uma meta ativa por vez**; ao definir outra, a anterior é desativada (as anteriores ficam listadas, só leitura). A troca é um lote do Firestore (tudo ou nada).
@@ -210,7 +210,7 @@ Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras 
 - **Calendário** em **semana** (7 colunas) ou **mês** (6 semanas, com contagem por dia em telas pequenas), navegação ‹ › e "Hoje". Cada dia mostra as atividades realizadas (chips cheios) e os treinos planejados (tracejados), com o total do dia. "+" cria treino no dia; clicar no treino edita.
 - **Arrastar e soltar** o treino planejado para outro dia muda só a data (a projeção atualiza na hora). O editor também troca a data (alternativa por teclado e para toque, onde o arrastar do navegador não funciona).
 - **Editor:** data, esporte, duração, zona, estresse informado, observações, com a **estimativa ao vivo**; ações: salvar, cancelar, **duplicar para a próxima semana**, marcar como pulado (ou voltar para planejado / desvincular) e excluir (com confirmação).
-- Cartões: **Projeção do plano** (gráfico com Fitness, Fadiga e Forma, faixas, barras de estresse, região da projeção e losango da meta), **Meta de forma** e **Acompanhamento** (sugestões de vínculo, não realizados e planejado × realizado).
+- Cartões: **Projeção do plano** (gráfico com Condicionamento, Fadiga e Forma, faixas, barras de estresse, região da projeção e losango da meta), **Meta de forma** e **Acompanhamento** (sugestões de vínculo, não realizados e planejado × realizado).
 - **Regras do Firestore:** `treinosPlanejados` e `metasForma` validam tipos, intervalos e campos permitidos (sem campos extras) e o dono; nenhuma decisão do servidor depende desses documentos nesta fase. A fase 6 (IA) deve revalidar o que ler.
 
 # Identidade visual
@@ -259,24 +259,57 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 **Início, nesta ordem**
 1. **Forma hoje** (bloco de destaque, "o cara" da tela): mostra **sempre a Forma** em número gigante **com uma casa decimal** (a parte inteira em Anton gigante e a decimal menor ao lado; ex.: "+0,2", "−19,4"; hífen no lugar do sinal de menos, porque a Anton não tem o "−"). A casa decimal existe para um valor como 0,2 não aparecer como um "0" que desanima; "Forma amanhã" usa o mesmo formato, **muda de cor conforme a zona** e traz poucos dados menores. Regra em `application/inicio.js` (`destaqueDoInicio`).
    - **Estrutura:** rótulo "Forma hoje" + chip da zona com um ícone "i" (topo); número grande (o maior elemento do bloco); quatro dados menores em 2×2; botão **Planejar treino** (`#/plano`). A frase da zona (`resumo` em `FAIXAS_FORMA`) **não fica mais no bloco**: vive no hint.
-   - **Hint das zonas** (`modules/inicio/dicaZonas.js`): abre ao passar o mouse no **chip** ou no **número**, ao focar o chip pelo teclado e ao clicar/tocar (o clique fixa o cartão; Esc ou um toque fora fecha). Mostra "Zonas de Forma", "A Forma é o Fitness menos a Fadiga de ontem…" e as cinco zonas (da transição à sobrecarga) com cor, intervalo e significado (`descricao`). A **zona atual** fica destacada com "Você está aqui · +0,2" e a frase de incentivo (`resumo`). **Posição:** ao **lado** do bloco (sobre o gráfico), para não cobrir o número nem os dados; em coluna única (celular) abre logo **abaixo** do bloco. **Destaque visual:** fundo elevado (`--elevado`: `#262626` no escuro, branco no claro), borda de 2 px na **cor da zona atual**, sombra forte e uma **seta** apontando para o bloco, para não se confundir com o cartão do gráfico por baixo. O cartão não captura o mouse (`pointer-events: none`) e tem `role="tooltip"` ligado ao chip por `aria-describedby`.
-   - **Dados menores:** **Fitness** (com a variação em 7 dias: "▲ 1,2 em 7 dias", "▼ 0,4 em 7 dias" ou "estável em 7 dias"), **Fadiga** ("média de 7 dias"), **Forma amanhã** (Fitness − Fadiga de hoje, o efeito do treino de hoje, com a zona de amanhã) e **Último treino** ("Hoje", "Ontem" ou "Há N dias", com o HRSS daquele dia).
+   - **Hint das zonas** (`modules/inicio/dicaZonas.js`): abre ao passar o mouse no **chip** ou no **número**, ao focar o chip pelo teclado e ao clicar/tocar (o clique fixa o cartão; Esc ou um toque fora fecha). Mostra "Zonas de Forma", "A Forma é o Condicionamento menos a Fadiga de ontem…" e as cinco zonas (da transição à sobrecarga) com cor, intervalo e significado (`descricao`). A **zona atual** fica destacada com "Você está aqui · +0,2" e a frase de incentivo (`resumo`). **Posição:** ao **lado** do bloco (sobre o gráfico), para não cobrir o número nem os dados; em coluna única (celular) abre logo **abaixo** do bloco. **Destaque visual:** fundo elevado (`--elevado`: `#262626` no escuro, branco no claro), borda de 2 px na **cor da zona atual**, sombra forte e uma **seta** apontando para o bloco, para não se confundir com o cartão do gráfico por baixo. O cartão não captura o mouse (`pointer-events: none`) e tem `role="tooltip"` ligado ao chip por `aria-describedby`.
+   - **Dados menores:** **Condicionamento** (com a variação em 7 dias: "▲ 1,2 em 7 dias", "▼ 0,4 em 7 dias" ou "estável em 7 dias"), **Fadiga** ("média de 7 dias"), **Forma amanhã** (Condicionamento − Fadiga de hoje, o efeito do treino de hoje, com a zona de amanhã) e **Último treino** ("Hoje", "Ontem" ou "Há N dias", com o HRSS daquele dia).
    - **Cor por zona** (texto preto no escuro e branco no claro; contrastes: escuro 6,1 a 13,4:1, claro 5,0 a 7,7:1):
 
 | Zona (Forma) | Escuro | Claro |
 |---|---|---|
 | Ótima (−30 a −10) | `#FF5200` (laranja da marca, como no mockup) | `#C93C00` |
 | Neutra (−10 a +5) | `#D4D4D4` (cinza claro) | `#52525B` |
-| Fresca (+5 a +25) | `#4ADE80` (verde) | `#15803D` |
+| Descansado (+5 a +25) | `#4ADE80` (verde) | `#15803D` |
 | Transição (> +25) | `#7DD3FC` (azul) | `#0369A1` |
 | Sobrecarga (< −30) | `#F87171` (vermelho) | `#B91C1C` |
 
    A cor nunca é o único sinal: o chip traz o nome da zona. Para trocar uma cor, basta mudar `--hero-bg` da classe `.hero-zona-<id>` em `layout.css`.
    - **Sem dados:** "Vamos começar" (botão **Importar arquivo**) ou, se há atividades mas nenhuma com HRSS, "Falta a FC" (botão **Configurar FC**).
-   - **Decisão (03/11/2026):** a Forma continua sendo **Fitness − Fadiga de ontem** (regra do Elevate e do TrainingPeaks); o mockup mostra o mesmo dia (49 − 68 = −19). Por isso o bloco traz "Forma amanhã", que mostra o efeito do treino de hoje. Uma versão intermediária trocava o número por chamadas ("Bora pedalar", "Treino feito") quando a Forma estava perto de zero; foi descartada: o usuário quer sempre dados importantes no bloco, com a cor da zona dando o tom. Mudar para "mesmo dia" exige alterar `calcularSerieForma`, o gráfico, as faixas e a futura meta de forma da Fase 4.
-2. **Carga e fadiga**: Fitness e Fadiga dos últimos 30 dias, sem as faixas, com o marcador "Hoje" e legenda; link "Ver gráfico completo". Com treinos planejados, mostra os **próximos 14 dias projetados** em linha tracejada, sobre uma região sombreada "Projeção do plano" (janela: 21 dias antes de hoje + projeção).
+   - **Decisão (03/11/2026):** a Forma continua sendo **Condicionamento − Fadiga de ontem** (regra do Elevate e do TrainingPeaks); o mockup mostra o mesmo dia (49 − 68 = −19). Por isso o bloco traz "Forma amanhã", que mostra o efeito do treino de hoje. Uma versão intermediária trocava o número por chamadas ("Bora pedalar", "Treino feito") quando a Forma estava perto de zero; foi descartada: o usuário quer sempre dados importantes no bloco, com a cor da zona dando o tom. Mudar para "mesmo dia" exige alterar `calcularSerieForma`, o gráfico, as faixas e a futura meta de forma da Fase 4.
+2. **Condicionamento, fadiga e forma** (gráfico principal, `modules/inicio/graficoPrincipal.js`): cartão de largura total **abaixo** do par "Forma hoje" + "Semana atual" (os dois ficam lado a lado no alto; o hint das zonas abre ao lado do bloco, por isso o gráfico não divide a linha com ele). Especificação completa em "Gráfico principal do Início", abaixo.
 3. **Semana atual**: segunda a domingo; por dia, uma barra de **estresse realizado** (cheia), **planejado** (tracejada, sem dados até a Fase 4) ou **descanso** (barra mínima); abaixo, "SEG 2" (hoje: "· HOJE", em laranja), o título (ex.: "Ciclismo 17,1 km"; "N atividades" se houver várias; "Descanso"; "Sem plano" em dia futuro) e o valor ("62 · feito" ou "~48 · plano" ou "—"). Altura proporcional ao maior valor da semana. Título: "Semana de 2 a 8 de novembro" (ou com os dois meses). Resumo: "Realizada até hoje: N" e, com plano, "Carga total prevista: M · realizada até hoje: N".
 4. Linha com três cartões: **Últimas atividades** (tabela real, cinco mais recentes: data, esporte, duração, distância, FC média, HRSS), **Peso** e **Sugestão** (borda e título laranja).
+
+
+### Gráfico principal do Início
+
+**Nomes na interface (só o texto exibido muda; os ids internos `fitness`, `freshness`, `neutral`, `optimal`, `overload` continuam no código):** Fitness → **Condicionamento**; Fatigue → **Fadiga**; Form → **Forma**; zonas **Transição** (> +25), **Descansado** (+5 a +25, antes "Freshness"), **Neutra** (−10 a +5), **Ótima** (−30 a −10), **Sobrecarga** (< −30). Outros termos: "Estresse do dia", "Plano", "Projeção", "Hoje", "Realizado", "Planejado". Os rótulos das zonas vêm de `FAIXAS_FORMA` (`packages/domain/src/forma.js`).
+
+**Regras de cálculo (inalteradas):** Forma de um dia = Condicionamento − Fadiga do dia anterior; o passado usa o realizado, hoje usa o maior entre planejado e realizado, o futuro usa o plano (`montarProjecao`, com até 28 dias de plano no Início).
+
+**Layout:** gráfico à esquerda (~70%) e coluna lateral à direita; abaixo de 900 px a coluna vai para baixo do gráfico. Os painéis compartilham o mesmo eixo X (calendário), com divisória tracejada em **Hoje** e fundo levemente mais claro nos dias futuros. O seletor de período fica no topo: **6 sem** (28 dias realizados + até 14 de plano), **10 sem** (padrão: 42 + 28), **6 meses** (154 + 28) e **1 ano** (337 + 28); o plano mostrado vai até onde houver treinos planejados. A escolha é lembrada enquanto a página estiver aberta.
+
+**Painéis (SVG, sem biblioteca):**
+1. **Condicionamento e fadiga:** escala 0–100 (cresce de 25 em 25 se a fadiga passar de 100), com grade horizontal. Condicionamento: linha laranja `#FF5200` de 4 px com área em gradiente (28% → 0%) sob o trecho realizado. Fadiga: linha `#E5E5E5` de 2,5 px. Passado contínuo; futuro (plano) tracejado.
+2. **Forma:** barras diárias a partir do zero, **coloridas pela zona do dia**; passado em barra cheia, futuro só com contorno tracejado. Linhas tracejadas sutis em +5, −10 e −30. Escala −40 a +30 (valores fora dela ficam no limite).
+3. **Peso e meta:** linha amarela `#FACC15` (peso realizado, contínua) e a meta tracejada até a data-alvo; escala ajustada ao intervalo do usuário. **Sem peso cadastrado**, o painel mostra "Sem registros de peso. Cadastrar peso" (link para `#/peso`). Os dados de peso entram na Fase 5; o componente já aceita `pesos` e `metaPeso`.
+
+| Zona | Escuro | Claro |
+|---|---|---|
+| Transição | `#60A5FA` | `#2563EB` |
+| Descansado | `#2DD4BF` | `#0F9488` |
+| Neutra | `#A3A3A3` | `#737373` |
+| Ótima | `#4ADE80` | `#16A34A` |
+| Sobrecarga | `#F87171` | `#DC2626` |
+
+(São as cores do **gráfico**, em `--cg-zona-*`; o bloco "Forma hoje" mantém as suas, na tabela acima.)
+
+**Hover/toque (área toda do gráfico):** ao passar o mouse sobre um dia aparece uma linha vertical atravessando os três painéis, um ponto em cada série e um tooltip com: **Realizado / Hoje / Planejado** + data ("qua, 28 out"), Condicionamento, Fadiga, Forma + nome da zona e **Peso** (ou **Meta** nos dias futuros, quando há meta). O tooltip vira para a esquerda depois de ~65% da largura. No celular, o toque faz o mesmo e a seleção fica até o próximo toque. O hover também destaca a barra do dia. O dia selecionado por padrão é **Hoje**: ao tirar o mouse, a coluna lateral volta a ele.
+
+**Coluna lateral:**
+- **Card do dia selecionado:** status + data, **Forma** em número grande (Anton, 56 px, com sinal) com o chip da zona na cor da zona e, abaixo, o treino do dia (o que foi feito, o que está planejado ou "Descanso"; "Treino realizado" quando só há estresse registrado, sem atividade carregada).
+- **Régua de zonas:** barra vertical com os cinco segmentos nas cores das zonas, rótulos dos limites (+25, +5, −10, −30) e um marcador branco na Forma do dia selecionado (escala −40 a +40).
+- **Legenda:** Condicionamento, Fadiga, Peso e "Plano e meta" (tracejado).
+
+**Estilo:** fundo do cartão `--surface` (`#161616`), borda `--border` (`#2A2A2A`), raio 16 px, títulos em Anton maiúsculo, números com fonte tabular; no tema claro valem os equivalentes (variáveis `--cg-*` em `layout.css`). A tela **Forma** (`#/forma`) e o gráfico do **Plano** continuam com o gráfico anterior (`utils/graficoForma.js`), já com os nomes traduzidos.
 
 **Estados vazios:** blocos sem dados mostram uma frase curta ("Disponível quando houver atividades com HRSS calculado", "Disponível quando houver registro de peso", "Disponível quando houver plano de treino"). **Decisão de interpretação:** o mockup mostra todos os blocos preenchidos; como a Fase 3 já existe, **Forma hoje**, o gráfico, a semana e as últimas atividades usam **dados reais** e só caem no estado vazio quando não há atividades com HRSS. Peso e Sugestão ficam vazios até as fases 5 e 6.
 
@@ -303,9 +336,9 @@ Gere o scaffolding do monorepo conforme o `CLAUDE.md`: configs do Firebase e Vit
 
 Implemente as configurações do atleta com data de vigência (FC máx., FC repouso, LTHR, sexo, peso, altura). Implemente o upload de .FIT/.GPX/.TCX para o Storage e uma callable que processa o arquivo e grava o resumo da atividade. Calcule o HRSS em `domain/`, usando como referência o código do Elevate em `../elevate-ref` (somente leitura). Tela de lista de atividades e detalhe.
 
-## Fase 3 — Gráfico de Fitness/Fadiga/Forma (passado)
+## Fase 3 — Gráfico de Condicionamento/Fadiga/Forma (passado)
 
-Implemente em `domain/` o cálculo diário de Fitness (42 d), Fadiga (7 d) e Forma, com testes unitários. Crie a tela do gráfico com períodos selecionáveis, tooltip por dia e faixas de Forma, no estilo do Elevate.
+Implemente em `domain/` o cálculo diário de Condicionamento (42 d), Fadiga (7 d) e Forma, com testes unitários. Crie a tela do gráfico com períodos selecionáveis, tooltip por dia e faixas de Forma, no estilo do Elevate.
 
 ## Fase 4 — Plano de treino e projeção (implementada)
 

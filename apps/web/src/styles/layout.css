@@ -1285,3 +1285,580 @@ textarea {
     width: 100%;
   }
 }
+
+/* ===== Gráfico principal do Início: Condicionamento, fadiga e forma ===== */
+:root {
+  --cg-esporte-ciclismo: #38bdf8;
+  --cg-esporte-corrida: #c084fc;
+  --cg-esporte-outro: #a3a3a3;
+  --cg-esporte-preguica: #fbbf24;
+  --cg-fitness: #ff5200;
+  --cg-fadiga: #e5e5e5;
+  --cg-peso: #facc15;
+  --cg-zona-transicao: #60a5fa;
+  --cg-zona-freshness: #2dd4bf;
+  --cg-zona-neutral: #a3a3a3;
+  --cg-zona-optimal: #4ade80;
+  --cg-zona-overload: #f87171;
+  --cg-chip-fg: #0a0a0a;
+  --cg-futuro: rgba(255, 255, 255, 0.04);
+}
+
+:root[data-tema='claro'] {
+  --cg-esporte-ciclismo: #0369a1;
+  --cg-esporte-corrida: #7e22ce;
+  --cg-esporte-outro: #737373;
+  --cg-esporte-preguica: #b45309;
+  --cg-fitness: #c93c00;
+  --cg-fadiga: #3f3f46;
+  --cg-peso: #a16207;
+  --cg-zona-transicao: #2563eb;
+  --cg-zona-freshness: #0f9488;
+  --cg-zona-neutral: #737373;
+  --cg-zona-optimal: #16a34a;
+  --cg-zona-overload: #dc2626;
+  --cg-chip-fg: #ffffff;
+  --cg-futuro: rgba(10, 10, 10, 0.045);
+}
+
+.cg {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.cg-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 18px;
+}
+
+.cg-sub {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.cg-periodos {
+  display: flex;
+  gap: 6px;
+}
+
+.cg-periodo {
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cg-periodo:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.cg-periodo[aria-pressed='true'] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.cg-corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cg-area-grafico {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.cg-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.cg-futuro {
+  fill: var(--cg-futuro);
+}
+
+.cg-grade {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.cg-limite {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.cg-zero {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  opacity: 0.8;
+}
+
+.cg-rotulo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.cg-titulo-painel {
+  fill: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.cg-linha {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.cg-fitness {
+  stroke: var(--cg-fitness);
+  stroke-width: 4;
+}
+
+.cg-fadiga {
+  stroke: var(--cg-fadiga);
+  stroke-width: 2.5;
+}
+
+.cg-peso {
+  stroke: var(--cg-peso);
+  stroke-width: 2.5;
+}
+
+.cg-tracejada {
+  stroke-dasharray: 7 6;
+}
+
+.cg-grad-topo {
+  stop-color: var(--cg-fitness);
+  stop-opacity: 0.28;
+}
+
+.cg-grad-base {
+  stop-color: var(--cg-fitness);
+  stop-opacity: 0;
+}
+
+.cg-area {
+  stroke: none;
+}
+
+.cg-barra {
+  opacity: 0.92;
+}
+
+.cg-barra-futura {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-dasharray: 3 2;
+}
+
+.cg-barra-ativa {
+  opacity: 1;
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  stroke-dasharray: none;
+}
+
+.cg-hoje {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.cg-hoje-rotulo {
+  fill: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.cg-guia {
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.cg-ponto {
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.cg-ponto-fitness {
+  fill: var(--cg-fitness);
+}
+
+.cg-ponto-fadiga {
+  fill: var(--cg-fadiga);
+}
+
+.cg-ponto-forma {
+  fill: var(--text-primary);
+}
+
+.cg-ponto-peso {
+  fill: var(--cg-peso);
+}
+
+/* Cores das zonas: a mesma classe pinta barra (traço e preenchimento), segmento da régua e chip */
+.cg-zona-transicao {
+  --cg-cor: var(--cg-zona-transicao);
+}
+
+.cg-zona-freshness {
+  --cg-cor: var(--cg-zona-freshness);
+}
+
+.cg-zona-neutral {
+  --cg-cor: var(--cg-zona-neutral);
+}
+
+.cg-zona-optimal {
+  --cg-cor: var(--cg-zona-optimal);
+}
+
+.cg-zona-overload {
+  --cg-cor: var(--cg-zona-overload);
+}
+
+.cg-barra {
+  fill: var(--cg-cor);
+  stroke: var(--cg-cor);
+}
+
+.cg-barra-futura {
+  fill: none;
+}
+
+.cg-barra.cg-barra-ativa {
+  stroke: var(--text-primary);
+}
+
+.cg-regua-seg,
+.cg-chip {
+  background: var(--cg-cor);
+}
+
+/* Sem peso cadastrado: o terceiro painel vira um estado vazio com link */
+.cg-peso-vazio {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  background: var(--surface-light);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+/* Tooltip flutuante: vira para a esquerda depois de ~65% da largura */
+.cg-dica {
+  position: absolute;
+  top: 6%;
+  z-index: 5;
+  min-width: 190px;
+  margin-left: 14px;
+  padding: 12px 14px;
+  background: var(--elevado, var(--bg-main));
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  font-size: 0.88rem;
+  pointer-events: none;
+}
+
+.cg-dica[hidden] {
+  display: none;
+}
+
+.cg-dica-esquerda {
+  transform: translateX(-100%);
+  margin-left: -14px;
+}
+
+.cg-dica-topo {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cg-dica-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 2px 0;
+}
+
+.cg-dica-fitness span {
+  color: var(--cg-fitness);
+  font-weight: 700;
+}
+
+.cg-dica-peso span {
+  color: var(--cg-peso);
+  font-weight: 700;
+}
+
+.cg-dica-linha strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Coluna lateral */
+.cg-lateral {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cg-cartao {
+  padding: 18px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.cg-dia-rotulo,
+.cg-mini-rotulo {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cg-mini-rotulo {
+  margin-top: 14px;
+}
+
+.cg-dia-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.cg-dia-forma {
+  margin: 6px 0 0;
+  font-family: 'Anton', 'Inter', sans-serif;
+  font-size: 56px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cg-chip {
+  padding: 3px 12px;
+  color: var(--cg-chip-fg);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.cg-dia-treino p {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.cg-icone {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cg-traco {
+  stroke-linecap: round;
+}
+
+.cg-esporte-ciclismo {
+  --cg-esporte: var(--cg-esporte-ciclismo);
+}
+
+.cg-esporte-corrida {
+  --cg-esporte: var(--cg-esporte-corrida);
+}
+
+.cg-esporte-outro {
+  --cg-esporte: var(--cg-esporte-outro);
+}
+
+.cg-esporte-preguica {
+  --cg-esporte: var(--cg-esporte-preguica);
+}
+
+.cg-dia-treino .cg-piada {
+  margin: 2px 0 0 26px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.cg-icone,
+.cg-traco {
+  stroke: var(--cg-esporte);
+}
+
+.cg-contador-fundo {
+  fill: var(--cg-esporte);
+}
+
+.cg-contador {
+  fill: var(--cg-chip-fg);
+  font-size: 6.5px;
+  font-weight: 700;
+}
+
+.cg-amostra-esporte {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cg-esporte);
+}
+
+.cg-treino-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cg-icone-solto {
+  flex: none;
+}
+
+.cg-dica-treino {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.cg-subtitulo {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+}
+
+.cg-regua {
+  position: relative;
+  height: 210px;
+}
+
+.cg-regua-barra {
+  display: flex;
+  flex-direction: column;
+  width: 16px;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cg-regua-seg {
+  display: block;
+}
+
+.cg-regua-marcador {
+  position: absolute;
+  left: -4px;
+  width: 24px;
+  height: 4px;
+  margin-top: -2px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--surface-light);
+}
+
+.cg-regua-nome,
+.cg-regua-limite {
+  position: absolute;
+  transform: translateY(-50%);
+  font-size: 0.82rem;
+}
+
+.cg-regua-nome {
+  left: 28px;
+  font-weight: 600;
+}
+
+.cg-regua-limite {
+  right: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cg-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.cg-legenda li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cg-amostra {
+  width: 22px;
+  height: 0;
+  border-top: 3px solid;
+}
+
+.cg-amostra-fitness {
+  border-color: var(--cg-fitness);
+  border-top-width: 4px;
+}
+
+.cg-amostra-fadiga {
+  border-color: var(--cg-fadiga);
+}
+
+.cg-amostra-peso {
+  border-color: var(--cg-peso);
+}
+
+.cg-amostra-plano {
+  border-color: var(--text-secondary);
+  border-top-style: dashed;
+}
+
+@media (max-width: 899px) {
+  .cg-corpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cg-lateral {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  .cg-legenda {
+    grid-column: 1 / -1;
+  }
+}

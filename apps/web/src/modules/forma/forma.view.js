@@ -58,9 +58,9 @@ export function render(raiz, sessao) {
       h(
         'ul',
         { class: 'legenda-series' },
-        h('li', null, h('span', { class: 'amostra amostra-fitness' }), ' Fitness (média de 42 dias)'),
+        h('li', null, h('span', { class: 'amostra amostra-fitness' }), ' Condicionamento (média de 42 dias)'),
         h('li', null, h('span', { class: 'amostra amostra-fadiga' }), ' Fadiga (média de 7 dias)'),
-        h('li', null, h('span', { class: 'amostra amostra-forma' }), ' Forma (Fitness − Fadiga do dia anterior)'),
+        h('li', null, h('span', { class: 'amostra amostra-forma' }), ' Forma (Condicionamento − Fadiga do dia anterior)'),
       ),
       h('h3', null, 'Faixas de Forma'),
       h(
@@ -101,7 +101,7 @@ export function render(raiz, sessao) {
       h(
         'div',
         { class: 'grid indicadores' },
-        indicador('Fitness hoje', formatarNumero(hoje.fitness, 1), 'média de 42 dias'),
+        indicador('Condicionamento hoje', formatarNumero(hoje.fitness, 1), 'média de 42 dias'),
         indicador('Fadiga hoje', formatarNumero(hoje.fadiga, 1), 'média de 7 dias'),
         indicador('Forma hoje', formatarNumero(hoje.forma, 1), FAIXAS_FORMA.find((f) => f.id === faixa.id).rotulo, 'forma'),
         indicador('Carga em 7 dias', formatarNumero(cargaRecente(completa, 7), 0), 'soma do HRSS'),
@@ -117,7 +117,7 @@ export function render(raiz, sessao) {
       'section',
       { class: 'card' },
       h('h1', null, 'Forma'),
-      h('p', { class: 'texto-secundario' }, 'Fitness, Fadiga e Forma calculados a partir do HRSS das suas atividades, no método do Elevate.'),
+      h('p', { class: 'texto-secundario' }, 'Condicionamento, Fadiga e Forma calculados a partir do HRSS das suas atividades, no método do Elevate.'),
       h(
         'div',
         { class: 'linha-botoes', role: 'group', 'aria-label': 'Período' },

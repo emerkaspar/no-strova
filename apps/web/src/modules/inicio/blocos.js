@@ -1,12 +1,11 @@
 import { totaisDaSemana } from '@no-strova/domain';
-import { recortarJanela } from '../../application/plano.js';
 import { destaqueDoInicio } from '../../application/inicio.js';
 import { h } from '../../utils/dom.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
-import { graficoForma } from '../../utils/graficoForma.js';
 import { pedirImportacao } from '../atividades/state.js';
 import { criarDicaZonas } from './dicaZonas.js';
+import { criarGraficoPrincipal } from './graficoPrincipal.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -79,29 +78,19 @@ export function blocoForma({ serie, carregou, semHrss = false }) {
 }
 
 /**
- * 2. Cartão "Carga e fadiga": Fitness e Fadiga dos últimos 21 dias, com o marcador de hoje e, se houver treinos
- * planejados, a projeção tracejada dos próximos dias. `serie` vem de montarProjecao (itens com `projetado`).
+ * 2. Gráfico principal: Condicionamento, fadiga e forma com o plano projetado, Peso e meta e a coluna lateral do
+ * dia selecionado (ver graficoPrincipal.js). `serie` vem de montarProjecao (itens com `projetado`).
  */
-export function blocoGrafico({ serie, carregou }) {
-  const temProjecao = serie.some((d) => d.projetado);
-  const legenda = h(
-    'ul',
-    { class: 'legenda-inline' },
-    h('li', null, h('span', { class: 'amostra amostra-fitness' }), ' Fitness'),
-    h('li', null, h('span', { class: 'amostra amostra-fadiga' }), ' Fadiga'),
-    temProjecao ? h('li', null, h('span', { class: 'amostra amostra-projecao' }), ' Projeção') : null,
-  );
-  const conteudo =
-    carregou && serie.length > 0
-      ? graficoForma(recortarJanela(serie, 21), { barras: false, faixas: false, series: ['fitness', 'fadiga'], marcarHoje: true, projecao: true })
-      : estadoVazio(carregou ? SEM_HRSS : 'Carregando…');
-  return h(
-    'section',
-    { class: 'card bloco-grafico' },
-    cabecalhoDoBloco('Carga e fadiga', legenda),
-    conteudo,
-    serie.length > 0 ? h('p', { class: 'bloco-rodape' }, h('a', { href: '#/forma' }, 'Ver gráfico completo')) : null,
-  );
+export function blocoGrafico({ serie, carregou, hoje, treinoDoDia, esportesDoDia, pesos = [], metaPeso = null }) {
+  if (!carregou || serie.length === 0) {
+    return h(
+      'section',
+      { class: 'card bloco-grafico' },
+      cabecalhoDoBloco('Condicionamento, fadiga e forma'),
+      estadoVazio(carregou ? SEM_HRSS : 'Carregando…'),
+    );
+  }
+  return criarGraficoPrincipal({ serie, hoje, treinoDoDia, esportesDoDia, pesos, metaPeso });
 }
 
 function tituloDaSemana(semana) {
@@ -113,14 +102,14 @@ function tituloDaSemana(semana) {
     : `Semana de ${dia(primeiro)} de ${mes(primeiro)} a ${dia(ultimo)} de ${mes(ultimo)}`;
 }
 
-function tituloDoDia(atividadesDoDia) {
+export function tituloDoDia(atividadesDoDia) {
   if (atividadesDoDia.length === 0) return null;
   if (atividadesDoDia.length > 1) return `${atividadesDoDia.length} atividades`;
   const a = atividadesDoDia[0];
   return `${ROTULO_ESPORTE[a.esporte] ?? a.esporte}${a.distanciaM ? ` ${formatarDistancia(a.distanciaM)}` : ''}`;
 }
 
-function tituloDoTreino(treinosDoDia) {
+export function tituloDoTreino(treinosDoDia) {
   if (treinosDoDia.length === 0) return null;
   if (treinosDoDia.length > 1) return `${treinosDoDia.length} treinos`;
   const t = treinosDoDia[0];

@@ -57,7 +57,7 @@ export function destaqueDoInicio(serie, { semHrss = false } = {}) {
     chip: faixa.chip,
     titulo: faixa.resumo,
     estatisticas: [
-      { id: 'fitness', rotulo: 'Fitness', valor: formatarNumero(hoje.fitness, 1), nota: variacaoEm7Dias(serie, 'fitness') },
+      { id: 'fitness', rotulo: 'Condicionamento', valor: formatarNumero(hoje.fitness, 1), nota: variacaoEm7Dias(serie, 'fitness') },
       { id: 'fadiga', rotulo: 'Fadiga', valor: formatarNumero(hoje.fadiga, 1), nota: 'média de 7 dias' },
       { id: 'amanha', rotulo: 'Forma amanhã', valor: formatarForma(formaAmanha, 1), nota: faixaDaForma(formaAmanha).chip },
       {

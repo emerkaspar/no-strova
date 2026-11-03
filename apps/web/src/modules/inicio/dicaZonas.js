@@ -41,7 +41,7 @@ export function criarDicaZonas({ zonaAtual, rotuloChip, valor, resumo }) {
     'div',
     { class: 'dica-zonas', id, role: 'tooltip', hidden: true },
     h('p', { class: 'dica-zonas-titulo' }, 'Zonas de Forma'),
-    h('p', { class: 'dica-zonas-texto' }, 'A Forma é o Fitness menos a Fadiga de ontem. A faixa em que ela cai mostra como o seu treino está sendo absorvido.'),
+    h('p', { class: 'dica-zonas-texto' }, 'A Forma é o Condicionamento menos a Fadiga de ontem. A faixa em que ela cai mostra como o seu treino está sendo absorvido.'),
     h('ul', { class: 'zona-lista' }, ...linhas),
   );
 

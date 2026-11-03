@@ -85,7 +85,7 @@ describe('graficoForma', () => {
     const dica = c.querySelector('.grafico-dica');
     expect(dica.hidden).toBe(false);
     expect(dica.textContent).toMatch(/\d{2}\/\d{2}\/2026/);
-    expect(dica.textContent).toContain('Fitness');
+    expect(dica.textContent).toContain('Condicionamento');
     expect(dica.textContent).toContain('Forma');
     expect(dica.textContent).toContain('Estresse do dia');
     area.dispatchEvent(new MouseEvent('pointerleave'));
@@ -190,12 +190,12 @@ describe('tela de forma', () => {
     mocks.dias = treinos;
     render(raiz, sessao);
     const texto = raiz.textContent;
-    expect(texto).toContain('Fitness hoje');
+    expect(texto).toContain('Condicionamento hoje');
     expect(texto).toContain('Fadiga hoje');
     expect(texto).toContain('Forma hoje');
     expect(texto).toContain('Carga em 7 dias');
     expect(raiz.querySelectorAll('svg polyline')).toHaveLength(3);
-    for (const faixa of ['Transição', 'Freshness', 'Neutral', 'Optimal', 'Overload']) expect(texto).toContain(faixa);
+    for (const faixa of ['Transição', 'Descansado', 'Neutra', 'Ótima', 'Sobrecarga']) expect(texto).toContain(faixa);
     expect(mocks.reconstruir).not.toHaveBeenCalled();
   });
 

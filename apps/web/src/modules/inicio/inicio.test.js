@@ -75,7 +75,7 @@ describe('Início sem dados: cada bloco mostra um estado vazio curto', () => {
 
   it('mantém a ordem dos blocos', () => {
     const ordem = [...raiz.querySelectorAll('.inicio > * > *, .inicio > * ')].filter((el) => el.matches('section')).map((el) => el.className.split(' ').pop());
-    expect(ordem).toEqual(['hero-modo-vazio', 'bloco-grafico', 'bloco-semana', 'bloco-atividades', 'bloco-peso', 'bloco-sugestao']);
+    expect(ordem).toEqual(['hero-modo-vazio', 'bloco-semana', 'bloco-grafico', 'bloco-atividades', 'bloco-peso', 'bloco-sugestao']);
   });
 
   it('destaque: convida a começar, sem número, e o botão abre a importação', () => {
@@ -92,7 +92,7 @@ describe('Início sem dados: cada bloco mostra um estado vazio curto', () => {
   });
 
   it('gráfico, semana, atividades, peso e sugestão têm texto de estado vazio', () => {
-    expect(texto('.bloco-grafico h2')).toBe('Carga e fadiga');
+    expect(texto('.bloco-grafico h2')).toBe('Condicionamento, fadiga e forma');
     expect(texto('.bloco-grafico .vazio-curto')).toContain('Disponível quando houver atividades com HRSS');
     expect(raiz.querySelector('.bloco-grafico svg')).toBeNull();
     expect(texto('.bloco-semana .vazio-curto')).toContain('Nenhum treino nesta semana');
@@ -134,7 +134,7 @@ describe('Destaque do Início (bloco colorido pela zona de Forma)', () => {
     expect(raiz.querySelector('.hero-chamada')).toBeNull();
 
     const rotulos = [...raiz.querySelectorAll('.hero-dado-rotulo')].map((el) => el.textContent);
-    expect(rotulos).toEqual(['Fitness', 'Fadiga', 'Forma amanhã', 'Último treino']);
+    expect(rotulos).toEqual(['Condicionamento', 'Fadiga', 'Forma amanhã', 'Último treino']);
     expect(texto('.hero-dado-ultimo .hero-dado-valor')).toBe('Hoje');
     expect(texto('.hero-dado-ultimo .hero-dado-nota')).toBe('51 de HRSS');
     expect(texto('.hero-dado-amanha .hero-dado-valor')).toMatch(/^[+−]?\d+,\d$/);
@@ -172,7 +172,7 @@ describe('Destaque do Início (bloco colorido pela zona de Forma)', () => {
     expect(texto('.hero-dado-ultimo .hero-dado-valor')).toBe('Há 9 dias');
   });
 
-  it('mostra Fitness com a variação em 7 dias e Fadiga', () => {
+  it('mostra Condicionamento com a variação em 7 dias e Fadiga', () => {
     mocks.dias = [{ data: '2026-11-04', estresse: 51 }];
     render(raiz, sessao);
     expect(texto('.hero-dado-fitness .hero-dado-nota')).toMatch(/^▲ \d+,\d em 7 dias$/);
@@ -201,16 +201,42 @@ describe('Início com dados', () => {
     render(raiz, sessao);
   });
 
-  it('Carga e fadiga: Fitness e Fadiga com o marcador de hoje e link para o gráfico completo', () => {
-    const grafico = raiz.querySelector('.bloco-grafico');
-    expect(grafico.querySelectorAll('polyline')).toHaveLength(2);
-    expect(grafico.querySelector('.serie-fitness')).not.toBeNull();
-    expect(grafico.querySelector('.serie-fadiga')).not.toBeNull();
-    expect(grafico.querySelector('.serie-forma')).toBeNull();
-    expect(grafico.querySelector('rect.faixa')).toBeNull();
-    expect(grafico.querySelector('.grafico-hoje-rotulo').textContent).toBe('Hoje');
-    expect(grafico.querySelector('.legenda-inline').textContent).toContain('Fitness');
-    expect(grafico.querySelector('a[href="#/forma"]')).not.toBeNull();
+  it('Gráfico principal: três painéis, barras de Forma por zona, marcador de hoje e régua de zonas', () => {
+    const g = raiz.querySelector('.bloco-grafico');
+    expect(g.querySelector('h2').textContent).toBe('Condicionamento, fadiga e forma');
+    expect(g.querySelectorAll('polyline.cg-fitness')).toHaveLength(1);
+    expect(g.querySelectorAll('polyline.cg-fadiga')).toHaveLength(1);
+    expect(g.querySelectorAll('rect.cg-barra').length).toBeGreaterThan(10);
+    expect([...g.querySelectorAll('.cg-titulo-painel')].map((t) => t.textContent)).toEqual(['CONDICIONAMENTO E FADIGA', 'FORMA', 'PESO E META']);
+    expect([...g.querySelectorAll('.cg-regua-nome')].map((t) => t.textContent)).toEqual(['Transição', 'Descansado', 'Neutra', 'Ótima', 'Sobrecarga']);
+    expect([...g.querySelectorAll('.cg-regua-limite')].map((t) => t.textContent)).toEqual(['+25', '+5', '−10', '−30']);
+    expect(g.querySelectorAll('.cg-periodo')).toHaveLength(4);
+    expect(g.querySelector('.cg-periodo[aria-pressed="true"]').textContent).toBe('10 sem');
+  });
+
+  it('sem peso cadastrado, o painel de peso mostra o estado vazio com link para cadastrar', () => {
+    const vazio = raiz.querySelector('.bloco-grafico .cg-peso-vazio');
+    expect(vazio.textContent).toContain('Sem registros de peso');
+    expect(vazio.querySelector('a').getAttribute('href')).toBe('#/peso');
+  });
+
+  it('a coluna lateral começa em Hoje: Forma em número grande, chip da zona e treino do dia (ou Descanso)', () => {
+    const lateral = raiz.querySelector('.cg-lateral');
+    expect(lateral.querySelector('.cg-dia-rotulo').textContent).toBe('Hoje · qua, 4 nov');
+    expect(lateral.querySelector('.cg-dia-forma').textContent).toMatch(/^[+-]?[0-9]+,[0-9]$/);
+    expect(lateral.querySelector('.cg-chip').textContent).toMatch(/^(Transição|Descansado|Neutra|Ótima|Sobrecarga)$/);
+    expect(lateral.querySelector('.cg-dia-treino .cg-treino-linha').textContent).toBe('Descanso');
+    expect(lateral.querySelector('.cg-regua-marcador')).not.toBeNull();
+    expect(lateral.querySelector('.cg-legenda').textContent).toContain('Plano e meta');
+  });
+
+  it('o seletor troca o período e lembra a escolha', () => {
+    const botoes = [...raiz.querySelectorAll('.cg-periodo')];
+    const barrasAntes = raiz.querySelectorAll('rect.cg-barra').length;
+    botoes[0].click(); // 6 sem
+    expect(raiz.querySelector('.cg-periodo[aria-pressed="true"]').textContent).toBe('6 sem');
+    expect(raiz.querySelectorAll('rect.cg-barra').length).toBeLessThan(barrasAntes);
+    botoes[1].click();
   });
 
   it('Semana: título, 7 colunas, realizado cheio, descanso mínimo e hoje destacado', () => {
@@ -316,22 +342,48 @@ describe('Início com plano de treino', () => {
     expect(raiz.querySelector('.bloco-semana a[href="#/plano"]').textContent).toBe('Planejar a semana');
   });
 
-  it('o gráfico ganha a projeção tracejada dos próximos dias e a legenda "Projeção"', () => {
+  it('o gráfico ganha a projeção tracejada dos próximos dias, com barras só de contorno e o fundo de plano', () => {
     mocks.treinos = [planejado()];
     render(raiz, sessao);
     const grafico = raiz.querySelector('.bloco-grafico');
-    expect(grafico.querySelectorAll('polyline')).toHaveLength(4); // fitness e fadiga: cheias + tracejadas
-    expect(grafico.querySelectorAll('polyline.serie-projetada')).toHaveLength(2);
-    expect(grafico.querySelector('.grafico-projecao-rotulo')).not.toBeNull();
-    expect(grafico.querySelector('.legenda-inline').textContent).toContain('Projeção');
+    expect(grafico.querySelectorAll('polyline.cg-tracejada').length).toBe(2); // condicionamento e fadiga
+    expect(grafico.querySelectorAll('rect.cg-barra-futura').length).toBeGreaterThan(0);
+    expect(grafico.querySelector('.cg-futuro')).not.toBeNull();
+    expect(grafico.querySelector('.cg-hoje-rotulo').textContent).toBe('HOJE');
   });
 
-  it('sem plano, o gráfico não tem projeção nem a legenda', () => {
+  it('sem plano, o gráfico não tem divisória de hoje nem linhas tracejadas', () => {
     mocks.treinos = [];
     render(raiz, sessao);
     const grafico = raiz.querySelector('.bloco-grafico');
-    expect(grafico.querySelector('polyline.serie-projetada')).toBeNull();
-    expect(grafico.querySelector('.legenda-inline').textContent).not.toContain('Projeção');
+    expect(grafico.querySelector('polyline.cg-tracejada')).toBeNull();
+    expect(grafico.querySelector('.cg-futuro')).toBeNull();
+  });
+
+  it('o treino do dia na coluna lateral vem do plano; passar o mouse num dia mostra o tooltip e atualiza a coluna', () => {
+    mocks.treinos = [planejado()];
+    render(raiz, sessao);
+    const area = raiz.querySelector('.cg-area-grafico');
+    const svg = area.querySelector('svg');
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 760, height: 500, right: 760, bottom: 500 });
+    const mover = (x, tipo = 'mouse') => area.dispatchEvent(Object.assign(new Event('pointermove', { bubbles: true }), { clientX: x, pointerType: tipo }));
+    const dica = raiz.querySelector('.cg-dica');
+    expect(dica.hidden).toBe(true);
+    // 10 sem: 42 dias realizados + hoje + projeção; o último ponto é o 06/11 (planejado)
+    mover(757);
+    expect(dica.hidden).toBe(false);
+    expect(dica.querySelector('.cg-dica-topo').textContent).toMatch(/^Planejado · [a-zá]{3}, [0-9]+ nov$/);
+    expect(dica.textContent).toContain('Condicionamento');
+    expect(dica.textContent).toContain('Fadiga');
+    expect(dica.classList.contains('cg-dica-esquerda')).toBe(true); // depois de ~65% vira para a esquerda
+    expect(raiz.querySelector('.cg-dia-rotulo').textContent).toMatch(/^Planejado/);
+    expect(raiz.querySelectorAll('.cg-barra-ativa')).toHaveLength(1);
+    mover(60);
+    expect(dica.classList.contains('cg-dica-esquerda')).toBe(false);
+    expect(dica.querySelector('.cg-dica-topo').textContent).toMatch(/^Realizado/);
+    area.dispatchEvent(Object.assign(new Event('pointerleave'), { pointerType: 'mouse' }));
+    expect(dica.hidden).toBe(true);
+    expect(raiz.querySelector('.cg-dia-rotulo').textContent).toBe('Hoje · qua, 4 nov');
   });
 
   it('o destaque "Forma hoje" não muda com o plano', () => {

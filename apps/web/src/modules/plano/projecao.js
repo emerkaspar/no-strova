@@ -13,7 +13,7 @@ export function criarCartaoProjecao({ serie, meta, avaliacao }) {
   const legenda = h(
     'ul',
     { class: 'legenda-inline' },
-    h('li', null, h('span', { class: 'amostra amostra-fitness' }), ' Fitness'),
+    h('li', null, h('span', { class: 'amostra amostra-fitness' }), ' Condicionamento'),
     h('li', null, h('span', { class: 'amostra amostra-fadiga' }), ' Fadiga'),
     h('li', null, h('span', { class: 'amostra amostra-forma' }), ' Forma'),
     h('li', null, h('span', { class: 'amostra amostra-projecao' }), ' Projeção'),
@@ -34,7 +34,7 @@ export function criarCartaoProjecao({ serie, meta, avaliacao }) {
         projecao: true,
         meta: meta && avaliacao && avaliacao.estado !== 'sem-dados' ? meta : null,
       }),
-      temProjecao ? null : h('p', { class: 'texto-secundario' }, 'Planeje treinos para ver a projeção do Fitness, da Fadiga e da Forma nos próximos dias.'),
+      temProjecao ? null : h('p', { class: 'texto-secundario' }, 'Planeje treinos para ver a projeção do Condicionamento, da Fadiga e da Forma nos próximos dias.'),
     );
   }
 

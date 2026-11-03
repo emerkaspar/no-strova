@@ -1,4 +1,4 @@
-import { estresseDoTreino, inicioDaSemana, montarSemana } from '@no-strova/domain';
+import { estresseDoTreino, inicioDaSemana, montarSemana, somarDias } from '@no-strova/domain';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde, observarUltimasAtividades } from '../../infrastructure/atividadesRepo.js';
@@ -7,32 +7,49 @@ import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarTreinos } from '../../infrastructure/planoRepo.js';
 import { h } from '../../utils/dom.js';
 import { hojeIso } from '../../utils/formatters.js';
-import { blocoAtividades, blocoForma, blocoGrafico, blocoPeso, blocoSemana, blocoSugestao } from './blocos.js';
+import { blocoAtividades, blocoForma, blocoGrafico, blocoPeso, blocoSemana, blocoSugestao, tituloDoDia, tituloDoTreino } from './blocos.js';
+import { DIAS_DE_PLANO } from './graficoPrincipal.js';
 
-/** A projeção do Início mostra os próximos 14 dias (a tela do Plano mostra o horizonte completo). */
-const DIAS_DE_PROJECAO = 14;
+/** Dias de histórico de atividades e treinos para nomear o treino de cada dia no gráfico (cobre o período de 10 sem). */
+const DIAS_DE_HISTORICO = 70;
 
 /**
- * Início: Forma hoje, gráfico de Fitness/Fadiga com a projeção do plano, semana atual (realizado e planejado)
- * e uma linha com últimas atividades, peso e sugestão. Cada bloco mostra um estado vazio curto sem dados.
+ * Início: Forma hoje, semana atual (realizado e planejado), gráfico de Condicionamento, fadiga e forma com a
+ * projeção do plano, e uma linha com últimas atividades, peso e sugestão. Cada bloco mostra um estado vazio curto
+ * sem dados.
  */
 export function render(raiz, sessao) {
   const hoje = hojeIso();
   const segunda = inicioDaSemana(hoje);
+  const desdeHistorico = somarDias(hoje, -DIAS_DE_HISTORICO);
   const dados = {
     dias: [],
     ultimas: [],
-    daSemana: [],
+    atividades: [],
     treinos: [],
     configs: [],
-    carregou: { dias: false, ultimas: false, semana: false, treinos: false, configs: false },
+    carregou: { dias: false, ultimas: false, atividades: false, treinos: false, configs: false },
   };
   let ativa = true;
 
   const topo = h('div', { class: 'inicio-topo' });
-  const semana = h('div');
+  const grafico = h('div');
   const linha = h('div', { class: 'inicio-linha' });
-  raiz.replaceChildren(h('div', { class: 'inicio' }, topo, semana, linha));
+  raiz.replaceChildren(h('div', { class: 'inicio' }, topo, grafico, linha));
+
+  /** Treino do dia: o que foi feito e o que está planejado (linhas com texto e esporte), ou null para "Descanso". */
+  function treinoDoDia(data) {
+    const feitas = dados.atividades.filter((a) => a.data === data);
+    const planejados = dados.treinos.filter((t) => t.data === data && t.status === 'planejado' && data >= hoje);
+    const detalhe = (t) => `${tituloDoTreino([t])} · ${t.duracaoMin} min`;
+    const linhas = [];
+    if (feitas.length > 0) linhas.push({ texto: planejados.length > 0 ? `Feito: ${tituloDoDia(feitas)}` : tituloDoDia(feitas), esporte: feitas[0].esporte });
+    else if (dados.dias.some((d) => d.data === data && d.estresse > 0)) linhas.push({ texto: 'Treino realizado', esporte: 'outro' });
+    for (const t of planejados) linhas.push({ texto: feitas.length > 0 ? `Planejado: ${detalhe(t)}` : detalhe(t), esporte: t.esporte });
+    return linhas.length > 0 ? linhas : null;
+  }
+
+  const esportesDoDia = (data) => dados.atividades.filter((a) => a.data === data).map((a) => a.esporte);
 
   function desenhar() {
     if (!ativa) return;
@@ -41,7 +58,7 @@ export function render(raiz, sessao) {
     const serieReal = c.dias ? montarSerie(dados.dias, hoje) : [];
     const planoPronto = c.dias && c.treinos && c.configs;
     const serieComPlano = planoPronto
-      ? montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: null, hoje, limiteDias: DIAS_DE_PROJECAO }).serie
+      ? montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: null, hoje, limiteDias: DIAS_DE_PLANO }).serie
       : [];
 
     // Treinos ainda por fazer nesta semana (hoje em diante), com o estresse estimado.
@@ -50,16 +67,14 @@ export function render(raiz, sessao) {
 
     topo.replaceChildren(
       blocoForma({ serie: serieReal, carregou: c.dias, semHrss: c.dias && dados.dias.length > 0 && serieReal.length === 0 }),
-      blocoGrafico({ serie: serieComPlano, carregou: planoPronto }),
-    );
-    semana.replaceChildren(
       blocoSemana({
         semana: montarSemana(hoje, { realizado: dados.dias.filter((d) => d.data >= segunda), planejado }),
-        atividades: dados.daSemana,
+        atividades: dados.atividades.filter((a) => a.data >= segunda),
         treinos: treinosDaSemana,
-        carregou: c.dias && c.semana && c.treinos && c.configs,
+        carregou: c.dias && c.atividades && c.treinos && c.configs,
       }),
     );
+    grafico.replaceChildren(blocoGrafico({ serie: serieComPlano, carregou: planoPronto, hoje, treinoDoDia, esportesDoDia }));
     linha.replaceChildren(
       blocoAtividades({ atividades: dados.ultimas, carregou: c.ultimas }),
       blocoPeso(),
@@ -87,8 +102,8 @@ export function render(raiz, sessao) {
   const cancelar = [
     ouvir('dias', 'dias', (ok, erro) => observarEstresseDiario(sessao.uid, ok, erro)),
     ouvir('ultimas', 'ultimas', (ok, erro) => observarUltimasAtividades(sessao.uid, 5, ok, erro)),
-    ouvir('daSemana', 'semana', (ok, erro) => observarAtividadesDesde(sessao.uid, segunda, ok, erro)),
-    ouvir('treinos', 'treinos', (ok, erro) => observarTreinos(sessao.uid, segunda, ok, erro)),
+    ouvir('atividades', 'atividades', (ok, erro) => observarAtividadesDesde(sessao.uid, desdeHistorico, ok, erro)),
+    ouvir('treinos', 'treinos', (ok, erro) => observarTreinos(sessao.uid, desdeHistorico, ok, erro)),
     ouvir('configs', 'configs', (ok, erro) => observarConfigs(sessao.uid, ok, erro)),
   ];
 

@@ -33,7 +33,7 @@ describe('conteúdo do hint', () => {
 
   it('explica a Forma e lista as cinco zonas, da mais alta para a mais baixa, com intervalo e significado', () => {
     expect(cartao.querySelector('.dica-zonas-titulo').textContent).toBe('Zonas de Forma');
-    expect(cartao.querySelector('.dica-zonas-texto').textContent).toContain('Fitness menos a Fadiga de ontem');
+    expect(cartao.querySelector('.dica-zonas-texto').textContent).toContain('Condicionamento menos a Fadiga de ontem');
     const linhas = [...cartao.querySelectorAll('.zona-linha')];
     expect(linhas).toHaveLength(5);
     linhas.forEach((linha, i) => {
@@ -44,7 +44,7 @@ describe('conteúdo do hint', () => {
       expect(linha.querySelector(`.zona-amostra-${f.id}`)).not.toBeNull();
     });
     expect(linhas.map((l) => l.querySelector('strong').textContent)).toEqual([
-      'Zona de transição', 'Zona fresca', 'Zona neutra', 'Zona ótima', 'Zona de sobrecarga',
+      'Zona de transição', 'Zona descansada', 'Zona neutra', 'Zona ótima', 'Zona de sobrecarga',
     ]);
   });
 

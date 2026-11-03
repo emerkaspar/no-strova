@@ -17,8 +17,8 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 
 ## Início
 
-- **Forma hoje (bloco colorido):** o número grande é a sua Forma de hoje (Fitness menos Fadiga **de ontem**, por isso um treino feito hoje só pesa amanhã). A **cor do bloco muda com a zona**: laranja na zona ótima, verde na fresca, cinza na neutra, azul na de transição e vermelho na de sobrecarga. Passe o mouse (ou toque) no **nome da zona** ou no **número** para ver uma explicação das cinco zonas, com a sua destacada e uma frase de incentivo; o cartão abre ao lado do bloco. Quatro dados menores completam: **Fitness** (com a variação em 7 dias), **Fadiga**, **Forma amanhã** (já com o treino de hoje) e **Último treino**. O botão **Planejar treino** leva ao Plano.
-- **Carga e fadiga:** Fitness e Fadiga dos últimos dias, com a marca "Hoje". Com treinos planejados, os próximos 14 dias aparecem tracejados (a projeção do plano).
+- **Forma hoje (bloco colorido):** o número grande é a sua Forma de hoje (Condicionamento menos Fadiga **de ontem**, por isso um treino feito hoje só pesa amanhã). A **cor do bloco muda com a zona**: laranja na zona ótima, verde na descansada, cinza na neutra, azul na de transição e vermelho na de sobrecarga. Passe o mouse (ou toque) no **nome da zona** ou no **número** para ver uma explicação das cinco zonas, com a sua destacada e uma frase de incentivo; o cartão abre ao lado do bloco. Quatro dados menores completam: **Condicionamento** (com a variação em 7 dias), **Fadiga**, **Forma amanhã** (já com o treino de hoje) e **Último treino**. O botão **Planejar treino** leva ao Plano.
+- **Condicionamento, fadiga e forma:** gráfico com três painéis no mesmo calendário: **Condicionamento e fadiga** (linhas), **Forma** (barras coloridas pela zona do dia) e **Peso e meta** (aparece quando houver pesagens). Passado em linha cheia; com treinos planejados, os dias seguintes aparecem tracejados, sobre um fundo mais claro depois da marca "Hoje". Escolha o período em **6 sem, 10 sem, 6 meses ou 1 ano**. Passe o mouse (ou toque) num dia para ver o Condicionamento, a Fadiga, a Forma e o peso daquele dia; ao lado, o cartão mostra a Forma do dia, o treino e uma **régua de zonas** com a posição dela.
 - **Semana atual:** de segunda a domingo, uma coluna por dia com o estresse (HRSS) realizado (barra cheia). Dias sem treino mostram uma barrinha mínima. Os treinos planejados aparecem em barra tracejada, com o estresse estimado ("~48 · plano").
 - **Últimas atividades:** as cinco mais recentes, com data, esporte, duração, distância, FC média e HRSS.
 - **Peso e Sugestão:** mostram "disponível quando houver…" até as telas de peso e de plano existirem.
@@ -62,21 +62,21 @@ Usa as calorias do arquivo quando existem. Sem elas, o app **estima** pela FC, p
 ### Detalhe, download e exclusão
 Clique na data de uma atividade para ver os indicadores e o gráfico de frequência cardíaca (passe o mouse para ver cada ponto). Dali você pode **baixar o arquivo original** e **excluir** a atividade (o arquivo também é apagado).
 
-## Forma (Fitness, Fadiga e Forma)
+## Forma (Condicionamento, Fadiga e Forma)
 
 A tela **Forma** (abra pelo link **Ver gráfico completo** do Início) mostra como o seu treino se acumula, a partir do HRSS das atividades:
 
-- **Fitness:** a carga acumulada nos últimos ~42 dias. Sobe com treino consistente.
+- **Condicionamento:** a carga acumulada nos últimos ~42 dias. Sobe com treino consistente.
 - **Fadiga:** a carga dos últimos ~7 dias. Sobe rápido com treino duro e cai rápido com descanso.
-- **Forma:** Fitness menos Fadiga **do dia anterior**. Valores negativos indicam que você está treinando forte; positivos, que está descansado.
+- **Forma:** Condicionamento menos Fadiga **do dia anterior**. Valores negativos indicam que você está treinando forte; positivos, que está descansado.
 
-A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25, pausa longa), **Freshness** (+5 a +25, pronto para competir), **Neutral** (−10 a +5, recuperação), **Optimal** (−30 a −10, bom para construir Fitness) e **Overload** (abaixo de −30, descanse).
+A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25, pausa longa), **Descansado** (+5 a +25, pronto para competir), **Neutra** (−10 a +5, recuperação), **Ótima** (−30 a −10, bom para construir Condicionamento) e **Sobrecarga** (abaixo de −30, descanse).
 
 Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
 
 ## Plano de treino
 
-Em **Plano** você organiza os treinos que ainda vai fazer e vê, na hora, como eles mexem no Fitness, na Fadiga e na Forma.
+Em **Plano** você organiza os treinos que ainda vai fazer e vê, na hora, como eles mexem no Condicionamento, na Fadiga e na Forma.
 
 - **Criar um treino:** clique em **Novo treino** (ou no **+** de um dia), escolha a data, o esporte, a **duração** e a **zona predominante** (Z1 a Z5). O app **estima o estresse** (HRSS) pela zona e pela duração; se você já sabe o valor, informe em "Estresse informado". Para a estimativa funcionar, cadastre a configuração de FC em Configuração.
 - **Mudar de dia:** arraste o treino para outro dia do calendário. No celular, abra o treino e troque a data.
