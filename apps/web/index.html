@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="description" content="Planejamento e análise de treino para quem pedala e corre." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <title>No Strova</title>
+    <script>
+      // Aplica o tema salvo antes da primeira pintura, para não piscar.
+      try {
+        var t = localStorage.getItem('no-strova:tema');
+        if (t === 'claro' || t === 'escuro') document.documentElement.dataset.tema = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>O No Strova precisa de JavaScript para funcionar.</noscript>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

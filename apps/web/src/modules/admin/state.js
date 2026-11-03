@@ -1,0 +1,13 @@
+/** Estado da fila de aprovação: busca e ordenação da tabela. */
+export const estadoAprovacoes = {
+  busca: '',
+  ordem: { campo: 'criadoEm', direcao: 'asc' },
+};
+
+export function alternarOrdem(campo) {
+  const atual = estadoAprovacoes.ordem;
+  estadoAprovacoes.ordem = {
+    campo,
+    direcao: atual.campo === campo && atual.direcao === 'asc' ? 'desc' : 'asc',
+  };
+}

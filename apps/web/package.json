@@ -1,0 +1,24 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode homolog",
+    "dev:emulator": "vite --mode emulator",
+    "build:homolog": "vite build --mode homolog",
+    "build:prod": "vite build --mode production",
+    "icones": "node scripts/gerar-icones.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@no-strova/domain": "*",
+    "firebase": "^12.19.0",
+    "workbox-window": "^7.4.1"
+  },
+  "devDependencies": {
+    "vite": "^7.3.7",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^3.2.7"
+  }
+}

@@ -1,0 +1,350 @@
+/* Tema por CSS variables. Claro por padrão; escuro pelo sistema ou pela escolha do usuário. */
+:root {
+  --bg-main: #f6f7fb;
+  --surface: #ffffff;
+  --surface-light: #eef1f7;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border: #d9dee8;
+  --primary: #2563eb;
+  --primary-contrast: #ffffff;
+  --danger: #b91c1c;
+  --success: #15803d;
+  --radius: 12px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    --bg-main: #0b1120;
+    --surface: #111a2e;
+    --surface-light: #18233b;
+    --text-primary: #e5e9f2;
+    --text-secondary: #9aa6bd;
+    --border: #27334d;
+    --primary: #5b8def;
+    --primary-contrast: #0b1120;
+    --danger: #f87171;
+    --success: #4ade80;
+    color-scheme: dark;
+  }
+}
+
+:root[data-tema='escuro'] {
+  --bg-main: #0b1120;
+  --surface: #111a2e;
+  --surface-light: #18233b;
+  --text-primary: #e5e9f2;
+  --text-secondary: #9aa6bd;
+  --border: #27334d;
+  --primary: #5b8def;
+  --primary-contrast: #0b1120;
+  --danger: #f87171;
+  --success: #4ade80;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+h1,
+h2 {
+  margin: 0 0 12px;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.2rem;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+a {
+  color: var(--primary);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Layout */
+.container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.centralizado {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.centralizado .card {
+  width: 100%;
+  max-width: 440px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: 20px;
+  }
+}
+
+.texto-secundario {
+  color: var(--text-secondary);
+}
+
+.marca {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.01em;
+}
+
+/* Cabeçalho do app */
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header .container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.app-nav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.app-nav a {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.app-nav a[aria-current='page'] {
+  background: var(--surface-light);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.app-acoes {
+  display: flex;
+  gap: 8px;
+}
+
+/* Formulários */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.campo label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='date'],
+input[type='search'] {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.dica {
+  color: var(--text-secondary);
+}
+
+.aceite {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.aceite input {
+  margin-top: 4px;
+}
+
+/* Botões */
+.btn {
+  appearance: none;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-contrast);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-bloco {
+  width: 100%;
+}
+
+.btn-secundario {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.btn-perigo {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.alternar {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* Mensagens */
+.mensagem {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-light);
+}
+
+.mensagem-erro {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.mensagem-ok {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+/* Tabela */
+.barra-tabela {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.barra-tabela input {
+  max-width: 320px;
+}
+
+.tabela-wrap {
+  overflow-x: auto;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+.tabela th,
+.tabela td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.tabela th button {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tabela .acoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vazio {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,9 @@
+import { observarDocumento } from '../core/db.js';
+
+/**
+ * Observa o perfil users/{uid}. Cancele o listener ao sair da tela.
+ * @returns {() => void}
+ */
+export function observarPerfil(uid, aoDados, aoErro) {
+  return observarDocumento(`users/${uid}`, aoDados, aoErro);
+}

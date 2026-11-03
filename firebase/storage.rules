@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Arquivos de atividade: atividades/{userId}/{atividadeId}/original.{fit|gpx|tcx}
+//  - Só o dono, aprovado e ativo, cria o arquivo; nunca sobrescreve (update negado).
+//  - Leitura direta negada: a entrega é por URL assinada gerada em callable.
+//  - Exclusão só pelo Admin SDK.
+//  - O contentType não é barreira (navegadores enviam application/octet-stream para .fit);
+//    o conteúdo é validado na callable processarArquivoAtividade, que apaga o que for inválido.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function acessoLiberado() {
+      let perfil = firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+      return perfil.aprovado == true && perfil.ativo == true;
+    }
+
+    match /atividades/{userId}/{atividadeId}/{arquivo} {
+      allow create: if request.auth != null
+        && resource == null
+        && request.auth.uid == userId
+        && atividadeId.matches('[A-Za-z0-9_-]{8,40}')
+        && arquivo.matches('original[.](fit|gpx|tcx)')
+        && request.resource.size > 0
+        && request.resource.size <= 15 * 1024 * 1024
+        && acessoLiberado();
+
+      allow read, update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

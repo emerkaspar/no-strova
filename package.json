@@ -1,0 +1,35 @@
+{
+  "name": "no-strova",
+  "private": true,
+  "version": "0.1.0",
+  "description": "No Strova: planejamento e análise de treino para quem pedala e corre.",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "dev:emulator": "npm run dev:emulator -w apps/web",
+    "emulators": "firebase emulators:start --project demo-no-strova",
+    "test": "npm test --workspaces --if-present",
+    "test:rules": "firebase emulators:exec --project demo-no-strova --only firestore,storage \"vitest run --root firebase\"",
+    "build:homolog": "npm run build:homolog -w apps/web && npm run build -w apps/functions",
+    "build:prod": "npm run build:prod -w apps/web && npm run build -w apps/functions",
+    "deploy:hosting:homolog": "npm run build:homolog -w apps/web && firebase deploy --only hosting --project homolog",
+    "deploy:hosting:prod": "npm run build:prod -w apps/web && firebase deploy --only hosting --project production",
+    "deploy:functions:homolog": "firebase deploy --only functions --project homolog",
+    "deploy:functions:prod": "firebase deploy --only functions --project production",
+    "deploy:rules:homolog": "firebase deploy --only firestore:rules,firestore:indexes,storage --project homolog",
+    "deploy:rules:prod": "firebase deploy --only firestore:rules,firestore:indexes,storage --project production",
+    "admin:promover": "node scripts/promover-admin.mjs"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^14.27.0",
+    "vitest": "^3.2.7"
+  }
+}

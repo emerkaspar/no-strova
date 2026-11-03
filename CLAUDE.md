@@ -7,7 +7,7 @@ Aplicação nova: **No Strova**, sem relação de negócio com nenhum projeto an
 | Camada | Tecnologia |
 |---|---|
 | Frontend | Vite + JavaScript vanilla modular (sem React/Vue/Angular) |
-| Backend | Firebase Functions v2, TypeScript, Node 20 |
+| Backend | Firebase Functions v2, TypeScript, Node 22 (o Node 20 foi descontinuado para deploy em 30/10/2026) |
 | Banco | Cloud Firestore |
 | Arquivos | Firebase Storage, com acesso por URLs assinadas |
 | Autenticação | Firebase Authentication (e-mail/senha) |
@@ -24,11 +24,13 @@ Aplicação nova: **No Strova**, sem relação de negócio com nenhum projeto an
 
 ```
 /
+├─ package.json             # npm workspaces: apps/*, packages/*
+├─ packages/
+│  └─ domain/               # @no-strova/domain: regras de negócio puras (sem Firebase, sem DOM), testáveis, compartilhadas por web e functions
 ├─ apps/
 │  ├─ web/                  # frontend (Vite)
 │  │  └─ src/
-│  │     ├─ domain/         # regras de negócio puras (sem Firebase, sem DOM), testáveis
-│  │     ├─ application/    # casos de uso: orquestram domain + infrastructure
+│  │     ├─ application/    # casos de uso: orquestram @no-strova/domain + infrastructure
 │  │     ├─ infrastructure/ # repositórios Firestore, storage, exportadores
 │  │     ├─ modules/        # UI por funcionalidade (telas, eventos, DOM)
 │  │     ├─ core/           # db.js (wrapper Firestore), auth.js, functions.js (callables), constants.js
@@ -37,13 +39,16 @@ Aplicação nova: **No Strova**, sem relação de negócio com nenhum projeto an
 │     └─ src/
 │        ├─ modules/<feature>/   # *.functions.ts, serviços e tipos por feature
 │        └─ index.ts             # exporta as functions
-├─ firebase/                # firestore.rules, storage.rules, firestore.indexes.json, firebase.json
+├─ firebase.json            # na raiz: o CLI trata a pasta do firebase.json como raiz do projeto e não aceita apps/functions fora dela
+├─ .firebaserc              # aliases homolog / production
+├─ firebase/                # firestore.rules, storage.rules, indexes/firestore.indexes.json, tests/ (regras)
 ├─ .env.homolog
 └─ .env.production
 ```
 
 Regras de arquitetura:
-- A dependência vai em um sentido: `modules → application → domain`, e `infrastructure` implementa o acesso a dados. O `domain` nunca importa Firebase nem toca no DOM.
+- A dependência vai em um sentido: `modules → application → @no-strova/domain` (`packages/domain`), e `infrastructure` implementa o acesso a dados. O `domain` nunca importa Firebase nem toca no DOM.
+- Arquivos no Storage: o caminho das atividades inclui o dono (`atividades/{userId}/{atividadeId}/...`) para que as regras validem o dono sem consultar o Firestore. Detalhes em `docs/dominio.md`.
 - Todo acesso ao Firestore no frontend passa por `core/db.js` ou por um repositório em `infrastructure/`. Nenhuma tela chama o SDK direto.
 - Operações sensíveis ou que alteram estado crítico passam por **Cloud Functions callable**. O cliente chama e o servidor valida e grava (Admin SDK).
 

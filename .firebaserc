@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "no-strova-app",
+    "homolog": "no-strova-app",
+    "production": "TROCAR-no-strova-prod"
+  }
+}

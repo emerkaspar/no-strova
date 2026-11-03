@@ -1,0 +1,14 @@
+{
+  "name": "@no-strova/domain",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Regras de negócio puras do No Strova, compartilhadas por web e functions. Sem Firebase, sem DOM.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}

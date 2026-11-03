@@ -19,7 +19,7 @@ Diferenciais em relação ao Elevate:
 
 ## Atividades (v1: só upload de arquivos)
 
-- Upload de .FIT, .GPX e .TCX para o Storage (`atividades/{id}/...`).
+- Upload de .FIT, .GPX e .TCX para o Storage (`atividades/{userId}/{atividadeId}/original.<ext>`; ver "Upload no Storage" abaixo).
 - Uma callable processa o arquivo: extrai data, duração, distância, altimetria, série de frequência cardíaca (FC) e calorias, se houver. Grava o resumo em `atividades/{id}`.
 - Esportes: ciclismo, corrida (e "outro").
 - Cadastro manual de atividade (sem arquivo) também permitido.
@@ -55,8 +55,8 @@ Diferenciais em relação ao Elevate:
 - Entrada: JSON estruturado com métricas resumidas (nunca arquivos brutos nem dados de outros usuários). Saída: schema validado (Genkit structured output).
 - Sugestões de treino (próximas semanas, respeitando Forma-alvo e carga progressiva) e de meta de peso.
 - **Sempre rascunho:** a IA nunca grava no plano diretamente; o usuário revisa e aceita.
-- Limites de segurança aplicados **no código, não só no prompt**: perda de peso sugerida limitada a ritmo seguro (≈ até 0,5–1% do peso por semana), sem sugerir ingestão abaixo de piso calórico razoável, sem metas que levem a IMC abaixo da faixa saudável, aumento semanal de carga limitado. Aviso fixo de que não substitui orientação de médico/nutricionista/treinador.
-- Limite de chamadas por usuário/dia.
+- Limites de segurança aplicados **no código, não só no prompt**: perda de peso máxima de 1% do peso por semana (padrão sugerido: 0,5%), déficit máximo de ~20% do gasto diário total já contando o treino (no lugar de pisos fixos de kcal), sem metas que levem a IMC abaixo de 18,5, aumento semanal de carga de no máximo 10%. Aviso fixo de que não substitui orientação de médico/nutricionista/treinador.
+- Limite de 5 chamadas de IA por usuário/dia.
 
 ## Privacidade (LGPD)
 
@@ -67,6 +67,74 @@ Diferenciais em relação ao Elevate:
 
 - Unidades: km, m, kg, bpm, kcal; datas e números em pt-BR.
 - Gráficos próprios em canvas/SVG, sem biblioteca pesada, a menos que justificado.
+
+---
+
+# Decisões de negócio (Fase 0 — fechadas)
+
+## Cálculo e plano
+- **Atividade sem FC:** com FC média, estima-se o HRSS por FC média + duração. Sem nenhuma FC, o usuário informa a zona/intensidade e o app estima. O estresse pode sempre ser sobrescrito pelo usuário.
+- **Intensidade do treino planejado:** zona predominante Z1–Z5, com override manual do estresse estimado.
+- **Passado, hoje e futuro na projeção:** passado usa só o realizado; hoje usa o maior entre planejado e realizado; futuro usa o planejado.
+- **Vínculo planejado × realizado:** o app sugere (mesmo dia e esporte) e o usuário confirma. Treino vinculado não soma duas vezes.
+- **Curva única** de Fitness/Fadiga/Forma na v1 (sem filtro por esporte).
+- **Fitness inicial = 0.** EMA como no Elevate: `ema = ema + (estresse − ema) × (1 − e^(−1/N))`, com N = 42 (Fitness) e N = 7 (Fadiga).
+- **Faixas de Forma** (limites inferiores, como no Elevate): ≥ 25 Freshness, ≥ 5 Neutral, ≥ −10 Optimal, ≥ −30 Overload; abaixo disso, sobrecarga extrema.
+- **Calorias:** usa as do arquivo quando existirem; senão estima por Keytel (FC, peso, sexo e idade), sempre rotuladas como "estimadas". O perfil coleta `dataNascimento`.
+- **Recalcular histórico** (após mudar a configuração do atleta): somente por botão com confirmação, nunca automático.
+- **Duplicidade:** upload rejeitado com aviso se o hash do arquivo ou o par início + duração já existir.
+- **Fuso:** `America/Sao_Paulo` para o corte de dias.
+
+## Usuários e LGPD
+- `users/{uid}` ganha `ativo` (admin pode bloquear/revogar). Acesso exige `aprovado == true` e `ativo == true`.
+- Aceite explícito do tratamento de dados de saúde no cadastro, guardado em `aceiteLgpd: { versao, em }`. Exportação e exclusão de dados na Fase 7.
+
+## Modelo de dados
+Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção pública na v1.
+
+| Coleção | Campos principais | Escrita |
+|---|---|---|
+| `users/{uid}` | `nome`, `email`, `role` (`admin`/`atleta`/`treinador`), `aprovado`, `ativo`, `dataNascimento`, `aceiteLgpd`, `criadoEm` | Admin SDK; o dono edita só `nome` e `dataNascimento` |
+| `configsAtleta/{id}` | `vigenteDesde`, `fcMax`, `fcRepouso`, `lthr`, `sexo`, `pesoKg`, `alturaCm` | Dono |
+| `atividades/{id}` | `origem` (`arquivo`/`manual`), `esporte`, `inicio`, `data`, `duracaoS`, `distanciaM`, `altimetriaM`, `fcMedia`, `fcMax`, `fcHistograma` {bpm: segundos}, `calorias`, `caloriasOrigem`, `hrss`, `configIdUsada`, `arquivoPath`, `hashArquivo` | Somente callable (HRSS é autoritativo) |
+| `atividades/{id}/series/fc` | série de FC reduzida (1 ponto a cada 5 s) para o gráfico do detalhe | Admin SDK |
+| `estresseDiario/{uid_yyyymmdd}` | `data`, `estresse`, `kcal`, `qtdAtividades` | Trigger sobre `atividades` |
+| `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin`, `intensidade` (Z1–Z5), `estresseEstimado`, `observacoes`, `status` (`planejado`/`realizado`/`pulado`), `atividadeId?` | Dono |
+| `metasForma/{id}` | `formaAlvo`, `dataAlvo`, `ativa` | Dono |
+| `pesagens/{id}` | `data`, `pesoKg` | Dono |
+| `metasPeso/{id}` | `pesoAlvoKg`, `dataAlvo`, `status`, `criadoEm` | Dono |
+| `iaRascunhos/{id}` | `tipo` (`treino`/`peso`), `entradaResumo`, `saida`, `status` (`pendente`/`aceito`/`descartado`), `criadoEm` | Somente callable |
+| `iaUso/{uid_yyyymmdd}` | `chamadas` | Admin SDK |
+| `vinculosTreinador/{id}` | `treinadorId`, `atletaId`, `status` | Previsto no modelo; sem UI nem regras na v1 |
+
+`fcHistograma` guarda o tempo por bpm, o que permite recalcular o HRSS com qualquer configuração sem reler o arquivo.
+
+**Índices compostos:** `atividades` (`userId`, `data` desc) e (`userId`, `esporte`, `data` desc); `estresseDiario` (`userId`, `data`); `treinosPlanejados` (`userId`, `data`) e (`userId`, `status`, `data`); `configsAtleta` (`userId`, `vigenteDesde` desc); `pesagens` (`userId`, `data`); `metasPeso` (`userId`, `status`); `iaRascunhos` (`userId`, `criadoEm` desc); `users` (`aprovado`, `criadoEm`).
+
+## Papéis e permissões
+- `admin`: aprova, bloqueia e gerencia usuários. Não tem acesso especial a dados de saúde; para treinar, é também um `atleta` com os próprios dados.
+- `atleta`: lê e escreve somente os próprios dados.
+- `treinador`: previsto, sem UI na v1; só leria dados de atletas com vínculo aceito.
+- Pesagens: ninguém além do dono lê.
+
+## Upload no Storage
+Caminho: `atividades/{userId}/{atividadeId}/original.{fit|gpx|tcx}`. O `userId` no caminho permite validar o dono sem consultar o Firestore (desvio consciente do padrão `<entidade>/{id}`).
+
+Regras do Storage (`firebase/storage.rules`, default deny):
+- **create** só se: `request.auth.uid == userId`; usuário `aprovado` e `ativo` (via `firestore.get`); `resource == null` (nunca sobrescreve); nome do objeto casa com `original.(fit|gpx|tcx)` em minúsculas; tamanho entre 1 byte e 15 MB.
+- O `contentType` não é barreira: navegadores enviam `application/octet-stream` para `.fit`. A barreira de tipo é a extensão fixa no caminho mais a validação de conteúdo na callable.
+- **read**: negado; a entrega é só por URL assinada (`obterUrlArquivo`). **update/delete** pelo cliente: negados; exclusão só pelo Admin SDK.
+- A callable `processarArquivoAtividade` confere que o `userId` do caminho é o do chamador, relê o tamanho, valida a assinatura (FIT: bytes 8–11 = `.FIT` e CRC; GPX/TCX: XML bem formado com a raiz esperada), calcula o hash para o dedupe e **apaga o objeto** se for inválido ou duplicado. Também aplica uma cota diária de uploads por usuário.
+- Uma scheduled function remove objetos órfãos (sem atividade) após 24 h.
+
+## Cloud Functions
+- `auth/`: `bootstrapUserOnCreate` (trigger), `ensureUserProfile`, `aprovarUsuario`, `listarPendentes`, `bloquearUsuario`.
+- `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo`, trigger `onAtividadeWrite` (atualiza `estresseDiario`), limpeza de órfãos.
+- `ia/`: `sugerirTreinos`, `sugerirMetaPeso`, `decidirRascunho`.
+- `exportacao/` (Fase 7): `exportarMeusDados`, `excluirMinhaConta`.
+
+## Código compartilhado
+`packages/domain` (`@no-strova/domain`) é um workspace npm usado pelo web e pelas Functions. O bundle das Functions embute o pacote com esbuild.
 
 ---
 

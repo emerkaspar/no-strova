@@ -1,0 +1,114 @@
+rules_version = '2';
+
+// Regras por papel e por dono do registro (sem multi-tenancy).
+// Princípios:
+//  - Acesso aos dados de negócio exige usuário aprovado E ativo.
+//  - Peso, FC e demais dados de saúde: somente o dono lê/escreve (nem o admin).
+//  - Coleções com valor autoritativo (HRSS, agregações, IA, cotas) só são escritas pelo Admin SDK.
+//  - Tudo que não está listado aqui é negado.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    function perfilDe(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    // Aprovado e ativo. O documento users/{uid} só é escrito pelo Admin SDK.
+    function acessoLiberado() {
+      return logado()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && perfilDe(request.auth.uid).aprovado == true
+        && perfilDe(request.auth.uid).ativo == true;
+    }
+
+    function ehAdmin() {
+      return acessoLiberado() && perfilDe(request.auth.uid).role == 'admin';
+    }
+
+    function donoDoRegistro() {
+      return resource.data.userId == request.auth.uid;
+    }
+
+    function novoRegistroDoUsuario() {
+      return request.resource.data.userId == request.auth.uid;
+    }
+
+    // Perfil: o dono lê sempre (precisa ver "aguardando aprovação"); o admin lê todos.
+    // O dono só edita nome e data de nascimento; papel, aprovação e ativo são do Admin SDK.
+    match /users/{uid} {
+      allow read: if logado() && (request.auth.uid == uid || ehAdmin());
+
+      allow update: if acessoLiberado()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'dataNascimento'])
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() >= 2
+        && request.resource.data.nome.size() <= 80
+        && (request.resource.data.dataNascimento == null
+            || (request.resource.data.dataNascimento is string
+                && request.resource.data.dataNascimento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+
+      allow create, delete: if false;
+    }
+
+    // Dados do próprio usuário, escritos pelo cliente. A validação de campos de cada
+    // coleção entra junto com a funcionalidade (Fases 2, 4 e 5).
+    match /configsAtleta/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && novoRegistroDoUsuario();
+      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+    }
+
+    match /treinosPlanejados/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && novoRegistroDoUsuario();
+      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+    }
+
+    match /metasForma/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && novoRegistroDoUsuario();
+      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+    }
+
+    match /pesagens/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && novoRegistroDoUsuario();
+      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+    }
+
+    match /metasPeso/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && novoRegistroDoUsuario();
+      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+    }
+
+    // Leitura pelo dono; escrita somente via callable/trigger (Admin SDK).
+    match /atividades/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+
+      match /series/{serie} {
+        allow read: if acessoLiberado()
+          && get(/databases/$(database)/documents/atividades/$(id)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
+    match /estresseDiario/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+    }
+
+    match /iaRascunhos/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+    }
+
+    // iaUso e vinculosTreinador: sem acesso direto (somente Admin SDK).
+  }
+}
