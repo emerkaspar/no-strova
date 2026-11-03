@@ -1,5 +1,6 @@
-import { SEXOS, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
+import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, SEXOS, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
 import { recalcularHistorico } from '../../core/functions.js';
+import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { excluirConfig, observarConfigs, salvarConfig } from '../../infrastructure/configsRepo.js';
 import { atualizarDadosPessoais } from '../../infrastructure/perfilRepo.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
@@ -50,6 +51,14 @@ export function render(raiz, sessao) {
   // Fica fora do formulário para sobreviver ao redesenho depois de salvar.
   const mensagemForm = areaMensagem();
   let idDesenhado = null;
+  let datasAtividades = [];
+  let campoVigencia = null;
+
+  /** A primeira vigência deve começar antes da atividade mais antiga; as demais, hoje. */
+  function dataInicialSugerida() {
+    if (configs.length === 0 && datasAtividades.length > 0) return datasAtividades.reduce((menor, d) => (d < menor ? d : menor));
+    return hojeIso();
+  }
 
   function desenharTabela() {
     if (configs.length === 0) {
@@ -85,7 +94,7 @@ export function render(raiz, sessao) {
                 h(
                   'div',
                   { class: 'acoes' },
-                  h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(c.id); mensagemForm.limpar(); desenharForm(); areaForm.scrollIntoView({ behavior: 'smooth' }); } }, 'Editar'),
+                  h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(c.id); mensagemForm.limpar(); desenharForm(); areaForm.scrollIntoView?.({ behavior: 'smooth' }); } }, 'Editar'),
                   h(
                     'button',
                     {
@@ -119,7 +128,8 @@ export function render(raiz, sessao) {
     // Para uma nova vigência, parte dos valores da mais recente.
     const base = emEdicao ?? configs[0] ?? {};
 
-    const vigente = campo({ id: 'cfg-desde', rotulo: 'Vigente desde', tipo: 'date', value: emEdicao?.vigenteDesde ?? hojeIso(), dica: 'O cálculo de cada atividade usa a configuração vigente na data dela.' });
+    const vigente = campo({ id: 'cfg-desde', rotulo: 'Vigente desde', tipo: 'date', value: emEdicao?.vigenteDesde ?? dataInicialSugerida(), dica: 'Vale a partir desta data; cada atividade usa a configuração vigente no dia dela. Na primeira configuração, use uma data anterior à sua atividade mais antiga.' });
+    campoVigencia = vigente.input;
     const fcMax = campo({ id: 'cfg-max', rotulo: 'FC máxima (bpm)', inputmode: 'numeric', value: base.fcMax ?? '' });
     const fcRepouso = campo({ id: 'cfg-repouso', rotulo: 'FC de repouso (bpm)', inputmode: 'numeric', value: base.fcRepouso ?? '' });
     const lthr = campo({ id: 'cfg-lthr', rotulo: 'LTHR — FC no limiar (bpm)', inputmode: 'numeric', value: base.lthr ?? '', dica: 'Maior FC média que você sustenta por cerca de 1 hora.' });
@@ -154,6 +164,14 @@ export function render(raiz, sessao) {
             if (!r.valido) throw new Error(r.erros.join(' '));
             const outraComMesmaData = configs.find((c) => c.vigenteDesde === r.valores.vigenteDesde && c.id !== emEdicao?.id);
             if (outraComMesmaData && !confirm('Já existe uma configuração com essa data. Substituir?')) return;
+            const vigenciasResultantes = [...configs.filter((c) => c.id !== emEdicao?.id).map((c) => c.vigenteDesde), r.valores.vigenteDesde];
+            const semCobertura = atividadesAntesDaPrimeiraVigencia(vigenciasResultantes, datasAtividades);
+            if (
+              semCobertura > 0 &&
+              !confirm(`${semCobertura === 1 ? '1 atividade é anterior' : `${semCobertura} atividades são anteriores`} a ${formatarData(primeiraVigencia(vigenciasResultantes))} e ficarão sem HRSS, porque não haverá configuração vigente nas datas delas. Salvar assim mesmo?`)
+            ) {
+              return;
+            }
             await salvarConfig(sessao.uid, r.valores);
             if (emEdicao && emEdicao.vigenteDesde !== r.valores.vigenteDesde) await excluirConfig(emEdicao.id);
             editar(null);
@@ -179,7 +197,12 @@ export function render(raiz, sessao) {
     if (!confirm('Recalcular o HRSS de todas as atividades com a configuração vigente na data de cada uma? O estresse que você informou manualmente não muda.')) return;
     executarComBotao(botaoRecalculo, mensagemRecalculo, async () => {
       const r = await recalcularHistorico();
-      mensagemRecalculo.mostrar(`${r.atualizadas} de ${r.total} atividade${r.total === 1 ? '' : 's'} atualizada${r.atualizadas === 1 ? '' : 's'}.`, 'ok');
+      const base = `${r.atualizadas} de ${r.total} atividade${r.total === 1 ? '' : 's'} atualizada${r.atualizadas === 1 ? '' : 's'}.`;
+      if (r.semConfig > 0) {
+        mensagemRecalculo.mostrar(`${base} ${r.semConfig} continua${r.semConfig === 1 ? '' : 'm'} sem HRSS: não há configuração vigente nas datas delas. Ajuste o “Vigente desde” da configuração mais antiga para antes da atividade mais antiga e recalcule de novo.`);
+      } else {
+        mensagemRecalculo.mostrar(base, 'ok');
+      }
     });
   });
 
@@ -190,7 +213,7 @@ export function render(raiz, sessao) {
         'section',
         { class: 'card' },
         h('h2', null, 'Configuração do atleta'),
-        h('p', { class: 'texto-secundario' }, 'FC máxima, FC de repouso, LTHR, sexo, peso e altura, cada conjunto com a data em que passa a valer. É a base do cálculo do HRSS.'),
+        h('p', { class: 'texto-secundario' }, 'FC máxima, FC de repouso, LTHR, sexo, peso e altura, cada conjunto com a data em que passa a valer. É a base do cálculo do HRSS. Atividades anteriores à primeira vigência ficam sem HRSS.'),
         mensagemTabela.el,
         corpoTabela,
         areaForm,
@@ -208,6 +231,17 @@ export function render(raiz, sessao) {
   corpoTabela.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
 
   cancelar.push(
+    observarAtividades(
+      sessao.uid,
+      (lista) => {
+        datasAtividades = lista.map((a) => a.data).filter(Boolean);
+        // Formulário da primeira vigência ainda intocado (data = hoje): sugere a data da atividade mais antiga.
+        if (campoVigencia && configs.length === 0 && campoVigencia.value === hojeIso() && datasAtividades.length > 0) {
+          campoVigencia.value = dataInicialSugerida();
+        }
+      },
+      () => {},
+    ),
     observarConfigs(
       sessao.uid,
       (lista) => {

@@ -89,3 +89,21 @@ export function configVigenteEm(configs, data) {
   }
   return escolhida;
 }
+
+/** A vigência mais antiga (menor yyyy-mm-dd), ou null se não há nenhuma. */
+export function primeiraVigencia(vigencias) {
+  if (!vigencias?.length) return null;
+  return vigencias.reduce((menor, v) => (v < menor ? v : menor));
+}
+
+/**
+ * Quantas atividades são anteriores à primeira vigência: não têm configuração vigente na data delas
+ * e, por isso, ficam sem HRSS. Sem nenhuma vigência, todas ficam sem configuração.
+ * @param {string[]} vigencias datas `vigenteDesde` (yyyy-mm-dd)
+ * @param {string[]} datas datas das atividades (yyyy-mm-dd)
+ */
+export function atividadesAntesDaPrimeiraVigencia(vigencias, datas) {
+  const primeira = primeiraVigencia(vigencias);
+  if (primeira === null) return datas.length;
+  return datas.filter((d) => d < primeira).length;
+}

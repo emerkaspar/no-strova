@@ -1,21 +1,22 @@
-import { sair } from '../../application/sessao.js';
 import { h } from '../../utils/dom.js';
-import { logo } from '../../utils/marca.js';
-import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { render as renderAprovacoes } from '../admin/aprovacoes.view.js';
 import { render as renderDetalhe } from '../atividades/detalhe.view.js';
 import { render as renderAtividades } from '../atividades/lista.view.js';
 import { render as renderConfiguracao } from '../configuracao/configuracao.view.js';
 import { render as renderForma } from '../forma/forma.view.js';
 import { render as renderInicio } from '../inicio/inicio.view.js';
+import { render as renderPeso } from '../peso/peso.view.js';
+import { render as renderPlano } from '../plano/plano.view.js';
+import { criarCabecalho } from './cabecalho.js';
 
-// Itens do menu. `prefixo` marca o item como ativo também nas sub-rotas.
+// Itens do menu (a tela de Forma abre pelo Início e não tem item próprio).
 const MENU = [
-  { caminho: '#/inicio', rotulo: 'Início' },
-  { caminho: '#/forma', rotulo: 'Forma' },
-  { caminho: '#/atividades', rotulo: 'Atividades' },
-  { caminho: '#/configuracao', rotulo: 'Configuração' },
-  { caminho: '#/admin', rotulo: 'Aprovações', soAdmin: true },
+  { caminho: '#/inicio', rotulo: 'Início', icone: 'inicio' },
+  { caminho: '#/atividades', rotulo: 'Atividades', icone: 'atividades' },
+  { caminho: '#/plano', rotulo: 'Plano', icone: 'plano' },
+  { caminho: '#/peso', rotulo: 'Peso', icone: 'peso' },
+  { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao' },
+  { caminho: '#/admin', rotulo: 'Aprovações', icone: 'aprovacoes', soAdmin: true },
 ];
 
 /** Resolve o hash em { menu, render, params }. Rotas desconhecidas ou proibidas caem no Início. */
@@ -24,9 +25,13 @@ function resolverRota(hash, admin) {
   if (detalhe) return { menu: '#/atividades', render: renderDetalhe, params: { id: detalhe[1] } };
   switch (hash) {
     case '#/forma':
-      return { menu: hash, render: renderForma, params: {} };
+      return { menu: '#/inicio', render: renderForma, params: {} };
     case '#/atividades':
       return { menu: hash, render: renderAtividades, params: {} };
+    case '#/plano':
+      return { menu: hash, render: renderPlano, params: {} };
+    case '#/peso':
+      return { menu: hash, render: renderPeso, params: {} };
     case '#/configuracao':
       return { menu: hash, render: renderConfiguracao, params: {} };
     case '#/admin':
@@ -39,53 +44,26 @@ function resolverRota(hash, admin) {
 
 export function render(raiz, sessao) {
   const itens = MENU.filter((m) => !m.soAdmin || sessao.admin);
-  const saida = h('main', { class: 'container' });
-  const nav = h('nav', { class: 'app-nav', 'aria-label': 'Principal' });
+  const cabecalho = criarCabecalho(sessao, itens);
+  const saida = h('main', { class: 'container conteudo' });
   let destruirRota = null;
-
-  const botaoTema = h('button', {
-    class: 'btn btn-secundario',
-    type: 'button',
-    onClick: () => {
-      alternarTema();
-      rotularTema();
-    },
-  });
-  function rotularTema() {
-    botaoTema.textContent = temaEfetivo() === 'escuro' ? 'Tema claro' : 'Tema escuro';
-  }
-  rotularTema();
 
   function desenharRota() {
     destruirRota?.();
     const rota = resolverRota(window.location.hash, sessao.admin);
-    nav.replaceChildren(
-      ...itens.map((m) => h('a', { href: m.caminho, 'aria-current': m.caminho === rota.menu ? 'page' : null }, m.rotulo)),
-    );
+    cabecalho.marcarAtivo(rota.menu);
     window.scrollTo(0, 0);
     destruirRota = rota.render(saida, sessao, rota.params);
   }
 
-  raiz.replaceChildren(
-    h(
-      'header',
-      { class: 'app-header' },
-      h(
-        'div',
-        { class: 'container' },
-        h('a', { class: 'marca', href: '#/inicio', 'aria-label': 'No Strova — Início' }, logo()),
-        nav,
-        h('div', { class: 'app-acoes' }, botaoTema, h('button', { class: 'btn btn-secundario', type: 'button', onClick: sair }, 'Sair')),
-      ),
-    ),
-    saida,
-  );
+  raiz.replaceChildren(cabecalho.topo, saida, cabecalho.abas);
 
   window.addEventListener('hashchange', desenharRota);
   desenharRota();
 
   return () => {
     window.removeEventListener('hashchange', desenharRota);
+    cabecalho.destruir();
     destruirRota?.();
   };
 }

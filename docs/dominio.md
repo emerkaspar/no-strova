@@ -141,6 +141,7 @@ Replica o Elevate (`appcore/modules/shared/sync/compute/activity-computer.ts`), 
 - **Tempo em movimento** = soma dos intervalos com velocidade acima de 4 km/h (ciclismo), 1,5 km/h (corrida) ou 0,3 km/h (outro). Sem velocidade no arquivo, deriva da distância ou das coordenadas (GPX); sem nada disso vale a duração.
 - **Sem FC:** a zona informada vira FC média presumida (zonas de Friel, % do LTHR, limitada à FC máxima): Z1 75%, Z2 85%, Z3 92%, Z4 97%, Z5 103%.
 - **Prioridade:** HRSS informado pelo usuário > FC média > zona. O HRSS informado nunca é alterado pelo recálculo.
+- **Vigência:** vale a configuração de maior `vigenteDesde` menor ou igual à data da atividade. Atividade **anterior à primeira vigência** fica sem configuração: HRSS `null` e alerta `semConfigFc` (decisão mantida; não há retroação automática da configuração mais antiga). Para evitar surpresa, o formulário sugere como início da primeira vigência a data da atividade mais antiga, avisa antes de salvar uma vigência que deixa atividades descobertas, a lista de Atividades mostra um aviso, e `recalcularHistorico` devolve `semConfig` (quantas continuam descobertas).
 - **Alertas** gravados em `alertas`: `semConfigFc` (sem configuração vigente na data; HRSS fica `null`), `semFc`, `hrssAnormal` (> 225 por hora, como o Elevate) e `fcAcimaDaMaxima`.
 - **Subida acumulada** com histerese de 3 m para descartar ruído do altímetro. **Distância** vem do arquivo ou da soma entre coordenadas.
 - **Calorias:** as do arquivo; senão as informadas; senão estimativa de Keytel (exige data de nascimento e configuração vigente), rotulada "estimadas".
@@ -211,6 +212,46 @@ Preto, branco e laranja (~#FF5200), a partir do logo em `apps/web/assets/logo.pn
 - **Anton** nos títulos (`h1`–`h3`), sempre em caixa alta, com espaçamento de letras de 0,03em. Fallback: Impact.
 - **Inter** no corpo, com **números tabulares** (`font-variant-numeric: tabular-nums`) para alinhar colunas de dados. Pesos 400, 600 e 700.
 - Fontes **self-hosted** pelos pacotes `@fontsource/anton` e `@fontsource/inter` (subconjunto latino, que cobre os acentos do português); nada é carregado de CDN. Licença OFL-1.1.
+
+## Layout (todas as telas logadas)
+
+Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/src/styles/layout.css`, `modules/shell/` e `modules/inicio/`.
+
+**Cabeçalho (em uma única linha em qualquer largura a partir de 768 px)**
+- À esquerda: logo (68 px; quadrado preto com "NO" e "STROVA"), a data por extenso em pt-BR (`America/Sao_Paulo`, em cinza, 13 px) e, abaixo, a saudação em Anton caixa alta, 24 px (`Bom dia` 5h–11h59, `Boa tarde` 12h–17h59, `Boa noite` 18h–4h59, com o primeiro nome). A saudação é deliberadamente leve; o logo é o elemento de maior peso.
+- À direita: menu em pílula (**Início, Atividades, Plano, Peso, Configuração**; **Aprovações** só para admin) com o item ativo preenchido de laranja (texto preto no escuro, branco no claro; ver "Botão primário"), o botão laranja **Importar arquivo** e o avatar com a inicial, que abre um menu com **Tema claro/escuro** e **Sair** (fecha com Esc ou clique fora).
+- **Importar arquivo** leva a `#/atividades` com o painel de importação aberto (se a lista já está aberta, abre o painel na hora).
+- **Largura:** o bloco da saudação é o que cede espaço (reticências). De 1000 a 1179 px a data sai e o rótulo vira "Importar"; de 768 a 999 px a saudação também sai e o menu fica mais compacto. Medido com as fontes do projeto: em 1205 px com admin (6 itens) sobram ~250 px para a data (237 px).
+- **Abaixo de 768 px** o menu em pílula some e vira uma **barra de abas fixa no rodapé** com ícones de traço (início, atividades, plano, peso, configuração e, para admin, aprovações) e rótulos pequenos; o item ativo fica laranja. O cabeçalho mantém logo, saudação reduzida, "Importar" e avatar.
+- A tela **Forma** (`#/forma`) não tem item de menu: abre pelo "Ver gráfico completo" do Início e mantém Início ativo. **Plano** (`#/plano`) e **Peso** (`#/peso`) são telas "em breve" até as Fases 4 e 5.
+
+**Cartões:** raio de 20 px (era 12 px no `CLAUDE.md`, atualizado), borda de 1 px, padding de 28 px; conteúdo com largura máxima de 1200 px.
+
+**Início, nesta ordem**
+1. **Forma hoje** (bloco de destaque, "o cara" da tela): mostra **sempre a Forma** em número gigante **com uma casa decimal** (a parte inteira em Anton gigante e a decimal menor ao lado; ex.: "+0,2", "−19,4"; hífen no lugar do sinal de menos, porque a Anton não tem o "−"). A casa decimal existe para um valor como 0,2 não aparecer como um "0" que desanima; "Forma amanhã" usa o mesmo formato, **muda de cor conforme a zona** e traz poucos dados menores. Regra em `application/inicio.js` (`destaqueDoInicio`).
+   - **Estrutura:** rótulo "Forma hoje" + chip da zona com um ícone "i" (topo); número grande (o maior elemento do bloco); quatro dados menores em 2×2; botão **Planejar treino** (`#/plano`). A frase da zona (`resumo` em `FAIXAS_FORMA`) **não fica mais no bloco**: vive no hint.
+   - **Hint das zonas** (`modules/inicio/dicaZonas.js`): abre ao passar o mouse no **chip** ou no **número**, ao focar o chip pelo teclado e ao clicar/tocar (o clique fixa o cartão; Esc ou um toque fora fecha). Mostra "Zonas de Forma", "A Forma é o Fitness menos a Fadiga de ontem…" e as cinco zonas (da transição à sobrecarga) com cor, intervalo e significado (`descricao`). A **zona atual** fica destacada com "Você está aqui · +0,2" e a frase de incentivo (`resumo`). **Posição:** ao **lado** do bloco (sobre o gráfico), para não cobrir o número nem os dados; em coluna única (celular) abre logo **abaixo** do bloco. **Destaque visual:** fundo elevado (`--elevado`: `#262626` no escuro, branco no claro), borda de 2 px na **cor da zona atual**, sombra forte e uma **seta** apontando para o bloco, para não se confundir com o cartão do gráfico por baixo. O cartão não captura o mouse (`pointer-events: none`) e tem `role="tooltip"` ligado ao chip por `aria-describedby`.
+   - **Dados menores:** **Fitness** (com a variação em 7 dias: "▲ 1,2 em 7 dias", "▼ 0,4 em 7 dias" ou "estável em 7 dias"), **Fadiga** ("média de 7 dias"), **Forma amanhã** (Fitness − Fadiga de hoje, o efeito do treino de hoje, com a zona de amanhã) e **Último treino** ("Hoje", "Ontem" ou "Há N dias", com o HRSS daquele dia).
+   - **Cor por zona** (texto preto no escuro e branco no claro; contrastes: escuro 6,1 a 13,4:1, claro 5,0 a 7,7:1):
+
+| Zona (Forma) | Escuro | Claro |
+|---|---|---|
+| Ótima (−30 a −10) | `#FF5200` (laranja da marca, como no mockup) | `#C93C00` |
+| Neutra (−10 a +5) | `#D4D4D4` (cinza claro) | `#52525B` |
+| Fresca (+5 a +25) | `#4ADE80` (verde) | `#15803D` |
+| Transição (> +25) | `#7DD3FC` (azul) | `#0369A1` |
+| Sobrecarga (< −30) | `#F87171` (vermelho) | `#B91C1C` |
+
+   A cor nunca é o único sinal: o chip traz o nome da zona. Para trocar uma cor, basta mudar `--hero-bg` da classe `.hero-zona-<id>` em `layout.css`.
+   - **Sem dados:** "Vamos começar" (botão **Importar arquivo**) ou, se há atividades mas nenhuma com HRSS, "Falta a FC" (botão **Configurar FC**).
+   - **Decisão (03/11/2026):** a Forma continua sendo **Fitness − Fadiga de ontem** (regra do Elevate e do TrainingPeaks); o mockup mostra o mesmo dia (49 − 68 = −19). Por isso o bloco traz "Forma amanhã", que mostra o efeito do treino de hoje. Uma versão intermediária trocava o número por chamadas ("Bora pedalar", "Treino feito") quando a Forma estava perto de zero; foi descartada: o usuário quer sempre dados importantes no bloco, com a cor da zona dando o tom. Mudar para "mesmo dia" exige alterar `calcularSerieForma`, o gráfico, as faixas e a futura meta de forma da Fase 4.
+2. **Carga e fadiga**: Fitness e Fadiga dos últimos 30 dias, sem as faixas, com o marcador "Hoje" e legenda; link "Ver gráfico completo". A projeção tracejada do mockup entra na Fase 4.
+3. **Semana atual**: segunda a domingo; por dia, uma barra de **estresse realizado** (cheia), **planejado** (tracejada, sem dados até a Fase 4) ou **descanso** (barra mínima); abaixo, "SEG 2" (hoje: "· HOJE", em laranja), o título (ex.: "Ciclismo 17,1 km"; "N atividades" se houver várias; "Descanso"; "Sem plano" em dia futuro) e o valor ("62 · feito" ou "~48 · plano" ou "—"). Altura proporcional ao maior valor da semana. Título: "Semana de 2 a 8 de novembro" (ou com os dois meses). Resumo: "Realizada até hoje: N" e, com plano, "Carga total prevista: M · realizada até hoje: N".
+4. Linha com três cartões: **Últimas atividades** (tabela real, cinco mais recentes: data, esporte, duração, distância, FC média, HRSS), **Peso** e **Sugestão** (borda e título laranja).
+
+**Estados vazios:** blocos sem dados mostram uma frase curta ("Disponível quando houver atividades com HRSS calculado", "Disponível quando houver registro de peso", "Disponível quando houver plano de treino"). **Decisão de interpretação:** o mockup mostra todos os blocos preenchidos; como a Fase 3 já existe, **Forma hoje**, o gráfico, a semana e as últimas atividades usam **dados reais** e só caem no estado vazio quando não há atividades com HRSS. Peso e Sugestão ficam vazios até as fases 5 e 6.
+
+**Botão primário e itens laranja:** vale a regra de contraste já registrada (texto `--primary-contrast`: preto no escuro, branco no claro). Isso vale também para o bloco "Forma hoje", a pílula ativa e o botão "Importar arquivo".
 
 ## Logo, favicon e PWA
 - Logo no cabeçalho (44 px, leva ao Início) e nas telas de acesso (login, cadastro, concluir cadastro, aguardando aprovação, bloqueado).

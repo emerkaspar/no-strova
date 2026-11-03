@@ -19,7 +19,7 @@ vi.mock('../../utils/formatters.js', async (importarOriginal) => ({
 const { render } = await import('./forma.view.js');
 const { estadoForma } = await import('./state.js');
 const { graficoForma } = await import('../../utils/graficoForma.js');
-const { montarSerie, recortarPeriodo, cargaRecente } = await import('../../application/forma.js');
+const { montarSerie, recortarPeriodo, cargaRecente, controleAgregacao } = await import('../../application/forma.js');
 
 const sessao = { uid: 'u1' };
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -30,7 +30,8 @@ beforeEach(() => {
   raiz = document.getElementById('raiz');
   mocks.dias = [];
   mocks.reconstruir.mockReset().mockResolvedValue({ dias: 0, removidos: 0 });
-  Object.assign(estadoForma, { periodo: '90', barras: true, reconstruiu: false });
+  Object.assign(estadoForma, { periodo: '90', barras: true });
+  controleAgregacao.pedido = false;
 });
 
 const treinos = [

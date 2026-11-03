@@ -19,11 +19,51 @@ const FATOR_FADIGA = 1 - Math.exp(-1 / DIAS_FADIGA);
  * Faixas de Forma (zonas de treino do Elevate, de Joe Friel). `acimaDe` é o limite inferior exclusivo.
  */
 export const FAIXAS_FORMA = Object.freeze([
-  { id: 'transicao', rotulo: 'Transição', acimaDe: 25, descricao: 'Pausa longa (doença, lesão ou fim de temporada): o Fitness está caindo.' },
-  { id: 'freshness', rotulo: 'Freshness', acimaDe: 5, descricao: 'Em forma e descansado: pronto para uma prova ou para dias fortes.' },
-  { id: 'neutral', rotulo: 'Neutral', acimaDe: -10, descricao: 'Típico de semana de descanso ou de recuperação depois de prova ou bloco duro.' },
-  { id: 'optimal', rotulo: 'Optimal', acimaDe: -30, descricao: 'Zona ideal para construir Fitness com treino efetivo.' },
-  { id: 'overload', rotulo: 'Overload', acimaDe: Number.NEGATIVE_INFINITY, descricao: 'Sobrecarga: risco de excesso de treino. Descanse.' },
+  {
+    id: 'transicao',
+    rotulo: 'Transição',
+    chip: 'Zona de transição',
+    intervalo: '> +25',
+    acimaDe: 25,
+    descricao: 'Pausa longa (doença, lesão ou fim de temporada): o Fitness está caindo.',
+    resumo: 'Você está descansado demais: o Fitness tende a cair.',
+  },
+  {
+    id: 'freshness',
+    rotulo: 'Freshness',
+    chip: 'Zona fresca',
+    intervalo: '+5 a +25',
+    acimaDe: 5,
+    descricao: 'Em forma e descansado: pronto para uma prova ou para dias fortes.',
+    resumo: 'Você está descansado e pronto para uma prova ou dias fortes.',
+  },
+  {
+    id: 'neutral',
+    rotulo: 'Neutral',
+    chip: 'Zona neutra',
+    intervalo: '−10 a +5',
+    acimaDe: -10,
+    descricao: 'Típico de semana de descanso ou de recuperação depois de prova ou bloco duro.',
+    resumo: 'Fase de recuperação, boa para absorver o treino.',
+  },
+  {
+    id: 'optimal',
+    rotulo: 'Optimal',
+    chip: 'Zona ótima',
+    intervalo: '−30 a −10',
+    acimaDe: -30,
+    descricao: 'Zona ideal para construir Fitness com treino efetivo.',
+    resumo: 'Você treina carregado, mas dentro da faixa ideal para evoluir.',
+  },
+  {
+    id: 'overload',
+    rotulo: 'Overload',
+    chip: 'Zona de sobrecarga',
+    intervalo: '< −30',
+    acimaDe: Number.NEGATIVE_INFINITY,
+    descricao: 'Sobrecarga: risco de excesso de treino. Descanse.',
+    resumo: 'Carga acima do ideal: priorize o descanso.',
+  },
 ]);
 
 /** Faixa em que a Forma se encontra. */

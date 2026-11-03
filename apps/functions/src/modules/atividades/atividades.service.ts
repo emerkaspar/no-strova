@@ -16,7 +16,7 @@ import { getStorage } from "firebase-admin/storage";
 import { logger } from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
 import { db } from "../../shared/firebase";
-import type { ResultadoProcessamento } from "./atividades.types";
+import { ALERTAS, type ResultadoProcessamento } from "./atividades.types";
 import { calcularCalorias, calcularEstresse } from "./estresse";
 import { ArquivoInvalidoError, type Extensao, lerArquivo } from "./parsers";
 
@@ -327,11 +327,12 @@ export async function urlDoArquivo(uid: string, atividadeId: string): Promise<st
 export async function recalcularHistorico(
   uid: string,
   dataNascimento: string | null,
-): Promise<{ total: number; atualizadas: number }> {
+): Promise<{ total: number; atualizadas: number; semConfig: number }> {
   const configs = await carregarConfigs(uid);
   const snap = await db.collection("atividades").where("userId", "==", uid).limit(5000).get();
 
   let atualizadas = 0;
+  let semConfig = 0;
   let lote = db.batch();
   let pendentes = 0;
   for (const doc of snap.docs) {
@@ -348,6 +349,7 @@ export async function recalcularHistorico(
       tempoMovimentoS: a.tempoMovimentoS ?? a.duracaoS,
       config,
     });
+    if (estresse.alertas.includes(ALERTAS.SEM_CONFIG)) semConfig += 1;
     const alteracoes: Record<string, unknown> = { ...estresse };
     if (a.caloriasOrigem === "estimada" || a.caloriasOrigem === null || a.caloriasOrigem === undefined) {
       Object.assign(
@@ -381,5 +383,5 @@ export async function recalcularHistorico(
     }
   }
   if (pendentes > 0) await lote.commit();
-  return { total: snap.size, atualizadas };
+  return { total: snap.size, atualizadas, semConfig };
 }

@@ -1,4 +1,5 @@
 import { calcularSerieForma, recortarSerie } from '@no-strova/domain';
+import { reconstruirEstresseDiario } from '../core/functions.js';
 
 /** Períodos do gráfico. `dias: null` mostra tudo desde a primeira atividade. */
 export const PERIODOS = Object.freeze([
@@ -32,4 +33,18 @@ export function recortarPeriodo(serie, periodoId) {
 /** Soma do estresse nos últimos `dias` dias da série (carga recente). */
 export function cargaRecente(serie, dias = 7) {
   return serie.slice(-dias).reduce((soma, d) => soma + d.estresse, 0);
+}
+
+
+/** Controle do pedido de reconstrução (uma vez por sessão do navegador). */
+export const controleAgregacao = { pedido: false };
+
+/**
+ * Atividades anteriores à agregação automática não têm `estresseDiario`: quando não há nenhum dia
+ * agregado, pede a reconstrução uma única vez por sessão (os dados chegam depois pelo listener).
+ */
+export function pedirReconstrucaoSeVazio(diasAgregados) {
+  if (diasAgregados.length > 0 || controleAgregacao.pedido) return;
+  controleAgregacao.pedido = true;
+  reconstruirEstresseDiario().catch(() => {});
 }

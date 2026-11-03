@@ -1,3 +1,4 @@
+import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia } from '@no-strova/domain';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { areaMensagem, selecao } from '../../utils/componentes.js';
@@ -5,7 +6,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { painelImportar } from './importar.js';
 import { painelManual } from './manual.js';
-import { alternarOrdem, estadoAtividades } from './state.js';
+import { alternarOrdem, estadoAtividades, EVENTO_IMPORTAR } from './state.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE, ROTULO_ORIGEM_HRSS } from './textos.js';
 
 const COLUNAS = [
@@ -41,7 +42,7 @@ function filtrarEOrdenar(atividades) {
 
 export function render(raiz, sessao) {
   let atividades = [];
-  let semConfig = false;
+  let configs = null;
   const cancelar = [];
   const mensagem = areaMensagem();
   const aviso = h('p', { class: 'mensagem', hidden: true });
@@ -80,6 +81,11 @@ export function render(raiz, sessao) {
     paineis.dataset.aberto = chave;
   }
   const abrirImportar = () => painelImportar({ uid: sessao.uid });
+  function abrirPainelDeImportacao() {
+    paineis.replaceChildren(abrirImportar());
+    paineis.dataset.aberto = 'importar';
+  }
+  window.addEventListener(EVENTO_IMPORTAR, abrirPainelDeImportacao);
   const abrirManual = () => painelManual();
 
   function linha(a) {
@@ -135,14 +141,29 @@ export function render(raiz, sessao) {
   }
 
   function atualizarAviso() {
-    aviso.hidden = !semConfig;
-    if (semConfig) {
+    aviso.hidden = true;
+    if (configs === null) return;
+    const irParaConfiguracao = h('a', { href: '#/configuracao' }, 'Ir para Configuração');
+    if (configs.length === 0) {
       aviso.className = 'mensagem';
-      aviso.replaceChildren(
-        'Cadastre a sua configuração de FC para calcular o HRSS. ',
-        h('a', { href: '#/configuracao' }, 'Ir para Configuração'),
-      );
+      aviso.replaceChildren('Cadastre a sua configuração de FC para calcular o HRSS. ', irParaConfiguracao);
+      aviso.hidden = false;
+      return;
     }
+    // Atividades que o servidor deixou sem HRSS por não haver configuração vigente na data delas.
+    const semHrss = atividades.filter((a) => a.alertas?.includes('semConfigFc'));
+    if (semHrss.length === 0) return;
+    const vigencias = configs.map((c) => c.vigenteDesde);
+    const faltaCobertura = atividadesAntesDaPrimeiraVigencia(vigencias, semHrss.map((a) => a.data)) > 0;
+    const quantas = semHrss.length === 1 ? '1 atividade está' : `${semHrss.length} atividades estão`;
+    aviso.className = 'mensagem';
+    aviso.replaceChildren(
+      faltaCobertura
+        ? `${quantas} sem HRSS: a sua configuração mais antiga vale desde ${formatarData(primeiraVigencia(vigencias))}, depois delas. Ajuste essa data para antes da atividade mais antiga e use “Recalcular histórico”. `
+        : `${quantas} sem HRSS, mas já existe configuração vigente nas datas dela${semHrss.length === 1 ? '' : 's'}. Use “Recalcular histórico” para calcular. `,
+      irParaConfiguracao,
+    );
+    aviso.hidden = false;
   }
 
   raiz.replaceChildren(
@@ -171,18 +192,28 @@ export function render(raiz, sessao) {
       (lista) => {
         atividades = lista;
         desenharTabela();
+        atualizarAviso();
       },
       () => mensagem.mostrar('Não foi possível carregar as atividades.'),
     ),
     observarConfigs(
       sessao.uid,
-      (configs) => {
-        semConfig = configs.length === 0;
+      (lista) => {
+        configs = lista;
         atualizarAviso();
       },
       () => {},
     ),
   );
 
-  return () => cancelar.forEach((fn) => fn());
+  // Pedido feito de outra tela: a flag é consumida ao montar.
+  if (estadoAtividades.abrirImportar) {
+    estadoAtividades.abrirImportar = false;
+    abrirPainelDeImportacao();
+  }
+
+  return () => {
+    window.removeEventListener(EVENTO_IMPORTAR, abrirPainelDeImportacao);
+    cancelar.forEach((fn) => fn());
+  };
 }

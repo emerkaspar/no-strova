@@ -33,6 +33,9 @@ describe('faixaDaForma', () => {
     expect(faixaDaForma(-30).id).toBe('overload');
     expect(faixaDaForma(-80).id).toBe('overload');
     expect(FAIXAS_FORMA.map((f) => f.id)).toEqual(['transicao', 'freshness', 'neutral', 'optimal', 'overload']);
+    expect(FAIXAS_FORMA.every((f) => f.chip && f.resumo && f.descricao && f.intervalo)).toBe(true);
+    expect(FAIXAS_FORMA.map((f) => f.intervalo)).toEqual(['> +25', '+5 a +25', '−10 a +5', '−30 a −10', '< −30']);
+    expect(faixaDaForma(-19).chip).toBe('Zona ótima');
   });
 });
 

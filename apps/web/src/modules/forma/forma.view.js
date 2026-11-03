@@ -1,20 +1,11 @@
 import { FAIXAS_FORMA, faixaDaForma } from '@no-strova/domain';
-import { cargaRecente, montarSerie, PERIODOS, recortarPeriodo } from '../../application/forma.js';
-import { reconstruirEstresseDiario } from '../../core/functions.js';
+import { cargaRecente, montarSerie, PERIODOS, pedirReconstrucaoSeVazio, recortarPeriodo } from '../../application/forma.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { graficoForma } from '../../utils/graficoForma.js';
 import { estadoForma } from './state.js';
-
-const FAIXA_TEXTO = Object.freeze({
-  transicao: '> +25',
-  freshness: '+5 a +25',
-  neutral: '−10 a +5',
-  optimal: '−30 a −10',
-  overload: '< −30',
-});
 
 function indicador(rotulo, valor, nota, destaque) {
   return h(
@@ -76,7 +67,7 @@ export function render(raiz, sessao) {
         'ul',
         { class: 'legenda-faixas' },
         ...FAIXAS_FORMA.map((f) =>
-          h('li', null, h('span', { class: `amostra amostra-faixa faixa-${f.id}` }), h('strong', null, ` ${f.rotulo} (${FAIXA_TEXTO[f.id]}): `), f.descricao),
+          h('li', null, h('span', { class: `amostra amostra-faixa faixa-${f.id}` }), h('strong', null, ` ${f.rotulo} (${f.intervalo}): `), f.descricao),
         ),
       ),
     );
@@ -147,11 +138,7 @@ export function render(raiz, sessao) {
         dias = lista;
         carregou = true;
         desenhar();
-        // Atividades anteriores à agregação automática: pede a reconstrução uma única vez por sessão.
-        if (lista.length === 0 && !estadoForma.reconstruiu) {
-          estadoForma.reconstruiu = true;
-          reconstruirEstresseDiario().catch(() => {});
-        }
+        pedirReconstrucaoSeVazio(lista);
       },
       () => mensagem.mostrar('Não foi possível carregar os dados do gráfico.'),
     ),

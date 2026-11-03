@@ -49,7 +49,7 @@ const { render: renderDetalhe } = await import('./atividades/detalhe.view.js');
 const { render: renderConfig } = await import('./configuracao/configuracao.view.js');
 const { painelManual } = await import('./atividades/manual.js');
 const { painelImportar } = await import('./atividades/importar.js');
-const { estadoAtividades } = await import('./atividades/state.js');
+const { estadoAtividades, EVENTO_IMPORTAR } = await import('./atividades/state.js');
 
 const sessao = { uid: 'u1', perfil: { nome: 'Fulano', dataNascimento: '1982-04-30' }, admin: false };
 const config = { id: 'u1_20260101', userId: 'u1', vigenteDesde: '2026-01-01', fcMax: 190, fcRepouso: 50, lthr: 170, sexo: 'masculino', pesoKg: 72.5, alturaCm: 178 };
@@ -75,7 +75,7 @@ beforeEach(() => {
   fn.configs = [];
   fn.atividade = null;
   fn.serie = null;
-  Object.assign(estadoAtividades, { busca: '', esporte: '', ordem: { campo: 'data', direcao: 'desc' } });
+  Object.assign(estadoAtividades, { busca: '', esporte: '', ordem: { campo: 'data', direcao: 'desc' }, abrirImportar: false });
   window.scrollTo = () => {};
 });
 
@@ -140,6 +140,27 @@ describe('lista de atividades', () => {
     expect(raiz.querySelector('input[type=file]')).toBeNull();
     manual.click();
     expect(raiz.querySelector('#man-duracao')).not.toBeNull();
+  });
+});
+
+describe('pedido de importação vindo do cabeçalho', () => {
+  it('ao abrir a lista com o pedido pendente, já mostra o painel de importação e limpa o pedido', () => {
+    estadoAtividades.abrirImportar = true;
+    const destruir = renderLista(raiz, sessao);
+    expect(raiz.querySelector('input[type=file]')).not.toBeNull();
+    expect(estadoAtividades.abrirImportar).toBe(false);
+    destruir(); // só existe uma lista aberta por vez
+  });
+
+  it('com a lista já aberta, o evento do cabeçalho abre o painel e remover a tela cancela o ouvinte', () => {
+    const destruir = renderLista(raiz, sessao);
+    expect(raiz.querySelector('input[type=file]')).toBeNull();
+    window.dispatchEvent(new CustomEvent(EVENTO_IMPORTAR));
+    expect(raiz.querySelector('input[type=file]')).not.toBeNull();
+    destruir();
+    raiz.replaceChildren();
+    window.dispatchEvent(new CustomEvent(EVENTO_IMPORTAR));
+    expect(raiz.querySelector('input[type=file]')).toBeNull(); // ouvinte removido
   });
 });
 
@@ -366,5 +387,106 @@ describe('configuração do atleta', () => {
     formDados.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await tick();
     expect(fn.atualizarDadosPessoais).toHaveBeenCalledWith('u1', { nome: 'Maria Souza', dataNascimento: '1982-04-30' });
+  });
+});
+
+describe('vigência da configuração e atividades sem HRSS', () => {
+  const semConfig = (id, data) => ({ id, data, esporte: 'ciclismo', duracaoS: 3000, distanciaM: 20000, fcMedia: 149, hrss: null, hrssOrigem: null, origem: 'arquivo', alertas: ['semConfigFc'] });
+  const comHrss = { id: 'ok1', data: '2026-11-03', esporte: 'ciclismo', duracaoS: 3000, distanciaM: 17100, fcMedia: 146, hrss: 50.6, hrssOrigem: 'fc', origem: 'arquivo', alertas: [] };
+
+  it('lista: avisa que a configuração mais antiga vale depois das atividades sem HRSS', () => {
+    fn.atividades = [comHrss, semConfig('a19', '2026-10-19'), semConfig('a15', '2026-10-15')];
+    fn.configs = [{ ...config, id: 'c', vigenteDesde: '2026-11-03' }];
+    renderLista(raiz, sessao);
+    const aviso = raiz.querySelector('.card > .mensagem');
+    expect(aviso.hidden).toBe(false);
+    expect(aviso.textContent).toContain('2 atividades estão sem HRSS');
+    expect(aviso.textContent).toContain('vale desde 03/11/2026');
+    expect(aviso.textContent).toContain('Recalcular histórico');
+    expect(aviso.querySelector('a').getAttribute('href')).toBe('#/configuracao');
+  });
+
+  it('lista: se a configuração já cobre as datas, manda só recalcular', () => {
+    fn.atividades = [semConfig('a15', '2026-10-15')];
+    fn.configs = [{ ...config, id: 'c', vigenteDesde: '2026-01-01' }];
+    renderLista(raiz, sessao);
+    const aviso = raiz.querySelector('.card > .mensagem');
+    expect(aviso.hidden).toBe(false);
+    expect(aviso.textContent).toContain('1 atividade está sem HRSS');
+    expect(aviso.textContent).toContain('já existe configuração vigente');
+  });
+
+  it('lista: sem atividades sem HRSS, não mostra aviso', () => {
+    fn.atividades = [comHrss];
+    fn.configs = [{ ...config, id: 'c', vigenteDesde: '2026-11-03' }];
+    renderLista(raiz, sessao);
+    expect(raiz.querySelector('.card > .mensagem').hidden).toBe(true);
+  });
+
+  it('configuração: a primeira vigência sugere a data da atividade mais antiga, não hoje', () => {
+    fn.atividades = [semConfig('a1', '2026-10-19'), semConfig('a2', '2026-10-15'), comHrss];
+    renderConfig(raiz, sessao);
+    expect(raiz.querySelector('#cfg-desde').value).toBe('2026-10-15');
+    expect(raiz.textContent).toContain('use uma data anterior à sua atividade mais antiga');
+  });
+
+  it('configuração: avisa antes de salvar uma vigência que deixa atividades sem HRSS', async () => {
+    fn.atividades = [semConfig('a1', '2026-10-19'), semConfig('a2', '2026-10-15')];
+    fn.salvarConfig.mockResolvedValue();
+    renderConfig(raiz, sessao);
+    const formConfig = [...raiz.querySelectorAll('form')][1];
+    const preencher = () => {
+      digitar(raiz.querySelector('#cfg-desde'), '2026-11-03');
+      digitar(raiz.querySelector('#cfg-max'), '190');
+      digitar(raiz.querySelector('#cfg-repouso'), '50');
+      digitar(raiz.querySelector('#cfg-lthr'), '170');
+      digitar(raiz.querySelector('#cfg-sexo'), 'masculino');
+      digitar(raiz.querySelector('#cfg-peso'), '75');
+      digitar(raiz.querySelector('#cfg-altura'), '178');
+    };
+    const enviar = async () => {
+      formConfig.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await tick();
+    };
+    const confirmar = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+    preencher();
+    await enviar(); // recusa
+    expect(confirmar.mock.calls[0][0]).toContain('2 atividades são anteriores a 03/11/2026');
+    expect(confirmar.mock.calls[0][0]).toContain('ficarão sem HRSS');
+    expect(fn.salvarConfig).not.toHaveBeenCalled();
+
+    await enviar(); // aceita
+    expect(fn.salvarConfig).toHaveBeenCalledTimes(1);
+  });
+
+  it('configuração: não avisa quando a vigência começa antes das atividades', async () => {
+    fn.atividades = [semConfig('a1', '2026-10-19')];
+    fn.salvarConfig.mockResolvedValue();
+    renderConfig(raiz, sessao);
+    digitar(raiz.querySelector('#cfg-desde'), '2026-10-01');
+    digitar(raiz.querySelector('#cfg-max'), '190');
+    digitar(raiz.querySelector('#cfg-repouso'), '50');
+    digitar(raiz.querySelector('#cfg-lthr'), '170');
+    digitar(raiz.querySelector('#cfg-sexo'), 'masculino');
+    digitar(raiz.querySelector('#cfg-peso'), '75');
+    digitar(raiz.querySelector('#cfg-altura'), '178');
+    const confirmar = vi.spyOn(window, 'confirm');
+    [...raiz.querySelectorAll('form')][1].dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await tick();
+    expect(confirmar).not.toHaveBeenCalled();
+    expect(fn.salvarConfig).toHaveBeenCalledTimes(1);
+  });
+
+  it('recálculo: informa quantas atividades continuam sem HRSS e o que fazer', async () => {
+    fn.recalcularHistorico.mockResolvedValue({ total: 3, atualizadas: 1, semConfig: 2 });
+    renderConfig(raiz, sessao);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Recalcular histórico').click();
+    await tick();
+    const texto = raiz.textContent;
+    expect(texto).toContain('1 de 3 atividades atualizada');
+    expect(texto).toContain('2 continuam sem HRSS');
+    expect(texto).toContain('Vigente desde');
   });
 });

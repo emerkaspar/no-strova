@@ -24,7 +24,7 @@ export const ROTULO_ORIGEM_CALORIAS = Object.freeze({
 
 export const TEXTO_ALERTA = Object.freeze({
   semConfigFc:
-    'Não há configuração de FC vigente nesta data, então o HRSS não foi calculado. Cadastre a configuração em Configuração e use “Recalcular histórico”.',
+    'Não havia configuração de FC vigente nesta data, então o HRSS não foi calculado. Em Configuração, ajuste o “Vigente desde” da sua configuração mais antiga para uma data anterior a esta atividade e use “Recalcular histórico”.',
   semFc: 'A atividade não tem FC nem zona informada, então o HRSS não foi calculado.',
   hrssAnormal: 'O HRSS por hora está muito alto (acima de 225). Confira os dados: pode ser erro do sensor.',
   fcAcimaDaMaxima: 'A FC máxima da atividade passou da FC máxima configurada. Confira a sua configuração.',

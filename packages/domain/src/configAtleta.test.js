@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configVigenteEm, validarConfigAtleta } from './configAtleta.js';
+import { atividadesAntesDaPrimeiraVigencia, configVigenteEm, primeiraVigencia, validarConfigAtleta } from './configAtleta.js';
 
 const valida = {
   vigenteDesde: '2026-01-01',
@@ -62,5 +62,25 @@ describe('configVigenteEm', () => {
     expect(configVigenteEm(configs, '2024-12-31')).toBeNull();
     expect(configVigenteEm([], '2026-01-01')).toBeNull();
     expect(configVigenteEm(undefined, '2026-01-01')).toBeNull();
+  });
+});
+
+describe('cobertura das vigências', () => {
+  it('acha a primeira vigência', () => {
+    expect(primeiraVigencia(['2026-11-03', '2025-01-01', '2026-06-01'])).toBe('2025-01-01');
+    expect(primeiraVigencia([])).toBeNull();
+    expect(primeiraVigencia(undefined)).toBeNull();
+  });
+
+  it('conta as atividades anteriores à primeira vigência (ficam sem HRSS)', () => {
+    const datas = ['2026-10-15', '2026-10-19', '2026-11-03', '2026-12-01'];
+    expect(atividadesAntesDaPrimeiraVigencia(['2026-11-03'], datas)).toBe(2);
+    expect(atividadesAntesDaPrimeiraVigencia(['2026-10-15'], datas)).toBe(0);
+    expect(atividadesAntesDaPrimeiraVigencia(['2026-12-01', '2026-10-19'], datas)).toBe(1);
+  });
+
+  it('sem nenhuma vigência, todas as atividades ficam sem configuração', () => {
+    expect(atividadesAntesDaPrimeiraVigencia([], ['2026-10-15', '2026-10-19'])).toBe(2);
+    expect(atividadesAntesDaPrimeiraVigencia([], [])).toBe(0);
   });
 });

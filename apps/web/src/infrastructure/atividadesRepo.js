@@ -18,3 +18,23 @@ export function lerAtividade(id) {
 export function lerSerieFc(id) {
   return lerDocumento(`atividades/${id}/series/fc`);
 }
+
+/** As N atividades mais recentes. Quem chama cancela o listener ao sair da tela. */
+export function observarUltimasAtividades(uid, quantidade, aoDados, aoErro) {
+  return observarConsulta(
+    'atividades',
+    { onde: [['userId', '==', uid]], ordenarPor: [['data', 'desc']], limite: quantidade },
+    aoDados,
+    aoErro,
+  );
+}
+
+/** Atividades de uma data (yyyy-mm-dd) em diante, da mais recente para a mais antiga. */
+export function observarAtividadesDesde(uid, dataInicio, aoDados, aoErro) {
+  return observarConsulta(
+    'atividades',
+    { onde: [['userId', '==', uid], ['data', '>=', dataInicio]], ordenarPor: [['data', 'desc']], limite: 200 },
+    aoDados,
+    aoErro,
+  );
+}

@@ -4,6 +4,4 @@ import { PERIODO_PADRAO } from '../../application/forma.js';
 export const estadoForma = {
   periodo: PERIODO_PADRAO,
   barras: true,
-  /** A reconstrução da agregação é pedida no máximo uma vez por sessão. */
-  reconstruiu: false,
 };

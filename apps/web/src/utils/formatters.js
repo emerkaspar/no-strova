@@ -43,6 +43,44 @@ export function formatarDistancia(metros) {
   return `${formatarNumero(metros / 1000, 1)} km`;
 }
 
+/** Hora (0–23) de um instante no fuso de São Paulo. */
+export function horaNoFuso(instanteMs = Date.now()) {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: FUSO, hour: '2-digit', hourCycle: 'h23' }).format(new Date(instanteMs)));
+}
+
+/** Bom dia (5h–11h59), Boa tarde (12h–17h59) ou Boa noite (18h–4h59). */
+export function saudacaoDaHora(hora) {
+  if (hora >= 5 && hora < 12) return 'Bom dia';
+  if (hora >= 12 && hora < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+/** "Terça-feira, 3 de novembro de 2026", no fuso de São Paulo. */
+export function dataPorExtenso(instanteMs = Date.now()) {
+  const texto = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: FUSO,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(instanteMs));
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/**
+ * Forma com sinal explícito e `casas` decimais: "+12", "−8" (sinal de menos de verdade) ou "0";
+ * com 1 casa: "+0,2", "−19,4", "0,0".
+ */
+export function formatarForma(valor, casas = 0) {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
+  const fator = 10 ** casas;
+  const r = Math.round(valor * fator) / fator;
+  const texto = formatarNumero(Math.abs(r), casas);
+  if (r > 0) return `+${texto}`;
+  if (r < 0) return `−${texto}`;
+  return texto;
+}
+
 /** yyyy-mm-dd de hoje no fuso de São Paulo. */
 export function hojeIso() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());

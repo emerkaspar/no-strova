@@ -60,6 +60,7 @@ Regras de arquitetura:
   - `deploy:hosting:homolog` / `deploy:hosting:prod`
   - `deploy:functions:homolog` / `deploy:functions:prod`
   - `deploy:rules:*`
+- Scripts de apoio na raiz (usados por mim, não por você): `iniciar.ps1` (ambiente local, com `-Emulador`) e `deploy.ps1` (deploy guiado com testes; `-Plano` só simula). Ver o README.
 - O fluxo é: desenvolver, validar em homolog e só então promover para produção.
 - Nunca commitar segredos. Use Secret Manager (`defineSecret`) nas Functions e variáveis `VITE_*` apenas para configuração pública do cliente.
 - O Hosting usa **rewrites** para expor Functions HTTP públicas sob `/api/...`, quando precisar de endpoints sem login.
@@ -106,7 +107,7 @@ Regras de arquitetura:
 
 **UI:**
 - Tema via CSS variables (`--bg-main`, `--text-primary`, `--border`, `--primary`, `--surface-light`). Escuro é o padrão e claro é opcional; paleta, tipografia (Anton + Inter via `@fontsource`) e logo estão em `docs/dominio.md` (seção "Identidade visual").
-- Cards com padding de 28px, raio de 12px e borda de 1px. Grids com `repeat(auto-fit, minmax(200px, 1fr))` e coluna única abaixo de 768px.
+- Cards com padding de 28px, raio de 20px (layout novo; era 12px) e borda de 1px. Grids com `repeat(auto-fit, minmax(200px, 1fr))` e coluna única abaixo de 768px.
 - Tabelas com ordenação clicável, busca em tempo real e scroll horizontal no mobile.
 - Mobile-first e instalável como PWA, com service worker (Workbox) e notificações push opcionais.
 

@@ -9,15 +9,29 @@
 
 Se você criou a conta mas não terminou o cadastro, o app pede para **concluir o cadastro** (nome e aceite) no próximo acesso.
 
+## Navegação
+
+- **Cabeçalho (todas as telas):** o logo (leva ao Início), a data por extenso, a saudação ("Bom dia", "Boa tarde" ou "Boa noite") e, à direita, o menu **Início, Atividades, Plano, Peso e Configuração** (**Aprovações** só aparece para administradores), o botão laranja **Importar arquivo** e o círculo com a sua inicial, que abre o menu da conta (tema e **Sair**). Em telas pequenas o menu vira uma **barra de abas no rodapé**.
+- **Importar arquivo:** abre a tela de Atividades já com o painel de importação aberto.
+- **Plano e Peso** ainda estão em construção e mostram só um aviso.
+
+## Início
+
+- **Forma hoje (bloco colorido):** o número grande é a sua Forma de hoje (Fitness menos Fadiga **de ontem**, por isso um treino feito hoje só pesa amanhã). A **cor do bloco muda com a zona**: laranja na zona ótima, verde na fresca, cinza na neutra, azul na de transição e vermelho na de sobrecarga. Passe o mouse (ou toque) no **nome da zona** ou no **número** para ver uma explicação das cinco zonas, com a sua destacada e uma frase de incentivo; o cartão abre ao lado do bloco. Quatro dados menores completam: **Fitness** (com a variação em 7 dias), **Fadiga**, **Forma amanhã** (já com o treino de hoje) e **Último treino**. O botão **Planejar treino** leva ao Plano.
+- **Carga e fadiga:** Fitness e Fadiga dos últimos 30 dias, com a marca "Hoje".
+- **Semana atual:** de segunda a domingo, uma coluna por dia com o estresse (HRSS) realizado (barra cheia). Dias sem treino mostram uma barrinha mínima. Os treinos planejados (barra tracejada) aparecem quando houver plano de treino.
+- **Últimas atividades:** as cinco mais recentes, com data, esporte, duração, distância, FC média e HRSS.
+- **Peso e Sugestão:** mostram "disponível quando houver…" até as telas de peso e de plano existirem.
+
 ## Tema
 
-O app abre no **tema escuro**. O botão **Tema claro/escuro** no topo alterna a aparência e o app lembra a sua escolha neste aparelho.
+O app abre no **tema escuro**. Para alternar, clique no **círculo com a sua inicial** (canto superior direito) e escolha **Tema claro** ou **Tema escuro**; o app lembra a sua escolha neste aparelho.
 
 ## Configuração do atleta (comece por aqui)
 
 Em **Configuração**, cadastre a **FC máxima**, a **FC de repouso**, o **LTHR** (a maior FC média que você sustenta por cerca de 1 hora), o **sexo** (define uma constante do cálculo), o **peso** e a **altura**. Sem isso o app não calcula o HRSS.
 
-- Cada conjunto vale **a partir de uma data**. Cada atividade é calculada com a configuração vigente no dia dela, então você pode registrar mudanças (peso, FC máxima, LTHR) sem distorcer o histórico.
+- Cada conjunto vale **a partir de uma data**. **Atenção:** atividades anteriores à data da sua configuração mais antiga ficam **sem HRSS**, porque não há configuração vigente nelas. Na primeira configuração, use uma data **anterior à sua atividade mais antiga** (o app já sugere essa data e avisa antes de salvar uma vigência que deixaria atividades descobertas). Cada atividade é calculada com a configuração vigente no dia dela, então você pode registrar mudanças (peso, FC máxima, LTHR) sem distorcer o histórico.
 - Em **Seus dados** você edita o nome e a data de nascimento. A data de nascimento é usada para estimar as calorias.
 - Ao mudar a configuração, use **Recalcular histórico** (com confirmação) para aplicar às atividades já registradas. O estresse que você digitou manualmente nunca é alterado.
 
@@ -41,7 +55,7 @@ Em **Atividades → Registrar manualmente**, informe esporte, data, duração e,
 Usa as calorias do arquivo quando existem. Sem elas, o app **estima** pela FC, peso, idade e sexo (fórmula de Keytel) e marca como **estimadas**; isso exige data de nascimento e configuração cadastradas.
 
 ### Avisos na atividade
-- **Sem configuração de FC vigente nesta data:** cadastre a configuração e use *Recalcular histórico*.
+- **Sem configuração de FC vigente nesta data:** em Configuração, ajuste o "Vigente desde" da configuração mais antiga para uma data anterior à atividade e use *Recalcular histórico*. A lista de Atividades mostra um aviso quando isso acontece, e o recálculo informa quantas ainda ficaram sem HRSS.
 - **HRSS por hora muito alto (acima de 225):** confira os dados, pode ser erro do sensor.
 - **FC máxima acima da configurada:** revise a sua FC máxima.
 
@@ -50,7 +64,7 @@ Clique na data de uma atividade para ver os indicadores e o gráfico de frequên
 
 ## Forma (Fitness, Fadiga e Forma)
 
-A aba **Forma** mostra como o seu treino se acumula, a partir do HRSS das atividades:
+A tela **Forma** (abra pelo link **Ver gráfico completo** do Início) mostra como o seu treino se acumula, a partir do HRSS das atividades:
 
 - **Fitness:** a carga acumulada nos últimos ~42 dias. Sobe com treino consistente.
 - **Fadiga:** a carga dos últimos ~7 dias. Sobe rápido com treino duro e cai rápido com descanso.
