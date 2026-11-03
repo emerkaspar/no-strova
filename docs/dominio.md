@@ -99,10 +99,11 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `atividades/{id}` | `origem` (`arquivo`/`manual`), `esporte`, `inicio` (Timestamp), `data` (dia em São Paulo), `duracaoS`, `tempoMovimentoS`, `distanciaM`, `altimetriaM`, `fcMedia`, `fcMax`, `zona`, `calorias`, `caloriasOrigem` (`arquivo`/`informada`/`estimada`), `hrss`, `hrssOrigem` (`fc`/`zona`/`manual`), `configIdUsada`, `alertas[]`, `arquivoPath`, `extensao`, `hashArquivo`, `criadoEm` | Somente callable (HRSS é autoritativo) |
 | `atividades/{id}/series/fc` | série de FC reduzida (1 ponto a cada 5 s) para o gráfico do detalhe | Admin SDK |
 | `estresseDiario/{uid_yyyymmdd}` | `data`, `estresse`, `kcal`, `qtdAtividades` | Trigger sobre `atividades` |
-| `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin` (inteiro, 5–1440), `zona` (Z1–Z5), `estresseEstimado` (referência gravada ao salvar), `estresseManual?` (sobrescreve a estimativa), `observacoes` (até 500), `status` (`planejado`/`realizado`/`pulado`), `atividadeId?`, `criadoEm` | Dono (as regras validam todos os campos) |
+| `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin` (inteiro, 5–1440), `zona` (Z1–Z5), `estresseEstimado` (referência gravada ao salvar), `estresseManual?` (sobrescreve a estimativa), `observacoes` (até 500), `status` (`planejado`/`realizado`/`pulado`), `atividadeId?`, `criadoEm`, e, nos treinos intervalados, `passos?` (os blocos), `nomeTreino?` e `modeloId?` | Dono (as regras validam todos os campos) |
+| `treinosModelos/{id}` | `nome` (3–60), `esporte` (`ciclismo`/`corrida`), `foco`, `nivel`, `descricao?` (até 500), `passos` (1–30), `criadoEm` | Dono (as regras validam; o catálogo do sistema fica no código) |
 | `metasForma/{id}` | `formaAlvo` (−60 a 60), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `calibracoes/{uid}` | `chaves`: mapa `{esporte}_{zona}` → `{ n, mediana, amostras: [{ id, data, v }] }` (HRSS por hora das atividades com FC real), `atualizadoEm` | Somente trigger/callable (o dono lê) |
-| `preferencias/{uid}` | `calibracaoAtiva` (booleano; sem documento, vale a calibração) | Dono (as regras só aceitam esse campo) |
+| `preferencias/{uid}` | `calibracaoAtiva?` (booleano; sem documento, vale a calibração) e `nivelTreinos?` (`iniciante`/`intermediario`/`avancado`) | Dono (as regras só aceitam esses campos; o app grava mesclando) |
 | `metasCondicionamento/{id}` | `condicionamentoAlvo` (1–250), `condicionamentoInicial?` (o Condicionamento de quando a meta foi criada, base do progresso), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `pesagens/{id}` | `data`, `pesoKg` | Dono |
 | `metasPeso/{id}` | `pesoAlvoKg`, `dataAlvo`, `status`, `criadoEm` | Dono |
@@ -238,6 +239,37 @@ Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras 
 - **Aplicar:** o usuário confirma e o app cria uma **nova vigência** (`configAposTeste`) na **data da atividade**, copiando a configuração vigente nessa data e trocando o LTHR (e, se marcado e maior, a FC máxima). Depois, **Recalcular histórico** aplica às atividades já importadas. Sem configuração cadastrada, não cria.
 - **Se pedala e corre:** a configuração tem um só LTHR; o teste deve ser feito no esporte principal (na corrida o LTHR costuma ser alguns bpm maior).
 
+## Treinos intervalados (`#/treinos`)
+
+Biblioteca de treinos estruturados para **ciclismo e corrida**, com muita variedade, sugestões ao longo do tempo e treinos próprios. Regras puras em `packages/domain` (`treinosEstruturados.js`, `catalogoTreinos.js`, `sugestaoTreinos.js`, `exportarTreino.js`); tela em `modules/treinos/`. **Não há Function nova**: o cliente grava, e as regras validam.
+
+### Treino estruturado
+- **Passos:** lista de até 30 passos. **Bloco** (`aquecimento`, `principal`, `recuperacao` ou `desaquecimento`, com duração e zona Z1–Z5) ou **série** (N repetições de um esforço, com a recuperação **entre** as repetições, não depois da última). Duração de cada etapa de 10 s a 4 h; treino de 5 min a 24 h; pelo menos um esforço principal. Esforços muito curtos (menos de ~2 min) têm uma **descrição do esforço** (ex.: "máximo"), porque a FC reage devagar a eles.
+- **HRSS estimado:** a **soma do HRSS de cada bloco**, na FC presumida da zona dele (`estimarEstresseEstruturado`), em vez de tratar o treino inteiro numa zona só: o TRIMP pesa muito mais os minutos em FC alta, então é mais preciso para intervalados. A calibração do histórico (por zona predominante) **não** se aplica a treinos estruturados. Sem configuração de FC, não há estimativa. Em esforços de menos de ~2 min a FC não acompanha o esforço, então a estimativa por zona tende a superestimar.
+- **Zona predominante:** a zona com mais tempo no trabalho principal (empate: a mais alta). A duração do treino planejado é a soma dos passos (arredondada para cima em minutos).
+- **Faixa de FC de cada zona** (em fração do LTHR, faixas de Friel): Z1 60–80%, Z2 80–89%, Z3 89–94,5%, Z4 94,5–100%, Z5 100–110% (topo limitado à FC máxima). Aparece no detalhe do treino e vai no arquivo exportado.
+
+### Catálogo (no código, sem custo de leitura)
+- **9 focos**: VO2máx, limiar, tempo, over-under, pirâmide, fartlek, sprints, progressivo e subidas; **3 níveis** (iniciante, intermediário, avançado); cada modelo existe para os dois esportes (id `{base}-{esporte}`), mais "Tiros de 1 min" só para corrida. São mais de 60 treinos, cada um com **nome**, **apelido** (ex.: "O norueguês", "Gangorra", "Escadaria") e uma descrição de como executar. Um teste garante que todo modelo é válido, que os nomes não se repetem e que há variedade em cada esporte e nível.
+
+### Sugestão por regras (sem IA)
+`sugerirTreinos` indica treinos para os **próximos 7 dias** (a partir de amanhã), em dias **sem treino** planejado ou realizado, do **nível** (escolhido pelo usuário) e do esporte:
+- **No máximo 2 treinos intensos por semana** (foco de intensidade alta, ou zona predominante Z4/Z5 nos treinos já no plano) e **48 h entre eles**, contando os que já estão no plano e os dos 2 dias anteriores; **no máximo 1 moderado** (tempo, fartlek, progressivo), sem colar num intenso.
+- **Forma:** abaixo de −20, no máximo 1 intenso; abaixo de −30 (sobrecarga), **nenhum**, com aviso.
+- **Rotação de foco:** ganha o foco que está há mais tempo sem ser treinado (nunca treinado vale 60 dias); um foco já escolhido na mesma rodada perde pontos; um sorteio estável pela semente desempata (mesma semente, mesmas sugestões). **Não repete o mesmo modelo nas últimas 6 semanas** e respeita os recusados com "Trocar". Os treinos próprios do mesmo nível e esporte entram no sorteio.
+- **"Montar minha semana" (com aprovação):** a aba Sugestões lista as sugestões (data, perfil, resumo e motivo), cada uma com caixa de seleção, **Ver** e **Trocar**; "Adicionar N ao plano" grava os selecionados de uma vez (lote tudo ou nada), depois de confirmar; "Sugerir outras" refaz o sorteio. **Nada entra no plano sem a ação do usuário.**
+- Padrões escolhidos (em `REGRAS_SUGESTAO`): 7 dias, 2 intensos, 48 h, Forma −20/−30, 42 dias sem repetir.
+
+### Tela
+- **Controles:** esporte (ciclismo/corrida) e **nível** (o usuário escolhe; fica em `preferencias.nivelTreinos`, padrão intermediário). **Abas:** Sugestões, Biblioteca (filtro por foco) e Meus treinos.
+- **Cartão do treino:** nome, apelido, foco, **perfil em miniatura** (uma barra por bloco, largura = tempo, altura e cor = zona), duração, zona e HRSS estimado. **Detalhe:** números, passo a passo com a faixa de FC, **Adicionar ao plano** numa data, **Exportar para o relógio** e Editar/Excluir (próprios) ou **Duplicar e editar** (catálogo).
+- **Construtor:** nome, esporte, foco, nível, descrição e passos (blocos e séries; duração digitada como "30s", "3", "2:30" ou "1h"; subir, descer e remover), com **prévia ao vivo** do perfil, da duração e do HRSS. Valida com `validarTreinoEstruturado` ao salvar (e ao ler: documentos inválidos são ignorados). Os modelos próprios ficam em `treinosModelos`.
+- **No plano:** "Adicionar ao plano" cria um **treino planejado com cópia dos passos**, nome e modelo de origem (mudar ou apagar o modelo depois não altera o plano). O calendário mostra o nome ("5 × 3 min no VO2 · 47min"), e o editor mostra a estrutura (perfil e passos), trava a duração e a zona (vêm dos passos) e estima pelos blocos. "Duplicar para a próxima semana" leva a estrutura.
+
+### Exportação para o relógio (.fit)
+- `gerarFitDoTreino` gera, no navegador, um **arquivo de treino FIT** (mensagens `file_id` do tipo workout, `workout` e `workout_step`): um passo **por tempo** para cada bloco (as séries são expandidas, então a duração bate com a do app), com **alvo de FC** em bpm da zona (da configuração do atleta; sem configuração, alvo aberto), intensidade (aquecimento, ativo, recuperação, desaquecimento) e nome do passo. Até 99 passos. O CRC e a estrutura são testados com um decodificador próprio; **não foi testado em um aparelho real**: se o aparelho recusar o arquivo, é um ponto a ajustar. Copie para a pasta de treinos do aparelho (Garmin: `NewFiles`) ou importe no Garmin Connect.
+- Fora do escopo desta entrega: arquivos .zwo/.erg (são por potência, e o app trabalha com FC) e a comparação do tempo em cada zona entre o planejado e a atividade feita.
+
 ## Tela do Plano (`#/plano`)
 - **Calendário** em **semana** (7 colunas) ou **mês** (6 semanas, com contagem por dia em telas pequenas), navegação ‹ › e "Hoje". Cada dia mostra as atividades realizadas (chips cheios) e os treinos planejados (tracejados), com o total do dia. "+" cria treino no dia; clicar no treino edita.
 - **Arrastar e soltar** o treino planejado para outro dia muda só a data (a projeção atualiza na hora). O editor também troca a data (alternativa por teclado e para toque, onde o arrastar do navegador não funciona).
@@ -280,10 +312,10 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 
 **Cabeçalho (em uma única linha em qualquer largura a partir de 768 px)**
 - À esquerda: logo (68 px; quadrado preto com "NO" e "STROVA"), a data por extenso em pt-BR (`America/Sao_Paulo`, em cinza, 13 px) e, abaixo, a saudação em Anton caixa alta, 24 px (`Bom dia` 5h–11h59, `Boa tarde` 12h–17h59, `Boa noite` 18h–4h59, com o primeiro nome). A saudação é deliberadamente leve; o logo é o elemento de maior peso.
-- À direita: menu em pílula (**Início, Atividades, Plano, Peso, Configuração**; **Aprovações** só para admin) com o item ativo preenchido de laranja (texto preto no escuro, branco no claro; ver "Botão primário"), o botão laranja **Importar arquivo** e o avatar com a inicial, que abre um menu com **Tema claro/escuro** e **Sair** (fecha com Esc ou clique fora).
+- À direita: menu em pílula (**Início, Atividades, Plano, Treinos, Peso, Configuração**; **Aprovações** só para admin) com o item ativo preenchido de laranja (texto preto no escuro, branco no claro; ver "Botão primário"), o botão laranja **Importar arquivo** e o avatar com a inicial, que abre um menu com **Tema claro/escuro** e **Sair** (fecha com Esc ou clique fora).
 - **Importar arquivo** leva a `#/atividades` com o painel de importação aberto (se a lista já está aberta, abre o painel na hora).
 - **Largura:** o bloco da saudação é o que cede espaço (reticências). De 1000 a 1179 px a data sai e o rótulo vira "Importar"; de 768 a 999 px a saudação também sai e o menu fica mais compacto. Medido com as fontes do projeto: em 1205 px com admin (6 itens) sobram ~250 px para a data (237 px).
-- **Abaixo de 768 px** o menu em pílula some e vira uma **barra de abas fixa no rodapé** com ícones de traço (início, atividades, plano, peso, configuração e, para admin, aprovações) e rótulos pequenos; o item ativo fica laranja. O cabeçalho mantém logo, saudação reduzida, "Importar" e avatar.
+- **Abaixo de 768 px** o menu em pílula some e vira uma **barra de abas fixa no rodapé** com ícones de traço (início, atividades, plano, treinos, peso, configuração e, para admin, aprovações) e rótulos pequenos; o item ativo fica laranja. O cabeçalho mantém logo, saudação reduzida, "Importar" e avatar.
 - A tela **Forma** (`#/forma`) não tem item de menu: abre pelo "Ver gráfico completo" do Início e mantém Início ativo. **Plano** (`#/plano`) está pronto (Fase 4); **Peso** (`#/peso`) é uma tela "em breve" até a Fase 5.
 
 **Cartões:** raio de 20 px (era 12 px no `CLAUDE.md`, atualizado), borda de 1 px, padding de 28 px; conteúdo com largura máxima de 1200 px.

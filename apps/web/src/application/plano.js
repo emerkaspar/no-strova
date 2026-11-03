@@ -3,6 +3,7 @@ import {
   avaliarMetaCondicionamento,
   configVigenteEm,
   estimarEstresseCalibrado,
+  estimarEstresseEstruturado,
   estimarEstresseTreino,
   horizonteDaProjecao,
   serieComProjecao,
@@ -42,13 +43,10 @@ export function estimativaDoFormulario(entrada) {
 export async function salvarTreinoPlanejado({ uid, id, entrada, configs, calibracao = null }) {
   const r = validarTreinoPlanejado(entrada);
   if (!r.valido) throw new Error(r.erros.join(' '));
-  const estimado = estimarEstresseTreino({
-    zona: r.valores.zona,
-    duracaoMin: r.valores.duracaoMin,
-    config: configVigenteEm(configs, r.valores.data),
-    esporte: r.valores.esporte,
-    calibracao,
-  });
+  const config = configVigenteEm(configs, r.valores.data);
+  const estimado = r.valores.passos
+    ? estimarEstresseEstruturado({ passos: r.valores.passos, config })
+    : estimarEstresseTreino({ zona: r.valores.zona, duracaoMin: r.valores.duracaoMin, config, esporte: r.valores.esporte, calibracao });
   if (id) {
     await atualizarTreino(id, r.valores, estimado);
     return id;

@@ -7,6 +7,7 @@ import { render as renderForma } from '../forma/forma.view.js';
 import { render as renderInicio } from '../inicio/inicio.view.js';
 import { render as renderPeso } from '../peso/peso.view.js';
 import { render as renderPlano } from '../plano/plano.view.js';
+import { render as renderTreinos } from '../treinos/treinos.view.js';
 import { criarCabecalho } from './cabecalho.js';
 
 // Itens do menu (a tela de Forma abre pelo Início e não tem item próprio).
@@ -14,6 +15,7 @@ const MENU = [
   { caminho: '#/inicio', rotulo: 'Início', icone: 'inicio' },
   { caminho: '#/atividades', rotulo: 'Atividades', icone: 'atividades' },
   { caminho: '#/plano', rotulo: 'Plano', icone: 'plano' },
+  { caminho: '#/treinos', rotulo: 'Treinos', icone: 'treinos' },
   { caminho: '#/peso', rotulo: 'Peso', icone: 'peso' },
   { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao' },
   { caminho: '#/admin', rotulo: 'Aprovações', icone: 'aprovacoes', soAdmin: true },
@@ -30,6 +32,8 @@ function resolverRota(hash, admin) {
       return { menu: hash, render: renderAtividades, params: {} };
     case '#/plano':
       return { menu: hash, render: renderPlano, params: {} };
+    case '#/treinos':
+      return { menu: hash, render: renderTreinos, params: {} };
     case '#/peso':
       return { menu: hash, render: renderPeso, params: {} };
     case '#/configuracao':

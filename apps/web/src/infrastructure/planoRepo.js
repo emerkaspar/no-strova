@@ -40,6 +40,19 @@ export async function criarTreino(uid, valores, estresseEstimado) {
   return id;
 }
 
+/** Cria vários treinos planejados de uma vez (tudo ou nada). `itens`: [{ valores, estimado }]. Retorna os ids. */
+export async function criarTreinosEmLote(uid, itens) {
+  const ids = itens.map(() => novoId());
+  await gravarEmLote(
+    itens.map(({ valores, estimado }, i) => ({
+      tipo: 'set',
+      caminho: `${TREINOS}/${ids[i]}`,
+      dados: { userId: uid, ...valores, estresseEstimado: estimado ?? null, status: 'planejado', atividadeId: null, criadoEm: carimboDeServidor() },
+    })),
+  );
+  return ids;
+}
+
 export function atualizarTreino(id, valores, estresseEstimado) {
   return atualizarDocumento(`${TREINOS}/${id}`, { ...valores, estresseEstimado: estresseEstimado ?? null });
 }

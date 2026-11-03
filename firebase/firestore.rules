@@ -84,7 +84,7 @@ service cloud.firestore {
     // Plano de treino: o cliente escreve (nenhuma decisão do servidor depende destes campos), mas só valores plausíveis.
     function treinoValido() {
       let t = request.resource.data;
-      return t.keys().hasOnly(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'estresseEstimado', 'estresseManual', 'observacoes', 'status', 'atividadeId', 'criadoEm'])
+      return t.keys().hasOnly(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'estresseEstimado', 'estresseManual', 'observacoes', 'status', 'atividadeId', 'criadoEm', 'passos', 'nomeTreino', 'modeloId'])
         && t.keys().hasAll(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'status'])
         && t.userId == request.auth.uid
         && t.data is string
@@ -97,13 +97,40 @@ service cloud.firestore {
         && (!('estresseManual' in t) || t.estresseManual == null || (t.estresseManual is number && t.estresseManual > 0 && t.estresseManual <= 2000))
         && (!('observacoes' in t) || (t.observacoes is string && t.observacoes.size() <= 500))
         && (!('atividadeId' in t) || t.atividadeId == null || (t.atividadeId is string && t.atividadeId.size() <= 40))
-        && (!('criadoEm' in t) || t.criadoEm is timestamp);
+        && (!('criadoEm' in t) || t.criadoEm is timestamp)
+        // treino estruturado (intervalado): os blocos, o nome e o modelo de origem. O cliente valida os passos
+        // (validarPassos); aqui o limite é o tamanho.
+        && (!('passos' in t) || (t.passos is list && t.passos.size() >= 1 && t.passos.size() <= 30))
+        && (!('nomeTreino' in t) || (t.nomeTreino is string && t.nomeTreino.size() >= 1 && t.nomeTreino.size() <= 60))
+        && (!('modeloId' in t) || t.modeloId == null || (t.modeloId is string && t.modeloId.size() <= 80));
     }
 
     match /treinosPlanejados/{id} {
       allow read, delete: if acessoLiberado() && donoDoRegistro();
       allow create: if acessoLiberado() && treinoValido();
       allow update: if acessoLiberado() && donoDoRegistro() && treinoValido();
+    }
+
+    // Treinos intervalados próprios do usuário (modelos). O catálogo do sistema fica no código. As Functions não leem
+    // estes documentos; o cliente valida os passos (validarTreinoEstruturado) e ignora os inválidos ao ler.
+    function modeloTreinoValido() {
+      let m = request.resource.data;
+      return m.keys().hasOnly(['userId', 'nome', 'esporte', 'foco', 'nivel', 'descricao', 'passos', 'criadoEm'])
+        && m.keys().hasAll(['userId', 'nome', 'esporte', 'foco', 'nivel', 'passos'])
+        && m.userId == request.auth.uid
+        && m.nome is string && m.nome.size() >= 3 && m.nome.size() <= 60
+        && m.esporte in ['ciclismo', 'corrida']
+        && m.foco in ['vo2max', 'limiar', 'tempo', 'overunder', 'piramide', 'fartlek', 'sprint', 'progressivo', 'subidas']
+        && m.nivel in ['iniciante', 'intermediario', 'avancado']
+        && (!('descricao' in m) || (m.descricao is string && m.descricao.size() <= 500))
+        && m.passos is list && m.passos.size() >= 1 && m.passos.size() <= 30
+        && (!('criadoEm' in m) || m.criadoEm is timestamp);
+    }
+
+    match /treinosModelos/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && modeloTreinoValido();
+      allow update: if acessoLiberado() && donoDoRegistro() && modeloTreinoValido();
     }
 
     // Meta de forma: "chegar com Forma X na data Y". Uma ativa por vez (o cliente desativa a anterior).
@@ -182,15 +209,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Preferências do usuário, um documento por usuário (id = uid). Hoje: usar ou não a calibração nas estimativas.
+    // Preferências do usuário, um documento por usuário (id = uid): usar ou não a calibração nas estimativas e o nível dos
+    // treinos intervalados.
     match /preferencias/{uid} {
       allow read: if acessoLiberado() && request.auth.uid == uid;
       allow create, update: if acessoLiberado()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva'])
-        && request.resource.data.keys().hasAll(['userId', 'calibracaoAtiva'])
+        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos'])
+        && request.resource.data.keys().hasAll(['userId'])
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.calibracaoAtiva is bool;
+        && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
+        && (!('nivelTreinos' in request.resource.data) || request.resource.data.nivelTreinos in ['iniciante', 'intermediario', 'avancado']);
       allow delete: if false;
     }
 

@@ -82,6 +82,17 @@ A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25,
 
 Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
 
+## Treinos intervalados
+
+Em **Treinos** você encontra uma biblioteca de treinos intervalados para **ciclismo e corrida**, de vários focos (VO2máx, limiar, tempo, over-under, pirâmides, fartlek, sprints, progressivos e subidas) e três níveis. Escolha o **esporte** e o **seu nível** no alto da tela.
+
+- **Sugestões:** o app indica treinos para os próximos 7 dias, em dias livres do seu plano. Ele gira o foco, não repete treinos recentes e respeita a sua carga: **no máximo 2 treinos intensos por semana, com 48 horas entre eles**, e nenhum treino intenso se a sua Forma estiver na sobrecarga. Cada sugestão tem **Ver** e **Trocar**; marque as que quiser e use **Adicionar ao plano**. Nada entra no plano sem a sua aprovação. **Sugerir outras** refaz a lista.
+- **Biblioteca:** todos os treinos do seu nível e esporte, com filtro por foco. O **perfil** em barras mostra o treino de relance: a largura é o tempo, e a altura e a cor são a zona (de azul, Z1, a vermelho, Z5).
+- **Detalhe do treino:** o passo a passo com a **faixa de FC de cada zona** (precisa da configuração de FC), o HRSS estimado, a data para **Adicionar ao plano** e **Exportar para o relógio (.fit)**, um arquivo de treino que você copia para o Garmin (pasta NewFiles) ou importa no Garmin Connect. O HRSS é a soma dos blocos, então é mais preciso que um treino de uma zona só.
+- **Meus treinos:** crie os seus. Escolha nome, esporte, foco e nível e monte os passos com blocos e séries (digite a duração como "30s", "3", "2:30" ou "1h"). A prévia mostra o perfil, a duração e o HRSS ao vivo. Dá para **duplicar e editar** qualquer treino da biblioteca, e os seus treinos também entram nas sugestões.
+- **No plano:** o treino aparece no calendário com o nome e a duração. Ao abri-lo, você vê o perfil e os passos; a duração e a zona vêm dos passos.
+- **Dica:** em esforços muito curtos (20 a 30 segundos), a frequência cardíaca demora a subir: guie-se pelo esforço descrito no treino, não só pela FC.
+
 ## Plano de treino
 
 Em **Plano** você organiza os treinos que ainda vai fazer e vê, na hora, como eles mexem no Condicionamento, na Fadiga e na Forma.

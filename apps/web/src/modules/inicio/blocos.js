@@ -114,7 +114,7 @@ export function tituloDoTreino(treinosDoDia) {
   if (treinosDoDia.length === 0) return null;
   if (treinosDoDia.length > 1) return `${treinosDoDia.length} treinos`;
   const t = treinosDoDia[0];
-  return `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.zona}`;
+  return t.nomeTreino ?? `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.zona}`;
 }
 
 /** Mini-cartões sob o destaque: o próximo treino planejado, a sequência de semanas com treino e a meta de Condicionamento. */

@@ -24,7 +24,7 @@ function estadoDoTreino(t, hoje) {
 
 function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
   const estado = estadoDoTreino(t, hoje);
-  const titulo = `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`;
+  const titulo = t.nomeTreino ? `${t.nomeTreino} · ${t.duracaoMin}min` : `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`;
   const botao = h(
     'button',
     {

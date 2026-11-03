@@ -3,6 +3,7 @@
  * entre treino planejado e atividade realizada. Funções puras, sem Firebase e sem DOM.
  */
 import { estimarEstresseCalibrado } from './calibracao.js';
+import { estimarEstresseEstruturado, resumirTreino, validarPassos } from './treinosEstruturados.js';
 import { ESPORTES_VALIDOS } from './atividade.js';
 import { configVigenteEm } from './configAtleta.js';
 import { calcularSerieForma, diasEntre, somarDias } from './forma.js';
@@ -35,6 +36,9 @@ export const LIMITES_META = Object.freeze({ formaMin: -60, formaMax: 60 });
  * @property {number|null} [estresseEstimado] gravado ao salvar (referência)
  * @property {number|null} [estresseManual] sobrescreve a estimativa
  * @property {string} [observacoes]
+ * @property {any[]} [passos] treino estruturado (intervalado): os blocos; a duração e a zona vêm deles
+ * @property {string} [nomeTreino] nome do treino estruturado
+ * @property {string|null} [modeloId] modelo (catálogo ou próprio) de onde veio
  * @property {string} status planejado | realizado | pulado
  * @property {string|null} [atividadeId]
  */
@@ -67,6 +71,11 @@ export function estimarEstresseTreino({ zona, duracaoMin, config, esporte, calib
  */
 export function estresseDoTreino(treino, configs, calibracao = null) {
   if (Number.isFinite(treino.estresseManual)) return treino.estresseManual;
+  // treino estruturado: a soma do HRSS de cada bloco, na zona dele (a calibração é por zona predominante e não se aplica)
+  if (Array.isArray(treino.passos) && treino.passos.length > 0) {
+    const doPlano = estimarEstresseEstruturado({ passos: treino.passos, config: configVigenteEm(configs, treino.data) });
+    if (doPlano !== null) return doPlano;
+  }
   const estimado = estimarEstresseTreino({
     zona: treino.zona,
     duracaoMin: treino.duracaoMin,
@@ -89,12 +98,30 @@ export function validarTreinoPlanejado(entrada) {
   if (!ESPORTES_VALIDOS.includes(esporte)) erros.push('Escolha o esporte.');
   if (!dataIsoValida(data) || data < '2000-01-01' || data > '2100-12-31') erros.push('Informe a data do treino.');
 
-  const duracao = numero(entrada?.duracaoMin);
-  const { min, max } = LIMITES_TREINO.duracaoMin;
-  if (duracao === null || !Number.isInteger(duracao) || duracao < min || duracao > max) {
-    erros.push(`Informe a duração em minutos inteiros, de ${min} a ${max}.`);
+  // Treino estruturado: a duração e a zona vêm dos passos (o formulário não decide).
+  const estruturado = Array.isArray(entrada?.passos) && entrada.passos.length > 0;
+  let passos = null;
+  let duracao;
+  let zonaFinal = zona;
+  if (estruturado) {
+    const v = validarPassos(entrada.passos);
+    if (!v.valido) erros.push(...v.erros);
+    else {
+      passos = v.passos;
+      const resumo = resumirTreino(passos);
+      duracao = resumo.duracaoMin;
+      zonaFinal = resumo.zona;
+    }
+  } else {
+    duracao = numero(entrada?.duracaoMin);
+    const { min, max } = LIMITES_TREINO.duracaoMin;
+    if (duracao === null || !Number.isInteger(duracao) || duracao < min || duracao > max) {
+      erros.push(`Informe a duração em minutos inteiros, de ${min} a ${max}.`);
+    }
+    if (!Object.keys(ZONAS).includes(zona)) erros.push('Escolha a zona predominante (Z1 a Z5).');
   }
-  if (!Object.keys(ZONAS).includes(zona)) erros.push('Escolha a zona predominante (Z1 a Z5).');
+  const nomeTreino = typeof entrada?.nomeTreino === 'string' ? entrada.nomeTreino.trim().slice(0, 60) : '';
+  const modeloId = typeof entrada?.modeloId === 'string' && entrada.modeloId.length <= 80 ? entrada.modeloId : null;
 
   let estresseManual = null;
   const bruto = entrada?.estresseManual;
@@ -108,7 +135,19 @@ export function validarTreinoPlanejado(entrada) {
   if (observacoes.length > LIMITES_TREINO.observacoes) erros.push(`As observações passam de ${LIMITES_TREINO.observacoes} caracteres.`);
 
   if (erros.length > 0) return { valido: false, erros, valores: null };
-  return { valido: true, erros, valores: { esporte, data, duracaoMin: duracao, zona, estresseManual, observacoes } };
+  return {
+    valido: true,
+    erros,
+    valores: {
+      esporte,
+      data,
+      duracaoMin: duracao,
+      zona: zonaFinal,
+      estresseManual,
+      observacoes,
+      ...(passos ? { passos, nomeTreino: nomeTreino || 'Treino estruturado', modeloId } : {}),
+    },
+  };
 }
 
 /** Treino que ficou para trás sem ser feito (e sem vínculo nem "pulado"). */

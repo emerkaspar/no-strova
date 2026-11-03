@@ -4,7 +4,7 @@ import { formatarData, formatarDistancia, formatarNumero } from '../../utils/for
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { vinculosIgnorados } from './state.js';
 
-const descricao = (t) => `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`;
+const descricao = (t) => (t.nomeTreino ? `${t.nomeTreino} · ${t.duracaoMin}min` : `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`);
 
 /**
  * Cartão de acompanhamento: sugestões de vínculo com a atividade feita, treinos que ficaram para trás e o

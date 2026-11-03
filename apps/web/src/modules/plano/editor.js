@@ -1,9 +1,10 @@
-import { somarDias } from '@no-strova/domain';
+import { configVigenteEm, descreverPasso, estimarEstresseEstruturado, somarDias } from '@no-strova/domain';
 import { detalheDaEstimativa, salvarTreinoPlanejado } from '../../application/plano.js';
 import { desvincularTreino, excluirTreino, pularTreino } from '../../infrastructure/planoRepo.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
+import { perfilDoTreino } from '../../utils/perfilTreino.js';
 import { OPCOES_ESPORTE, OPCOES_ZONA } from '../atividades/textos.js';
 
 /**
@@ -15,6 +16,8 @@ import { OPCOES_ESPORTE, OPCOES_ZONA } from '../atividades/textos.js';
  */
 export function criarEditor({ uid, configs, calibracao = () => null, treino, dataInicial, aoConcluir, aoCancelar }) {
   const existente = Boolean(treino);
+  // Treino estruturado (intervalado): a duração e a zona vêm dos passos e não se editam aqui.
+  const estruturado = Boolean(treino?.passos?.length);
   const data = campo({ id: 'tr-data', rotulo: 'Data', tipo: 'date', value: treino?.data ?? dataInicial });
   const esporte = selecao({ id: 'tr-esporte', rotulo: 'Esporte', opcoes: OPCOES_ESPORTE, valor: treino?.esporte ?? 'ciclismo' });
   const duracao = campo({ id: 'tr-duracao', rotulo: 'Duração (minutos)', inputmode: 'numeric', value: treino?.duracaoMin ?? '' });
@@ -28,11 +31,23 @@ export function criarEditor({ uid, configs, calibracao = () => null, treino, dat
   });
   const observacoes = h('textarea', { id: 'tr-obs', name: 'tr-obs', rows: 3, maxlength: 500, placeholder: 'Ex.: serra, intervalado 4×8 min…' });
   observacoes.value = treino?.observacoes ?? '';
+  if (estruturado) {
+    duracao.input.disabled = true;
+    zona.select.disabled = true;
+  }
   const estimativa = h('p', { class: 'estimativa', 'aria-live': 'polite' });
   const mensagem = areaMensagem();
   const botao = h('button', { class: 'btn', type: 'submit' }, existente ? 'Salvar alterações' : 'Adicionar treino');
 
   function atualizarEstimativa() {
+    if (estruturado) {
+      const valor = estimarEstresseEstruturado({ passos: treino.passos, config: configVigenteEm(configs(), data.input.value || treino.data) });
+      estimativa.textContent =
+        valor === null
+          ? 'Cadastre a configuração de FC (em Configuração) para o app estimar o estresse do treino.'
+          : `Estimativa: ~${formatarNumero(valor, 0)} de HRSS, somando os blocos do treino${estresse.input.value ? ' (você informou outro valor abaixo)' : ''}.`;
+      return;
+    }
     const detalhe = detalheDaEstimativa({
       zona: zona.select.value,
       duracaoMin: duracao.input.value,
@@ -66,6 +81,7 @@ export function criarEditor({ uid, configs, calibracao = () => null, treino, dat
     zona: zona.select.value,
     estresseManual: estresse.input.value,
     observacoes: observacoes.value,
+    ...(estruturado ? { passos: treino.passos, nomeTreino: treino.nomeTreino, modeloId: treino.modeloId ?? null } : {}),
   });
 
   const form = h(
@@ -80,6 +96,17 @@ export function criarEditor({ uid, configs, calibracao = () => null, treino, dat
         });
       },
     },
+    estruturado
+      ? h(
+          'div',
+          { class: 'treino-estrutura' },
+          h('p', { class: 'cg-mini-rotulo' }, 'Treino estruturado'),
+          h('strong', null, treino.nomeTreino),
+          perfilDoTreino(treino.passos),
+          h('ul', { class: 'treino-estrutura-passos' }, ...treino.passos.map((p) => h('li', null, descreverPasso(p)))),
+          h('p', { class: 'texto-secundario' }, 'A duração e a zona vêm dos passos. Para mudar o treino, crie outro em Treinos.'),
+        )
+      : null,
     h('div', { class: 'grid' }, data.raiz, esporte.raiz, duracao.raiz, zona.raiz, estresse.raiz),
     h('div', { class: 'campo' }, h('label', { for: 'tr-obs' }, 'Observações (opcional)'), observacoes),
     estimativa,

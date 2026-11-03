@@ -289,6 +289,62 @@ describe('novo treino e edição', () => {
     });
   });
 
+  describe('treino estruturado (intervalado)', () => {
+    const passos = [
+      { tipo: 'bloco', papel: 'aquecimento', duracaoS: 600, zona: 'Z2' },
+      { tipo: 'serie', repeticoes: 5, esforco: { duracaoS: 180, zona: 'Z5' }, recuperacao: { duracaoS: 180, zona: 'Z1' } },
+      { tipo: 'bloco', papel: 'desaquecimento', duracaoS: 600, zona: 'Z1' },
+    ];
+    const estruturado = () => treino({ data: '2026-11-06', duracaoMin: 47, zona: 'Z5', estresseManual: null, nomeTreino: '5 × 3 min no VO2', modeloId: 'vo2-5x3-ciclismo', passos });
+
+    it('o calendário mostra o nome do treino e o estresse somado dos blocos', () => {
+      m.treinos = [estruturado()];
+      abrir();
+      const chip = celula('2026-11-06').querySelector('.chip-treino');
+      expect(chip.querySelector('.chip-titulo').textContent).toBe('5 × 3 min no VO2 · 47min');
+      expect(chip.querySelector('.chip-sub').textContent).toMatch(/^~[0-9]+ · plano$/);
+    });
+
+    it('o editor mostra a estrutura (perfil e passos), trava a duração e a zona e estima pelos blocos', () => {
+      m.treinos = [estruturado()];
+      abrir();
+      celula('2026-11-06').querySelector('.chip-treino').click();
+      const editor = raiz.querySelector('#editor-treino');
+      expect(editor.querySelector('.treino-estrutura strong').textContent).toBe('5 × 3 min no VO2');
+      expect(editor.querySelector('.treino-estrutura svg.perfil-treino')).not.toBeNull();
+      expect([...editor.querySelectorAll('.treino-estrutura-passos li')].map((li) => li.textContent)).toEqual(['10 min Z2', '5 × 3 min Z5 / 3 min Z1', '10 min Z1']);
+      expect(editor.querySelector('#tr-duracao').disabled).toBe(true);
+      expect(editor.querySelector('#tr-zona').disabled).toBe(true);
+      expect(editor.querySelector('.estimativa').textContent).toMatch(/^Estimativa: ~[0-9]+ de HRSS, somando os blocos do treino\.$/);
+    });
+
+    it('salvar o treino estruturado mantém os passos, o nome e o modelo, e a estimativa vem dos blocos', async () => {
+      m.treinos = [estruturado()];
+      abrir();
+      celula('2026-11-06').querySelector('.chip-treino').click();
+      preencher({ 'tr-obs': 'Na serra' });
+      enviar(raiz.querySelector('#editor-treino form'));
+      await tick();
+      expect(m.atualizarTreino).toHaveBeenCalledTimes(1);
+      const [id, valores, estimado] = m.atualizarTreino.mock.calls[0];
+      expect(id).toBe('t1');
+      expect(valores).toMatchObject({ nomeTreino: '5 × 3 min no VO2', modeloId: 'vo2-5x3-ciclismo', zona: 'Z5', duracaoMin: 47, observacoes: 'Na serra' });
+      expect(valores.passos).toEqual(passos);
+      expect(estimado).toBeGreaterThan(0);
+    });
+
+    it('duplicar para a próxima semana leva a estrutura junto', async () => {
+      m.treinos = [estruturado()];
+      abrir();
+      celula('2026-11-06').querySelector('.chip-treino').click();
+      botao('Duplicar para a próxima semana').click();
+      await tick();
+      const [, valores] = m.criarTreino.mock.calls[0];
+      expect(valores).toMatchObject({ data: '2026-11-13', nomeTreino: '5 × 3 min no VO2' });
+      expect(valores.passos).toEqual(passos);
+    });
+  });
+
   it('sem configuração, a estimativa pede para cadastrá-la', () => {
     m.configs = [];
     abrir();

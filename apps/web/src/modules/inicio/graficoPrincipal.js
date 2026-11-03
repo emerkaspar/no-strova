@@ -611,9 +611,9 @@ export function criarGraficoPrincipal({
         h('p', { class: 'cg-dica-topo' }, `${statusDoDia(d.data, hoje)} · ${rotuloDoDia(d.data)}`),
         ...treinos.map((t) => linhaDeTreino(t, 'cg-treino-linha cg-dica-treino')),
         linhaDica('Condicionamento', formatarNumero(d.fitness, 1), 'cg-dica-fitness'),
-        linhaMetaCond,
         linhaDica('Fadiga', formatarNumero(d.fadiga, 1)),
         linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`),
+        linhaMetaCond,
         linhaMeta,
         kg !== null ? linhaDica('Peso', `${formatarNumero(kg, 1)} kg`, 'cg-dica-peso') : kgMeta !== null ? linhaDica('Meta', `${formatarNumero(kgMeta, 1)} kg`, 'cg-dica-peso') : null,
       ].filter(Boolean));

@@ -63,6 +63,11 @@ export function gravarDocumento(caminho, dados) {
   return setDoc(doc(db, caminho), dados);
 }
 
+/** Grava mesclando com o que já existe (cria o documento se faltar). */
+export function mesclarDocumento(caminho, dados) {
+  return setDoc(doc(db, caminho), dados, { merge: true });
+}
+
 /** Atualiza campos de um documento existente. */
 export function atualizarDocumento(caminho, campos) {
   return updateDoc(doc(db, caminho), campos);

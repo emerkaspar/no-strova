@@ -194,6 +194,65 @@ describe('Firestore: treinosPlanejados', () => {
   });
 });
 
+describe('Firestore: treino planejado estruturado e modelos de treino', () => {
+  const passos = [
+    { tipo: 'bloco', papel: 'aquecimento', duracaoS: 600, zona: 'Z2' },
+    { tipo: 'serie', repeticoes: 5, esforco: { duracaoS: 180, zona: 'Z5' }, recuperacao: { duracaoS: 180, zona: 'Z1' } },
+  ];
+  const treino = { userId: 'aprovado', data: '2026-11-10', esporte: 'ciclismo', duracaoMin: 62, zona: 'Z5', status: 'planejado', estresseEstimado: 88.4, estresseManual: null, observacoes: '', atividadeId: null, nomeTreino: '5 × 3 min no VO2', modeloId: 'vo2-5x3-ciclismo', passos };
+  const modelo = { userId: 'aprovado', nome: 'Meu intervalado', esporte: 'corrida', foco: 'sprint', nivel: 'intermediario', descricao: 'Forte.', passos };
+
+  it('treino planejado com passos, nome e modelo de origem é aceito; o limite de passos e de nome vale', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(setDoc(doc(db, 'treinosPlanejados/e1'), treino));
+    await assertSucceeds(setDoc(doc(db, 'treinosPlanejados/e2'), { ...treino, modeloId: null }));
+    for (const ruim of [{ passos: [] }, { passos: 'x' }, { passos: Array.from({ length: 31 }, () => passos[0]) }, { nomeTreino: '' }, { nomeTreino: 'x'.repeat(61) }, { modeloId: 'x'.repeat(81) }, { modeloId: 5 }, { extra: 1 }]) {
+      await assertFails(setDoc(doc(db, 'treinosPlanejados/ruim'), { ...treino, ...ruim }));
+    }
+  });
+
+  it('modelos próprios: o dono cria, lê, edita e apaga', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    const ref = doc(db, 'treinosModelos/m1');
+    await assertSucceeds(setDoc(ref, modelo));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(updateDoc(ref, { nome: 'Meu intervalado 2' }));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it('modelos próprios: rejeita nome, esporte, foco, nível, descrição, passos e campos inválidos', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    for (const ruim of [{ nome: 'ab' }, { nome: 'x'.repeat(61) }, { esporte: 'natacao' }, { foco: 'x' }, { nivel: 'x' }, { descricao: 'x'.repeat(501) }, { passos: [] }, { passos: 'x' }, { userId: 'outro' }, { extra: 1 }]) {
+      await assertFails(setDoc(doc(db, 'treinosModelos/ruim'), { ...modelo, ...ruim }));
+    }
+    const { nivel, ...semNivel } = modelo;
+    await assertFails(setDoc(doc(db, 'treinosModelos/ruim'), semNivel));
+  });
+
+  it('modelos próprios: outro usuário, admin, pendente e bloqueado não leem nem gravam', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'treinosModelos/m1'), modelo);
+    });
+    for (const uid of ['outro', 'admin']) {
+      await assertFails(getDoc(doc(env.authenticatedContext(uid).firestore(), 'treinosModelos/m1')));
+    }
+    await assertFails(updateDoc(doc(env.authenticatedContext('outro').firestore(), 'treinosModelos/m1'), { nome: 'Roubado' }));
+    await assertFails(deleteDoc(doc(env.authenticatedContext('outro').firestore(), 'treinosModelos/m1')));
+    for (const uid of ['pendente', 'bloqueado']) {
+      await assertFails(setDoc(doc(env.authenticatedContext(uid).firestore(), 'treinosModelos/x'), { ...modelo, userId: uid }));
+    }
+  });
+
+  it('preferências: o nível dos treinos aceita só os três níveis e convive com a calibração', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    const ref = doc(db, 'preferencias/aprovado');
+    await assertSucceeds(setDoc(ref, { userId: 'aprovado', nivelTreinos: 'avancado' }));
+    await assertSucceeds(setDoc(ref, { userId: 'aprovado', calibracaoAtiva: false, nivelTreinos: 'iniciante' }));
+    await assertFails(setDoc(ref, { userId: 'aprovado', nivelTreinos: 'lenda' }));
+    await assertFails(setDoc(ref, { userId: 'aprovado', calibracaoAtiva: 'sim' }));
+  });
+});
+
 describe('Firestore: o app grava exatamente como as regras esperam', () => {
   it('criar treino (com serverTimestamp) e editar com o conjunto completo de campos', async () => {
     const db = env.authenticatedContext('aprovado').firestore();

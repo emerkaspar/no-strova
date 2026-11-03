@@ -14,6 +14,7 @@ for (const [caminho, nome] of [
   ['../inicio/inicio.view.js', 'início'],
   ['../peso/peso.view.js', 'peso'],
   ['../plano/plano.view.js', 'plano'],
+  ['../treinos/treinos.view.js', 'treinos'],
 ]) {
   vi.doMock(caminho, () => ({
     render: (raiz) => {
@@ -85,16 +86,16 @@ describe('cabeçalho: logo, data e saudação', () => {
 describe('menu', () => {
   it('tem Início, Atividades, Plano, Peso e Configuração; Aprovações só para admin', async () => {
     await montar();
-    expect(itensPilula()).toEqual(['Início', 'Atividades', 'Plano', 'Peso', 'Configuração']);
+    expect(itensPilula()).toEqual(['Início', 'Atividades', 'Plano', 'Treinos', 'Peso', 'Configuração']);
     destruir();
     await montar({ ...sessaoComum, admin: true });
-    expect(itensPilula()).toEqual(['Início', 'Atividades', 'Plano', 'Peso', 'Configuração', 'Aprovações']);
+    expect(itensPilula()).toEqual(['Início', 'Atividades', 'Plano', 'Treinos', 'Peso', 'Configuração', 'Aprovações']);
   });
 
   it('a barra de abas do rodapé tem os mesmos itens, cada um com ícone de traço', async () => {
     await montar({ ...sessaoComum, admin: true });
     const abas = [...raiz.querySelectorAll('.barra-abas a')];
-    expect(abas.map((a) => a.textContent)).toEqual(['Início', 'Atividades', 'Plano', 'Peso', 'Configuração', 'Aprovações']);
+    expect(abas.map((a) => a.textContent)).toEqual(['Início', 'Atividades', 'Plano', 'Treinos', 'Peso', 'Configuração', 'Aprovações']);
     for (const a of abas) {
       const icone = a.querySelector('svg.icone');
       expect(icone).not.toBeNull();
