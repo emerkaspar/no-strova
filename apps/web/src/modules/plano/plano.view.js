@@ -4,7 +4,7 @@ import { agruparPorDia, dataInicialDoHistorico, montarProjecao } from '../../app
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
-import { moverTreino, observarMetas, observarTreinos, pularTreino, vincularTreino } from '../../infrastructure/planoRepo.js';
+import { moverTreino, observarMetas, observarMetasCondicionamento, observarTreinos, pularTreino, vincularTreino } from '../../infrastructure/planoRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, hojeIso } from '../../utils/formatters.js';
@@ -12,6 +12,8 @@ import { criarCartaoAcompanhamento } from './acompanhamento.js';
 import { desenharCalendario } from './calendario.js';
 import { criarEditor } from './editor.js';
 import { criarCartaoMeta } from './meta.js';
+import { criarCartaoMetaCondicionamento } from './metaCondicionamento.js';
+import { criarTreinoDoDia } from '../inicio/treinoDoDia.js';
 import { criarCartaoProjecao } from './projecao.js';
 import { estadoPlano } from './state.js';
 
@@ -25,8 +27,8 @@ function rotuloDoPeriodo(visao, ancora) {
 export function render(raiz, sessao) {
   const hoje = hojeIso();
   const desde = dataInicialDoHistorico(hoje);
-  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], calibracao: null };
-  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false, calibracao: false };
+  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], metasCondicionamento: [], calibracao: null };
+  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false, metasCondicionamento: false, calibracao: false };
   let ativa = true;
   const cancelar = [];
 
@@ -38,6 +40,7 @@ export function render(raiz, sessao) {
   const resto = h('div', { class: 'pilha' });
 
   const ancora = () => estadoPlano.ancora ?? hoje;
+  const treinoDoDia = criarTreinoDoDia(dados, hoje);
 
   // ---- edição ----
   function fecharEditor(texto) {
@@ -156,10 +159,33 @@ export function render(raiz, sessao) {
     const metasAtivas = dados.metas.filter((m) => m.ativa);
     const metaAtiva = metasAtivas.sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null;
     const anteriores = dados.metas.filter((m) => !m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? 1 : -1)).slice(0, 5);
-    const { serie, avaliacao } = montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: metaAtiva, hoje, calibracao: dados.calibracao });
+    const ativaMaisProxima = (lista) => lista.filter((m) => m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null;
+    const metaCondAtiva = ativaMaisProxima(dados.metasCondicionamento);
+    const anterioresCond = dados.metasCondicionamento.filter((m) => !m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? 1 : -1)).slice(0, 5);
+    const { serie, avaliacao, avaliacaoCondicionamento } = montarProjecao({
+      dias: dados.dias,
+      treinos: dados.treinos,
+      configs: dados.configs,
+      meta: metaAtiva,
+      metaCondicionamento: metaCondAtiva,
+      hoje,
+      calibracao: dados.calibracao,
+    });
+    const condicionamentoAtual = serie.find((d) => d.data === hoje)?.fitness ?? null;
 
     resto.replaceChildren(
-      criarCartaoProjecao({ serie, meta: metaAtiva, avaliacao }),
+      criarCartaoProjecao({
+        serie,
+        hoje,
+        meta: metaAtiva,
+        avaliacao,
+        metaCondicionamento: metaCondAtiva,
+        avaliacaoCondicionamento,
+        treinoDoDia,
+        // clicar num dia abre o treino planejado dele ou um novo treino naquela data
+        aoClicarDia: (data) => abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data),
+      }),
+      criarCartaoMetaCondicionamento({ uid: sessao.uid, hoje, metaAtiva: metaCondAtiva, metasAnteriores: anterioresCond, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
       criarCartaoMeta({ uid: sessao.uid, hoje, metaAtiva, metasAnteriores: anteriores, avaliacao }),
       criarCartaoAcompanhamento({
         treinos: dados.treinos,
@@ -199,6 +225,7 @@ export function render(raiz, sessao) {
     ouvir('atividades', (cb) => observarAtividadesDesde(sessao.uid, desde, cb, aoErro)),
     ouvir('configs', (cb) => observarConfigs(sessao.uid, cb, aoErro)),
     ouvir('metas', (cb) => observarMetas(sessao.uid, cb, aoErro)),
+    ouvir('metasCondicionamento', (cb) => observarMetasCondicionamento(sessao.uid, cb, aoErro)),
     observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
       dados.calibracao = efetiva;
       carregou.calibracao = true;

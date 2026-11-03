@@ -9,6 +9,7 @@ import {
 
 const TREINOS = 'treinosPlanejados';
 const METAS = 'metasForma';
+const METAS_CONDICIONAMENTO = 'metasCondicionamento';
 
 /** Id de 20 caracteres [a-f0-9], no mesmo formato dos ids automáticos do Firestore. */
 export function novoId() {
@@ -70,16 +71,33 @@ export function observarMetas(uid, aoDados, aoErro) {
 }
 
 /** Define a meta ativa: desativa as ativas anteriores e cria a nova, tudo de uma vez. */
-export async function definirMeta(uid, valores, metasAtivas = []) {
-  const operacoes = metasAtivas.map((m) => ({ tipo: 'update', caminho: `${METAS}/${m.id}`, dados: { ativa: false } }));
+async function definirNaColecao(colecao, uid, valores, metasAtivas) {
+  const operacoes = metasAtivas.map((m) => ({ tipo: 'update', caminho: `${colecao}/${m.id}`, dados: { ativa: false } }));
   operacoes.push({
     tipo: 'set',
-    caminho: `${METAS}/${novoId()}`,
+    caminho: `${colecao}/${novoId()}`,
     dados: { userId: uid, ...valores, ativa: true, criadoEm: carimboDeServidor() },
   });
   await gravarEmLote(operacoes);
 }
 
+export function definirMeta(uid, valores, metasAtivas = []) {
+  return definirNaColecao(METAS, uid, valores, metasAtivas);
+}
+
 export function excluirMeta(id) {
   return excluirDocumento(`${METAS}/${id}`);
+}
+
+/** Metas de Condicionamento do usuário (ativa e anteriores). A ordenação fica por conta de quem chama. */
+export function observarMetasCondicionamento(uid, aoDados, aoErro) {
+  return observarConsulta(METAS_CONDICIONAMENTO, { onde: [['userId', '==', uid]] }, aoDados, aoErro);
+}
+
+export function definirMetaCondicionamento(uid, valores, metasAtivas = []) {
+  return definirNaColecao(METAS_CONDICIONAMENTO, uid, valores, metasAtivas);
+}
+
+export function excluirMetaCondicionamento(id) {
+  return excluirDocumento(`${METAS_CONDICIONAMENTO}/${id}`);
 }

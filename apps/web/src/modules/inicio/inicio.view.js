@@ -5,11 +5,12 @@ import { montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde, observarUltimasAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
-import { observarTreinos } from '../../infrastructure/planoRepo.js';
+import { observarMetasCondicionamento, observarTreinos } from '../../infrastructure/planoRepo.js';
 import { h } from '../../utils/dom.js';
 import { hojeIso } from '../../utils/formatters.js';
-import { blocoAtividades, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoSemana, blocoSugestao, tituloDoDia, tituloDoTreino } from './blocos.js';
+import { blocoAtividades, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoSemana, blocoSugestao, tituloDoTreino } from './blocos.js';
 import { DIAS_DE_PLANO, rotuloDoDia } from './graficoPrincipal.js';
+import { criarTreinoDoDia } from './treinoDoDia.js';
 
 /** Dias de histórico de atividades e treinos para nomear o treino de cada dia no gráfico (cobre o período de 10 sem). */
 const DIAS_DE_HISTORICO = 70;
@@ -30,7 +31,8 @@ export function render(raiz, sessao) {
     treinos: [],
     configs: [],
     calibracao: null,
-    carregou: { dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false },
+    metasCondicionamento: [],
+    carregou: { dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false },
   };
   let ativa = true;
 
@@ -39,17 +41,7 @@ export function render(raiz, sessao) {
   const linha = h('div', { class: 'inicio-linha' });
   raiz.replaceChildren(h('div', { class: 'inicio' }, topo, grafico, linha));
 
-  /** Treino do dia: o que foi feito e o que está planejado (linhas com texto e esporte), ou null para "Descanso". */
-  function treinoDoDia(data) {
-    const feitas = dados.atividades.filter((a) => a.data === data);
-    const planejados = dados.treinos.filter((t) => t.data === data && t.status === 'planejado' && data >= hoje);
-    const detalhe = (t) => `${tituloDoTreino([t])} · ${t.duracaoMin} min`;
-    const linhas = [];
-    if (feitas.length > 0) linhas.push({ texto: planejados.length > 0 ? `Feito: ${tituloDoDia(feitas)}` : tituloDoDia(feitas), esporte: feitas[0].esporte });
-    else if (dados.dias.some((d) => d.data === data && d.estresse > 0)) linhas.push({ texto: 'Treino realizado', esporte: 'outro' });
-    for (const t of planejados) linhas.push({ texto: feitas.length > 0 ? `Planejado: ${detalhe(t)}` : detalhe(t), esporte: t.esporte });
-    return linhas.length > 0 ? linhas : null;
-  }
+  const treinoDoDia = criarTreinoDoDia(dados, hoje);
 
   const esportesDoDia = (data) => dados.atividades.filter((a) => a.data === data).map((a) => a.esporte);
 
@@ -79,6 +71,12 @@ export function render(raiz, sessao) {
     const planejado = treinosDaSemana.map((t) => ({ data: t.data, estresse: estresseDoTreino(t, dados.configs, dados.calibracao) }));
 
     const comDados = c.dias && dados.dias.length > 0;
+    // Meta de Condicionamento: a mais próxima das ativas e a projeção do plano até a data dela (sem o corte de 14 dias do gráfico)
+    const metaCond = c.metasCondicionamento ? dados.metasCondicionamento.filter((m) => m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null : null;
+    const projecaoDaMeta =
+      comDados && planoPronto && metaCond
+        ? montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: null, metaCondicionamento: metaCond, hoje, calibracao: dados.calibracao })
+        : null;
     topo.replaceChildren(
       // coluna da esquerda: o destaque e, embaixo, o próximo treino e a sequência
       h(
@@ -89,6 +87,9 @@ export function render(raiz, sessao) {
           ? blocoMinis({
               proximo: proximoDoPlano(),
               sequencia: sequenciaSemanal(dados.dias.filter((d) => d.estresse > 0 || d.qtdAtividades > 0).map((d) => d.data), hoje),
+              metaCondicionamento: metaCond,
+              avaliacaoCondicionamento: projecaoDaMeta?.avaliacaoCondicionamento ?? null,
+              condicionamentoAtual: serieReal.length > 0 ? serieReal[serieReal.length - 1].fitness : null,
             })
           : null,
       ),
@@ -131,6 +132,7 @@ export function render(raiz, sessao) {
     ouvir('atividades', 'atividades', (ok, erro) => observarAtividadesDesde(sessao.uid, desdeHistorico, ok, erro)),
     ouvir('treinos', 'treinos', (ok, erro) => observarTreinos(sessao.uid, desdeHistorico, ok, erro)),
     ouvir('configs', 'configs', (ok, erro) => observarConfigs(sessao.uid, ok, erro)),
+    ouvir('metasCondicionamento', 'metasCondicionamento', (ok, erro) => observarMetasCondicionamento(sessao.uid, ok, erro)),
     observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
       dados.calibracao = efetiva;
       dados.carregou.calibracao = true;

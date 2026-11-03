@@ -72,7 +72,7 @@ export function criarCartaoMeta({ uid, hoje, metaAtiva, metasAnteriores, avaliac
   );
 
   const resultado = !metaAtiva
-    ? h('p', { class: 'texto-secundario' }, 'Defina “chegar com Forma X na data Y” e o app mostra se o plano atual chega lá.')
+    ? h('p', { class: 'texto-secundario' }, 'Opcional, complementa a meta de Condicionamento. Defina “chegar com Forma X na data Y” (por exemplo, descansado no dia de uma prova) e o app mostra se o plano atual chega lá.')
     : h(
         'div',
         { class: `meta-resultado meta-${avaliacao?.estado ?? 'sem-dados'}`, role: 'status' },

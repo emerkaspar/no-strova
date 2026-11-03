@@ -5,6 +5,7 @@ export * from './calorias.js';
 export * from './configAtleta.js';
 export * from './forma.js';
 export * from './hrss.js';
+export * from './metaCondicionamento.js';
 export * from './lthr.js';
 export * from './planejamento.js';
 export * from './semana.js';

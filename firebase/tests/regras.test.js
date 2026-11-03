@@ -302,6 +302,39 @@ describe('Firestore: metasForma', () => {
   });
 });
 
+describe('Firestore: metasCondicionamento', () => {
+  const meta = { userId: 'aprovado', condicionamentoAlvo: 45.5, condicionamentoInicial: 30.2, dataAlvo: '2026-12-20', ativa: true };
+  const ref = (db, id = 'mc1') => doc(db, `metasCondicionamento/${id}`);
+
+  it('o dono cria, desativa e apaga a meta (com ou sem o valor inicial)', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(setDoc(ref(db), meta));
+    await assertSucceeds(getDoc(ref(db)));
+    await assertSucceeds(updateDoc(ref(db), { ativa: false }));
+    const { condicionamentoInicial, ...semInicial } = meta;
+    await assertSucceeds(setDoc(ref(db, 'sem-inicial'), semInicial));
+    await assertSucceeds(deleteDoc(ref(db)));
+  });
+
+  it('rejeita alvo fora de 1 a 250, tipos errados, data inválida, campos extras e dono trocado', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    for (const ruim of [{ condicionamentoAlvo: 0 }, { condicionamentoAlvo: 300 }, { condicionamentoAlvo: '40' }, { condicionamentoInicial: -1 }, { condicionamentoInicial: '30' }, { dataAlvo: 'logo' }, { ativa: 'sim' }, { extra: 1 }, { userId: 'outro' }]) {
+      await assertFails(setDoc(ref(db, 'ruim'), { ...meta, ...ruim }));
+    }
+  });
+
+  it('outro usuário, pendente e bloqueado não leem nem gravam', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ref(ctx.firestore()), meta);
+    });
+    await assertFails(getDoc(ref(env.authenticatedContext('outro').firestore())));
+    await assertFails(updateDoc(ref(env.authenticatedContext('outro').firestore()), { ativa: false }));
+    for (const uid of ['pendente', 'bloqueado']) {
+      await assertFails(setDoc(ref(env.authenticatedContext(uid).firestore(), 'x'), { ...meta, userId: uid }));
+    }
+  });
+});
+
 describe('Firestore: dados de negócio', () => {
   it('o dono aprovado lê e escreve os próprios dados', async () => {
     const db = env.authenticatedContext('aprovado').firestore();

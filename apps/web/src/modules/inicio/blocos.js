@@ -6,7 +6,7 @@ import { formatarData, formatarDistancia, formatarDuracao, formatarNumero } from
 import { pedirImportacao } from '../atividades/state.js';
 import { criarDicaZonas } from './dicaZonas.js';
 import { criarGraficoPrincipal } from './graficoPrincipal.js';
-import { cartaoProximoTreino, cartaoSequencia, progressoDaCarga, resumoDaSemana } from './semanaExtras.js';
+import { cartaoMetaCondicionamento, cartaoProximoTreino, cartaoSequencia, progressoDaCarga, resumoDaSemana } from './semanaExtras.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -117,9 +117,15 @@ export function tituloDoTreino(treinosDoDia) {
   return `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.zona}`;
 }
 
-/** Dois mini-cartões sob o destaque: o próximo treino planejado e a sequência de semanas com treino. */
-export function blocoMinis({ proximo, sequencia }) {
-  return h('div', { class: 'semana-minis' }, cartaoProximoTreino(proximo), cartaoSequencia(sequencia));
+/** Mini-cartões sob o destaque: o próximo treino planejado, a sequência de semanas com treino e a meta de Condicionamento. */
+export function blocoMinis({ proximo, sequencia, metaCondicionamento = null, avaliacaoCondicionamento = null, condicionamentoAtual = null }) {
+  return h(
+    'div',
+    { class: 'semana-minis' },
+    cartaoProximoTreino(proximo),
+    cartaoSequencia(sequencia),
+    cartaoMetaCondicionamento({ meta: metaCondicionamento, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
+  );
 }
 
 /** 3. Semana atual em 7 colunas: realizado cheio, planejado tracejado, descanso mínimo. */

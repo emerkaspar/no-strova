@@ -1974,6 +1974,19 @@ textarea {
   border-radius: var(--radius);
 }
 
+.semana-meta {
+  grid-column: 1 / -1;
+}
+
+.semana-meta .semana-progresso-barra {
+  margin: 6px 0;
+}
+
+.semana-meta-aviso {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .semana-mini-valor {
   margin: 0;
   font-weight: 700;
@@ -2051,4 +2064,121 @@ textarea {
 
 .teste-lthr {
   color: var(--primary);
+}
+
+/* Calibração: respiro entre a caixa, a tabela e os botões */
+#calibracao .opcao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+#calibracao .tabela-wrap,
+#calibracao .vazio-curto {
+  margin-bottom: 16px;
+}
+
+#calibracao .mensagem {
+  margin-bottom: 12px;
+}
+
+/* Gráfico no modo Plano: estresse do dia, meta de forma e clique no dia */
+.cg-estresse {
+  fill: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.cg-estresse-futuro {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 2;
+  opacity: 0.9;
+}
+
+.cg-meta-faixa {
+  fill: var(--primary);
+  opacity: 0.14;
+}
+
+.cg-meta-linha {
+  stroke: var(--text-primary);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+  opacity: 0.8;
+}
+
+.cg-meta-marcador {
+  fill: var(--text-primary);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.cg-meta-rotulo {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cg-clicavel {
+  cursor: pointer;
+}
+
+.cg-amostra-estresse {
+  width: 8px;
+  height: 14px;
+  background: var(--text-secondary);
+  opacity: 0.7;
+  border-radius: 2px;
+}
+
+.cg-amostra-meta {
+  width: 10px;
+  height: 10px;
+  background: var(--text-primary);
+  transform: rotate(45deg);
+}
+
+.cg-dica-meta span {
+  font-weight: 700;
+}
+
+/* Meta de Condicionamento: a cor da marca no gráfico, ritmo e progresso no cartão */
+.cg-meta-faixa.cg-meta-cond {
+  fill: var(--cg-fitness);
+  opacity: 0.16;
+}
+
+.cg-meta-linha.cg-meta-cond {
+  stroke: var(--cg-fitness);
+}
+
+.cg-meta-marcador.cg-meta-cond {
+  fill: var(--cg-fitness);
+}
+
+.cg-meta-rotulo.cg-meta-cond {
+  fill: var(--cg-fitness);
+}
+
+.cg-amostra-meta.cg-meta-cond {
+  background: var(--cg-fitness);
+}
+
+.cg-dica-meta-cond span {
+  color: var(--cg-fitness);
+}
+
+.meta-ritmo {
+  margin: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-progresso {
+  margin: 10px 0;
+}
+
+.meta-progresso .texto-secundario {
+  margin: 0 0 6px;
 }

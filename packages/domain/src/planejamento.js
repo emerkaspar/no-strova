@@ -153,11 +153,13 @@ export function estressesParaProjecao({ realizado, treinos, configs, hoje, calib
 
 /**
  * Data final da projeção: o último treino planejado (ou a meta) mais 14 dias, com teto de 90 dias a partir de
- * hoje. Uma meta mais distante estende a série até ela, para poder ser avaliada. Sem plano nem meta, é hoje.
+ * hoje. Uma meta mais distante (de Forma ou de Condicionamento) estende a série até ela, para poder ser avaliada.
+ * Sem plano nem meta, é hoje.
  */
-export function horizonteDaProjecao({ treinos, meta, hoje }) {
+export function horizonteDaProjecao({ treinos, meta, metaCondicionamento = null, hoje }) {
   const marcos = (treinos ?? []).filter((t) => t.status === STATUS_TREINO.PLANEJADO && t.data >= hoje).map((t) => t.data);
-  const metaFutura = meta?.ativa && meta.dataAlvo >= hoje ? meta.dataAlvo : null;
+  const datasDeMeta = [meta, metaCondicionamento].filter((m) => m?.ativa && m.dataAlvo >= hoje).map((m) => m.dataAlvo);
+  const metaFutura = datasDeMeta.length > 0 ? datasDeMeta.reduce((a, b) => (b > a ? b : a)) : null;
   if (metaFutura) marcos.push(metaFutura);
   if (marcos.length === 0) return hoje;
 

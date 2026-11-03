@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   configs: [],
   calibracao: { chaves: {} },
   preferencias: null,
+  metasCondicionamento: [],
   reconstruir: vi.fn(),
 }));
 
@@ -46,6 +47,10 @@ vi.mock('../../infrastructure/planoRepo.js', () => ({
     aoDados(mocks.treinos);
     return () => {};
   },
+  observarMetasCondicionamento: (_uid, aoDados) => {
+    aoDados(mocks.metasCondicionamento);
+    return () => {};
+  },
 }));
 vi.mock('../../infrastructure/configsRepo.js', () => ({
   observarConfigs: (_uid, aoDados) => {
@@ -77,6 +82,7 @@ beforeEach(() => {
   mocks.configs = [];
   mocks.calibracao = { chaves: {} };
   mocks.preferencias = null;
+  mocks.metasCondicionamento = [];
   mocks.reconstruir.mockReset().mockResolvedValue({ dias: 0, removidos: 0 });
   controleAgregacao.pedido = false;
   estadoAtividades.abrirImportar = false;
@@ -494,5 +500,51 @@ describe('Semana: resumo, progresso, próximo treino e sequência', () => {
   it('o título do dia quebra em linhas em vez de ser cortado', () => {
     render(raiz, sessao);
     expect(getComputedStyle(raiz.querySelector('.dia-titulo')).whiteSpace).not.toBe('nowrap');
+  });
+});
+
+describe('Meta de Condicionamento no Início', () => {
+  const config = { id: 'c1', vigenteDesde: '2026-01-01', fcMax: 190, fcRepouso: 50, lthr: 170, sexo: 'masculino', pesoKg: 75, alturaCm: 178 };
+  const historico = Array.from({ length: 30 }, (_, i) => ({ data: somarDias('2026-10-06', i), estresse: 60 })); // até 04/11
+  const meta = (extra) => ({ id: 'mc1', userId: 'u1', condicionamentoAlvo: 50, condicionamentoInicial: 10, dataAlvo: '2026-11-25', ativa: true, ...extra });
+
+  beforeEach(() => {
+    mocks.dias = historico;
+    mocks.configs = [config];
+  });
+
+  it('sem meta, convida a definir uma no Plano', () => {
+    render(raiz, sessao);
+    expect(texto('.semana-meta .semana-mini-valor')).toBe('Nenhuma meta definida');
+    expect(raiz.querySelector('.semana-meta a').getAttribute('href')).toBe('#/plano');
+  });
+
+  it('com meta, mostra do Condicionamento de hoje ao alvo, o progresso e o que o plano atual entrega', () => {
+    mocks.metasCondicionamento = [meta()];
+    render(raiz, sessao);
+    const cartao = raiz.querySelector('.semana-meta');
+    expect(cartao.querySelector('.semana-mini-numero').textContent).toBe('50,0');
+    expect(cartao.querySelector('.semana-mini-valor').textContent).toMatch(/^[0-9]+,[0-9] → 50,0 · [0-9]+%$/);
+    expect(cartao.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(cartao.querySelector('.semana-mini-nota').textContent).toMatch(/^Plano atual: (chega lá em 25\/11\/2026|fica [0-9]+,[0-9] pontos abaixo em 25\/11\/2026|passa [0-9]+,[0-9] pontos do alvo em 25\/11\/2026)/);
+  });
+
+  it('meta antiga, sem o valor inicial: mostra só a projeção, sem barra de progresso', () => {
+    mocks.metasCondicionamento = [meta({ condicionamentoInicial: undefined })];
+    render(raiz, sessao);
+    expect(raiz.querySelector('.semana-meta [role="progressbar"]')).toBeNull();
+    expect(raiz.querySelector('.semana-meta .semana-mini-nota').textContent).toContain('Plano atual');
+  });
+
+  it('meta inativa não aparece; a mais próxima das ativas vale', () => {
+    mocks.metasCondicionamento = [meta({ id: 'a', ativa: false, condicionamentoAlvo: 99 }), meta({ id: 'b', condicionamentoAlvo: 61, dataAlvo: '2026-12-20' }), meta({ id: 'c', condicionamentoAlvo: 55, dataAlvo: '2026-12-01' })];
+    render(raiz, sessao);
+    expect(raiz.querySelector('.semana-meta .semana-mini-numero').textContent).toBe('55,0');
+  });
+
+  it('ritmo agressivo aparece como aviso curto', () => {
+    mocks.metasCondicionamento = [meta({ condicionamentoAlvo: 220, dataAlvo: '2026-11-11' })];
+    render(raiz, sessao);
+    expect(raiz.querySelector('.semana-meta-aviso').textContent).toContain('Ritmo agressivo');
   });
 });

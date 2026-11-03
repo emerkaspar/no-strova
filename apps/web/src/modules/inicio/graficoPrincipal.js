@@ -1,4 +1,4 @@
-import { FAIXAS_FORMA } from '@no-strova/domain';
+import { FAIXAS_FORMA, TOLERANCIA_META, TOLERANCIA_META_CONDICIONAMENTO } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarForma, formatarNumero } from '../../utils/formatters.js';
 
@@ -6,16 +6,40 @@ const NS = 'http://www.w3.org/2000/svg';
 const L = 760;
 const MARGEM = { esquerda: 40, direita: 14 };
 const LARGURA = L - MARGEM.esquerda - MARGEM.direita;
-const FAIXA_ATIVIDADES = 22; // altura da faixa de atividades, no alto do painel de Forma, acima das barras
-const PAINEL = { cond: { topo: 20, alto: 170 }, forma: { topo: 218, alto: 120 + FAIXA_ATIVIDADES }, peso: { topo: 388, alto: 90 } };
-const EIXO_X = 500; // y dos rótulos de data
-const ALTURA = 522;
+
+/**
+ * Posição dos painéis. No Início: condicionamento e fadiga, Forma (com a faixa de atividades acima das barras) e peso.
+ * No Plano: sem peso e sem ícones; o terceiro painel é o estresse do dia (barras cheias no realizado, tracejadas no plano).
+ */
+function layoutDoModo(plano) {
+  const faixa = plano ? 0 : 22;
+  // o Plano não tem a coluna de peso nem os ícones, então os painéis ficam mais altos e o gráfico acompanha a coluna lateral
+  const cond = { topo: 20, alto: plano ? 200 : 170 };
+  const forma = { topo: cond.topo + cond.alto + 28, alto: (plano ? 150 : 120) + faixa };
+  const terceiro = { topo: forma.topo + forma.alto + 28, alto: plano ? 80 : 90 };
+  const fim = terceiro.topo + terceiro.alto;
+  return {
+    FAIXA_ATIVIDADES: faixa,
+    PAINEL: { cond, forma, peso: plano ? null : terceiro, estresse: plano ? terceiro : null },
+    FIM: fim,
+    EIXO_X: fim + 22,
+    ALTURA: fim + 44,
+  };
+}
 const LIMITE_ESCALA_FORMA = 40;
 const PASSOS_CONDICIONAMENTO = [1, 2, 5, 10, 20, 25, 50, 100, 200];
 const ESCALA_REGUA = { min: -40, max: 40 };
 const LIMITES_REGUA = [25, 5, -10, -30];
 
-/** Períodos do seletor: dias já realizados e dias de plano projetado mostrados (o plano cabe até onde houver treinos). */
+/** Períodos do seletor do Plano: pouco passado e muito plano (o plano cabe até onde houver treinos, no máximo 90 dias). */
+export const PERIODOS_PLANO = Object.freeze([
+  { id: '2sem', rotulo: '2 sem', passado: 7, futuro: 14 },
+  { id: '4sem', rotulo: '4 sem', passado: 14, futuro: 28 },
+  { id: '8sem', rotulo: '8 sem', passado: 21, futuro: 56 },
+  { id: '12sem', rotulo: '12 sem', passado: 28, futuro: 90 },
+]);
+
+/** Períodos do seletor do Início: dias já realizados e dias de plano projetado mostrados (o plano cabe até onde houver treinos). */
 export const PERIODOS = Object.freeze([
   { id: '6sem', rotulo: '6 sem', passado: 28, futuro: 14 },
   { id: '10sem', rotulo: '10 sem', passado: 42, futuro: 28 },
@@ -82,8 +106,8 @@ function iconeSolto(esporte, tamanho) {
   return el;
 }
 
-/** Último período escolhido: sobrevive aos redesenhos do Início (cada snapshot refaz o cartão). */
-let periodoEscolhido = '10sem';
+/** Último período escolhido em cada modo: sobrevive aos redesenhos (cada snapshot refaz o cartão). */
+const periodoPorModo = { inicio: '10sem', plano: '8sem' };
 let sequencia = 0;
 
 function svg(nome, atributos = {}, ...filhos) {
@@ -135,12 +159,31 @@ function diasEntreIso(a, b) {
  *   treinoDoDia?: (data: string) => string|string[]|null,
  *   esportesDoDia?: (data: string) => string[],
  *   pesos?: Array<{ data: string, kg: number }>,
- *   metaPeso?: { dataAlvo: string, kg: number }|null
+ *   metaPeso?: { dataAlvo: string, kg: number }|null,
+ *   modo?: 'inicio'|'plano',
+ *   meta?: { dataAlvo: string, formaAlvo: number }|null,
+ *   metaCondicionamento?: { dataAlvo: string, condicionamentoAlvo: number }|null,
+ *   aoClicarDia?: ((data: string) => void)|null
  * }} p
+ *   `modo: 'plano'` é o gráfico da tela Plano: seletor com mais futuro, sem peso, barras de estresse do dia no lugar dos
+ *   ícones de atividade, as metas (de Condicionamento no painel de cima e de Forma no da Forma) marcadas e, com `aoClicarDia`, um clique no dia abre o treino dele.
  */
-export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, esportesDoDia = () => [], pesos = [], metaPeso = null }) {
+export function criarGraficoPrincipal({
+  serie,
+  hoje,
+  treinoDoDia = () => null,
+  esportesDoDia = () => [],
+  pesos = [],
+  metaPeso = null,
+  modo = 'inicio',
+  meta = null,
+  metaCondicionamento = null,
+  aoClicarDia = null,
+}) {
+  const plano = modo === 'plano';
+  const periodos = plano ? PERIODOS_PLANO : PERIODOS;
   const raiz = h('section', { class: 'card bloco-grafico cg' });
-  const periodo = () => PERIODOS.find((p) => p.id === periodoEscolhido) ?? PERIODOS[1];
+  const periodo = () => periodos.find((p) => p.id === periodoPorModo[modo]) ?? periodos[1];
 
   function desenhar() {
     const dias = recortarPeriodo(serie, periodo());
@@ -148,15 +191,15 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     const seletor = h(
       'div',
       { class: 'cg-periodos', role: 'group', 'aria-label': 'Período do gráfico' },
-      ...PERIODOS.map((p) =>
+      ...periodos.map((p) =>
         h(
           'button',
           {
             type: 'button',
             class: 'cg-periodo',
-            'aria-pressed': String(p.id === periodoEscolhido),
+            'aria-pressed': String(p.id === periodo().id),
             onClick: () => {
-              periodoEscolhido = p.id;
+              periodoPorModo[modo] = p.id;
               desenhar();
             },
           },
@@ -167,7 +210,20 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     const topo = h(
       'div',
       { class: 'cg-topo' },
-      h('div', null, h('h2', { class: 'titulo-bloco' }, 'Condicionamento, fadiga e forma'), h('p', { class: 'texto-secundario cg-sub' }, 'Realizado até hoje e plano projetado. Passe o mouse sobre o gráfico.')),
+      h(
+        'div',
+        null,
+        h('h2', { class: 'titulo-bloco' }, plano ? 'Projeção do plano' : 'Condicionamento, fadiga e forma'),
+        h(
+          'p',
+          { class: 'texto-secundario cg-sub' },
+          plano
+            ? temFuturo
+              ? 'Como o seu plano mexe no Condicionamento, na Fadiga e na Forma. Clique num dia para planejar ou editar o treino dele.'
+              : 'Ainda não há treinos planejados: clique num dia para planejar um e ver a projeção do Condicionamento, da Fadiga e da Forma.'
+            : 'Realizado até hoje e plano projetado. Passe o mouse sobre o gráfico.',
+        ),
+      ),
       seletor,
     );
     if (dias.length < 2) {
@@ -179,6 +235,7 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
 
   function corpo(dias, temFuturo) {
     const n = dias.length;
+    const { FAIXA_ATIVIDADES, PAINEL, FIM, EIXO_X, ALTURA } = layoutDoModo(plano);
     const idGradiente = `cg-grad-${++sequencia}`;
     const indiceHoje = Math.max(0, dias.findIndex((d) => d.data === hoje));
     // cada dia ocupa uma "casa" e o ponto fica no meio dela: a primeira e a última barras não invadem o eixo
@@ -187,11 +244,14 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
 
     // ---- escalas ----
     // As escalas se ajustam aos dados: com valores baixos, uma escala fixa de 0 a 100 deixaria as linhas coladas no fundo.
-    const maxCond = Math.max(1, ...dias.flatMap((d) => [d.fitness, d.fadiga]));
+    const metaCondNaJanela = plano && metaCondicionamento && metaCondicionamento.dataAlvo >= dias[0].data && metaCondicionamento.dataAlvo <= dias[n - 1].data ? metaCondicionamento : null;
+    const maxCond = Math.max(1, ...dias.flatMap((d) => [d.fitness, d.fadiga]), ...(metaCondNaJanela ? [metaCondNaJanela.condicionamentoAlvo + TOLERANCIA_META_CONDICIONAMENTO] : []));
     const passoCond = PASSOS_CONDICIONAMENTO.find((p) => (maxCond * 1.1) / p <= 4) ?? 200;
     const topoCond = Math.ceil((maxCond * 1.1) / passoCond) * passoCond;
     const yCond = (v) => PAINEL.cond.topo + (1 - v / topoCond) * PAINEL.cond.alto;
-    const formas = dias.map((d) => d.forma);
+    const metaNaJanela = plano && meta && meta.dataAlvo >= dias[0].data && meta.dataAlvo <= dias[n - 1].data ? meta : null;
+    // a escala da Forma inclui o alvo e a sua tolerância, para a meta nunca ficar fora do gráfico
+    const formas = [...dias.map((d) => d.forma), ...(metaNaJanela ? [metaNaJanela.formaAlvo - TOLERANCIA_META, metaNaJanela.formaAlvo + TOLERANCIA_META] : [])];
     const formaMin = Math.max(-LIMITE_ESCALA_FORMA, Math.floor((Math.min(...formas, -10) - 3) / 5) * 5);
     const formaMax = Math.min(LIMITE_ESCALA_FORMA, Math.ceil((Math.max(...formas, 5) + 3) / 5) * 5);
     const limitaForma = (v) => Math.min(formaMax, Math.max(formaMin, v));
@@ -215,18 +275,18 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     const temPeso = kgs.length > 0;
     const menorKg = temPeso ? Math.floor(Math.min(...kgs) - 1) : 0;
     const maiorKg = temPeso ? Math.ceil(Math.max(...kgs) + 1) : 1;
-    const yPeso = (kg) => PAINEL.peso.topo + (1 - (kg - menorKg) / (maiorKg - menorKg || 1)) * PAINEL.peso.alto;
+    const yPeso = (kg) => (PAINEL.peso ? PAINEL.peso.topo + (1 - (kg - menorKg) / (maiorKg - menorKg || 1)) * PAINEL.peso.alto : 0);
 
     const raizSvg = svg('svg', {
       viewBox: `0 0 ${L} ${ALTURA}`,
       class: 'cg-svg',
       role: 'img',
-      'aria-label': `Condicionamento, fadiga, forma e peso de ${rotuloDoDia(primeiro)} a ${rotuloDoDia(ultimo)}${temFuturo ? ', com o plano projetado' : ''}`,
+      'aria-label': `Condicionamento, fadiga, forma${plano ? '' : ' e peso'} de ${rotuloDoDia(primeiro)} a ${rotuloDoDia(ultimo)}${temFuturo ? ', com o plano projetado' : ''}`,
     });
 
     // fundo dos dias futuros, atravessando os três painéis
     if (temFuturo) {
-      raizSvg.append(svg('rect', { x: px(indiceHoje), y: PAINEL.cond.topo, width: px(n - 1) - px(indiceHoje), height: PAINEL.peso.topo + PAINEL.peso.alto - PAINEL.cond.topo, class: 'cg-futuro' }));
+      raizSvg.append(svg('rect', { x: px(indiceHoje), y: PAINEL.cond.topo, width: px(n - 1) - px(indiceHoje), height: FIM - PAINEL.cond.topo, class: 'cg-futuro' }));
     }
 
     // painel 1: grade 0–100 (ou mais, se a fadiga passar)
@@ -254,6 +314,21 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
       if (temFuturo) raizSvg.append(svg('polyline', { points: pontos(campo, yCond, indiceHoje, n - 1), class: `cg-linha cg-${campo} cg-tracejada` }));
     }
 
+    // meta de Condicionamento: faixa de tolerância (±3), linha do alvo desde hoje e o losango na data da meta
+    if (metaCondNaJanela) {
+      const iMeta = indiceDe(metaCondNaJanela.dataAlvo);
+      const alvo = metaCondNaJanela.condicionamentoAlvo;
+      const x0 = px(indiceHoje);
+      const x1 = px(iMeta);
+      const y = yCond(alvo);
+      raizSvg.append(
+        svg('rect', { x: x0, y: yCond(alvo + TOLERANCIA_META_CONDICIONAMENTO), width: Math.max(0, x1 - x0), height: yCond(alvo - TOLERANCIA_META_CONDICIONAMENTO) - yCond(alvo + TOLERANCIA_META_CONDICIONAMENTO), class: 'cg-meta-faixa cg-meta-cond' }),
+        svg('line', { x1: x0, x2: x1, y1: y, y2: y, class: 'cg-meta-linha cg-meta-cond' }),
+        svg('path', { d: `M ${x1} ${y - 8} L ${x1 + 8} ${y} L ${x1} ${y + 8} L ${x1 - 8} ${y} Z`, class: 'cg-meta-marcador cg-meta-cond' }),
+        svg('text', { x: iMeta > n * 0.8 ? x1 - 12 : x1 + 12, y: y - 10, 'text-anchor': iMeta > n * 0.8 ? 'end' : 'start', class: 'cg-meta-rotulo cg-meta-cond' }, `Meta ${formatarNumero(alvo, 1)} · ${rotuloDoDia(metaCondNaJanela.dataAlvo)}`),
+      );
+    }
+
     // painel 2: Forma em barras pela zona, a partir do zero
     raizSvg.append(svg('text', { x: MARGEM.esquerda, y: PAINEL.forma.topo - 6, class: 'cg-titulo-painel' }, 'FORMA'));
     for (const v of [5, 0, -10, -30].filter((x) => x < formaMax && x > formaMin + 2)) {
@@ -277,12 +352,40 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     });
     raizSvg.append(...barras);
 
+    // No Plano, o terceiro painel é o estresse do dia: barras cheias no realizado, tracejadas no plano.
+    if (plano) {
+      const maiorEstresse = Math.max(1, ...dias.map((d) => d.estresse));
+      const baseEstresse = PAINEL.estresse.topo + PAINEL.estresse.alto;
+      const alturaMaxima = PAINEL.estresse.alto - 4;
+      const larguraEstresse = Math.max(1.5, passoX * 0.6);
+      raizSvg.append(
+        svg('text', { x: MARGEM.esquerda, y: PAINEL.estresse.topo - 6, class: 'cg-titulo-painel' }, 'ESTRESSE DO DIA'),
+        svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: baseEstresse, y2: baseEstresse, class: 'cg-grade' }),
+        svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: baseEstresse - alturaMaxima, y2: baseEstresse - alturaMaxima, class: 'cg-grade' }),
+        svg('text', { x: MARGEM.esquerda - 8, y: baseEstresse + 4, 'text-anchor': 'end', class: 'cg-rotulo' }, '0'),
+        svg('text', { x: MARGEM.esquerda - 8, y: baseEstresse - alturaMaxima + 4, 'text-anchor': 'end', class: 'cg-rotulo' }, formatarNumero(maiorEstresse, 0)),
+      );
+      dias.forEach((d, i) => {
+        if (!(d.estresse > 0)) return;
+        const altura = Math.max(2, (d.estresse / maiorEstresse) * alturaMaxima);
+        const barra = svg('rect', {
+          x: (px(i) - larguraEstresse / 2).toFixed(1),
+          y: (baseEstresse - altura).toFixed(1),
+          width: larguraEstresse.toFixed(1),
+          height: altura.toFixed(1),
+          class: `cg-estresse${d.projetado ? ' cg-estresse-futuro' : ''}`,
+        });
+        barra.append(svg('title', {}, `${rotuloDoDia(d.data)} · estresse ${formatarNumero(d.estresse, 0)}${d.projetado ? ' (planejado)' : ''}`));
+        raizSvg.append(barra);
+      });
+    }
+
     // atividades do dia, logo acima das barras de Forma: ícone do esporte (com contador quando há mais de uma) ou,
     // com o gráfico denso, um traço fino (empilhado quando há mais de uma), sempre na cor do esporte
     const nomeEsporte = { ciclismo: 'Ciclismo', corrida: 'Corrida', outro: 'Outra atividade' };
     const comIcone = passoX >= 10;
     dias.forEach((d, i) => {
-      if (d.projetado) return;
+      if (plano || d.projetado) return;
       const esportes = esportesDoDia(d.data);
       const esporte = esportes[0] ?? (d.estresse > 0 ? 'outro' : null);
       if (!esporte) return;
@@ -312,9 +415,22 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     });
     raizSvg.append(svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: yForma(0), y2: yForma(0), class: 'cg-zero' }));
 
-    // painel 3: peso (contínuo) e meta (tracejada)
-    raizSvg.append(svg('text', { x: MARGEM.esquerda, y: PAINEL.peso.topo - 6, class: 'cg-titulo-painel' }, 'PESO E META'));
-    if (temPeso) {
+    // meta de forma: faixa de tolerância (±3), linha do alvo desde hoje e o losango na data da meta
+    if (metaNaJanela) {
+      const iMeta = indiceDe(metaNaJanela.dataAlvo);
+      const x0 = px(indiceHoje);
+      const x1 = px(iMeta);
+      raizSvg.append(
+        svg('rect', { x: x0, y: yForma(metaNaJanela.formaAlvo + TOLERANCIA_META), width: Math.max(0, x1 - x0), height: yForma(metaNaJanela.formaAlvo - TOLERANCIA_META) - yForma(metaNaJanela.formaAlvo + TOLERANCIA_META), class: 'cg-meta-faixa' }),
+        svg('line', { x1: x0, x2: x1, y1: yForma(metaNaJanela.formaAlvo), y2: yForma(metaNaJanela.formaAlvo), class: 'cg-meta-linha' }),
+        svg('path', { d: `M ${x1} ${yForma(metaNaJanela.formaAlvo) - 8} L ${x1 + 8} ${yForma(metaNaJanela.formaAlvo)} L ${x1} ${yForma(metaNaJanela.formaAlvo) + 8} L ${x1 - 8} ${yForma(metaNaJanela.formaAlvo)} Z`, class: 'cg-meta-marcador' }),
+        svg('text', { x: iMeta > n * 0.8 ? x1 - 12 : x1 + 12, y: yForma(metaNaJanela.formaAlvo) - 10, 'text-anchor': iMeta > n * 0.8 ? 'end' : 'start', class: 'cg-meta-rotulo' }, `Meta ${sinalDaForma(metaNaJanela.formaAlvo)} · ${rotuloDoDia(metaNaJanela.dataAlvo)}`),
+      );
+    }
+
+    // painel 3: peso (contínuo) e meta (tracejada); o Plano não tem este painel
+    if (!plano) raizSvg.append(svg('text', { x: MARGEM.esquerda, y: PAINEL.peso.topo - 6, class: 'cg-titulo-painel' }, 'PESO E META'));
+    if (!plano && temPeso) {
       for (const kg of [menorKg, (menorKg + maiorKg) / 2, maiorKg]) {
         raizSvg.append(
           svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: yPeso(kg), y2: yPeso(kg), class: 'cg-grade' }),
@@ -336,7 +452,7 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     // divisória "Hoje" e rótulos do calendário
     if (temFuturo) {
       raizSvg.append(
-        svg('line', { x1: px(indiceHoje), x2: px(indiceHoje), y1: PAINEL.cond.topo, y2: PAINEL.peso.topo + PAINEL.peso.alto, class: 'cg-hoje' }),
+        svg('line', { x1: px(indiceHoje), x2: px(indiceHoje), y1: PAINEL.cond.topo, y2: FIM, class: 'cg-hoje' }),
         svg('text', { x: px(indiceHoje), y: EIXO_X + 14, 'text-anchor': 'middle', class: 'cg-hoje-rotulo' }, 'HOJE'),
       );
     }
@@ -352,7 +468,7 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     }
 
     // interação: guia vertical, um ponto por série e a barra do dia em destaque
-    const guia = svg('line', { y1: PAINEL.cond.topo, y2: PAINEL.peso.topo + PAINEL.peso.alto, class: 'cg-guia', visibility: 'hidden' });
+    const guia = svg('line', { y1: PAINEL.cond.topo, y2: FIM, class: 'cg-guia', visibility: 'hidden' });
     const pontoCond = svg('circle', { r: 4.5, class: 'cg-ponto cg-ponto-fitness', visibility: 'hidden' });
     const pontoFadiga = svg('circle', { r: 4.5, class: 'cg-ponto cg-ponto-fadiga', visibility: 'hidden' });
     const pontoForma = svg('circle', { r: 4.5, class: 'cg-ponto cg-ponto-forma', visibility: 'hidden' });
@@ -362,7 +478,7 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     const dica = h('div', { class: 'cg-dica', role: 'status', hidden: true });
     const area = h('div', { class: 'cg-area-grafico' }, raizSvg, dica);
 
-    if (!temPeso) {
+    if (!plano && !temPeso) {
       area.append(
         h(
           'div',
@@ -416,11 +532,20 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
         { class: 'cg-legenda' },
         h('li', null, h('span', { class: 'cg-amostra cg-amostra-fitness' }), 'Condicionamento'),
         h('li', null, h('span', { class: 'cg-amostra cg-amostra-fadiga' }), 'Fadiga'),
-        h('li', null, h('span', { class: 'cg-amostra cg-amostra-peso' }), 'Peso'),
-        h('li', null, h('span', { class: 'cg-amostra cg-amostra-plano' }), 'Plano e meta'),
-        h('li', null, h('span', { class: 'cg-amostra-esporte cg-esporte-ciclismo' }), 'Ciclismo'),
-        h('li', null, h('span', { class: 'cg-amostra-esporte cg-esporte-corrida' }), 'Corrida'),
-        h('li', null, h('span', { class: 'cg-amostra-esporte cg-esporte-outro' }), 'Outro')
+        ...(plano
+          ? [
+              h('li', null, h('span', { class: 'cg-amostra cg-amostra-plano' }), 'Projeção do plano'),
+              h('li', null, h('span', { class: 'cg-amostra-estresse' }), 'Estresse do dia'),
+              metaCondNaJanela ? h('li', null, h('span', { class: 'cg-amostra-meta cg-meta-cond' }), 'Meta de Condicionamento') : null,
+              metaNaJanela ? h('li', null, h('span', { class: 'cg-amostra-meta' }), 'Meta de forma') : null,
+            ].filter(Boolean)
+          : [
+              h('li', null, h('span', { class: 'cg-amostra cg-amostra-peso' }), 'Peso'),
+              h('li', null, h('span', { class: 'cg-amostra cg-amostra-plano' }), 'Plano e meta'),
+              h('li', null, h('span', { class: 'cg-amostra-esporte cg-esporte-ciclismo' }), 'Ciclismo'),
+              h('li', null, h('span', { class: 'cg-amostra-esporte cg-esporte-corrida' }), 'Corrida'),
+              h('li', null, h('span', { class: 'cg-amostra-esporte cg-esporte-outro' }), 'Outro'),
+            ]),
       );
 
       return {
@@ -468,12 +593,28 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
 
       const faixa = FAIXAS_FORMA.find((f) => f.id === d.faixa);
       const treinos = linhasDoTreino(d.data);
+      let linhaMetaCond = null;
+      if (metaCondNaJanela && d.data >= hoje && d.data <= metaCondNaJanela.dataAlvo) {
+        const diferenca = d.fitness - metaCondNaJanela.condicionamentoAlvo;
+        const textoDiferenca =
+          Math.abs(diferenca) <= TOLERANCIA_META_CONDICIONAMENTO ? 'dentro da meta' : diferenca < 0 ? `faltam ${formatarNumero(Math.abs(diferenca), 1)}` : `${formatarNumero(diferenca, 1)} acima`;
+        linhaMetaCond = linhaDica('Meta de Condicionamento', `${formatarNumero(metaCondNaJanela.condicionamentoAlvo, 1)} · ${textoDiferenca}`, 'cg-dica-meta cg-dica-meta-cond');
+      }
+      let linhaMeta = null;
+      if (metaNaJanela && d.data >= hoje && d.data <= metaNaJanela.dataAlvo) {
+        const diferenca = d.forma - metaNaJanela.formaAlvo;
+        const textoDiferenca =
+          Math.abs(diferenca) <= TOLERANCIA_META ? 'dentro da meta' : diferenca < 0 ? `faltam ${formatarNumero(Math.abs(diferenca), 1)}` : `${formatarNumero(diferenca, 1)} acima`;
+        linhaMeta = linhaDica('Meta de forma', `${sinalDaForma(metaNaJanela.formaAlvo)} · ${textoDiferenca}`, 'cg-dica-meta');
+      }
       dica.replaceChildren(...[
         h('p', { class: 'cg-dica-topo' }, `${statusDoDia(d.data, hoje)} · ${rotuloDoDia(d.data)}`),
         ...treinos.map((t) => linhaDeTreino(t, 'cg-treino-linha cg-dica-treino')),
         linhaDica('Condicionamento', formatarNumero(d.fitness, 1), 'cg-dica-fitness'),
+        linhaMetaCond,
         linhaDica('Fadiga', formatarNumero(d.fadiga, 1)),
         linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`),
+        linhaMeta,
         kg !== null ? linhaDica('Peso', `${formatarNumero(kg, 1)} kg`, 'cg-dica-peso') : kgMeta !== null ? linhaDica('Meta', `${formatarNumero(kgMeta, 1)} kg`, 'cg-dica-peso') : null,
       ].filter(Boolean));
       dica.hidden = false;
@@ -498,6 +639,10 @@ export function criarGraficoPrincipal({ serie, hoje, treinoDoDia = () => null, e
     };
     area.addEventListener('pointermove', (e) => destacar(indiceDoPonteiro(e)));
     area.addEventListener('pointerdown', (e) => destacar(indiceDoPonteiro(e)));
+    if (aoClicarDia) {
+      area.classList.add('cg-clicavel');
+      area.addEventListener('click', (e) => aoClicarDia(dias[indiceDoPonteiro(e)].data));
+    }
     area.addEventListener('pointerleave', (e) => {
       if (e.pointerType !== 'touch') limpar(); // no toque, a seleção fica até o próximo toque
     });

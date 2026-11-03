@@ -149,7 +149,9 @@ export function criarCartaoTesteLthr({ uid }) {
       }),
     );
 
+    // replaceChildren(null) escreveria "null" na tela: os blocos opcionais saem da lista antes
     resultado.replaceChildren(
+      ...[
       h(
         'div',
         { class: 'teste-numeros' },
@@ -163,6 +165,7 @@ export function criarCartaoTesteLthr({ uid }) {
         : null,
       h('p', { class: 'texto-secundario' }, `A nova vigência vale a partir de ${formatarData(atividade.data)}, a data do teste.`),
       botaoAplicar,
+      ].filter(Boolean),
     );
   }
 

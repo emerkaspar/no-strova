@@ -103,6 +103,7 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `metasForma/{id}` | `formaAlvo` (−60 a 60), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `calibracoes/{uid}` | `chaves`: mapa `{esporte}_{zona}` → `{ n, mediana, amostras: [{ id, data, v }] }` (HRSS por hora das atividades com FC real), `atualizadoEm` | Somente trigger/callable (o dono lê) |
 | `preferencias/{uid}` | `calibracaoAtiva` (booleano; sem documento, vale a calibração) | Dono (as regras só aceitam esse campo) |
+| `metasCondicionamento/{id}` | `condicionamentoAlvo` (1–250), `condicionamentoInicial?` (o Condicionamento de quando a meta foi criada, base do progresso), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `pesagens/{id}` | `data`, `pesoKg` | Dono |
 | `metasPeso/{id}` | `pesoAlvoKg`, `dataAlvo`, `status`, `criadoEm` | Dono |
 | `iaRascunhos/{id}` | `tipo` (`treino`/`peso`), `entradaResumo`, `saida`, `status` (`pendente`/`aceito`/`descartado`), `criadoEm` | Somente callable |
@@ -201,7 +202,15 @@ Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras 
 - **Horizonte** (`horizonteDaProjecao`): até o último treino planejado ou a data da meta **mais 14 dias**, com teto de **90 dias** a partir de hoje (uma meta mais distante estende a série até ela, para poder ser avaliada). Sem plano nem meta, termina hoje. O Início mostra só os próximos 14 dias.
 - A série reaproveita o cálculo do Condicionamento/Fadiga/Forma (Forma de um dia = Condicionamento − Fadiga do dia anterior); o passado não muda com o plano. Cada dia ganha `projetado`.
 
-## Meta de forma
+## Meta de Condicionamento (a meta principal)
+- **Por quê:** o Condicionamento (a média móvel de 42 dias do estresse) é a medida direta de evolução: sobe com treino consistente e cai com pausas longas. A Forma serve para chegar descansado a um dia específico. Por isso a meta **principal** do plano é de Condicionamento; a de Forma é **opcional e complementar** (as duas podem estar ativas ao mesmo tempo, cada uma avaliada separadamente).
+- "**Chegar com Condicionamento X na data Y**": X de 1 a 250, Y entre hoje e 365 dias. **Uma meta ativa por vez**; ao definir outra, a anterior é desativada (as anteriores ficam listadas). Ao criar, o app guarda o Condicionamento de hoje (`condicionamentoInicial`) para medir o **progresso** (do valor inicial ao alvo, de 0 a 100%; sem o valor inicial ou com alvo abaixo dele, não há barra). Regras em `packages/domain/src/metaCondicionamento.js`.
+- **Avaliação** (`avaliarMetaCondicionamento`): compara o Condicionamento projetado do dia da meta com o alvo. **Chega lá** se a diferença é de até **±3 pontos** (`TOLERANCIA_META_CONDICIONAMENTO`); **Fica abaixo** (falta carga: planejar mais treino); **Fica acima** (dá para treinar um pouco menos).
+- **Ritmo:** de hoje até a data, o app calcula os pontos de Condicionamento **por semana** que o alvo exige (`ritmoNecessario`) e os que o plano atual entrega (`ritmoDoPlano`). Acima de **7 pontos por semana** (`RITMO_MAXIMO_SEMANAL`) a meta é marcada como **agressiva**: o app **avisa, mas não impede** (subir rápido demais é difícil de sustentar e leva a Forma à sobrecarga). Os valores 3, 7 e ±3 são padrões sugeridos.
+- **Horizonte da projeção:** uma meta de Condicionamento mais distante também estende a série até ela (`horizonteDaProjecao`).
+- **Onde aparece:** no **Plano**, o cartão "Meta de Condicionamento" (resultado, ritmo, aviso, progresso e anteriores), vem **antes** da meta de Forma; no **gráfico do Plano**, faixa de tolerância (±3), linha do alvo, losango e rótulo no painel de Condicionamento e fadiga (na cor do Condicionamento), e o tooltip diz "faltam X"; no **Início**, o mini-cartão "Meta de Condicionamento" sob o destaque (do valor de hoje ao alvo, progresso e o que o plano atual entrega; sem meta, convida a definir no Plano).
+
+## Meta de forma (opcional)
 - "**Chegar com Forma X na data Y**": X de −60 a +60, Y entre hoje e 365 dias. **Uma meta ativa por vez**; ao definir outra, a anterior é desativada (as anteriores ficam listadas, só leitura). A troca é um lote do Firestore (tudo ou nada).
 - **Avaliação** (`avaliarMeta`): compara a Forma projetada do dia da meta com o alvo. **Chega lá** se a diferença é de até **±3 pontos**; **Fica abaixo** (Forma menor que o alvo: falta descanso, reduzir a carga nos dias antes); **Fica acima** (Forma maior: dá para treinar um pouco mais). A tolerância de 3 pontos é um padrão sugerido (`TOLERANCIA_META`).
 
@@ -233,7 +242,7 @@ Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras 
 - **Calendário** em **semana** (7 colunas) ou **mês** (6 semanas, com contagem por dia em telas pequenas), navegação ‹ › e "Hoje". Cada dia mostra as atividades realizadas (chips cheios) e os treinos planejados (tracejados), com o total do dia. "+" cria treino no dia; clicar no treino edita.
 - **Arrastar e soltar** o treino planejado para outro dia muda só a data (a projeção atualiza na hora). O editor também troca a data (alternativa por teclado e para toque, onde o arrastar do navegador não funciona).
 - **Editor:** data, esporte, duração, zona, estresse informado, observações, com a **estimativa ao vivo**; ações: salvar, cancelar, **duplicar para a próxima semana**, marcar como pulado (ou voltar para planejado / desvincular) e excluir (com confirmação).
-- Cartões: **Projeção do plano** (gráfico com Condicionamento, Fadiga e Forma, faixas, barras de estresse, região da projeção e losango da meta), **Meta de forma** e **Acompanhamento** (sugestões de vínculo, não realizados e planejado × realizado).
+- Cartões: **Projeção do plano** (o **mesmo componente do gráfico do Início**, `criarGraficoPrincipal`, em **modo plano**; ver "Gráfico principal do Início"), **Meta de Condicionamento** (principal), **Meta de forma** (opcional) e **Acompanhamento** (sugestões de vínculo, não realizados e planejado × realizado).
 - **Regras do Firestore:** `treinosPlanejados` e `metasForma` validam tipos, intervalos e campos permitidos (sem campos extras) e o dono; nenhuma decisão do servidor depende desses documentos nesta fase. A fase 6 (IA) deve revalidar o que ler.
 
 # Identidade visual
@@ -379,3 +388,5 @@ Configure Genkit com Gemini em callables e a chave em Secret Manager. Implemente
 ## Fase 7 — Acabamento
 
 Ajuda do produto, push opcional, exportação de dados do usuário e vínculo treinador–atleta (somente se decidirmos fazer agora).
+
+- **Modo plano do gráfico** (`modo: 'plano'`): (a) seletor voltado ao futuro, **2 sem** (7 dias de passado + até 14 de plano), **4 sem** (14 + 28), **8 sem** (padrão: 21 + 56) e **12 sem** (28 + até 90), porque o Plano projeta até 90 dias; (b) **sem o painel de peso**; (c) no lugar da faixa de ícones de atividade (e do painel de peso), um **painel "Estresse do dia"** abaixo da Forma, com barras cheias no realizado e tracejadas no planejado (escala de 0 ao maior estresse da janela); (d) a **meta de forma** marcada no painel de Forma: faixa de tolerância (±3), linha do alvo desde hoje, losango na data e o rótulo "Meta +10,0 · sex, 20 nov", e o tooltip diz, nos dias até a meta, "faltam X", "X acima" ou "dentro da meta"; (e) **clicar num dia** abre o editor naquela data (novo treino) ou o treino planejado que já existe nesse dia. Sem treinos planejados o subtítulo convida a planejar.

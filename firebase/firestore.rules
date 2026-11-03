@@ -125,6 +125,28 @@ service cloud.firestore {
       allow update: if acessoLiberado() && donoDoRegistro() && metaValida();
     }
 
+    // Meta de Condicionamento (a meta principal do plano): "chegar com Condicionamento X na data Y". Uma ativa por vez.
+    // `condicionamentoInicial` é o Condicionamento de quando a meta foi criada (base do progresso).
+    function metaCondicionamentoValida() {
+      let m = request.resource.data;
+      return m.keys().hasOnly(['userId', 'condicionamentoAlvo', 'condicionamentoInicial', 'dataAlvo', 'ativa', 'criadoEm'])
+        && m.keys().hasAll(['userId', 'condicionamentoAlvo', 'dataAlvo', 'ativa'])
+        && m.userId == request.auth.uid
+        && m.condicionamentoAlvo is number && m.condicionamentoAlvo >= 1 && m.condicionamentoAlvo <= 250
+        && (!('condicionamentoInicial' in m) || m.condicionamentoInicial == null
+            || (m.condicionamentoInicial is number && m.condicionamentoInicial >= 0 && m.condicionamentoInicial <= 250))
+        && m.dataAlvo is string
+        && m.dataAlvo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && m.ativa is bool
+        && (!('criadoEm' in m) || m.criadoEm is timestamp);
+    }
+
+    match /metasCondicionamento/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && metaCondicionamentoValida();
+      allow update: if acessoLiberado() && donoDoRegistro() && metaCondicionamentoValida();
+    }
+
     match /pesagens/{id} {
       allow read, delete: if acessoLiberado() && donoDoRegistro();
       allow create: if acessoLiberado() && novoRegistroDoUsuario();

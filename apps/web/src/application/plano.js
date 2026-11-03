@@ -1,15 +1,17 @@
 import {
   avaliarMeta,
+  avaliarMetaCondicionamento,
   configVigenteEm,
   estimarEstresseCalibrado,
   estimarEstresseTreino,
   horizonteDaProjecao,
   serieComProjecao,
   somarDias,
+  validarMetaCondicionamento,
   validarMetaForma,
   validarTreinoPlanejado,
 } from '@no-strova/domain';
-import { atualizarTreino, criarTreino, definirMeta } from '../infrastructure/planoRepo.js';
+import { atualizarTreino, criarTreino, definirMeta, definirMetaCondicionamento } from '../infrastructure/planoRepo.js';
 
 /** Treinos e atividades já carregados desde esta data (dias antes de hoje) aparecem no calendário. */
 export const DIAS_DE_HISTORICO = 120;
@@ -62,15 +64,32 @@ export async function salvarMetaDeForma({ uid, entrada, hoje, metasAtivas }) {
 }
 
 /**
- * Projeção do plano: série de Fitness/Fadiga/Forma até o horizonte e a avaliação da meta.
+ * Valida e define a meta de Condicionamento (desativando a anterior). Guarda o Condicionamento de hoje como ponto de
+ * partida, para medir o progresso. Lança Error com a mensagem em português.
+ */
+export async function salvarMetaDeCondicionamento({ uid, entrada, hoje, metasAtivas, condicionamentoAtual }) {
+  const r = validarMetaCondicionamento(entrada, hoje);
+  if (!r.valido) throw new Error(r.erros.join(' '));
+  const inicial = Number.isFinite(condicionamentoAtual) ? Math.round(condicionamentoAtual * 10) / 10 : null;
+  await definirMetaCondicionamento(uid, inicial === null ? r.valores : { ...r.valores, condicionamentoInicial: inicial }, metasAtivas);
+}
+
+/**
+ * Projeção do plano: série de Fitness/Fadiga/Forma até o horizonte e a avaliação das metas (de Forma e de
+ * Condicionamento).
  * @param {{ dias: Array<{data: string, estresse: number}>, treinos: any[], configs: any[], meta: any, hoje: string, limiteDias?: number }} entrada
  *   `limiteDias`: corta o horizonte a N dias depois de hoje (o Início usa 14).
  */
-export function montarProjecao({ dias, treinos, configs, meta, hoje, limiteDias, calibracao = null }) {
-  let ate = horizonteDaProjecao({ treinos, meta, hoje });
+export function montarProjecao({ dias, treinos, configs, meta, metaCondicionamento = null, hoje, limiteDias, calibracao = null }) {
+  let ate = horizonteDaProjecao({ treinos, meta, metaCondicionamento, hoje });
   if (limiteDias && ate > somarDias(hoje, limiteDias)) ate = somarDias(hoje, limiteDias);
   const serie = serieComProjecao({ realizado: dias, treinos, configs, hoje, ate, calibracao });
-  return { serie, ate, avaliacao: avaliarMeta(serie, meta, hoje) };
+  return {
+    serie,
+    ate,
+    avaliacao: avaliarMeta(serie, meta, hoje),
+    avaliacaoCondicionamento: avaliarMetaCondicionamento(serie, metaCondicionamento, hoje),
+  };
 }
 
 /** Recorta a série para mostrar só os últimos `diasAntes` dias antes de hoje e toda a projeção. */

@@ -124,6 +124,7 @@ describe('cartão do teste de LTHR', () => {
     expect(raiz.querySelector('.teste-lthr').textContent).toBe('172 bpm');
     expect(raiz.querySelectorAll('.teste-numero')).toHaveLength(3);
     expect(raiz.textContent).toContain('a partir de 03/11/2026');
+    expect(raiz.querySelector('.teste-resultado').textContent).not.toContain('null'); // sem a opção de FC máxima, nada de "null"
   });
 
   it('atividade sem série de FC ou com menos de 30 minutos de FC: mensagem de erro', async () => {

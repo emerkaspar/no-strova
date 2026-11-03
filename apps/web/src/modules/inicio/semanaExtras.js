@@ -1,5 +1,6 @@
+import { progressoDaMetaCondicionamento } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
-import { formatarDistancia, formatarNumero } from '../../utils/formatters.js';
+import { formatarData, formatarDistancia, formatarNumero } from '../../utils/formatters.js';
 
 /** Segundos → "1h 05min" ou "30min" (sem segundos: o resumo trabalha com totais). */
 function duracaoCurta(segundos) {
@@ -92,5 +93,47 @@ export function cartaoSequencia({ atual, recorde, nestaSemana }) {
     h('p', { class: 'semana-mini-rotulo' }, 'Sequência'),
     h('p', { class: 'semana-mini-valor' }, h('span', { class: 'semana-mini-numero' }, String(atual)), ` ${atual === 1 ? 'semana seguida' : 'semanas seguidas'} treinando`),
     h('p', { class: 'semana-mini-nota' }, nota),
+  );
+}
+
+/**
+ * Mini-cartão da meta de Condicionamento: do valor de hoje ao alvo, o progresso e o que o plano atual entrega.
+ * Sem meta, convida a definir uma no Plano.
+ * @param {{ meta: any|null, avaliacao: any|null, condicionamentoAtual: number|null }} p
+ */
+export function cartaoMetaCondicionamento({ meta, avaliacao, condicionamentoAtual }) {
+  if (!meta) {
+    return h(
+      'div',
+      { class: 'semana-mini semana-meta' },
+      h('p', { class: 'semana-mini-rotulo' }, 'Meta de Condicionamento'),
+      h('p', { class: 'semana-mini-valor' }, 'Nenhuma meta definida'),
+      h('p', { class: 'semana-mini-nota' }, 'Escolha o Condicionamento que quer atingir e a data. ', h('a', { href: '#/plano' }, 'Definir no Plano')),
+    );
+  }
+  const progresso = progressoDaMetaCondicionamento({ condicionamentoInicial: meta.condicionamentoInicial, condicionamentoAtual, condicionamentoAlvo: meta.condicionamentoAlvo });
+  const pct = progresso === null ? null : Math.round(progresso * 100);
+  const data = formatarData(meta.dataAlvo);
+  let nota;
+  if (!avaliacao || avaliacao.estado === 'sem-dados') nota = `Planeje treinos até ${data} para ver a projeção.`;
+  else if (avaliacao.estado === 'atinge') nota = `Plano atual: chega lá em ${data} (Condicionamento ${formatarNumero(avaliacao.condicionamentoProjetado, 1)}).`;
+  else if (avaliacao.estado === 'abaixo') nota = `Plano atual: fica ${formatarNumero(Math.abs(avaliacao.diferenca), 1)} pontos abaixo em ${data}.`;
+  else nota = `Plano atual: passa ${formatarNumero(Math.abs(avaliacao.diferenca), 1)} pontos do alvo em ${data}.`;
+  return h(
+    'div',
+    { class: `semana-mini semana-meta${avaliacao?.agressiva ? ' semana-meta-agressiva' : ''}` },
+    h('p', { class: 'semana-mini-rotulo' }, 'Meta de Condicionamento'),
+    h(
+      'p',
+      { class: 'semana-mini-valor' },
+      condicionamentoAtual === null ? '' : `${formatarNumero(condicionamentoAtual, 1)} → `,
+      h('span', { class: 'semana-mini-numero' }, formatarNumero(meta.condicionamentoAlvo, 1)),
+      pct === null ? null : ` · ${pct}%`,
+    ),
+    pct === null
+      ? null
+      : h('div', { class: 'semana-progresso-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Progresso da meta de Condicionamento' }, h('span', { style: `width:${pct}%` })),
+    h('p', { class: 'semana-mini-nota' }, nota),
+    avaliacao?.agressiva ? h('p', { class: 'semana-mini-nota semana-meta-aviso' }, 'Ritmo agressivo: veja o Plano.') : null,
   );
 }

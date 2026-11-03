@@ -8,6 +8,9 @@ const m = vi.hoisted(() => ({
   atividades: [],
   configs: [],
   metas: [],
+  metasCondicionamento: [],
+  definirMetaCondicionamento: vi.fn(),
+  excluirMetaCondicionamento: vi.fn(),
   calibracao: { chaves: {} },
   preferencias: null,
   criarTreino: vi.fn(),
@@ -34,6 +37,9 @@ vi.mock('../../core/functions.js', () => ({ reconstruirCalibracao: vi.fn().mockR
 vi.mock('../../infrastructure/planoRepo.js', () => ({
   observarTreinos: assinar('treinos'),
   observarMetas: assinar('metas'),
+  observarMetasCondicionamento: assinar('metasCondicionamento'),
+  definirMetaCondicionamento: m.definirMetaCondicionamento,
+  excluirMetaCondicionamento: m.excluirMetaCondicionamento,
   criarTreino: m.criarTreino,
   atualizarTreino: m.atualizarTreino,
   moverTreino: m.moverTreino,
@@ -81,6 +87,7 @@ beforeEach(() => {
   m.atividades = [];
   m.configs = [config];
   m.metas = [];
+  m.metasCondicionamento = [];
   m.calibracao = { chaves: {} };
   m.preferencias = null;
   for (const f of [m.criarTreino, m.atualizarTreino, m.moverTreino, m.vincularTreino, m.desvincularTreino, m.pularTreino, m.excluirTreino, m.definirMeta, m.excluirMeta]) {
@@ -399,19 +406,55 @@ describe('projeção do plano', () => {
     m.treinos = [treino({ data: '2026-11-08' })];
     abrir();
     const cartao = [...raiz.querySelectorAll('.card')].find((c) => c.querySelector('h2')?.textContent === 'Projeção do plano');
-    expect(cartao.querySelectorAll('polyline.serie-projetada')).toHaveLength(3); // fitness, fadiga e forma
-    expect(cartao.querySelectorAll('polyline:not(.serie-projetada)')).toHaveLength(3);
-    expect(cartao.querySelector('.grafico-projecao-rotulo').textContent).toBe('Projeção do plano');
-    expect(cartao.querySelector('.legenda-inline').textContent).toContain('Projeção');
-    expect(cartao.querySelector('.grafico-hoje-rotulo').textContent).toBe('Hoje');
+    expect(cartao.querySelectorAll('polyline.cg-tracejada')).toHaveLength(2); // condicionamento e fadiga
+    expect(cartao.querySelectorAll('rect.cg-barra-futura').length).toBeGreaterThan(0); // Forma planejada: só contorno
+    expect(cartao.querySelector('.cg-futuro')).not.toBeNull();
+    expect(cartao.querySelector('.cg-hoje-rotulo').textContent).toBe('HOJE');
+    expect(cartao.querySelector('.cg-lateral .cg-legenda').textContent).toContain('Projeção do plano');
+  });
+
+  it('é o mesmo gráfico do Início, em modo plano: seletor com mais futuro, estresse do dia e sem painel de peso', () => {
+    m.dias = historico;
+    m.treinos = [treino({ data: '2026-11-08' })];
+    abrir();
+    const cartao = [...raiz.querySelectorAll('.card')].find((c) => c.querySelector('h2')?.textContent === 'Projeção do plano');
+    expect([...cartao.querySelectorAll('.cg-periodo')].map((b) => b.textContent)).toEqual(['2 sem', '4 sem', '8 sem', '12 sem']);
+    expect(cartao.querySelector('.cg-periodo[aria-pressed="true"]').textContent).toBe('8 sem');
+    expect([...cartao.querySelectorAll('.cg-titulo-painel')].map((t) => t.textContent)).toEqual(['CONDICIONAMENTO E FADIGA', 'FORMA', 'ESTRESSE DO DIA']);
+    expect(cartao.querySelector('.cg-peso-vazio')).toBeNull();
+    expect(cartao.querySelectorAll('rect.cg-estresse').length).toBeGreaterThan(0); // realizado
+    expect(cartao.querySelectorAll('rect.cg-estresse-futuro')).toHaveLength(1); // o treino planejado
+    expect(cartao.querySelector('.cg-atividade')).toBeNull(); // sem ícones de atividade
+  });
+
+  it('clicar num dia do gráfico abre o editor naquela data (novo treino) ou o treino que já existe', () => {
+    m.dias = historico;
+    m.treinos = [treino({ id: 'tx', data: '2026-11-08', duracaoMin: 90 })];
+    abrir();
+    const cartao = [...raiz.querySelectorAll('.card')].find((c) => c.querySelector('h2')?.textContent === 'Projeção do plano');
+    const area = cartao.querySelector('.cg-area-grafico');
+    expect(area.classList.contains('cg-clicavel')).toBe(true);
+    area.querySelector('svg').getBoundingClientRect = () => ({ left: 0, top: 0, width: 760, height: 500, right: 760, bottom: 500 });
+    const clicarEm = (x) => area.dispatchEvent(Object.assign(new Event('click', { bubbles: true }), { clientX: x }));
+    const dias = cartao.querySelectorAll('rect.cg-barra').length;
+    const xDoDia = (i) => 40 + ((i + 0.5) / dias) * (760 - 40 - 14);
+    clicarEm(xDoDia(dias - 1)); // último dia da janela: sem treino
+    expect(raiz.querySelector('#editor-treino h2').textContent).toBe('Novo treino');
+    expect(raiz.querySelector('#tr-data').value).toBe('2026-11-22'); // o plano termina 14 dias depois do último treino
+    // o dia do treino planejado abre a edição dele: 21 dias de passado, hoje (04/11) é o índice 21 e 08/11 o 25
+    clicarEm(xDoDia(25));
+    expect(raiz.querySelector('#editor-treino h2').textContent).toBe('Editar treino');
+    expect(raiz.querySelector('#tr-data').value).toBe('2026-11-08');
+    expect(raiz.querySelector('#tr-duracao').value).toBe('90');
   });
 
   it('sem treinos planejados, mostra só o realizado e convida a planejar', () => {
     m.dias = historico;
     abrir();
     const cartao = [...raiz.querySelectorAll('.card')].find((c) => c.querySelector('h2')?.textContent === 'Projeção do plano');
-    expect(cartao.querySelector('polyline.serie-projetada')).toBeNull();
-    expect(cartao.textContent).toContain('Planeje treinos para ver a projeção');
+    expect(cartao.querySelector('polyline.cg-tracejada')).toBeNull();
+    expect(cartao.querySelector('.cg-futuro')).toBeNull();
+    expect(cartao.textContent).toContain('Ainda não há treinos planejados: clique num dia para planejar um');
   });
 
   it('sem nenhum dado, mostra o estado vazio', () => {
@@ -424,7 +467,7 @@ describe('projeção do plano', () => {
     m.treinos = [treino({ data: '2026-11-02', estresseManual: 500 })];
     abrir();
     const cartao = [...raiz.querySelectorAll('.card')].find((c) => c.querySelector('h2')?.textContent === 'Projeção do plano');
-    expect(cartao.querySelector('polyline.serie-projetada')).toBeNull();
+    expect(cartao.querySelector('polyline.cg-tracejada')).toBeNull();
   });
 });
 
@@ -479,8 +522,24 @@ describe('meta de forma', () => {
     m.treinos = [treino({ data: '2026-11-10', estresseManual: 80 })];
     m.metas = [{ id: 'm1', userId: 'u1', formaAlvo: 10, dataAlvo: '2026-11-20', ativa: true }];
     abrir();
-    expect(raiz.querySelector('.meta-marcador')).not.toBeNull();
-    expect(raiz.querySelector('.meta-rotulo').textContent).toBe('Meta +10,0');
+    expect(raiz.querySelector('.cg-meta-marcador')).not.toBeNull();
+    expect(raiz.querySelector('.cg-meta-rotulo').textContent).toBe('Meta +10,0 · sex, 20 nov');
+    expect(raiz.querySelector('.cg-meta-faixa')).not.toBeNull(); // tolerância de ±3
+    expect(raiz.querySelector('.cg-meta-linha')).not.toBeNull();
+  });
+
+  it('o tooltip do dia diz quanto falta para a meta (ou que está dentro dela)', () => {
+    m.dias = historico;
+    m.treinos = [treino({ data: '2026-11-10', estresseManual: 80 })];
+    m.metas = [{ id: 'm1', userId: 'u1', formaAlvo: 10, dataAlvo: '2026-11-20', ativa: true }];
+    abrir();
+    const area = raiz.querySelector('.cg-area-grafico');
+    area.querySelector('svg').getBoundingClientRect = () => ({ left: 0, top: 0, width: 760, height: 500, right: 760, bottom: 500 });
+    const dias = raiz.querySelectorAll('rect.cg-barra').length;
+    // com meta, o plano vai até 14 dias depois dela (04/12); a meta é em 20/11, 14 dias antes do fim
+    const x = 40 + ((dias - 1 - 14 + 0.5) / dias) * (760 - 40 - 14);
+    area.dispatchEvent(Object.assign(new Event('pointermove', { bubbles: true }), { clientX: x, pointerType: 'mouse' }));
+    expect(raiz.querySelector('.cg-dica .cg-dica-meta').textContent).toMatch(/^Meta de forma\+10,0 · (faltam [0-9]+,[0-9]|dentro da meta|[0-9]+,[0-9] acima)$/);
   });
 
   it('remove a meta (com confirmação) e lista as anteriores', async () => {
@@ -506,6 +565,130 @@ describe('meta de forma', () => {
     expect(textoDaAvaliacao({ ...base, estado: 'abaixo', formaProjetada: 2, diferenca: -8 })).toContain('8,0 pontos abaixo da meta (+10,0). Falta descanso');
     expect(textoDaAvaliacao({ ...base, estado: 'acima', formaProjetada: 20.5, diferenca: 10.5 })).toContain('10,5 pontos acima da meta (+10,0). Dá para treinar um pouco mais');
     expect(textoDaAvaliacao({ ...base, estado: 'sem-dados', formaProjetada: null, diferenca: null })).toContain('Ainda não dá para projetar');
+  });
+});
+
+describe('meta de Condicionamento (a meta principal)', () => {
+  const historico = Array.from({ length: 30 }, (_, i) => ({ data: `2026-10-${String(5 + i).padStart(2, '0')}`.replace('2026-10-3', '2026-11-0').replace('2026-10-4', '2026-11-1'), estresse: 70 })).filter((d) => d.data <= '2026-11-03');
+  const cartao = () => [...raiz.querySelectorAll('.card')].find((c) => c.querySelector('h2')?.textContent === 'Meta de Condicionamento');
+  const meta = (extra) => ({ id: 'mc1', userId: 'u1', condicionamentoAlvo: 50, condicionamentoInicial: 20, dataAlvo: '2026-11-20', ativa: true, ...extra });
+
+  it('vem antes da meta de forma, que fica em segundo plano e opcional', () => {
+    abrir();
+    const titulos = [...raiz.querySelectorAll('.card h2')].map((h) => h.textContent);
+    expect(titulos.indexOf('Meta de Condicionamento')).toBeGreaterThan(-1);
+    expect(titulos.indexOf('Meta de Condicionamento')).toBeLessThan(titulos.indexOf('Meta de forma'));
+    expect(raiz.textContent).toContain('Opcional, complementa a meta de Condicionamento');
+  });
+
+  it('sem meta, explica; o formulário define a meta guardando o Condicionamento de hoje como ponto de partida', async () => {
+    m.dias = historico;
+    abrir();
+    expect(cartao().textContent).toContain('A meta principal do plano');
+    expect(cartao().querySelector('.dica').textContent).toContain('Hoje:');
+    digitar(raiz.querySelector('#metacond-alvo'), '45,5');
+    digitar(raiz.querySelector('#metacond-data'), '2026-12-20');
+    enviar(cartao().querySelector('form'));
+    await tick();
+    expect(m.definirMetaCondicionamento).toHaveBeenCalledTimes(1);
+    const [uid, valores, ativas] = m.definirMetaCondicionamento.mock.calls[0];
+    expect(uid).toBe('u1');
+    expect(valores).toMatchObject({ condicionamentoAlvo: 45.5, dataAlvo: '2026-12-20' });
+    expect(valores.condicionamentoInicial).toBeGreaterThan(0);
+    expect(ativas).toEqual([]);
+  });
+
+  it('valida a meta antes de gravar', async () => {
+    abrir();
+    digitar(raiz.querySelector('#metacond-alvo'), '999');
+    digitar(raiz.querySelector('#metacond-data'), '2026-10-01');
+    enviar(cartao().querySelector('form'));
+    await tick();
+    expect(m.definirMetaCondicionamento).not.toHaveBeenCalled();
+    expect(cartao().querySelector('.mensagem-erro').textContent).toContain('Condicionamento desejado');
+  });
+
+  it('com meta, mostra o resultado, o ritmo necessário e o do plano, e o progresso', () => {
+    m.dias = historico;
+    m.treinos = [treino({ data: '2026-11-10', estresseManual: 80 })];
+    m.metasCondicionamento = [meta()];
+    abrir();
+    const c = cartao();
+    expect(c.querySelector('.chip-estado').textContent).toMatch(/^(Chega lá|Fica abaixo|Fica acima)$/);
+    expect(c.querySelector('.meta-resultado p').textContent).toContain('Condicionamento');
+    expect(c.querySelector('.meta-ritmo').textContent).toMatch(/^Ritmo necessário: [+−][0-9]+,[0-9] por semana · o seu plano entrega [+−0-9,]+ por semana\.$/);
+    expect(c.querySelector('.meta-progresso .texto-secundario').textContent).toContain('de 20,0 até 50,0');
+    expect(c.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(c.textContent).toContain('Faltam 16 dias.');
+  });
+
+  it('avisa quando o ritmo necessário passa de 7 pontos por semana', () => {
+    m.dias = historico;
+    m.metasCondicionamento = [meta({ condicionamentoAlvo: 200, dataAlvo: '2026-11-18' })];
+    abrir();
+    expect(cartao().querySelector('.meta-agressiva').textContent).toContain('Ritmo agressivo');
+  });
+
+  it('meta realista não gera o aviso', () => {
+    m.dias = historico;
+    m.metasCondicionamento = [meta({ condicionamentoAlvo: 20, dataAlvo: '2026-11-30' })];
+    abrir();
+    expect(cartao().querySelector('.meta-agressiva')).toBeNull();
+  });
+
+  it('o gráfico marca a meta de Condicionamento no painel de cima (faixa, linha, losango e rótulo) e a legenda a cita', () => {
+    m.dias = historico;
+    m.treinos = [treino({ data: '2026-11-10', estresseManual: 80 })];
+    m.metasCondicionamento = [meta()];
+    abrir();
+    expect(raiz.querySelector('.cg-meta-marcador.cg-meta-cond')).not.toBeNull();
+    expect(raiz.querySelector('.cg-meta-rotulo.cg-meta-cond').textContent).toBe('Meta 50,0 · sex, 20 nov');
+    expect(raiz.querySelector('.cg-meta-faixa.cg-meta-cond')).not.toBeNull();
+    expect(raiz.querySelector('.cg-lateral .cg-legenda').textContent).toContain('Meta de Condicionamento');
+  });
+
+  it('as duas metas convivem: cada uma marcada no seu painel', () => {
+    m.dias = historico;
+    m.treinos = [treino({ data: '2026-11-10', estresseManual: 80 })];
+    m.metasCondicionamento = [meta()];
+    m.metas = [{ id: 'm1', userId: 'u1', formaAlvo: 10, dataAlvo: '2026-11-20', ativa: true }];
+    abrir();
+    expect(raiz.querySelector('.cg-meta-marcador.cg-meta-cond')).not.toBeNull();
+    expect([...raiz.querySelectorAll('.cg-meta-marcador')].filter((el) => !el.classList.contains('cg-meta-cond'))).toHaveLength(1);
+  });
+
+  it('o tooltip diz quanto falta para a meta de Condicionamento', () => {
+    m.dias = historico;
+    m.treinos = [treino({ data: '2026-11-10', estresseManual: 80 })];
+    m.metasCondicionamento = [meta()];
+    abrir();
+    const area = raiz.querySelector('.cg-area-grafico');
+    area.querySelector('svg').getBoundingClientRect = () => ({ left: 0, top: 0, width: 760, height: 500, right: 760, bottom: 500 });
+    const dias = raiz.querySelectorAll('rect.cg-barra').length;
+    // com meta, o plano vai até 14 dias depois dela (04/12): a meta (20/11) está 14 dias antes do fim
+    const x = 40 + ((dias - 1 - 14 + 0.5) / dias) * (760 - 40 - 14);
+    area.dispatchEvent(Object.assign(new Event('pointermove', { bubbles: true }), { clientX: x, pointerType: 'mouse' }));
+    expect(raiz.querySelector('.cg-dica .cg-dica-meta-cond').textContent).toMatch(/^Meta de Condicionamento50,0 · (faltam [0-9]+,[0-9]|dentro da meta|[0-9]+,[0-9] acima)$/);
+  });
+
+  it('remover a meta pede confirmação; trocar desativa a anterior; metas anteriores aparecem listadas', async () => {
+    m.metasCondicionamento = [meta(), meta({ id: 'mc0', ativa: false, condicionamentoAlvo: 30, dataAlvo: '2026-10-15' })];
+    abrir();
+    expect(cartao().querySelector('.meta-anteriores').textContent).toContain('Condicionamento 30,0 em 15/10/2026');
+    const confirmar = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const remover = botao('Remover meta', cartao());
+    remover.click();
+    await tick();
+    expect(m.excluirMetaCondicionamento).not.toHaveBeenCalled();
+    remover.click();
+    await tick();
+    expect(m.excluirMetaCondicionamento).toHaveBeenCalledWith('mc1');
+    confirmar.mockRestore();
+    digitar(raiz.querySelector('#metacond-alvo'), '55');
+    digitar(raiz.querySelector('#metacond-data'), '2026-12-20');
+    enviar(cartao().querySelector('form'));
+    await tick();
+    expect(m.definirMetaCondicionamento.mock.calls[0][2]).toEqual([expect.objectContaining({ id: 'mc1' })]);
   });
 });
 
