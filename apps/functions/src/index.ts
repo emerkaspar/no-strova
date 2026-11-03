@@ -5,6 +5,7 @@ export {
   processarArquivoAtividade,
   recalcularHistorico,
 } from "./modules/atividades/atividades.functions";
+export { reconstruirCalibracao } from "./modules/calibracao/calibracao.functions";
 export { limparArquivosOrfaos } from "./modules/atividades/orfaos.functions";
 export {
   aprovarUsuario,

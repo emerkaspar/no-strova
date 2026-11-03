@@ -239,6 +239,41 @@ describe('Firestore: o app grava exatamente como as regras esperam', () => {
   });
 });
 
+describe('Firestore: calibracoes e preferencias', () => {
+  const calibracao = { userId: 'aprovado', chaves: { ciclismo_Z2: { n: 3, mediana: 60, amostras: [] } } };
+
+  it('calibracoes: o dono lê; ninguém escreve pelo cliente; outro usuário e admin não leem', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'calibracoes/aprovado'), calibracao);
+    });
+    const dono = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(getDoc(doc(dono, 'calibracoes/aprovado')));
+    await assertFails(setDoc(doc(dono, 'calibracoes/aprovado'), { ...calibracao, chaves: {} }));
+    await assertFails(deleteDoc(doc(dono, 'calibracoes/aprovado')));
+    await assertFails(getDoc(doc(env.authenticatedContext('outro').firestore(), 'calibracoes/aprovado')));
+    await assertFails(getDoc(doc(env.authenticatedContext('admin').firestore(), 'calibracoes/aprovado')));
+  });
+
+  it('preferencias: o dono cria e altera o próprio documento, só com o campo booleano', async () => {
+    const dono = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(setDoc(doc(dono, 'preferencias/aprovado'), { userId: 'aprovado', calibracaoAtiva: false }));
+    await assertSucceeds(setDoc(doc(dono, 'preferencias/aprovado'), { userId: 'aprovado', calibracaoAtiva: true }));
+    await assertSucceeds(getDoc(doc(dono, 'preferencias/aprovado')));
+    await assertFails(setDoc(doc(dono, 'preferencias/aprovado'), { userId: 'aprovado', calibracaoAtiva: 'sim' }));
+    await assertFails(setDoc(doc(dono, 'preferencias/aprovado'), { userId: 'aprovado', calibracaoAtiva: true, extra: 1 }));
+    await assertFails(setDoc(doc(dono, 'preferencias/aprovado'), { userId: 'outro', calibracaoAtiva: true }));
+    await assertFails(deleteDoc(doc(dono, 'preferencias/aprovado')));
+  });
+
+  it('preferencias: ninguém mexe no documento de outro; pendente e bloqueado não gravam', async () => {
+    await assertFails(setDoc(doc(env.authenticatedContext('outro').firestore(), 'preferencias/aprovado'), { userId: 'outro', calibracaoAtiva: true }));
+    await assertFails(getDoc(doc(env.authenticatedContext('outro').firestore(), 'preferencias/aprovado')));
+    for (const uid of ['pendente', 'bloqueado']) {
+      await assertFails(setDoc(doc(env.authenticatedContext(uid).firestore(), `preferencias/${uid}`), { userId: uid, calibracaoAtiva: true }));
+    }
+  });
+});
+
 describe('Firestore: metasForma', () => {
   const meta = { userId: 'aprovado', formaAlvo: 10.5, dataAlvo: '2026-11-20', ativa: true };
   const ref = (db, id = 'm1') => doc(db, `metasForma/${id}`);

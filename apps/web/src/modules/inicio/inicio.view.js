@@ -1,4 +1,5 @@
 import { comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
+import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde, observarUltimasAtividades } from '../../infrastructure/atividadesRepo.js';
@@ -28,7 +29,8 @@ export function render(raiz, sessao) {
     atividades: [],
     treinos: [],
     configs: [],
-    carregou: { dias: false, ultimas: false, atividades: false, treinos: false, configs: false },
+    calibracao: null,
+    carregou: { dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false },
   };
   let ativa = true;
 
@@ -58,7 +60,7 @@ export function render(raiz, sessao) {
     return {
       titulo: `${tituloDoTreino([t])} · ${t.duracaoMin} min`,
       quando: t.data === hoje ? 'Hoje' : rotuloDoDia(t.data),
-      estresse: estresseDoTreino(t, dados.configs),
+      estresse: estresseDoTreino(t, dados.configs, dados.calibracao),
     };
   }
 
@@ -67,14 +69,14 @@ export function render(raiz, sessao) {
     const c = dados.carregou;
     // O destaque usa só o realizado: a Forma de hoje não depende do plano.
     const serieReal = c.dias ? montarSerie(dados.dias, hoje) : [];
-    const planoPronto = c.dias && c.treinos && c.configs;
+    const planoPronto = c.dias && c.treinos && c.configs && c.calibracao;
     const serieComPlano = planoPronto
-      ? montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: null, hoje, limiteDias: DIAS_DE_PLANO }).serie
+      ? montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: null, hoje, limiteDias: DIAS_DE_PLANO, calibracao: dados.calibracao }).serie
       : [];
 
     // Treinos ainda por fazer nesta semana (hoje em diante), com o estresse estimado.
     const treinosDaSemana = dados.treinos.filter((t) => t.status === 'planejado' && t.data >= hoje && t.data >= segunda);
-    const planejado = treinosDaSemana.map((t) => ({ data: t.data, estresse: estresseDoTreino(t, dados.configs) }));
+    const planejado = treinosDaSemana.map((t) => ({ data: t.data, estresse: estresseDoTreino(t, dados.configs, dados.calibracao) }));
 
     const comDados = c.dias && dados.dias.length > 0;
     topo.replaceChildren(
@@ -95,7 +97,7 @@ export function render(raiz, sessao) {
         atividades: dados.atividades.filter((a) => a.data >= segunda),
         treinos: treinosDaSemana,
         comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
-        carregou: c.dias && c.atividades && c.treinos && c.configs,
+        carregou: c.dias && c.atividades && c.treinos && c.configs && c.calibracao,
       }),
     );
     grafico.replaceChildren(blocoGrafico({ serie: serieComPlano, carregou: planoPronto, hoje, treinoDoDia, esportesDoDia }));
@@ -129,6 +131,11 @@ export function render(raiz, sessao) {
     ouvir('atividades', 'atividades', (ok, erro) => observarAtividadesDesde(sessao.uid, desdeHistorico, ok, erro)),
     ouvir('treinos', 'treinos', (ok, erro) => observarTreinos(sessao.uid, desdeHistorico, ok, erro)),
     ouvir('configs', 'configs', (ok, erro) => observarConfigs(sessao.uid, ok, erro)),
+    observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
+      dados.calibracao = efetiva;
+      dados.carregou.calibracao = true;
+      desenhar();
+    }),
   ];
 
   return () => {

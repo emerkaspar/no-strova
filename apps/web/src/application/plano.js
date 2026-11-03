@@ -1,6 +1,7 @@
 import {
   avaliarMeta,
   configVigenteEm,
+  estimarEstresseCalibrado,
   estimarEstresseTreino,
   horizonteDaProjecao,
   serieComProjecao,
@@ -17,24 +18,34 @@ export function dataInicialDoHistorico(hoje) {
   return somarDias(hoje, -DIAS_DE_HISTORICO);
 }
 
-/** Estimativa (HRSS) de um treino pela zona e duração, com a configuração vigente na data. `null` sem dados. */
-export function estimativaDoFormulario({ zona, duracaoMin, data, configs }) {
+/**
+ * Estimativa (HRSS) de um treino pela zona e duração, com a configuração vigente na data e, havendo, a calibração do
+ * histórico. `null` sem dados. `detalheDaEstimativa` diz também se foi calibrada e com quantas atividades.
+ */
+export function detalheDaEstimativa({ zona, duracaoMin, data, configs, esporte, calibracao }) {
   const duracao = Number(String(duracaoMin).replace(',', '.'));
   if (!zona || !Number.isFinite(duracao) || duracao <= 0 || !data) return null;
-  return estimarEstresseTreino({ zona, duracaoMin: duracao, config: configVigenteEm(configs, data) });
+  const detalhe = estimarEstresseCalibrado({ esporte, zona, duracaoMin: duracao, config: configVigenteEm(configs, data), calibracao });
+  return detalhe.valor === null ? null : detalhe;
+}
+
+export function estimativaDoFormulario(entrada) {
+  return detalheDaEstimativa(entrada)?.valor ?? null;
 }
 
 /**
  * Valida e grava um treino planejado (novo ou editado). Lança Error com a mensagem em português.
  * @returns {Promise<string>} id do treino
  */
-export async function salvarTreinoPlanejado({ uid, id, entrada, configs }) {
+export async function salvarTreinoPlanejado({ uid, id, entrada, configs, calibracao = null }) {
   const r = validarTreinoPlanejado(entrada);
   if (!r.valido) throw new Error(r.erros.join(' '));
   const estimado = estimarEstresseTreino({
     zona: r.valores.zona,
     duracaoMin: r.valores.duracaoMin,
     config: configVigenteEm(configs, r.valores.data),
+    esporte: r.valores.esporte,
+    calibracao,
   });
   if (id) {
     await atualizarTreino(id, r.valores, estimado);
@@ -55,10 +66,10 @@ export async function salvarMetaDeForma({ uid, entrada, hoje, metasAtivas }) {
  * @param {{ dias: Array<{data: string, estresse: number}>, treinos: any[], configs: any[], meta: any, hoje: string, limiteDias?: number }} entrada
  *   `limiteDias`: corta o horizonte a N dias depois de hoje (o Início usa 14).
  */
-export function montarProjecao({ dias, treinos, configs, meta, hoje, limiteDias }) {
+export function montarProjecao({ dias, treinos, configs, meta, hoje, limiteDias, calibracao = null }) {
   let ate = horizonteDaProjecao({ treinos, meta, hoje });
   if (limiteDias && ate > somarDias(hoje, limiteDias)) ate = somarDias(hoje, limiteDias);
-  const serie = serieComProjecao({ realizado: dias, treinos, configs, hoje, ate });
+  const serie = serieComProjecao({ realizado: dias, treinos, configs, hoje, ate, calibracao });
   return { serie, ate, avaliacao: avaliarMeta(serie, meta, hoje) };
 }
 

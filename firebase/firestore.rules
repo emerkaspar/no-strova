@@ -154,6 +154,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Resumo de calibração da estimativa de HRSS (mediana do HRSS/h por esporte e zona): o servidor grava, o dono lê.
+    match /calibracoes/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+    }
+
+    // Preferências do usuário, um documento por usuário (id = uid). Hoje: usar ou não a calibração nas estimativas.
+    match /preferencias/{uid} {
+      allow read: if acessoLiberado() && request.auth.uid == uid;
+      allow create, update: if acessoLiberado()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva'])
+        && request.resource.data.keys().hasAll(['userId', 'calibracaoAtiva'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.calibracaoAtiva is bool;
+      allow delete: if false;
+    }
+
     match /iaRascunhos/{id} {
       allow read: if acessoLiberado() && donoDoRegistro();
       allow write: if false;

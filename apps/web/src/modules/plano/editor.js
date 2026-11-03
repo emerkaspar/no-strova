@@ -1,5 +1,5 @@
 import { somarDias } from '@no-strova/domain';
-import { estimativaDoFormulario, salvarTreinoPlanejado } from '../../application/plano.js';
+import { detalheDaEstimativa, salvarTreinoPlanejado } from '../../application/plano.js';
 import { desvincularTreino, excluirTreino, pularTreino } from '../../infrastructure/planoRepo.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -9,11 +9,11 @@ import { OPCOES_ESPORTE, OPCOES_ZONA } from '../atividades/textos.js';
 /**
  * Formulário de treino planejado (novo ou existente).
  * @param {{
- *   uid: string, configs: () => any[], treino: any|null, dataInicial: string,
+ *   uid: string, configs: () => any[], calibracao?: () => any, treino: any|null, dataInicial: string,
  *   aoConcluir: (aviso?: string) => void, aoCancelar: () => void
- * }} p `configs` é uma função para sempre ler a lista mais recente
+ * }} p `configs` e `calibracao` são funções para sempre ler o valor mais recente
  */
-export function criarEditor({ uid, configs, treino, dataInicial, aoConcluir, aoCancelar }) {
+export function criarEditor({ uid, configs, calibracao = () => null, treino, dataInicial, aoConcluir, aoCancelar }) {
   const existente = Boolean(treino);
   const data = campo({ id: 'tr-data', rotulo: 'Data', tipo: 'date', value: treino?.data ?? dataInicial });
   const esporte = selecao({ id: 'tr-esporte', rotulo: 'Esporte', opcoes: OPCOES_ESPORTE, valor: treino?.esporte ?? 'ciclismo' });
@@ -33,20 +33,27 @@ export function criarEditor({ uid, configs, treino, dataInicial, aoConcluir, aoC
   const botao = h('button', { class: 'btn', type: 'submit' }, existente ? 'Salvar alterações' : 'Adicionar treino');
 
   function atualizarEstimativa() {
-    const valor = estimativaDoFormulario({
+    const detalhe = detalheDaEstimativa({
       zona: zona.select.value,
       duracaoMin: duracao.input.value,
       data: data.input.value,
       configs: configs(),
+      esporte: esporte.select.value,
+      calibracao: calibracao(),
     });
-    estimativa.textContent =
-      valor === null
-        ? configs().length === 0
+    if (detalhe === null) {
+      estimativa.textContent =
+        configs().length === 0
           ? 'Cadastre a configuração de FC (em Configuração) para o app estimar o estresse do treino.'
-          : 'Informe a data, a duração e a zona para ver a estimativa.'
-        : `Estimativa: ~${formatarNumero(valor, 0)} de HRSS${estresse.input.value ? ' (você informou outro valor abaixo)' : ''}.`;
+          : 'Informe a data, a duração e a zona para ver a estimativa.';
+      return;
+    }
+    const outroValor = estresse.input.value ? ' (você informou outro valor abaixo)' : '';
+    estimativa.textContent = detalhe.calibrado
+      ? `Estimativa: ~${formatarNumero(detalhe.valor, 0)} de HRSS, calibrada com as suas ${detalhe.n} atividades parecidas (pela fórmula seria ~${formatarNumero(detalhe.formula, 0)})${outroValor}.`
+      : `Estimativa: ~${formatarNumero(detalhe.valor, 0)} de HRSS${outroValor}.`;
   }
-  for (const el of [data.input, duracao.input, zona.select, estresse.input]) {
+  for (const el of [data.input, duracao.input, esporte.select, zona.select, estresse.input]) {
     el.addEventListener('input', atualizarEstimativa);
     el.addEventListener('change', atualizarEstimativa);
   }
@@ -68,7 +75,7 @@ export function criarEditor({ uid, configs, treino, dataInicial, aoConcluir, aoC
       onSubmit: (e) => {
         e.preventDefault();
         executarComBotao(botao, mensagem, async () => {
-          await salvarTreinoPlanejado({ uid, id: treino?.id, entrada: entrada(), configs: configs() });
+          await salvarTreinoPlanejado({ uid, id: treino?.id, entrada: entrada(), configs: configs(), calibracao: calibracao() });
           aoConcluir(existente ? 'Treino atualizado.' : 'Treino adicionado.');
         });
       },
@@ -99,7 +106,7 @@ export function criarEditor({ uid, configs, treino, dataInicial, aoConcluir, aoC
     duplicar.addEventListener('click', () =>
       acao(
         duplicar,
-        () => salvarTreinoPlanejado({ uid, entrada: { ...entrada(), data: somarDias(treino.data, 7) }, configs: configs() }),
+        () => salvarTreinoPlanejado({ uid, entrada: { ...entrada(), data: somarDias(treino.data, 7) }, configs: configs(), calibracao: calibracao() }),
         `Treino duplicado para ${formatarData(somarDias(treino.data, 7))}.`,
       ),
     );

@@ -1,6 +1,8 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { REGIAO } from "../../shared/config";
+import { logger } from "firebase-functions";
 import { exigirAcesso, lerObjeto } from "../../shared/guards";
+import { reconstruirCalibracaoDoUsuario } from "../calibracao/calibracao.service";
 import * as servico from "./atividades.service";
 import { extensaoValida } from "./parsers";
 
@@ -40,5 +42,12 @@ export const obterUrlArquivo = onCall({ region: REGIAO }, async (request) => {
 
 export const recalcularHistorico = onCall({ region: REGIAO, timeoutSeconds: 300 }, async (request) => {
   const { uid, perfil } = await exigirAcesso(request);
-  return servico.recalcularHistorico(uid, dataNascimentoDoPerfil(perfil));
+  const resultado = await servico.recalcularHistorico(uid, dataNascimentoDoPerfil(perfil));
+  // O HRSS e as zonas mudaram: o resumo de calibração é refeito do zero.
+  try {
+    await reconstruirCalibracaoDoUsuario(uid);
+  } catch (err) {
+    logger.error("Falha ao reconstruir a calibração depois de recalcular o histórico", err);
+  }
+  return resultado;
 });

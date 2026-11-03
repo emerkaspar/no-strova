@@ -14,6 +14,10 @@ const fn = vi.hoisted(() => ({
   atualizarDadosPessoais: vi.fn(),
   atividades: [],
   configs: [],
+  calibracao: { chaves: {} },
+  preferencias: null,
+  salvarPreferencias: vi.fn(),
+  reconstruirCalibracao: vi.fn(),
   atividade: null,
   serie: null,
 }));
@@ -24,6 +28,18 @@ vi.mock('../core/functions.js', () => ({
   excluirAtividade: fn.excluirAtividade,
   obterUrlArquivo: fn.obterUrlArquivo,
   recalcularHistorico: fn.recalcularHistorico,
+  reconstruirCalibracao: fn.reconstruirCalibracao,
+}));
+vi.mock('../infrastructure/calibracaoRepo.js', () => ({
+  observarCalibracao: (_uid, aoDados) => {
+    aoDados(fn.calibracao);
+    return () => {};
+  },
+  observarPreferencias: (_uid, aoDados) => {
+    aoDados(fn.preferencias);
+    return () => {};
+  },
+  salvarPreferencias: fn.salvarPreferencias,
 }));
 vi.mock('../core/storage.js', () => ({ enviarArquivoAtividade: fn.enviarArquivoAtividade }));
 vi.mock('../infrastructure/atividadesRepo.js', () => ({

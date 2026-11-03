@@ -17,7 +17,7 @@ const descricao = (t) => `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoM
  *   aoIgnorar: () => void
  * }} p
  */
-export function criarCartaoAcompanhamento({ treinos, atividades, configs, hoje, aoVincular, aoPular, aoReagendar, aoIgnorar }) {
+export function criarCartaoAcompanhamento({ treinos, atividades, configs, calibracao = null, hoje, aoVincular, aoPular, aoReagendar, aoIgnorar }) {
   const porId = new Map(atividades.map((a) => [a.id, a]));
   const treinoPorId = new Map(treinos.map((t) => [t.id, t]));
 
@@ -136,7 +136,7 @@ export function criarCartaoAcompanhamento({ treinos, atividades, configs, hoje, 
               'tbody',
               null,
               ...vinculados.map((t) => {
-                const c = compararTreino(t, porId.get(t.atividadeId), configs);
+                const c = compararTreino(t, porId.get(t.atividadeId), configs, calibracao);
                 const dif = c.diferenca;
                 return h(
                   'tr',

@@ -1987,3 +1987,68 @@ textarea {
   color: var(--primary);
 }
 
+
+/* Configuração: teste de LTHR e calibração das estimativas */
+.mensagem-aviso {
+  border-color: var(--primary);
+  background: var(--surface-light);
+}
+
+.roteiro {
+  margin: 12px 0;
+  padding-left: 22px;
+  color: var(--text-secondary);
+}
+
+.roteiro li {
+  margin-bottom: 6px;
+}
+
+.teste-resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.teste-resultado:empty {
+  display: none;
+}
+
+.teste-numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.teste-numero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.teste-numero strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.teste-rotulo {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.teste-nota {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.teste-lthr {
+  color: var(--primary);
+}

@@ -1,4 +1,5 @@
 import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, SEXOS, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
+import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { recalcularHistorico } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { excluirConfig, observarConfigs, salvarConfig } from '../../infrastructure/configsRepo.js';
@@ -6,6 +7,7 @@ import { atualizarDadosPessoais } from '../../infrastructure/perfilRepo.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
+import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { editar, estadoConfiguracao } from './state.js';
 
 const ROTULO_SEXO = { [SEXOS.MASCULINO]: 'Masculino', [SEXOS.FEMININO]: 'Feminino' };
@@ -52,7 +54,15 @@ export function render(raiz, sessao) {
   const mensagemForm = areaMensagem();
   let idDesenhado = null;
   let datasAtividades = [];
+  let atividadesLista = [];
+  let dadosCalibracao = { calibracao: null, preferencias: null };
   let campoVigencia = null;
+  const areaCalibracao = h('div');
+  const testeLthr = criarCartaoTesteLthr({ uid: sessao.uid });
+
+  function desenharCalibracao() {
+    areaCalibracao.replaceChildren(criarCartaoCalibracao({ uid: sessao.uid, configs, ...dadosCalibracao }));
+  }
 
   /** A primeira vigência deve começar antes da atividade mais antiga; as demais, hoje. */
   function dataInicialSugerida() {
@@ -218,6 +228,7 @@ export function render(raiz, sessao) {
         corpoTabela,
         areaForm,
       ),
+      testeLthr.raiz,
       h(
         'section',
         { class: 'card' },
@@ -226,6 +237,7 @@ export function render(raiz, sessao) {
         mensagemRecalculo.el,
         botaoRecalculo,
       ),
+      areaCalibracao,
     ),
   );
   corpoTabela.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
@@ -234,6 +246,8 @@ export function render(raiz, sessao) {
     observarAtividades(
       sessao.uid,
       (lista) => {
+        atividadesLista = lista;
+        testeLthr.atualizar({ configs, atividades: atividadesLista });
         datasAtividades = lista.map((a) => a.data).filter(Boolean);
         // Formulário da primeira vigência ainda intocado (data = hoje): sugere a data da atividade mais antiga.
         if (campoVigencia && configs.length === 0 && campoVigencia.value === hojeIso() && datasAtividades.length > 0) {
@@ -242,10 +256,16 @@ export function render(raiz, sessao) {
       },
       () => {},
     ),
+    observarCalibracaoDoUsuario(sessao.uid, (dados) => {
+      dadosCalibracao = dados;
+      desenharCalibracao();
+    }),
     observarConfigs(
       sessao.uid,
       (lista) => {
         configs = lista;
+        testeLthr.atualizar({ configs, atividades: atividadesLista });
+        desenharCalibracao();
         desenharTabela();
         // Só recria o formulário quando ele precisa mudar (não apaga o que o usuário está digitando).
         const editando = configs.some((c) => c.id === estadoConfiguracao.editandoId) ? estadoConfiguracao.editandoId : null;

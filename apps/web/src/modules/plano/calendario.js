@@ -22,7 +22,7 @@ function estadoDoTreino(t, hoje) {
   return treinoNaoRealizado(t, hoje) ? 'atrasado' : 'planejado';
 }
 
-function chipTreino(t, { hoje, configs, aoEditar }) {
+function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
   const estado = estadoDoTreino(t, hoje);
   const titulo = `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`;
   const botao = h(
@@ -36,7 +36,7 @@ function chipTreino(t, { hoje, configs, aoEditar }) {
       onClick: () => aoEditar(t),
     },
     h('span', { class: 'chip-titulo' }, titulo),
-    h('span', { class: 'chip-sub' }, `~${formatarNumero(estresseDoTreino(t, configs), 0)} · ${ROTULO_ESTADO[estado]}`),
+    h('span', { class: 'chip-sub' }, `~${formatarNumero(estresseDoTreino(t, configs, calibracao), 0)} · ${ROTULO_ESTADO[estado]}`),
   );
   if (t.status === 'planejado') {
     botao.addEventListener('dragstart', (e) => {
@@ -77,13 +77,13 @@ function chipAtividade(a) {
  *   aoEditar: (treino: any) => void, aoNovo: (data: string) => void, aoMover: (id: string, data: string) => void
  * }} p
  */
-export function desenharCalendario({ visao, ancora, hoje, configs, porDia, aoEditar, aoNovo, aoMover }) {
+export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = null, porDia, aoEditar, aoNovo, aoMover }) {
   function celula(data, indice, { doMes = true, compacta = false } = {}) {
     const dia = porDia.get(data) ?? { treinos: [], atividades: [] };
     const treinos = [...dia.treinos].sort((a, b) => String(a.id).localeCompare(String(b.id)));
-    const planejado = treinos.filter((t) => t.status === 'planejado' && data >= hoje).reduce((s, t) => s + estresseDoTreino(t, configs), 0);
+    const planejado = treinos.filter((t) => t.status === 'planejado' && data >= hoje).reduce((s, t) => s + estresseDoTreino(t, configs, calibracao), 0);
     const realizado = dia.atividades.reduce((s, a) => s + (Number.isFinite(a.hrss) ? a.hrss : 0), 0);
-    const itens = [...dia.atividades.map(chipAtividade), ...treinos.map((t) => chipTreino(t, { hoje, configs, aoEditar }))];
+    const itens = [...dia.atividades.map(chipAtividade), ...treinos.map((t) => chipTreino(t, { hoje, configs, calibracao, aoEditar }))];
     const limite = compacta ? 3 : Infinity;
     const visiveis = itens.slice(0, limite);
     const numero = Number(data.slice(8));

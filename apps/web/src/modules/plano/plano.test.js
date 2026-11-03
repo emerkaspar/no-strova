@@ -8,6 +8,8 @@ const m = vi.hoisted(() => ({
   atividades: [],
   configs: [],
   metas: [],
+  calibracao: { chaves: {} },
+  preferencias: null,
   criarTreino: vi.fn(),
   atualizarTreino: vi.fn(),
   moverTreino: vi.fn(),
@@ -27,6 +29,8 @@ const assinar = (chave) => (...args) => {
 vi.mock('../../infrastructure/estresseRepo.js', () => ({ observarEstresseDiario: assinar('dias') }));
 vi.mock('../../infrastructure/atividadesRepo.js', () => ({ observarAtividadesDesde: assinar('atividades') }));
 vi.mock('../../infrastructure/configsRepo.js', () => ({ observarConfigs: assinar('configs') }));
+vi.mock('../../infrastructure/calibracaoRepo.js', () => ({ observarCalibracao: assinar('calibracao'), observarPreferencias: assinar('preferencias') }));
+vi.mock('../../core/functions.js', () => ({ reconstruirCalibracao: vi.fn().mockResolvedValue({}) }));
 vi.mock('../../infrastructure/planoRepo.js', () => ({
   observarTreinos: assinar('treinos'),
   observarMetas: assinar('metas'),
@@ -77,6 +81,8 @@ beforeEach(() => {
   m.atividades = [];
   m.configs = [config];
   m.metas = [];
+  m.calibracao = { chaves: {} };
+  m.preferencias = null;
   for (const f of [m.criarTreino, m.atualizarTreino, m.moverTreino, m.vincularTreino, m.desvincularTreino, m.pularTreino, m.excluirTreino, m.definirMeta, m.excluirMeta]) {
     f.mockReset().mockResolvedValue('novo-id');
   }
@@ -230,6 +236,50 @@ describe('novo treino e edição', () => {
     expect(Number(raiz.querySelector('.estimativa').textContent.match(/~(\d+)/)[1])).toBeGreaterThan(z2);
     preencher({ 'tr-estresse': '70' });
     expect(raiz.querySelector('.estimativa').textContent).toContain('você informou outro valor');
+  });
+
+  describe('com calibração', () => {
+    const cal = { chaves: { ciclismo_Z2: { n: 30, mediana: 100, amostras: [] } } };
+
+    it('a estimativa usa o histórico do atleta e diz com quantas atividades foi calibrada', () => {
+      m.calibracao = cal;
+      abrir();
+      botao('Novo treino').click();
+      preencher({ 'tr-esporte': 'ciclismo', 'tr-duracao': '60', 'tr-zona': 'Z2' });
+      const texto = raiz.querySelector('.estimativa').textContent;
+      expect(texto).toContain('calibrada com as suas 30 atividades parecidas');
+      expect(texto).toMatch(/pela fórmula seria ~[0-9]+/);
+      const calibrada = Number(texto.match(/~([0-9]+)/)[1]);
+      expect(calibrada).toBeGreaterThan(Number(texto.match(/seria ~([0-9]+)/)[1]));
+    });
+
+    it('esporte sem amostras continua na fórmula', () => {
+      m.calibracao = cal;
+      abrir();
+      botao('Novo treino').click();
+      preencher({ 'tr-esporte': 'corrida', 'tr-duracao': '60', 'tr-zona': 'Z2' });
+      expect(raiz.querySelector('.estimativa').textContent).toMatch(/^Estimativa: ~[0-9]+ de HRSS[.]$/);
+    });
+
+    it('com a calibração desligada nas preferências, vale só a fórmula', () => {
+      m.calibracao = cal;
+      m.preferencias = { calibracaoAtiva: false };
+      abrir();
+      botao('Novo treino').click();
+      preencher({ 'tr-esporte': 'ciclismo', 'tr-duracao': '60', 'tr-zona': 'Z2' });
+      expect(raiz.querySelector('.estimativa').textContent).toMatch(/^Estimativa: ~[0-9]+ de HRSS[.]$/);
+    });
+
+    it('o treino salvo guarda a estimativa calibrada, e o calendário mostra o valor calibrado', async () => {
+      m.calibracao = cal;
+      abrir();
+      botao('Novo treino').click();
+      preencher({ 'tr-data': '2026-11-07', 'tr-esporte': 'ciclismo', 'tr-duracao': '60', 'tr-zona': 'Z2' });
+      enviar(raiz.querySelector('#editor-treino form'));
+      await tick();
+      const estimado = m.criarTreino.mock.calls[0][2];
+      expect(estimado).toBeGreaterThan(70); // a mediana de 100 HRSS/h puxa a estimativa para cima
+    });
   });
 
   it('sem configuração, a estimativa pede para cadastrá-la', () => {

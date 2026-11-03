@@ -34,3 +34,4 @@ export const excluirAtividade = callable('excluirAtividade');
 export const obterUrlArquivo = callable('obterUrlArquivo');
 export const recalcularHistorico = callable('recalcularHistorico');
 export const reconstruirEstresseDiario = callable('reconstruirEstresseDiario');
+export const reconstruirCalibracao = callable('reconstruirCalibracao');

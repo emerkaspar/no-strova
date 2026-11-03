@@ -35,6 +35,14 @@ Em **Configuração**, cadastre a **FC máxima**, a **FC de repouso**, o **LTHR*
 - Em **Seus dados** você edita o nome e a data de nascimento. A data de nascimento é usada para estimar as calorias.
 - Ao mudar a configuração, use **Recalcular histórico** (com confirmação) para aplicar às atividades já registradas. O estresse que você digitou manualmente nunca é alterado.
 
+### Teste de LTHR (acertar as suas zonas)
+
+O LTHR (FC no limiar) define as zonas e o HRSS de tudo. Para medir, faça o **teste de 30 minutos**: num trecho plano e constante, sozinho, aqueça de 15 a 20 minutos, faça **30 minutos no maior ritmo que você sustenta até o fim**, volte devagar e importe a atividade (com frequência cardíaca) em **Atividades**. Depois, em **Configuração → Teste de LTHR**, escolha a atividade e clique em **Analisar**: o app mostra o LTHR sugerido (a FC média dos últimos 20 minutos) e a FC máxima observada. Se concordar, **Criar nova vigência**: ela vale a partir da data do teste. Em seguida use **Recalcular histórico** para atualizar as atividades já importadas. Se você pedala e corre, faça o teste no esporte que mais treina.
+
+### Calibração das estimativas
+
+A estimativa de HRSS dos treinos planejados parte de uma fórmula. Com a **calibração**, o app aprende com as suas atividades já feitas (com frequência cardíaca real) quanto HRSS por hora você faz em cada esporte e zona, e mistura isso com a fórmula: quanto mais atividades, mais peso para o seu histórico. É automática (precisa de pelo menos 3 atividades de 20 minutos ou mais por esporte e zona), e no editor de treino aparece "calibrada com as suas N atividades". Em **Configuração → Calibração das estimativas** você vê o que o app aprendeu e pode **desligar** o uso.
+
 ## Atividades
 
 ### Importar arquivo

@@ -2,6 +2,7 @@
  * Plano de treino: estimativa de estresse, projeção do Fitness/Fadiga/Forma, meta de forma e vínculo
  * entre treino planejado e atividade realizada. Funções puras, sem Firebase e sem DOM.
  */
+import { estimarEstresseCalibrado } from './calibracao.js';
 import { ESPORTES_VALIDOS } from './atividade.js';
 import { configVigenteEm } from './configAtleta.js';
 import { calcularSerieForma, diasEntre, somarDias } from './forma.js';
@@ -44,9 +45,17 @@ function numero(valor) {
   return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 
-/** HRSS estimado de um treino pela zona e duração, com a configuração de FC informada. */
-export function estimarEstresseTreino({ zona, duracaoMin, config }) {
+/**
+ * HRSS estimado de um treino pela zona e duração, com a configuração de FC informada. Com `calibracao` (o resumo do
+ * histórico do atleta, ver calibracao.js) e amostras suficientes para o esporte e a zona, a estimativa é calibrada;
+ * senão vale a fórmula.
+ */
+export function estimarEstresseTreino({ zona, duracaoMin, config, esporte, calibracao }) {
   if (!config || !(duracaoMin > 0)) return null;
+  if (calibracao) {
+    const calibrada = estimarEstresseCalibrado({ esporte, zona, duracaoMin, config, calibracao });
+    if (calibrada.calibrado) return calibrada.valor;
+  }
   return arredondarHrss(estimarHrssPorZona({ zona, duracaoS: duracaoMin * 60, config }));
 }
 
@@ -56,12 +65,14 @@ export function estimarEstresseTreino({ zona, duracaoMin, config }) {
  * @param {TreinoPlanejado} treino
  * @param {import('./configAtleta.js').ConfigAtleta[]} configs
  */
-export function estresseDoTreino(treino, configs) {
+export function estresseDoTreino(treino, configs, calibracao = null) {
   if (Number.isFinite(treino.estresseManual)) return treino.estresseManual;
   const estimado = estimarEstresseTreino({
     zona: treino.zona,
     duracaoMin: treino.duracaoMin,
     config: configVigenteEm(configs, treino.data),
+    esporte: treino.esporte,
+    calibracao,
   });
   if (estimado !== null) return estimado;
   return Number.isFinite(treino.estresseEstimado) ? treino.estresseEstimado : 0;
@@ -122,12 +133,12 @@ function somarPorDia(itens) {
  * @param {{ realizado: Array<{data: string, estresse: number}>, treinos: TreinoPlanejado[], configs: any[], hoje: string }} entrada
  * @returns {Array<{ data: string, estresse: number }>}
  */
-export function estressesParaProjecao({ realizado, treinos, configs, hoje }) {
+export function estressesParaProjecao({ realizado, treinos, configs, hoje, calibracao = null }) {
   const feito = somarPorDia((realizado ?? []).filter((r) => r.data <= hoje));
   const previsto = somarPorDia(
     (treinos ?? [])
       .filter((t) => t.status === STATUS_TREINO.PLANEJADO && t.data >= hoje)
-      .map((t) => ({ data: t.data, estresse: estresseDoTreino(t, configs) })),
+      .map((t) => ({ data: t.data, estresse: estresseDoTreino(t, configs, calibracao) })),
   );
 
   const resultado = [];
@@ -161,8 +172,8 @@ export function horizonteDaProjecao({ treinos, meta, hoje }) {
  * Série de Fitness/Fadiga/Forma com a projeção do plano. Cada dia ganha `projetado` (depois de hoje).
  * @returns {Array<import('./forma.js').DiaForma & { projetado: boolean }>}
  */
-export function serieComProjecao({ realizado, treinos, configs, hoje, ate }) {
-  const estresses = estressesParaProjecao({ realizado, treinos, configs, hoje });
+export function serieComProjecao({ realizado, treinos, configs, hoje, ate, calibracao = null }) {
+  const estresses = estressesParaProjecao({ realizado, treinos, configs, hoje, calibracao });
   const limite = ate && ate > hoje ? ate : hoje;
   // calcularSerieForma nunca termina antes do último estresse: corta no limite pedido
   return calcularSerieForma(estresses, { ate: limite })
@@ -234,8 +245,8 @@ export function sugerirVinculos(treinos, atividades) {
 }
 
 /** Planejado × realizado de um treino vinculado. */
-export function compararTreino(treino, atividade, configs) {
-  const planejado = estresseDoTreino(treino, configs);
+export function compararTreino(treino, atividade, configs, calibracao = null) {
+  const planejado = estresseDoTreino(treino, configs, calibracao);
   const realizado = Number.isFinite(atividade?.hrss) ? atividade.hrss : null;
   return {
     planejado,

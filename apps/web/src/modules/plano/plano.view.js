@@ -1,4 +1,5 @@
 import { inicioDaSemana, primeiroDoMes, rotuloDoMes, somarDias, somarMeses } from '@no-strova/domain';
+import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { agruparPorDia, dataInicialDoHistorico, montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
@@ -24,8 +25,8 @@ function rotuloDoPeriodo(visao, ancora) {
 export function render(raiz, sessao) {
   const hoje = hojeIso();
   const desde = dataInicialDoHistorico(hoje);
-  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [] };
-  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false };
+  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], calibracao: null };
+  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false, calibracao: false };
   let ativa = true;
   const cancelar = [];
 
@@ -50,6 +51,7 @@ export function render(raiz, sessao) {
       criarEditor({
         uid: sessao.uid,
         configs: () => dados.configs,
+        calibracao: () => dados.calibracao,
         treino,
         dataInicial: data,
         aoConcluir: fecharEditor,
@@ -137,6 +139,7 @@ export function render(raiz, sessao) {
             ancora: ancora(),
             hoje,
             configs: dados.configs,
+            calibracao: dados.calibracao,
             porDia: agruparPorDia(dados.treinos, dados.atividades),
             aoEditar: (t) => abrirEditor(t, t.data),
             aoNovo: (data) => abrirEditor(null, data),
@@ -153,7 +156,7 @@ export function render(raiz, sessao) {
     const metasAtivas = dados.metas.filter((m) => m.ativa);
     const metaAtiva = metasAtivas.sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null;
     const anteriores = dados.metas.filter((m) => !m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? 1 : -1)).slice(0, 5);
-    const { serie, avaliacao } = montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: metaAtiva, hoje });
+    const { serie, avaliacao } = montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: metaAtiva, hoje, calibracao: dados.calibracao });
 
     resto.replaceChildren(
       criarCartaoProjecao({ serie, meta: metaAtiva, avaliacao }),
@@ -162,6 +165,7 @@ export function render(raiz, sessao) {
         treinos: dados.treinos,
         atividades: dados.atividades,
         configs: dados.configs,
+        calibracao: dados.calibracao,
         hoje,
         aoVincular: (treinoId, atividadeId) => executar(() => vincularTreino(treinoId, atividadeId), 'Treino vinculado à atividade.'),
         aoPular: (treinoId) => executar(() => pularTreino(treinoId), 'Treino marcado como pulado.'),
@@ -195,6 +199,11 @@ export function render(raiz, sessao) {
     ouvir('atividades', (cb) => observarAtividadesDesde(sessao.uid, desde, cb, aoErro)),
     ouvir('configs', (cb) => observarConfigs(sessao.uid, cb, aoErro)),
     ouvir('metas', (cb) => observarMetas(sessao.uid, cb, aoErro)),
+    observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
+      dados.calibracao = efetiva;
+      carregou.calibracao = true;
+      desenhar();
+    }),
   );
 
   return () => {

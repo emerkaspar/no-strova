@@ -101,6 +101,8 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `estresseDiario/{uid_yyyymmdd}` | `data`, `estresse`, `kcal`, `qtdAtividades` | Trigger sobre `atividades` |
 | `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin` (inteiro, 5–1440), `zona` (Z1–Z5), `estresseEstimado` (referência gravada ao salvar), `estresseManual?` (sobrescreve a estimativa), `observacoes` (até 500), `status` (`planejado`/`realizado`/`pulado`), `atividadeId?`, `criadoEm` | Dono (as regras validam todos os campos) |
 | `metasForma/{id}` | `formaAlvo` (−60 a 60), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
+| `calibracoes/{uid}` | `chaves`: mapa `{esporte}_{zona}` → `{ n, mediana, amostras: [{ id, data, v }] }` (HRSS por hora das atividades com FC real), `atualizadoEm` | Somente trigger/callable (o dono lê) |
+| `preferencias/{uid}` | `calibracaoAtiva` (booleano; sem documento, vale a calibração) | Dono (as regras só aceitam esse campo) |
 | `pesagens/{id}` | `data`, `pesoKg` | Dono |
 | `metasPeso/{id}` | `pesoAlvoKg`, `dataAlvo`, `status`, `criadoEm` | Dono |
 | `iaRascunhos/{id}` | `tipo` (`treino`/`peso`), `entradaResumo`, `saida`, `status` (`pendente`/`aceito`/`descartado`), `criadoEm` | Somente callable |
@@ -176,6 +178,7 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 - `auth/`: `bootstrapUserOnCreate` (trigger), `ensureUserProfile`, `aprovarUsuario`, `listarPendentes`, `bloquearUsuario`.
 - `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` e a agendada `limparArquivosOrfaos`.
 - `estresse/` (Fase 3): trigger `onAtividadeWrite` (mantém `estresseDiario`) e a callable `reconstruirEstresseDiario`.
+- `calibracao/`: callable `reconstruirCalibracao` e o serviço que o gatilho `onAtividadeWrite` (e `recalcularHistorico`) usa para manter `calibracoes/{uid}`. O teste de LTHR não tem Function: roda no cliente.
 - `ia/`: `sugerirTreinos`, `sugerirMetaPeso`, `decidirRascunho`.
 - `exportacao/` (Fase 7): `exportarMeusDados`, `excluirMinhaConta`.
 
@@ -205,6 +208,26 @@ Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras 
 ## Vínculo planejado × realizado
 - O app **sugere** o vínculo quando há um treino "planejado" e uma atividade do **mesmo dia e esporte** (sem repetir atividade); o usuário **confirma** ("Vincular") ou diz "Não foi esse" (o treino passa a "Não realizados"). Vincular grava `status: realizado` e `atividadeId` no treino; a atividade (só escrita pelo servidor) não muda.
 - **Comparativo:** para treinos vinculados, tabela com estresse planejado × realizado, diferença e duração planejada → realizada.
+
+## Calibração da estimativa e teste de LTHR
+
+**Problema:** a estimativa de HRSS de um treino planejado trata o treino como uma zona só, na FC média presumida da zona. O TRIMP é convexo, então treino variado (intervalado) tende a render mais HRSS do que a fórmula diz, e um LTHR errado desloca tudo.
+
+### Calibração com o histórico (automática)
+- **Amostra:** cada atividade com **HRSS calculado pela FC real** (`hrssOrigem = fc`, nunca o estimado pela zona nem o informado), com **20 minutos ou mais** de movimento, sem alerta de HRSS anormal. A zona vem da FC média: a zona cuja FC presumida (fração do LTHR da configuração vigente na data) está mais perto; razão FC/LTHR fora de 0,60–1,12 não conta. `v` = HRSS por hora. Regras em `packages/domain/src/calibracao.js`.
+- **Chave:** `{esporte}_{zona}` (ex.: `ciclismo_Z2`). Guarda as **30 amostras mais recentes** de cada chave e a **mediana**.
+- **Estimativa calibrada:** com **3 amostras ou mais**, HRSS/h = `peso × mediana + (1 − peso) × fórmula`, com `peso = n / (n + 5)` (3 → 38%, 5 → 50%, 10 → 67%, 30 → 86%). Com menos, vale só a fórmula. Esporte ou zona sem amostras: fórmula. O estresse **informado** continua mandando. A duração escala linearmente.
+- **Onde se aplica:** `estimarEstresseTreino` / `estresseDoTreino` (e, por eles, a projeção, o calendário, o editor, o Início e "Planejado × realizado"). O editor mostra "calibrada com as suas N atividades parecidas (pela fórmula seria ~X)".
+- **Como se mantém (custo mínimo):** o gatilho `onAtividadeWrite` (o mesmo do `estresseDiario`) lê **1 documento** (`calibracoes/{uid}`) e grava **1**, em transação, só quando a amostra da atividade mudou (criar, editar, recalcular, excluir); remove pela id e acrescenta, então é idempotente. **Recalcular histórico** e a callable `reconstruirCalibracao` refazem o resumo do zero (também chamada uma vez por sessão se o documento não existir, para atividades anteriores). O cliente lê 1 documento por abertura.
+- **Decisões (padrões escolhidos; ajustáveis em `calibracao.js`):** mínimo de 3 amostras; `K = 5`; 20 min de duração mínima; 30 amostras por chave; calibração **ligada por padrão**, com opção de desligar em Configuração (`preferencias/{uid}.calibracaoAtiva`).
+- **Limite conhecido:** a zona de uma atividade vem da FC média, que esconde intervalados; por isso os treinos vinculados (planejado × realizado) são a melhor fonte quando o plano e a execução coincidem. Um "tipo de treino" no plano melhoraria isso (fora do escopo).
+
+### Teste de LTHR (protocolo de 30 minutos, Joe Friel)
+- **Protocolo** (mostrado em Configuração): trecho plano e constante, sozinho; 15–20 min de aquecimento; **30 min no maior ritmo sustentável**; volta suave; importar a atividade com FC.
+- **Análise** (`analisarTesteLthr`, no cliente, sobre a série de FC já guardada em `atividades/{id}/series/fc`; **nenhuma Function nova**): acha a **melhor janela de 30 minutos** (maior FC média, com cobertura de amostras de 85% ou mais; pausas longas não contam) e devolve o **LTHR = FC média dos últimos 20 min** dessa janela, a FC média dos 30 min e a **FC máxima observada**. Menos de 30 min de FC: erro.
+- **Avisos:** LTHR abaixo de 80% da FC máxima (esforço provavelmente não máximo) e diferença de 12 bpm ou mais para o LTHR atual.
+- **Aplicar:** o usuário confirma e o app cria uma **nova vigência** (`configAposTeste`) na **data da atividade**, copiando a configuração vigente nessa data e trocando o LTHR (e, se marcado e maior, a FC máxima). Depois, **Recalcular histórico** aplica às atividades já importadas. Sem configuração cadastrada, não cria.
+- **Se pedala e corre:** a configuração tem um só LTHR; o teste deve ser feito no esporte principal (na corrida o LTHR costuma ser alguns bpm maior).
 
 ## Tela do Plano (`#/plano`)
 - **Calendário** em **semana** (7 colunas) ou **mês** (6 semanas, com contagem por dia em telas pequenas), navegação ‹ › e "Hoje". Cada dia mostra as atividades realizadas (chips cheios) e os treinos planejados (tracejados), com o total do dia. "+" cria treino no dia; clicar no treino edita.

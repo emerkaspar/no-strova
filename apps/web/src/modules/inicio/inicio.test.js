@@ -9,10 +9,22 @@ const mocks = vi.hoisted(() => ({
   daSemana: [],
   treinos: [],
   configs: [],
+  calibracao: { chaves: {} },
+  preferencias: null,
   reconstruir: vi.fn(),
 }));
 
-vi.mock('../../core/functions.js', () => ({ reconstruirEstresseDiario: mocks.reconstruir }));
+vi.mock('../../core/functions.js', () => ({ reconstruirEstresseDiario: mocks.reconstruir, reconstruirCalibracao: vi.fn().mockResolvedValue({}) }));
+vi.mock('../../infrastructure/calibracaoRepo.js', () => ({
+  observarCalibracao: (_uid, aoDados) => {
+    aoDados(mocks.calibracao);
+    return () => {};
+  },
+  observarPreferencias: (_uid, aoDados) => {
+    aoDados(mocks.preferencias);
+    return () => {};
+  },
+}));
 vi.mock('../../infrastructure/estresseRepo.js', () => ({
   observarEstresseDiario: (_uid, aoDados) => {
     aoDados(mocks.dias);
@@ -63,6 +75,8 @@ beforeEach(() => {
   mocks.daSemana = [];
   mocks.treinos = [];
   mocks.configs = [];
+  mocks.calibracao = { chaves: {} };
+  mocks.preferencias = null;
   mocks.reconstruir.mockReset().mockResolvedValue({ dias: 0, removidos: 0 });
   controleAgregacao.pedido = false;
   estadoAtividades.abrirImportar = false;
