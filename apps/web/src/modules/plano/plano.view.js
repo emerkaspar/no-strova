@@ -1,9 +1,11 @@
 import { inicioDaSemana, primeiroDoMes, rotuloDoMes, somarDias, somarMeses } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
+import { modelosProprios } from '../../application/modelos.js';
 import { agruparPorDia, dataInicialDoHistorico, montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
+import { observarModelos } from '../../infrastructure/modelosRepo.js';
 import { moverTreino, observarMetas, observarMetasCondicionamento, observarTreinos, pularTreino, vincularTreino } from '../../infrastructure/planoRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -27,8 +29,8 @@ function rotuloDoPeriodo(visao, ancora) {
 export function render(raiz, sessao) {
   const hoje = hojeIso();
   const desde = dataInicialDoHistorico(hoje);
-  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], metasCondicionamento: [], calibracao: null };
-  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false, metasCondicionamento: false, calibracao: false };
+  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], metasCondicionamento: [], modelos: [], calibracao: null };
+  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false, metasCondicionamento: false, modelos: false, calibracao: false };
   let ativa = true;
   const cancelar = [];
 
@@ -55,6 +57,7 @@ export function render(raiz, sessao) {
         uid: sessao.uid,
         configs: () => dados.configs,
         calibracao: () => dados.calibracao,
+        modelos: () => modelosProprios(dados.modelos),
         treino,
         dataInicial: data,
         aoConcluir: fecharEditor,
@@ -226,6 +229,7 @@ export function render(raiz, sessao) {
     ouvir('configs', (cb) => observarConfigs(sessao.uid, cb, aoErro)),
     ouvir('metas', (cb) => observarMetas(sessao.uid, cb, aoErro)),
     ouvir('metasCondicionamento', (cb) => observarMetasCondicionamento(sessao.uid, cb, aoErro)),
+    ouvir('modelos', (cb) => observarModelos(sessao.uid, cb, aoErro)),
     observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
       dados.calibracao = efetiva;
       carregou.calibracao = true;

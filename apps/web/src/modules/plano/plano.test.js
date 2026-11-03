@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   configs: [],
   metas: [],
   metasCondicionamento: [],
+  modelos: [],
   definirMetaCondicionamento: vi.fn(),
   excluirMetaCondicionamento: vi.fn(),
   calibracao: { chaves: {} },
@@ -32,6 +33,7 @@ const assinar = (chave) => (...args) => {
 vi.mock('../../infrastructure/estresseRepo.js', () => ({ observarEstresseDiario: assinar('dias') }));
 vi.mock('../../infrastructure/atividadesRepo.js', () => ({ observarAtividadesDesde: assinar('atividades') }));
 vi.mock('../../infrastructure/configsRepo.js', () => ({ observarConfigs: assinar('configs') }));
+vi.mock('../../infrastructure/modelosRepo.js', () => ({ observarModelos: assinar('modelos') }));
 vi.mock('../../infrastructure/calibracaoRepo.js', () => ({ observarCalibracao: assinar('calibracao'), observarPreferencias: assinar('preferencias') }));
 vi.mock('../../core/functions.js', () => ({ reconstruirCalibracao: vi.fn().mockResolvedValue({}) }));
 vi.mock('../../infrastructure/planoRepo.js', () => ({
@@ -88,6 +90,7 @@ beforeEach(() => {
   m.configs = [config];
   m.metas = [];
   m.metasCondicionamento = [];
+  m.modelos = [];
   m.calibracao = { chaves: {} };
   m.preferencias = null;
   for (const f of [m.criarTreino, m.atualizarTreino, m.moverTreino, m.vincularTreino, m.desvincularTreino, m.pularTreino, m.excluirTreino, m.definirMeta, m.excluirMeta]) {
@@ -296,6 +299,97 @@ describe('novo treino e edição', () => {
       { tipo: 'bloco', papel: 'desaquecimento', duracaoS: 600, zona: 'Z1' },
     ];
     const estruturado = () => treino({ data: '2026-11-06', duracaoMin: 47, zona: 'Z5', estresseManual: null, nomeTreino: '5 × 3 min no VO2', modeloId: 'vo2-5x3-ciclismo', passos });
+
+    describe('escolher da biblioteca no editor', () => {
+      const proprio = { id: 'meu1', userId: 'u1', nome: 'Meu limiar', esporte: 'ciclismo', foco: 'limiar', nivel: 'intermediario', descricao: '', passos };
+
+      it('o editor oferece "Treino livre" e a biblioteca do esporte, agrupada por foco e com o nível e a duração', () => {
+        abrir();
+        botao('Novo treino').click();
+        const lista = raiz.querySelector('#tr-modelo');
+        expect(lista.value).toBe('');
+        expect(lista.options[0].textContent).toContain('Treino livre');
+        const grupos = [...lista.querySelectorAll('optgroup')].map((g) => g.label);
+        expect(grupos).toEqual(['VO2máx', 'Limiar', 'Tempo', 'Over-under', 'Pirâmide', 'Fartlek', 'Sprints', 'Progressivo', 'Subidas']);
+        const opcao = lista.querySelector('option[value="vo2-5x3-ciclismo"]');
+        expect(opcao.textContent).toBe('5 × 3 min no VO2 · Intermediário · 52 min');
+        expect(lista.querySelector('option[value$="-corrida"]')).toBeNull(); // só o esporte escolhido
+      });
+
+      it('escolher um treino da biblioteca mostra a estrutura, trava duração, zona e esporte e estima pelos blocos', () => {
+        abrir();
+        botao('Novo treino').click();
+        preencher({ 'tr-modelo': 'vo2-5x3-ciclismo' });
+        const editor = raiz.querySelector('#editor-treino');
+        expect(editor.querySelector('.treino-estrutura strong').textContent).toBe('5 × 3 min no VO2');
+        expect(editor.querySelector('.treino-estrutura svg.perfil-treino')).not.toBeNull();
+        expect(editor.querySelector('#tr-duracao').disabled).toBe(true);
+        expect(editor.querySelector('#tr-duracao').value).toBe('52');
+        expect(editor.querySelector('#tr-zona').disabled).toBe(true);
+        expect(editor.querySelector('#tr-zona').value).toBe('Z5');
+        expect(editor.querySelector('#tr-esporte').disabled).toBe(true);
+        expect(editor.querySelector('.estimativa').textContent).toMatch(/somando os blocos do treino/);
+      });
+
+      it('voltar para "Treino livre" destrava os campos e some com a estrutura', () => {
+        abrir();
+        botao('Novo treino').click();
+        preencher({ 'tr-modelo': 'vo2-5x3-ciclismo' });
+        preencher({ 'tr-modelo': '' });
+        const editor = raiz.querySelector('#editor-treino');
+        expect(editor.querySelector('.treino-estrutura')).toBeNull();
+        expect(editor.querySelector('#tr-duracao').disabled).toBe(false);
+        expect(editor.querySelector('#tr-esporte').disabled).toBe(false);
+      });
+
+      it('salvar grava o treino com os passos, o nome e o modelo da biblioteca, na data escolhida', async () => {
+        abrir();
+        botao('Novo treino').click();
+        preencher({ 'tr-data': '2026-11-09', 'tr-modelo': 'lim-3x10-ciclismo', 'tr-obs': 'Na avenida' });
+        enviar(raiz.querySelector('#editor-treino form'));
+        await tick();
+        expect(m.criarTreino).toHaveBeenCalledTimes(1);
+        const [uid, valores, estimado] = m.criarTreino.mock.calls[0];
+        expect(uid).toBe('u1');
+        expect(valores).toMatchObject({ data: '2026-11-09', esporte: 'ciclismo', zona: 'Z4', nomeTreino: '3 × 10 min no limiar', modeloId: 'lim-3x10-ciclismo', observacoes: 'Na avenida' });
+        expect(valores.passos.length).toBeGreaterThan(0);
+        expect(estimado).toBeGreaterThan(0);
+      });
+
+      it('trocar o esporte (sem treino escolhido) refaz a lista com os treinos do outro esporte', () => {
+        abrir();
+        botao('Novo treino').click();
+        preencher({ 'tr-esporte': 'corrida' });
+        const lista = raiz.querySelector('#tr-modelo');
+        expect(lista.querySelector('option[value="vo2-5x3-corrida"]')).not.toBeNull();
+        expect(lista.querySelector('option[value$="-ciclismo"]')).toBeNull();
+      });
+
+      it('os treinos próprios do usuário aparecem em "Meus treinos" e podem ser escolhidos', async () => {
+        m.modelos = [proprio];
+        abrir();
+        botao('Novo treino').click();
+        const lista = raiz.querySelector('#tr-modelo');
+        expect(lista.querySelector('optgroup[label="Meus treinos"] option[value="meu1"]').textContent).toContain('Meu limiar');
+        preencher({ 'tr-modelo': 'meu1' });
+        enviar(raiz.querySelector('#editor-treino form'));
+        await tick();
+        expect(m.criarTreino.mock.calls[0][1]).toMatchObject({ nomeTreino: 'Meu limiar', modeloId: 'meu1' });
+      });
+
+      it('ao editar um treino estruturado, a lista mostra o treino atual e permite trocar por outro da biblioteca', async () => {
+        m.treinos = [estruturado()];
+        abrir();
+        celula('2026-11-06').querySelector('.chip-treino').click();
+        const lista = raiz.querySelector('#tr-modelo');
+        expect(lista.value).toBe('vo2-5x3-ciclismo');
+        preencher({ 'tr-modelo': 'tempo-20-ciclismo' });
+        expect(raiz.querySelector('.treino-estrutura strong').textContent).toBe('20 min em ritmo de tempo');
+        enviar(raiz.querySelector('#editor-treino form'));
+        await tick();
+        expect(m.atualizarTreino.mock.calls[0][1]).toMatchObject({ nomeTreino: '20 min em ritmo de tempo', modeloId: 'tempo-20-ciclismo', zona: 'Z3' });
+      });
+    });
 
     it('o calendário mostra o nome do treino e o estresse somado dos blocos', () => {
       m.treinos = [estruturado()];
