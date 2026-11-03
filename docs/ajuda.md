@@ -13,13 +13,13 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 
 - **Cabeçalho (todas as telas):** o logo (leva ao Início), a data por extenso, a saudação ("Bom dia", "Boa tarde" ou "Boa noite") e, à direita, o menu **Início, Atividades, Plano, Peso e Configuração** (**Aprovações** só aparece para administradores), o botão laranja **Importar arquivo** e o círculo com a sua inicial, que abre o menu da conta (tema e **Sair**). Em telas pequenas o menu vira uma **barra de abas no rodapé**.
 - **Importar arquivo:** abre a tela de Atividades já com o painel de importação aberto.
-- **Plano e Peso** ainda estão em construção e mostram só um aviso.
+- **Plano** é onde você planeja os treinos (veja abaixo). **Peso** ainda está em construção e mostra só um aviso.
 
 ## Início
 
 - **Forma hoje (bloco colorido):** o número grande é a sua Forma de hoje (Fitness menos Fadiga **de ontem**, por isso um treino feito hoje só pesa amanhã). A **cor do bloco muda com a zona**: laranja na zona ótima, verde na fresca, cinza na neutra, azul na de transição e vermelho na de sobrecarga. Passe o mouse (ou toque) no **nome da zona** ou no **número** para ver uma explicação das cinco zonas, com a sua destacada e uma frase de incentivo; o cartão abre ao lado do bloco. Quatro dados menores completam: **Fitness** (com a variação em 7 dias), **Fadiga**, **Forma amanhã** (já com o treino de hoje) e **Último treino**. O botão **Planejar treino** leva ao Plano.
-- **Carga e fadiga:** Fitness e Fadiga dos últimos 30 dias, com a marca "Hoje".
-- **Semana atual:** de segunda a domingo, uma coluna por dia com o estresse (HRSS) realizado (barra cheia). Dias sem treino mostram uma barrinha mínima. Os treinos planejados (barra tracejada) aparecem quando houver plano de treino.
+- **Carga e fadiga:** Fitness e Fadiga dos últimos dias, com a marca "Hoje". Com treinos planejados, os próximos 14 dias aparecem tracejados (a projeção do plano).
+- **Semana atual:** de segunda a domingo, uma coluna por dia com o estresse (HRSS) realizado (barra cheia). Dias sem treino mostram uma barrinha mínima. Os treinos planejados aparecem em barra tracejada, com o estresse estimado ("~48 · plano").
 - **Últimas atividades:** as cinco mais recentes, com data, esporte, duração, distância, FC média e HRSS.
 - **Peso e Sugestão:** mostram "disponível quando houver…" até as telas de peso e de plano existirem.
 
@@ -73,6 +73,19 @@ A tela **Forma** (abra pelo link **Ver gráfico completo** do Início) mostra co
 A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25, pausa longa), **Freshness** (+5 a +25, pronto para competir), **Neutral** (−10 a +5, recuperação), **Optimal** (−30 a −10, bom para construir Fitness) e **Overload** (abaixo de −30, descanse).
 
 Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
+
+## Plano de treino
+
+Em **Plano** você organiza os treinos que ainda vai fazer e vê, na hora, como eles mexem no Fitness, na Fadiga e na Forma.
+
+- **Criar um treino:** clique em **Novo treino** (ou no **+** de um dia), escolha a data, o esporte, a **duração** e a **zona predominante** (Z1 a Z5). O app **estima o estresse** (HRSS) pela zona e pela duração; se você já sabe o valor, informe em "Estresse informado". Para a estimativa funcionar, cadastre a configuração de FC em Configuração.
+- **Mudar de dia:** arraste o treino para outro dia do calendário. No celular, abra o treino e troque a data.
+- **Semana ou mês:** use os botões no topo; ‹ e › navegam e **Hoje** volta ao período atual.
+- **Duplicar:** no treino, **Duplicar para a próxima semana**. Você também pode **marcar como pulado** ou **excluir**.
+- **Projeção:** o gráfico segue nos dias futuros em linha tracejada. Os dias passados usam só o que você realmente fez; **hoje** usa o maior entre o planejado e o feito; os dias futuros usam o planejado.
+- **Meta de forma:** informe "chegar com Forma X na data Y". O app mostra se o plano atual **chega lá** (até 3 pontos de diferença), **fica abaixo** (falta descanso: alivie a carga antes da data) ou **fica acima** (dá para treinar mais). Só há uma meta ativa por vez.
+- **Treino que passou sem ser feito:** aparece em "Não realizados" e deixa de contar na projeção; **reagende para hoje** ou **pule**.
+- **Vincular ao que você fez:** se há uma atividade do mesmo dia e esporte, o app sugere o vínculo; confirme em **Vincular**. Os treinos vinculados entram no comparativo **planejado × realizado**.
 
 ## Para administradores
 

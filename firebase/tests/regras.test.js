@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assertFails,
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage';
 
 // Requer os emuladores de Firestore e Storage: `npm run test:rules`.
@@ -139,6 +139,131 @@ describe('Firestore: configsAtleta', () => {
     await assertFails(
       setDoc(docConfig(env.authenticatedContext('pendente').firestore(), 'p'), { ...config, userId: 'pendente' }),
     );
+  });
+});
+
+describe('Firestore: treinosPlanejados', () => {
+  const treino = { userId: 'aprovado', data: '2026-11-10', esporte: 'ciclismo', duracaoMin: 60, zona: 'Z2', status: 'planejado', estresseEstimado: 62.5, estresseManual: null, observacoes: 'Serra', atividadeId: null };
+  const ref = (db, id = 't1') => doc(db, `treinosPlanejados/${id}`);
+
+  it('o dono cria, lê, move de dia, vincula e apaga', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(setDoc(ref(db), treino));
+    await assertSucceeds(getDoc(ref(db)));
+    await assertSucceeds(updateDoc(ref(db), { data: '2026-11-12' }));
+    await assertSucceeds(updateDoc(ref(db), { status: 'realizado', atividadeId: 'abc12345' }));
+    await assertSucceeds(deleteDoc(ref(db)));
+  });
+
+  it('rejeita valores implausíveis', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    for (const ruim of [
+      { esporte: 'natacao' }, { zona: 'Z9' }, { status: 'feito' }, { duracaoMin: 3 }, { duracaoMin: 2000 }, { duracaoMin: 45.5 },
+      { data: 'amanhã' }, { estresseManual: 9999 }, { estresseManual: 0 }, { estresseEstimado: -1 }, { observacoes: 'x'.repeat(501) },
+      { atividadeId: 'x'.repeat(41) },
+    ]) {
+      await assertFails(setDoc(ref(db, 'ruim'), { ...treino, ...ruim }));
+    }
+  });
+
+  it('rejeita campos extras, campos faltando e userId de outro', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertFails(setDoc(ref(db, 'x1'), { ...treino, extra: 1 }));
+    const { zona, ...semZona } = treino;
+    await assertFails(setDoc(ref(db, 'x2'), semZona));
+    await assertFails(setDoc(ref(db, 'x3'), { ...treino, userId: 'outro' }));
+  });
+
+  it('não troca o dono nem deixa o treino inválido numa edição', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(setDoc(ref(db), treino));
+    await assertFails(updateDoc(ref(db), { userId: 'outro' }));
+    await assertFails(updateDoc(ref(db), { duracaoMin: 1 }));
+    await assertFails(updateDoc(ref(db), { data: '10/11/2026' }));
+  });
+
+  it('outro usuário, admin e pendente não leem nem gravam', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ref(ctx.firestore()), treino);
+    });
+    await assertFails(getDoc(ref(env.authenticatedContext('outro').firestore())));
+    await assertFails(getDoc(ref(env.authenticatedContext('admin').firestore())));
+    await assertFails(updateDoc(ref(env.authenticatedContext('outro').firestore()), { data: '2026-11-11' }));
+    await assertFails(deleteDoc(ref(env.authenticatedContext('outro').firestore())));
+    await assertFails(setDoc(ref(env.authenticatedContext('pendente').firestore(), 'p'), { ...treino, userId: 'pendente' }));
+  });
+});
+
+describe('Firestore: o app grava exatamente como as regras esperam', () => {
+  it('criar treino (com serverTimestamp) e editar com o conjunto completo de campos', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    const r = doc(db, 'treinosPlanejados/app1');
+    await assertSucceeds(
+      setDoc(r, {
+        userId: 'aprovado', esporte: 'ciclismo', data: '2026-11-10', duracaoMin: 60, zona: 'Z2', estresseManual: null,
+        observacoes: '', estresseEstimado: null, status: 'planejado', atividadeId: null, criadoEm: serverTimestamp(),
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(r, { esporte: 'corrida', data: '2026-11-11', duracaoMin: 90, zona: 'Z4', estresseManual: 120.5, observacoes: 'Intervalado', estresseEstimado: 88.2 }),
+    );
+    await assertSucceeds(updateDoc(r, { status: 'pulado' }));
+    await assertSucceeds(updateDoc(r, { status: 'planejado', atividadeId: null }));
+  });
+
+  it('definir meta: o lote desativa a anterior e cria a nova com serverTimestamp', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'metasForma/antiga'), { userId: 'aprovado', formaAlvo: 5, dataAlvo: '2026-11-10', ativa: true });
+    });
+    const db = env.authenticatedContext('aprovado').firestore();
+    const lote = writeBatch(db);
+    lote.update(doc(db, 'metasForma/antiga'), { ativa: false });
+    lote.set(doc(db, 'metasForma/nova'), { userId: 'aprovado', formaAlvo: 10.5, dataAlvo: '2026-11-20', ativa: true, criadoEm: serverTimestamp() });
+    await assertSucceeds(lote.commit());
+  });
+
+  it('um lote com meta inválida falha por inteiro (nada é gravado)', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'metasForma/antiga2'), { userId: 'aprovado', formaAlvo: 5, dataAlvo: '2026-11-10', ativa: true });
+    });
+    const db = env.authenticatedContext('aprovado').firestore();
+    const lote = writeBatch(db);
+    lote.update(doc(db, 'metasForma/antiga2'), { ativa: false });
+    lote.set(doc(db, 'metasForma/ruim'), { userId: 'aprovado', formaAlvo: 999, dataAlvo: '2026-11-20', ativa: true });
+    await assertFails(lote.commit());
+    let ativaDepois;
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      ativaDepois = (await getDoc(doc(ctx.firestore(), 'metasForma/antiga2'))).data().ativa;
+    });
+    expect(ativaDepois).toBe(true);
+  });
+});
+
+describe('Firestore: metasForma', () => {
+  const meta = { userId: 'aprovado', formaAlvo: 10.5, dataAlvo: '2026-11-20', ativa: true };
+  const ref = (db, id = 'm1') => doc(db, `metasForma/${id}`);
+
+  it('o dono cria, desativa e apaga a meta', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(setDoc(ref(db), meta));
+    await assertSucceeds(getDoc(ref(db)));
+    await assertSucceeds(updateDoc(ref(db), { ativa: false }));
+    await assertSucceeds(deleteDoc(ref(db)));
+  });
+
+  it('rejeita Forma fora de −60 a 60, data inválida, tipo errado, campos extras e dono trocado', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    for (const ruim of [{ formaAlvo: 99 }, { formaAlvo: -99 }, { formaAlvo: '10' }, { dataAlvo: 'logo' }, { ativa: 'sim' }, { extra: 1 }, { userId: 'outro' }]) {
+      await assertFails(setDoc(ref(db, 'ruim'), { ...meta, ...ruim }));
+    }
+  });
+
+  it('outro usuário não lê nem altera', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ref(ctx.firestore()), meta);
+    });
+    await assertFails(getDoc(ref(env.authenticatedContext('outro').firestore())));
+    await assertFails(updateDoc(ref(env.authenticatedContext('outro').firestore()), { ativa: false }));
   });
 });
 

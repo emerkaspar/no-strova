@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   dias: [],
   ultimas: [],
   daSemana: [],
+  treinos: [],
+  configs: [],
   reconstruir: vi.fn(),
 }));
 
@@ -24,6 +26,18 @@ vi.mock('../../infrastructure/atividadesRepo.js', () => ({
   },
   observarAtividadesDesde: (_uid, _desde, aoDados) => {
     aoDados(mocks.daSemana);
+    return () => {};
+  },
+}));
+vi.mock('../../infrastructure/planoRepo.js', () => ({
+  observarTreinos: (_uid, _desde, aoDados) => {
+    aoDados(mocks.treinos);
+    return () => {};
+  },
+}));
+vi.mock('../../infrastructure/configsRepo.js', () => ({
+  observarConfigs: (_uid, aoDados) => {
+    aoDados(mocks.configs);
     return () => {};
   },
 }));
@@ -47,6 +61,8 @@ beforeEach(() => {
   mocks.dias = [];
   mocks.ultimas = [];
   mocks.daSemana = [];
+  mocks.treinos = [];
+  mocks.configs = [];
   mocks.reconstruir.mockReset().mockResolvedValue({ dias: 0, removidos: 0 });
   controleAgregacao.pedido = false;
   estadoAtividades.abrirImportar = false;
@@ -240,6 +256,93 @@ describe('Início com dados', () => {
   it('Peso e Sugestão seguem com estado vazio', () => {
     expect(texto('.bloco-peso .vazio-curto')).toContain('Disponível quando houver registro de peso');
     expect(texto('.bloco-sugestao .vazio-curto')).toBe('Disponível quando houver plano de treino.');
+  });
+});
+
+describe('Início com plano de treino', () => {
+  const config = { id: 'c1', vigenteDesde: '2026-01-01', fcMax: 190, fcRepouso: 50, lthr: 170, sexo: 'masculino', pesoKg: 75, alturaCm: 178 };
+  const historico = Array.from({ length: 15 }, (_, i) => ({ data: somarDias('2026-10-20', i), estresse: 60 }));
+  const planejado = (extra) => ({ id: 'p1', data: '2026-11-06', esporte: 'ciclismo', duracaoMin: 60, zona: 'Z2', status: 'planejado', estresseManual: 48, ...extra });
+
+  beforeEach(() => {
+    mocks.dias = historico;
+    mocks.configs = [config];
+  });
+
+  it('a semana mostra o planejado tracejado, com título e valor "~N · plano"', () => {
+    mocks.treinos = [planejado(), planejado({ id: 'p2', data: '2026-11-08', esporte: 'corrida', zona: 'Z4', estresseManual: 98 })];
+    render(raiz, sessao);
+    const dias = [...raiz.querySelectorAll('.semana .dia')];
+    expect(raiz.querySelectorAll('.barra-planejada')).toHaveLength(2);
+    expect(dias[4].querySelector('.dia-titulo').textContent).toBe('Ciclismo Z2'); // sexta 06/11
+    expect(dias[4].querySelector('.dia-valor').textContent).toBe('~48 · plano');
+    expect(dias[6].querySelector('.dia-titulo').textContent).toBe('Corrida Z4');
+    // realizado da semana: 02/11 e 03/11 do histórico (60 + 60); planejado: 48 + 98
+    expect(texto('.bloco-resumo')).toBe('Carga total prevista: 266 · realizada até hoje: 120');
+  });
+
+  it('vários treinos no mesmo dia viram "N treinos"; o estresse sem valor informado é estimado pela configuração', () => {
+    mocks.treinos = [planejado({ estresseManual: null }), planejado({ id: 'p2', estresseManual: null, zona: 'Z4' })];
+    render(raiz, sessao);
+    expect([...raiz.querySelectorAll('.semana .dia')][4].querySelector('.dia-titulo').textContent).toBe('2 treinos');
+    expect(parseFloat(raiz.querySelector('.barra-planejada').style.height)).toBeCloseTo(100, 5);
+    expect([...raiz.querySelectorAll('.semana .dia')][4].querySelector('.dia-valor').textContent).toMatch(/^~\d+ · plano$/);
+  });
+
+  it('não desenha planejado de dia passado, pulado nem vinculado', () => {
+    mocks.treinos = [
+      planejado({ id: 'a', data: '2026-11-02' }),
+      planejado({ id: 'b', data: '2026-11-06', status: 'pulado' }),
+      planejado({ id: 'c', data: '2026-11-07', status: 'realizado', atividadeId: 'x' }),
+    ];
+    mocks.dias = [{ data: '2026-11-03', estresse: 50 }];
+    render(raiz, sessao);
+    expect(raiz.querySelectorAll('.barra-planejada')).toHaveLength(0);
+  });
+
+  it('com realizado e planejado no mesmo dia (hoje), mostra as duas barras', () => {
+    mocks.dias = [{ data: '2026-11-04', estresse: 30 }];
+    mocks.treinos = [planejado({ data: '2026-11-04', estresseManual: 70 })];
+    render(raiz, sessao);
+    const hoje = raiz.querySelector('.semana .dia-hoje');
+    expect(hoje.querySelector('.barra-planejada')).not.toBeNull();
+    expect(hoje.querySelector('.barra-real')).not.toBeNull();
+  });
+
+  it('semana sem nenhum treino convida a planejar', () => {
+    mocks.dias = [];
+    render(raiz, sessao);
+    expect(texto('.bloco-semana .vazio-curto')).toContain('Nenhum treino nesta semana ainda.');
+    expect(raiz.querySelector('.bloco-semana a[href="#/plano"]').textContent).toBe('Planejar a semana');
+  });
+
+  it('o gráfico ganha a projeção tracejada dos próximos dias e a legenda "Projeção"', () => {
+    mocks.treinos = [planejado()];
+    render(raiz, sessao);
+    const grafico = raiz.querySelector('.bloco-grafico');
+    expect(grafico.querySelectorAll('polyline')).toHaveLength(4); // fitness e fadiga: cheias + tracejadas
+    expect(grafico.querySelectorAll('polyline.serie-projetada')).toHaveLength(2);
+    expect(grafico.querySelector('.grafico-projecao-rotulo')).not.toBeNull();
+    expect(grafico.querySelector('.legenda-inline').textContent).toContain('Projeção');
+  });
+
+  it('sem plano, o gráfico não tem projeção nem a legenda', () => {
+    mocks.treinos = [];
+    render(raiz, sessao);
+    const grafico = raiz.querySelector('.bloco-grafico');
+    expect(grafico.querySelector('polyline.serie-projetada')).toBeNull();
+    expect(grafico.querySelector('.legenda-inline').textContent).not.toContain('Projeção');
+  });
+
+  it('o destaque "Forma hoje" não muda com o plano', () => {
+    mocks.treinos = [];
+    render(raiz, sessao);
+    const semPlano = texto('.hero-numero');
+    document.body.innerHTML = '<div id="raiz"></div>';
+    raiz = document.getElementById('raiz');
+    mocks.treinos = [planejado({ data: '2026-11-05', estresseManual: 300 })];
+    render(raiz, sessao);
+    expect(texto('.hero-numero')).toBe(semPlano);
   });
 });
 

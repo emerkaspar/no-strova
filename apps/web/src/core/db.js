@@ -9,9 +9,11 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { EMULADORES, USAR_EMULADORES } from './constants.js';
 import { app } from './firebase.js';
@@ -68,4 +70,24 @@ export function atualizarDocumento(caminho, campos) {
 
 export function excluirDocumento(caminho) {
   return deleteDoc(doc(db, caminho));
+}
+
+/** Marca de data e hora do servidor, para campos como `criadoEm`. */
+export function carimboDeServidor() {
+  return serverTimestamp();
+}
+
+/**
+ * Grava várias operações de uma vez (tudo ou nada).
+ * @param {Array<{ tipo: 'set'|'update'|'delete', caminho: string, dados?: object }>} operacoes
+ */
+export async function gravarEmLote(operacoes) {
+  const lote = writeBatch(db);
+  for (const op of operacoes) {
+    const ref = doc(db, op.caminho);
+    if (op.tipo === 'set') lote.set(ref, op.dados);
+    else if (op.tipo === 'update') lote.update(ref, op.dados);
+    else lote.delete(ref);
+  }
+  await lote.commit();
 }

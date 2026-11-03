@@ -81,16 +81,48 @@ service cloud.firestore {
       allow update: if acessoLiberado() && donoDoRegistro() && configValida();
     }
 
+    // Plano de treino: o cliente escreve (nenhuma decisão do servidor depende destes campos), mas só valores plausíveis.
+    function treinoValido() {
+      let t = request.resource.data;
+      return t.keys().hasOnly(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'estresseEstimado', 'estresseManual', 'observacoes', 'status', 'atividadeId', 'criadoEm'])
+        && t.keys().hasAll(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'status'])
+        && t.userId == request.auth.uid
+        && t.data is string
+        && t.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && t.esporte in ['ciclismo', 'corrida', 'outro']
+        && t.duracaoMin is int && t.duracaoMin >= 5 && t.duracaoMin <= 1440
+        && t.zona in ['Z1', 'Z2', 'Z3', 'Z4', 'Z5']
+        && t.status in ['planejado', 'realizado', 'pulado']
+        && (!('estresseEstimado' in t) || t.estresseEstimado == null || (t.estresseEstimado is number && t.estresseEstimado >= 0 && t.estresseEstimado <= 2000))
+        && (!('estresseManual' in t) || t.estresseManual == null || (t.estresseManual is number && t.estresseManual > 0 && t.estresseManual <= 2000))
+        && (!('observacoes' in t) || (t.observacoes is string && t.observacoes.size() <= 500))
+        && (!('atividadeId' in t) || t.atividadeId == null || (t.atividadeId is string && t.atividadeId.size() <= 40))
+        && (!('criadoEm' in t) || t.criadoEm is timestamp);
+    }
+
     match /treinosPlanejados/{id} {
       allow read, delete: if acessoLiberado() && donoDoRegistro();
-      allow create: if acessoLiberado() && novoRegistroDoUsuario();
-      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+      allow create: if acessoLiberado() && treinoValido();
+      allow update: if acessoLiberado() && donoDoRegistro() && treinoValido();
+    }
+
+    // Meta de forma: "chegar com Forma X na data Y". Uma ativa por vez (o cliente desativa a anterior).
+    function metaValida() {
+      let m = request.resource.data;
+      return m.keys().hasOnly(['userId', 'formaAlvo', 'dataAlvo', 'ativa', 'criadoEm'])
+        && m.keys().hasAll(['userId', 'formaAlvo', 'dataAlvo', 'ativa'])
+        && m.userId == request.auth.uid
+        && m.formaAlvo is number && m.formaAlvo >= -60 && m.formaAlvo <= 60
+        && m.dataAlvo is string
+        && m.dataAlvo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && m.ativa is bool
+        && (!('criadoEm' in m) || m.criadoEm is timestamp);
     }
 
     match /metasForma/{id} {
       allow read, delete: if acessoLiberado() && donoDoRegistro();
-      allow create: if acessoLiberado() && novoRegistroDoUsuario();
-      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+      allow create: if acessoLiberado() && metaValida();
+      allow update: if acessoLiberado() && donoDoRegistro() && metaValida();
     }
 
     match /pesagens/{id} {

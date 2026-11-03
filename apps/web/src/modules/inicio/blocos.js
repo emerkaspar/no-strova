@@ -1,4 +1,5 @@
-import { recortarSerie, totaisDaSemana } from '@no-strova/domain';
+import { totaisDaSemana } from '@no-strova/domain';
+import { recortarJanela } from '../../application/plano.js';
 import { destaqueDoInicio } from '../../application/inicio.js';
 import { h } from '../../utils/dom.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
@@ -77,17 +78,22 @@ export function blocoForma({ serie, carregou, semHrss = false }) {
   );
 }
 
-/** 2. Cartão "Carga e fadiga": Fitness e Fadiga dos últimos 30 dias, com o marcador de hoje. */
+/**
+ * 2. Cartão "Carga e fadiga": Fitness e Fadiga dos últimos 21 dias, com o marcador de hoje e, se houver treinos
+ * planejados, a projeção tracejada dos próximos dias. `serie` vem de montarProjecao (itens com `projetado`).
+ */
 export function blocoGrafico({ serie, carregou }) {
+  const temProjecao = serie.some((d) => d.projetado);
   const legenda = h(
     'ul',
     { class: 'legenda-inline' },
     h('li', null, h('span', { class: 'amostra amostra-fitness' }), ' Fitness'),
     h('li', null, h('span', { class: 'amostra amostra-fadiga' }), ' Fadiga'),
+    temProjecao ? h('li', null, h('span', { class: 'amostra amostra-projecao' }), ' Projeção') : null,
   );
   const conteudo =
     carregou && serie.length > 0
-      ? graficoForma(recortarSerie(serie, 30), { barras: false, faixas: false, series: ['fitness', 'fadiga'], marcarHoje: true })
+      ? graficoForma(recortarJanela(serie, 21), { barras: false, faixas: false, series: ['fitness', 'fadiga'], marcarHoje: true, projecao: true })
       : estadoVazio(carregou ? SEM_HRSS : 'Carregando…');
   return h(
     'section',
@@ -114,8 +120,15 @@ function tituloDoDia(atividadesDoDia) {
   return `${ROTULO_ESPORTE[a.esporte] ?? a.esporte}${a.distanciaM ? ` ${formatarDistancia(a.distanciaM)}` : ''}`;
 }
 
+function tituloDoTreino(treinosDoDia) {
+  if (treinosDoDia.length === 0) return null;
+  if (treinosDoDia.length > 1) return `${treinosDoDia.length} treinos`;
+  const t = treinosDoDia[0];
+  return `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.zona}`;
+}
+
 /** 3. Semana atual em 7 colunas: realizado cheio, planejado tracejado, descanso mínimo. */
-export function blocoSemana({ semana, atividades, carregou }) {
+export function blocoSemana({ semana, atividades, treinos = [], carregou }) {
   const totais = totaisDaSemana(semana);
   const resumo =
     totais.planejado > 0
@@ -128,16 +141,21 @@ export function blocoSemana({ semana, atividades, carregou }) {
       'section',
       { class: 'card bloco-semana' },
       cabecalho,
-      estadoVazio(carregou ? 'Nenhum treino nesta semana ainda. O planejamento semanal fica disponível quando houver plano de treino.' : 'Carregando…'),
+      estadoVazio(
+        carregou ? 'Nenhum treino nesta semana ainda.' : 'Carregando…',
+        carregou ? { href: '#/plano', rotulo: 'Planejar a semana' } : null,
+      ),
     );
   }
 
   const maximo = Math.max(1, ...semana.flatMap((d) => [d.realizado, d.planejado]));
   const porDia = new Map();
   for (const a of atividades) porDia.set(a.data, [...(porDia.get(a.data) ?? []), a]);
+  const planoPorDia = new Map();
+  for (const t of treinos) planoPorDia.set(t.data, [...(planoPorDia.get(t.data) ?? []), t]);
 
   const colunas = semana.map((d) => {
-    const titulo = tituloDoDia(porDia.get(d.data) ?? []);
+    const titulo = tituloDoDia(porDia.get(d.data) ?? []) ?? tituloDoTreino(planoPorDia.get(d.data) ?? []);
     const descanso = d.realizado === 0 && d.planejado === 0;
     const valor =
       d.realizado > 0

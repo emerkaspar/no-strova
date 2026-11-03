@@ -99,8 +99,8 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `atividades/{id}` | `origem` (`arquivo`/`manual`), `esporte`, `inicio` (Timestamp), `data` (dia em São Paulo), `duracaoS`, `tempoMovimentoS`, `distanciaM`, `altimetriaM`, `fcMedia`, `fcMax`, `zona`, `calorias`, `caloriasOrigem` (`arquivo`/`informada`/`estimada`), `hrss`, `hrssOrigem` (`fc`/`zona`/`manual`), `configIdUsada`, `alertas[]`, `arquivoPath`, `extensao`, `hashArquivo`, `criadoEm` | Somente callable (HRSS é autoritativo) |
 | `atividades/{id}/series/fc` | série de FC reduzida (1 ponto a cada 5 s) para o gráfico do detalhe | Admin SDK |
 | `estresseDiario/{uid_yyyymmdd}` | `data`, `estresse`, `kcal`, `qtdAtividades` | Trigger sobre `atividades` |
-| `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin`, `intensidade` (Z1–Z5), `estresseEstimado`, `observacoes`, `status` (`planejado`/`realizado`/`pulado`), `atividadeId?` | Dono |
-| `metasForma/{id}` | `formaAlvo`, `dataAlvo`, `ativa` | Dono |
+| `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin` (inteiro, 5–1440), `zona` (Z1–Z5), `estresseEstimado` (referência gravada ao salvar), `estresseManual?` (sobrescreve a estimativa), `observacoes` (até 500), `status` (`planejado`/`realizado`/`pulado`), `atividadeId?`, `criadoEm` | Dono (as regras validam todos os campos) |
+| `metasForma/{id}` | `formaAlvo` (−60 a 60), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `pesagens/{id}` | `data`, `pesoKg` | Dono |
 | `metasPeso/{id}` | `pesoAlvoKg`, `dataAlvo`, `status`, `criadoEm` | Dono |
 | `iaRascunhos/{id}` | `tipo` (`treino`/`peso`), `entradaResumo`, `saida`, `status` (`pendente`/`aceito`/`descartado`), `criadoEm` | Somente callable |
@@ -184,6 +184,35 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 
 ---
 
+# Plano de treino e projeção (Fase 4)
+
+Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras puras, testadas), `modules/plano/` (tela) e `infrastructure/planoRepo.js`. Não há Cloud Functions nesta fase: o cliente grava, e as regras do Firestore validam os campos.
+
+## Treino planejado
+- **Campos:** data, esporte, duração (minutos inteiros, 5 a 1440), **zona predominante Z1–Z5**, estresse informado (opcional, sobrescreve a estimativa), observações (até 500) e `status`: `planejado` → `realizado` (vinculado a uma atividade) ou `pulado`.
+- **Estresse do treino** (`estresseDoTreino`): o informado pelo usuário; senão a **estimativa pela zona e duração** (mesma conversão do HRSS sem FC: zona de Friel → FC média presumida → HRSS) **com a configuração vigente na data do treino, recalculada a cada leitura** (acompanha mudanças de LTHR); senão o valor gravado ao salvar; senão 0. Sem configuração de FC, a estimativa fica vazia e a tela avisa.
+- **Treino planejado em data passada** é aceito (registrar o que já aconteceu), mas, se continua "planejado", aparece como **"não realizado"** e deixa de contar na projeção; o usuário **reagenda para hoje** ou **pula**.
+
+## Projeção
+- **Regras do estresse por dia** (`estressesParaProjecao`): dias passados usam só o **realizado**; **hoje** usa o **maior** entre realizado e planejado; dias futuros usam o **planejado**. Só treinos com status `planejado` contam (o vinculado já está no realizado; o pulado não existe).
+- **Horizonte** (`horizonteDaProjecao`): até o último treino planejado ou a data da meta **mais 14 dias**, com teto de **90 dias** a partir de hoje (uma meta mais distante estende a série até ela, para poder ser avaliada). Sem plano nem meta, termina hoje. O Início mostra só os próximos 14 dias.
+- A série reaproveita o cálculo do Fitness/Fadiga/Forma (Forma de um dia = Fitness − Fadiga do dia anterior); o passado não muda com o plano. Cada dia ganha `projetado`.
+
+## Meta de forma
+- "**Chegar com Forma X na data Y**": X de −60 a +60, Y entre hoje e 365 dias. **Uma meta ativa por vez**; ao definir outra, a anterior é desativada (as anteriores ficam listadas, só leitura). A troca é um lote do Firestore (tudo ou nada).
+- **Avaliação** (`avaliarMeta`): compara a Forma projetada do dia da meta com o alvo. **Chega lá** se a diferença é de até **±3 pontos**; **Fica abaixo** (Forma menor que o alvo: falta descanso, reduzir a carga nos dias antes); **Fica acima** (Forma maior: dá para treinar um pouco mais). A tolerância de 3 pontos é um padrão sugerido (`TOLERANCIA_META`).
+
+## Vínculo planejado × realizado
+- O app **sugere** o vínculo quando há um treino "planejado" e uma atividade do **mesmo dia e esporte** (sem repetir atividade); o usuário **confirma** ("Vincular") ou diz "Não foi esse" (o treino passa a "Não realizados"). Vincular grava `status: realizado` e `atividadeId` no treino; a atividade (só escrita pelo servidor) não muda.
+- **Comparativo:** para treinos vinculados, tabela com estresse planejado × realizado, diferença e duração planejada → realizada.
+
+## Tela do Plano (`#/plano`)
+- **Calendário** em **semana** (7 colunas) ou **mês** (6 semanas, com contagem por dia em telas pequenas), navegação ‹ › e "Hoje". Cada dia mostra as atividades realizadas (chips cheios) e os treinos planejados (tracejados), com o total do dia. "+" cria treino no dia; clicar no treino edita.
+- **Arrastar e soltar** o treino planejado para outro dia muda só a data (a projeção atualiza na hora). O editor também troca a data (alternativa por teclado e para toque, onde o arrastar do navegador não funciona).
+- **Editor:** data, esporte, duração, zona, estresse informado, observações, com a **estimativa ao vivo**; ações: salvar, cancelar, **duplicar para a próxima semana**, marcar como pulado (ou voltar para planejado / desvincular) e excluir (com confirmação).
+- Cartões: **Projeção do plano** (gráfico com Fitness, Fadiga e Forma, faixas, barras de estresse, região da projeção e losango da meta), **Meta de forma** e **Acompanhamento** (sugestões de vínculo, não realizados e planejado × realizado).
+- **Regras do Firestore:** `treinosPlanejados` e `metasForma` validam tipos, intervalos e campos permitidos (sem campos extras) e o dono; nenhuma decisão do servidor depende desses documentos nesta fase. A fase 6 (IA) deve revalidar o que ler.
+
 # Identidade visual
 
 Preto, branco e laranja (~#FF5200), a partir do logo em `apps/web/assets/logo.png`. Implementada em `apps/web/src/styles/base.css`.
@@ -223,7 +252,7 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 - **Importar arquivo** leva a `#/atividades` com o painel de importação aberto (se a lista já está aberta, abre o painel na hora).
 - **Largura:** o bloco da saudação é o que cede espaço (reticências). De 1000 a 1179 px a data sai e o rótulo vira "Importar"; de 768 a 999 px a saudação também sai e o menu fica mais compacto. Medido com as fontes do projeto: em 1205 px com admin (6 itens) sobram ~250 px para a data (237 px).
 - **Abaixo de 768 px** o menu em pílula some e vira uma **barra de abas fixa no rodapé** com ícones de traço (início, atividades, plano, peso, configuração e, para admin, aprovações) e rótulos pequenos; o item ativo fica laranja. O cabeçalho mantém logo, saudação reduzida, "Importar" e avatar.
-- A tela **Forma** (`#/forma`) não tem item de menu: abre pelo "Ver gráfico completo" do Início e mantém Início ativo. **Plano** (`#/plano`) e **Peso** (`#/peso`) são telas "em breve" até as Fases 4 e 5.
+- A tela **Forma** (`#/forma`) não tem item de menu: abre pelo "Ver gráfico completo" do Início e mantém Início ativo. **Plano** (`#/plano`) está pronto (Fase 4); **Peso** (`#/peso`) é uma tela "em breve" até a Fase 5.
 
 **Cartões:** raio de 20 px (era 12 px no `CLAUDE.md`, atualizado), borda de 1 px, padding de 28 px; conteúdo com largura máxima de 1200 px.
 
@@ -245,7 +274,7 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
    A cor nunca é o único sinal: o chip traz o nome da zona. Para trocar uma cor, basta mudar `--hero-bg` da classe `.hero-zona-<id>` em `layout.css`.
    - **Sem dados:** "Vamos começar" (botão **Importar arquivo**) ou, se há atividades mas nenhuma com HRSS, "Falta a FC" (botão **Configurar FC**).
    - **Decisão (03/11/2026):** a Forma continua sendo **Fitness − Fadiga de ontem** (regra do Elevate e do TrainingPeaks); o mockup mostra o mesmo dia (49 − 68 = −19). Por isso o bloco traz "Forma amanhã", que mostra o efeito do treino de hoje. Uma versão intermediária trocava o número por chamadas ("Bora pedalar", "Treino feito") quando a Forma estava perto de zero; foi descartada: o usuário quer sempre dados importantes no bloco, com a cor da zona dando o tom. Mudar para "mesmo dia" exige alterar `calcularSerieForma`, o gráfico, as faixas e a futura meta de forma da Fase 4.
-2. **Carga e fadiga**: Fitness e Fadiga dos últimos 30 dias, sem as faixas, com o marcador "Hoje" e legenda; link "Ver gráfico completo". A projeção tracejada do mockup entra na Fase 4.
+2. **Carga e fadiga**: Fitness e Fadiga dos últimos 30 dias, sem as faixas, com o marcador "Hoje" e legenda; link "Ver gráfico completo". Com treinos planejados, mostra os **próximos 14 dias projetados** em linha tracejada, sobre uma região sombreada "Projeção do plano" (janela: 21 dias antes de hoje + projeção).
 3. **Semana atual**: segunda a domingo; por dia, uma barra de **estresse realizado** (cheia), **planejado** (tracejada, sem dados até a Fase 4) ou **descanso** (barra mínima); abaixo, "SEG 2" (hoje: "· HOJE", em laranja), o título (ex.: "Ciclismo 17,1 km"; "N atividades" se houver várias; "Descanso"; "Sem plano" em dia futuro) e o valor ("62 · feito" ou "~48 · plano" ou "—"). Altura proporcional ao maior valor da semana. Título: "Semana de 2 a 8 de novembro" (ou com os dois meses). Resumo: "Realizada até hoje: N" e, com plano, "Carga total prevista: M · realizada até hoje: N".
 4. Linha com três cartões: **Últimas atividades** (tabela real, cinco mais recentes: data, esporte, duração, distância, FC média, HRSS), **Peso** e **Sugestão** (borda e título laranja).
 
@@ -278,7 +307,7 @@ Implemente as configurações do atleta com data de vigência (FC máx., FC repo
 
 Implemente em `domain/` o cálculo diário de Fitness (42 d), Fadiga (7 d) e Forma, com testes unitários. Crie a tela do gráfico com períodos selecionáveis, tooltip por dia e faixas de Forma, no estilo do Elevate.
 
-## Fase 4 — Plano de treino e projeção
+## Fase 4 — Plano de treino e projeção (implementada)
 
 Implemente `treinosPlanejados` com calendário semanal/mensal, criação/edição/arrastar entre dias e vínculo com a atividade realizada. Estenda o gráfico: dias futuros projetados com base no plano, em linha tracejada. Adicione a meta de forma por data.
 

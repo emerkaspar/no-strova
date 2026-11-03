@@ -1,5 +1,5 @@
 import { FAIXAS_FORMA } from '@no-strova/domain';
-import { formatarData, formatarNumero } from './formatters.js';
+import { formatarData, formatarForma, formatarNumero } from './formatters.js';
 import { passoDoEixo } from './graficoLinha.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -34,11 +34,19 @@ const linha = (rotulo, valor) => {
 
 /**
  * Gráfico de Fitness, Fadiga e Forma em SVG (sem biblioteca): linhas, faixas de Forma ao fundo,
- * barras opcionais de estresse diário, marcador "Hoje" e tooltip por dia.
- * @param {import('@no-strova/domain').DiaForma[]} serie
- * @param {{ barras?: boolean, faixas?: boolean, series?: Array<'fitness'|'fadiga'|'forma'>, marcarHoje?: boolean }} [opcoes]
+ * barras opcionais de estresse diário, marcador "Hoje", projeção do plano e meta de forma, com tooltip por dia.
+ * @param {Array<import('@no-strova/domain').DiaForma & { projetado?: boolean }>} serie
+ * @param {{
+ *   barras?: boolean, faixas?: boolean, series?: Array<'fitness'|'fadiga'|'forma'>, marcarHoje?: boolean,
+ *   projecao?: boolean, meta?: { dataAlvo: string, formaAlvo: number }|null
+ * }} [opcoes]
+ *   `projecao`: os dias com `projetado` saem tracejados, sobre uma região sombreada "Projeção do plano";
+ *   `meta`: marca o alvo (data e Forma) no gráfico.
  */
-export function graficoForma(serie, { barras = true, faixas = true, series = ['fitness', 'fadiga', 'forma'], marcarHoje = false } = {}) {
+export function graficoForma(
+  serie,
+  { barras = true, faixas = true, series = ['fitness', 'fadiga', 'forma'], marcarHoje = false, projecao = false, meta = null } = {},
+) {
   const container = document.createElement('div');
   container.className = 'grafico';
   if (serie.length < 2) return container;
@@ -48,7 +56,9 @@ export function graficoForma(serie, { barras = true, faixas = true, series = ['f
   const altura = A - MARGEM.topo - MARGEM.base;
   const n = serie.length;
 
+  const indiceMeta = meta ? serie.findIndex((d) => d.data === meta.dataAlvo) : -1;
   const valores = serie.flatMap((d) => series.map((campo) => d[campo]));
+  if (indiceMeta >= 0) valores.push(meta.formaAlvo);
   const incluiZero = faixas || series.includes('forma');
   const menor = incluiZero ? Math.min(...valores, 0) : Math.min(...valores);
   const maior = incluiZero ? Math.max(...valores, 0) : Math.max(...valores);
@@ -59,10 +69,15 @@ export function graficoForma(serie, { barras = true, faixas = true, series = ['f
   const px = (i) => MARGEM.esquerda + (i / (n - 1)) * largura;
   const py = (v) => MARGEM.topo + (1 - (v - yMin) / (yMax - yMin)) * altura;
 
+  // Último dia que não é projeção (hoje). Sem projeção, é o último ponto da série.
+  const primeiroProjetado = projecao ? serie.findIndex((d) => d.projetado) : -1;
+  const temProjecao = primeiroProjetado > 0;
+  const indiceHoje = temProjecao ? primeiroProjetado - 1 : n - 1;
+
   const raiz = svg('svg', {
     viewBox: `0 0 ${L} ${A}`,
     role: 'img',
-    'aria-label': `Gráfico de ${series.map((s) => ROTULO_SERIE[s]).join(', ')} de ${formatarData(serie[0].data)} a ${formatarData(serie[n - 1].data)}`,
+    'aria-label': `Gráfico de ${series.map((s) => ROTULO_SERIE[s]).join(', ')} de ${formatarData(serie[0].data)} a ${formatarData(serie[n - 1].data)}${temProjecao ? ', com projeção do plano' : ''}`,
   });
 
   // Faixas de Forma ao fundo, recortadas ao intervalo visível.
@@ -79,6 +94,14 @@ export function graficoForma(serie, { barras = true, faixas = true, series = ['f
         raiz.append(svg('text', { x: L - MARGEM.direita + 8, y: (py(alto) + py(baixo)) / 2 + 4, class: 'grafico-rotulo-faixa' }, faixa.rotulo));
       }
     });
+  }
+
+  // Região da projeção: sombreada, do dia de hoje até o fim
+  if (temProjecao) {
+    raiz.append(
+      svg('rect', { x: px(indiceHoje), y: MARGEM.topo, width: px(n - 1) - px(indiceHoje), height: altura, class: 'grafico-projecao' }),
+      svg('text', { x: px(indiceHoje) + 8, y: MARGEM.topo + 12, class: 'grafico-projecao-rotulo' }, 'Projeção do plano'),
+    );
   }
 
   for (let v = yMin; v <= yMax + 1e-9; v += passoY) {
@@ -102,21 +125,38 @@ export function graficoForma(serie, { barras = true, faixas = true, series = ['f
     serie.forEach((d, i) => {
       if (!(d.estresse > 0)) return;
       const h = (d.estresse / maxEstresse) * altura * ALTURA_BARRAS;
-      raiz.append(svg('rect', { x: px(i) - larguraBarra / 2, y: MARGEM.topo + altura - h, width: larguraBarra, height: h, class: 'grafico-barra' }));
+      raiz.append(svg('rect', { x: px(i) - larguraBarra / 2, y: MARGEM.topo + altura - h, width: larguraBarra, height: h, class: `grafico-barra${d.projetado ? ' grafico-barra-projetada' : ''}` }));
     });
   }
 
-  const caminho = (campo) => serie.map((d, i) => `${px(i).toFixed(1)},${py(d[campo]).toFixed(1)}`).join(' ');
+  const pontos = (campo, de, ate) =>
+    serie
+      .slice(de, ate + 1)
+      .map((d, k) => `${px(de + k).toFixed(1)},${py(d[campo]).toFixed(1)}`)
+      .join(' ');
   for (const campo of ['fadiga', 'forma', 'fitness']) {
-    if (series.includes(campo)) raiz.append(svg('polyline', { points: caminho(campo), class: `serie serie-${campo}` }));
+    if (!series.includes(campo)) continue;
+    // Realizado em linha cheia; projeção tracejada, ligada ao ponto de hoje.
+    raiz.append(svg('polyline', { points: pontos(campo, 0, indiceHoje), class: `serie serie-${campo}` }));
+    if (temProjecao) raiz.append(svg('polyline', { points: pontos(campo, indiceHoje, n - 1), class: `serie serie-${campo} serie-projetada` }));
   }
 
   if (marcarHoje) {
-    const ultimo = n - 1;
     raiz.append(
-      svg('line', { x1: px(ultimo), x2: px(ultimo), y1: MARGEM.topo, y2: MARGEM.topo + altura, class: 'grafico-hoje' }),
-      svg('text', { x: px(ultimo) - 6, y: MARGEM.topo + 12, 'text-anchor': 'end', class: 'grafico-hoje-rotulo' }, 'Hoje'),
-      ...series.map((campo) => svg('circle', { cx: px(ultimo), cy: py(serie[ultimo][campo]), r: 4.5, class: `marcador marcador-${campo}` })),
+      svg('line', { x1: px(indiceHoje), x2: px(indiceHoje), y1: MARGEM.topo, y2: MARGEM.topo + altura, class: 'grafico-hoje' }),
+      svg('text', { x: px(indiceHoje) - 6, y: MARGEM.topo + 12, 'text-anchor': 'end', class: 'grafico-hoje-rotulo' }, 'Hoje'),
+      ...series.map((campo) => svg('circle', { cx: px(indiceHoje), cy: py(serie[indiceHoje][campo]), r: 4.5, class: `marcador marcador-${campo}` })),
+    );
+  }
+
+  // Meta de forma: losango no alvo e a Forma desejada escrita ao lado
+  if (indiceMeta >= 0) {
+    const cx = px(indiceMeta);
+    const cy = py(meta.formaAlvo);
+    const ancora = indiceMeta > n * 0.8 ? 'end' : 'start';
+    raiz.append(
+      svg('path', { d: `M ${cx} ${cy - 8} L ${cx + 8} ${cy} L ${cx} ${cy + 8} L ${cx - 8} ${cy} Z`, class: 'meta-marcador' }),
+      svg('text', { x: cx + (ancora === 'end' ? -12 : 12), y: cy - 10, 'text-anchor': ancora, class: 'meta-rotulo' }, `Meta ${formatarForma(meta.formaAlvo, 1)}`),
     );
   }
 
@@ -144,11 +184,11 @@ export function graficoForma(serie, { barras = true, faixas = true, series = ['f
     });
     const faixa = FAIXAS_FORMA.find((f) => f.id === d.faixa);
     dica.replaceChildren(
-      Object.assign(document.createElement('strong'), { textContent: formatarData(d.data) }),
+      Object.assign(document.createElement('strong'), { textContent: `${formatarData(d.data)}${d.projetado ? ' · projeção' : ''}` }),
       ...series.map((campo) =>
         linha(ROTULO_SERIE[campo], campo === 'forma' ? `${formatarNumero(d.forma, 1)} · ${faixa?.rotulo ?? ''}` : formatarNumero(d[campo], 1)),
       ),
-      linha('Estresse do dia', formatarNumero(d.estresse, 1)),
+      linha(d.projetado ? 'Estresse planejado' : 'Estresse do dia', formatarNumero(d.estresse, 1)),
     );
     dica.hidden = false;
   });

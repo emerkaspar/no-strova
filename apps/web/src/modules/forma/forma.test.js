@@ -98,6 +98,74 @@ describe('graficoForma', () => {
   });
 });
 
+describe('graficoForma: projeção e meta', () => {
+  const hoje = '2026-11-04';
+  const base = calcularSerieForma(
+    [{ data: '2026-10-20', estresse: 80 }, { data: '2026-10-28', estresse: 60 }, { data: '2026-11-02', estresse: 70 }, { data: '2026-11-07', estresse: 90 }],
+    { ate: '2026-11-12' },
+  ).map((d) => ({ ...d, projetado: d.data > hoje }));
+
+  it('com projeção, o realizado é linha cheia e o futuro tracejado, ligados em hoje, sobre uma região sombreada', () => {
+    const c = graficoForma(base, { projecao: true, marcarHoje: true });
+    expect(c.querySelectorAll('polyline.serie-projetada')).toHaveLength(3);
+    expect(c.querySelectorAll('polyline:not(.serie-projetada)')).toHaveLength(3);
+    expect(c.querySelector('.grafico-projecao')).not.toBeNull();
+    expect(c.querySelector('.grafico-projecao-rotulo').textContent).toBe('Projeção do plano');
+    expect(c.querySelector('svg').getAttribute('aria-label')).toContain('com projeção do plano');
+    // a linha tracejada começa exatamente onde a cheia termina (o ponto de hoje)
+    const cheia = c.querySelector('polyline.serie-fitness:not(.serie-projetada)').getAttribute('points').split(' ');
+    const tracejada = c.querySelector('polyline.serie-fitness.serie-projetada').getAttribute('points').split(' ');
+    expect(tracejada[0]).toBe(cheia.at(-1));
+  });
+
+  it('o marcador "Hoje" fica no último dia real, não no fim da projeção', () => {
+    const c = graficoForma(base, { projecao: true, marcarHoje: true });
+    const xHoje = Number(c.querySelector('.grafico-hoje').getAttribute('x1'));
+    const fim = Number(c.querySelector('polyline.serie-fitness.serie-projetada').getAttribute('points').split(' ').at(-1).split(',')[0]);
+    expect(xHoje).toBeLessThan(fim);
+  });
+
+  it('sem a opção projecao, ignora o campo projetado e desenha tudo cheio', () => {
+    const c = graficoForma(base);
+    expect(c.querySelector('.serie-projetada')).toBeNull();
+    expect(c.querySelector('.grafico-projecao')).toBeNull();
+    expect(c.querySelectorAll('polyline')).toHaveLength(3);
+  });
+
+  it('sem dias projetados, não desenha região nem linha tracejada', () => {
+    const c = graficoForma(base.filter((d) => !d.projetado), { projecao: true });
+    expect(c.querySelector('.serie-projetada')).toBeNull();
+    expect(c.querySelector('.grafico-projecao')).toBeNull();
+  });
+
+  it('a meta aparece como losango com a Forma desejada e entra na escala do eixo', () => {
+    const c = graficoForma(base, { projecao: true, meta: { dataAlvo: '2026-11-10', formaAlvo: 40 } });
+    expect(c.querySelector('.meta-marcador')).not.toBeNull();
+    expect(c.querySelector('.meta-rotulo').textContent).toBe('Meta +40,0');
+    const rotulos = [...c.querySelectorAll('.grafico-rotulo')].map((t) => Number(t.textContent.replace('.', '').replace(',', '.')));
+    expect(Math.max(...rotulos.filter((n) => !Number.isNaN(n)))).toBeGreaterThanOrEqual(40);
+  });
+
+  it('meta fora do período da série não é desenhada', () => {
+    expect(graficoForma(base, { meta: { dataAlvo: '2027-01-01', formaAlvo: 10 } }).querySelector('.meta-marcador')).toBeNull();
+    expect(graficoForma(base, { meta: null }).querySelector('.meta-marcador')).toBeNull();
+  });
+
+  it('o tooltip de um dia projetado diz "projeção" e "Estresse planejado"', () => {
+    const c = graficoForma(base, { projecao: true });
+    const svg = c.querySelector('svg');
+    svg.getBoundingClientRect = () => ({ left: 0, width: 760 });
+    const area = [...svg.querySelectorAll('rect')].find((r) => r.getAttribute('fill') === 'transparent');
+    area.dispatchEvent(new MouseEvent('pointermove', { clientX: 44 + (760 - 44 - 92) }));
+    const dica = c.querySelector('.grafico-dica');
+    expect(dica.textContent).toContain('projeção');
+    expect(dica.textContent).toContain('Estresse planejado');
+    area.dispatchEvent(new MouseEvent('pointermove', { clientX: 44 }));
+    expect(dica.textContent).not.toContain('projeção');
+    expect(dica.textContent).toContain('Estresse do dia');
+  });
+});
+
 describe('tela de forma', () => {
   it('sem atividades, mostra o estado vazio e pede a reconstrução uma única vez', async () => {
     render(raiz, sessao);

@@ -891,3 +891,397 @@
     font-size: 1.4rem;
   }
 }
+
+/* Projeção do plano e meta de forma no gráfico */
+.grafico-projecao {
+  fill: var(--text-secondary);
+  opacity: 0.08;
+}
+
+.grafico-projecao-rotulo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.serie-projetada {
+  stroke-dasharray: 6 5;
+}
+
+.grafico-barra-projetada {
+  opacity: 0.2;
+}
+
+.meta-marcador {
+  fill: var(--text-primary);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.meta-rotulo {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ===== Plano de treino ===== */
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.plano-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin: 16px 0;
+}
+
+.plano-barra .linha-botoes {
+  margin: 0;
+}
+
+.plano-navegacao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plano-periodo {
+  min-width: 11rem;
+  text-align: center;
+}
+
+.cal-semana {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cal-mes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cal-cabecalho,
+.cal-semana-linha {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cal-cabecalho span {
+  padding: 4px 6px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.cal-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 150px;
+  padding: 8px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.cal-compacta {
+  min-height: 96px;
+  padding: 6px;
+  border-radius: 10px;
+}
+
+.cal-fora {
+  opacity: 0.45;
+}
+
+.cal-hoje {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.cal-alvo {
+  background: var(--realce);
+  border-color: var(--text-primary);
+  border-style: dashed;
+}
+
+.cal-topo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-rotulo {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cal-hoje .cal-rotulo {
+  color: var(--primary);
+}
+
+.cal-contagem {
+  display: none;
+  min-width: 18px;
+  padding: 0 5px;
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.cal-novo {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cal-novo:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.cal-itens {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cal-mais {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.cal-total {
+  margin: auto 0 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.chip-treino,
+.chip-atividade {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.chip-titulo {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-sub {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+/* Planejado: tracejado, como na semana do Início */
+.chip-planejado {
+  background: transparent;
+  color: var(--text-primary);
+  border-style: dashed;
+  cursor: grab;
+}
+
+.chip-planejado.arrastando {
+  opacity: 0.4;
+}
+
+/* Realizado: cheio */
+.chip-atividade,
+.chip-feito {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.chip-feito {
+  opacity: 0.75;
+}
+
+.chip-atrasado {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+  border-style: dashed;
+}
+
+.chip-pulado {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+  text-decoration: line-through;
+}
+
+.estimativa {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Meta de forma */
+.meta-resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-secondary);
+  border-radius: 12px;
+}
+
+.meta-resultado p {
+  margin: 0;
+}
+
+.meta-atinge {
+  border-left-color: var(--zona-freshness);
+}
+
+.meta-abaixo {
+  border-left-color: var(--zona-overload);
+}
+
+.meta-acima {
+  border-left-color: var(--zona-transicao);
+}
+
+.chip-estado {
+  align-self: flex-start;
+  padding: 2px 10px;
+  background: var(--text-primary);
+  color: var(--surface);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.meta-anteriores {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.meta-anteriores summary {
+  cursor: pointer;
+}
+
+/* Acompanhamento */
+.acomp-secao + .acomp-secao {
+  margin-top: 20px;
+}
+
+.acomp-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acomp-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.acomp-item p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.amostra-projecao {
+  height: 0;
+  border-top: 3px dashed var(--text-secondary);
+  border-radius: 0;
+  background: none;
+}
+
+/* Telas pequenas: semana em lista e mês só com a contagem */
+@media (max-width: 767px) {
+  .cal-semana {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cal-dia {
+    min-height: 0;
+  }
+
+  .cal-cabecalho span {
+    padding: 2px;
+    font-size: 0.6rem;
+    text-align: center;
+  }
+
+  .cal-compacta {
+    min-height: 54px;
+    padding: 4px;
+  }
+
+  .cal-compacta .cal-itens,
+  .cal-compacta .cal-novo {
+    display: none;
+  }
+
+  .cal-contagem {
+    display: inline-block;
+  }
+
+  .plano-periodo {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .plano-navegacao {
+    width: 100%;
+  }
+}
