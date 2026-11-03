@@ -13,6 +13,25 @@ export function campo({ id, rotulo, tipo = 'text', dica, ...atributos }) {
   return { raiz, input };
 }
 
+/**
+ * Lista suspensa com rótulo. `opcoes` é [{ valor, rotulo }]. Retorna { raiz, select }.
+ */
+export function selecao({ id, rotulo, opcoes, valor = '', dica }) {
+  const select = h(
+    'select',
+    { id, name: id },
+    ...opcoes.map((o) => h('option', { value: o.valor, selected: o.valor === valor }, o.rotulo)),
+  );
+  const raiz = h(
+    'div',
+    { class: 'campo' },
+    h('label', { for: id }, rotulo),
+    select,
+    dica ? h('small', { class: 'dica' }, dica) : null,
+  );
+  return { raiz, select };
+}
+
 /** Área de mensagem de erro/aviso com role="alert". */
 export function areaMensagem() {
   const el = h('p', { class: 'mensagem', role: 'alert', hidden: true });

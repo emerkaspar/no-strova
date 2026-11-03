@@ -82,6 +82,66 @@ describe('Firestore: users', () => {
   });
 });
 
+describe('Firestore: configsAtleta', () => {
+  const config = {
+    userId: 'aprovado',
+    vigenteDesde: '2026-01-01',
+    fcMax: 190,
+    fcRepouso: 50,
+    lthr: 170,
+    sexo: 'masculino',
+    pesoKg: 72.5,
+    alturaCm: 178,
+  };
+  const docConfig = (db, id = 'aprovado_20260101') => doc(db, `configsAtleta/${id}`);
+
+  it('o dono grava uma configuração válida, lê, edita e apaga', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(setDoc(docConfig(db), config));
+    await assertSucceeds(getDoc(docConfig(db)));
+    await assertSucceeds(setDoc(docConfig(db), { ...config, fcMax: 192 }));
+    await assertSucceeds(deleteDoc(docConfig(db)));
+  });
+
+  it('rejeita valores implausíveis ou fora da ordem repouso < LTHR <= máxima', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    for (const ruim of [
+      { fcMax: 400 },
+      { fcMax: 90 },
+      { fcRepouso: 10 },
+      { fcRepouso: 190 },
+      { lthr: 40 },
+      { lthr: 195 },
+      { sexo: 'x' },
+      { pesoKg: 5 },
+      { alturaCm: 400 },
+      { fcMax: 190.5 },
+      { vigenteDesde: 'ontem' },
+    ]) {
+      await assertFails(setDoc(docConfig(db, 'ruim'), { ...config, ...ruim }));
+    }
+  });
+
+  it('rejeita campos extras, campos faltando e userId de outro', async () => {
+    const db = env.authenticatedContext('aprovado').firestore();
+    await assertFails(setDoc(docConfig(db, 'x1'), { ...config, extra: 1 }));
+    const { lthr, ...semLthr } = config;
+    await assertFails(setDoc(docConfig(db, 'x2'), semLthr));
+    await assertFails(setDoc(docConfig(db, 'x3'), { ...config, userId: 'outro' }));
+  });
+
+  it('outro usuário e usuário pendente não leem nem gravam', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(docConfig(ctx.firestore()), config);
+    });
+    await assertFails(getDoc(docConfig(env.authenticatedContext('outro').firestore())));
+    await assertFails(getDoc(docConfig(env.authenticatedContext('admin').firestore())));
+    await assertFails(
+      setDoc(docConfig(env.authenticatedContext('pendente').firestore(), 'p'), { ...config, userId: 'pendente' }),
+    );
+  });
+});
+
 describe('Firestore: dados de negócio', () => {
   it('o dono aprovado lê e escreve os próprios dados', async () => {
     const db = env.authenticatedContext('aprovado').firestore();

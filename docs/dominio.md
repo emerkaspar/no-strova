@@ -96,7 +96,7 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 |---|---|---|
 | `users/{uid}` | `nome`, `email`, `role` (`admin`/`atleta`/`treinador`), `aprovado`, `ativo`, `dataNascimento`, `aceiteLgpd`, `criadoEm` | Admin SDK; o dono edita só `nome` e `dataNascimento` |
 | `configsAtleta/{id}` | `vigenteDesde`, `fcMax`, `fcRepouso`, `lthr`, `sexo`, `pesoKg`, `alturaCm` | Dono |
-| `atividades/{id}` | `origem` (`arquivo`/`manual`), `esporte`, `inicio`, `data`, `duracaoS`, `distanciaM`, `altimetriaM`, `fcMedia`, `fcMax`, `fcHistograma` {bpm: segundos}, `calorias`, `caloriasOrigem`, `hrss`, `configIdUsada`, `arquivoPath`, `hashArquivo` | Somente callable (HRSS é autoritativo) |
+| `atividades/{id}` | `origem` (`arquivo`/`manual`), `esporte`, `inicio` (Timestamp), `data` (dia em São Paulo), `duracaoS`, `tempoMovimentoS`, `distanciaM`, `altimetriaM`, `fcMedia`, `fcMax`, `zona`, `calorias`, `caloriasOrigem` (`arquivo`/`informada`/`estimada`), `hrss`, `hrssOrigem` (`fc`/`zona`/`manual`), `configIdUsada`, `alertas[]`, `arquivoPath`, `extensao`, `hashArquivo`, `criadoEm` | Somente callable (HRSS é autoritativo) |
 | `atividades/{id}/series/fc` | série de FC reduzida (1 ponto a cada 5 s) para o gráfico do detalhe | Admin SDK |
 | `estresseDiario/{uid_yyyymmdd}` | `data`, `estresse`, `kcal`, `qtdAtividades` | Trigger sobre `atividades` |
 | `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin`, `intensidade` (Z1–Z5), `estresseEstimado`, `observacoes`, `status` (`planejado`/`realizado`/`pulado`), `atividadeId?` | Dono |
@@ -107,7 +107,30 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `iaUso/{uid_yyyymmdd}` | `chamadas` | Admin SDK |
 | `vinculosTreinador/{id}` | `treinadorId`, `atletaId`, `status` | Previsto no modelo; sem UI nem regras na v1 |
 
-`fcHistograma` guarda o tempo por bpm, o que permite recalcular o HRSS com qualquer configuração sem reler o arquivo.
+Como o HRSS do Elevate usa só a FC média e o tempo em movimento, a atividade guarda `fcMedia`, `tempoMovimentoS` e `zona`; isso basta para recalcular o HRSS com qualquer configuração sem reler o arquivo (não há `fcHistograma`). O doc `configsAtleta` tem id `{uid}_{yyyymmdd da vigência}`, então salvar a mesma data substitui a configuração.
+
+## Cálculo do HRSS (Fase 2)
+
+Replica o Elevate (`appcore/modules/shared/sync/compute/activity-computer.ts`), em `packages/domain/src/hrss.js`:
+
+- `HRR% = max((FCmédia − FCrepouso) / (FCmáx − FCrepouso), 0) × 100`, arredondado a 3 casas.
+- `TRIMP = (tempoMovimento/60) × HRR × 0,64 × e^(k × HRR)` (HRR em fração; k = 1,92 masculino, 1,67 feminino).
+- `TRIMP@LTHR = 60 × HRRlthr × 0,64 × e^(k × HRRlthr)` e `HRSS = TRIMP / TRIMP@LTHR × 100`. Uma hora na FC do limiar vale 100.
+- **FC média** = média simples das leituras válidas (30–250 bpm) do arquivo, como no Elevate.
+- **Tempo em movimento** = soma dos intervalos com velocidade acima de 4 km/h (ciclismo), 1,5 km/h (corrida) ou 0,3 km/h (outro). Sem velocidade no arquivo, deriva da distância ou das coordenadas (GPX); sem nada disso vale a duração.
+- **Sem FC:** a zona informada vira FC média presumida (zonas de Friel, % do LTHR, limitada à FC máxima): Z1 75%, Z2 85%, Z3 92%, Z4 97%, Z5 103%.
+- **Prioridade:** HRSS informado pelo usuário > FC média > zona. O HRSS informado nunca é alterado pelo recálculo.
+- **Alertas** gravados em `alertas`: `semConfigFc` (sem configuração vigente na data; HRSS fica `null`), `semFc`, `hrssAnormal` (> 225 por hora, como o Elevate) e `fcAcimaDaMaxima`.
+- **Subida acumulada** com histerese de 3 m para descartar ruído do altímetro. **Distância** vem do arquivo ou da soma entre coordenadas.
+- **Calorias:** as do arquivo; senão as informadas; senão estimativa de Keytel (exige data de nascimento e configuração vigente), rotulada "estimadas".
+
+### Importação e cadastro manual
+- Importação: o cliente envia o arquivo ao Storage e chama `processarArquivoAtividade`. Arquivo inválido ou duplicado (mesmo hash, ou mesmo início + duração) é apagado do Storage. Arquivo sem FC **não** é apagado: a callable responde `sem-fc` e o cliente reenvia o pedido com a zona.
+- Cota: até 30 atividades por usuário por dia (arquivo + manual).
+- Cadastro manual exige FC média, zona ou HRSS; a data não pode estar no futuro.
+- **Leitura dos arquivos** (Functions): `fit-file-parser` (FIT) e `fast-xml-parser` (GPX/TCX), ambos MIT. O esporte vem do arquivo e pode ser escolhido pelo usuário.
+- **Pendências desta área:** o trigger `onAtividadeWrite` (agregação em `estresseDiario`) entra na Fase 3, junto do gráfico; a limpeza agendada de arquivos órfãos (upload feito, callable nunca chamada) ainda não existe.
+- `obterUrlArquivo` gera URL assinada (v4, 10 min). Exige que a conta de serviço das Functions tenha `roles/iam.serviceAccountTokenCreator` sobre si mesma; sem isso só o botão "Baixar arquivo original" falha.
 
 **Índices compostos:** `atividades` (`userId`, `data` desc) e (`userId`, `esporte`, `data` desc); `estresseDiario` (`userId`, `data`); `treinosPlanejados` (`userId`, `data`) e (`userId`, `status`, `data`); `configsAtleta` (`userId`, `vigenteDesde` desc); `pesagens` (`userId`, `data`); `metasPeso` (`userId`, `status`); `iaRascunhos` (`userId`, `criadoEm` desc); `users` (`aprovado`, `criadoEm`).
 
@@ -124,12 +147,12 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 - **create** só se: `request.auth.uid == userId`; usuário `aprovado` e `ativo` (via `firestore.get`); `resource == null` (nunca sobrescreve); nome do objeto casa com `original.(fit|gpx|tcx)` em minúsculas; tamanho entre 1 byte e 15 MB.
 - O `contentType` não é barreira: navegadores enviam `application/octet-stream` para `.fit`. A barreira de tipo é a extensão fixa no caminho mais a validação de conteúdo na callable.
 - **read**: negado; a entrega é só por URL assinada (`obterUrlArquivo`). **update/delete** pelo cliente: negados; exclusão só pelo Admin SDK.
-- A callable `processarArquivoAtividade` confere que o `userId` do caminho é o do chamador, relê o tamanho, valida a assinatura (FIT: bytes 8–11 = `.FIT` e CRC; GPX/TCX: XML bem formado com a raiz esperada), calcula o hash para o dedupe e **apaga o objeto** se for inválido ou duplicado. Também aplica uma cota diária de uploads por usuário.
+- A callable `processarArquivoAtividade` confere que o `userId` do caminho é o do chamador, relê o tamanho, valida a assinatura (FIT: bytes 8–11 = `.FIT` e CRC; GPX/TCX: XML bem formado com a raiz esperada), calcula o hash para o dedupe e **apaga o objeto** se for inválido ou duplicado. Também aplica a cota diária de 30 atividades por usuário.
 - Uma scheduled function remove objetos órfãos (sem atividade) após 24 h.
 
 ## Cloud Functions
 - `auth/`: `bootstrapUserOnCreate` (trigger), `ensureUserProfile`, `aprovarUsuario`, `listarPendentes`, `bloquearUsuario`.
-- `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo`, trigger `onAtividadeWrite` (atualiza `estresseDiario`), limpeza de órfãos.
+- `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` (implementadas na Fase 2); trigger `onAtividadeWrite` (atualiza `estresseDiario`) e limpeza de órfãos (pendentes, ver acima).
 - `ia/`: `sugerirTreinos`, `sugerirMetaPeso`, `decidirRascunho`.
 - `exportacao/` (Fase 7): `exportarMeusDados`, `excluirMinhaConta`.
 

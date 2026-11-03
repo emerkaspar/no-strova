@@ -17,7 +17,9 @@ function callable(nome) {
       if (ERROS_GENERICOS.has(err?.code)) {
         throw new Error('Não foi possível falar com o servidor. Tente novamente em instantes.');
       }
-      throw new Error(err?.message || 'Não foi possível concluir a operação.');
+      const erro = new Error(err?.message || 'Não foi possível concluir a operação.');
+      erro.codigo = err?.details?.codigo ?? null;
+      throw erro;
     }
   };
 }
@@ -26,3 +28,8 @@ export const ensureUserProfile = callable('ensureUserProfile');
 export const listarPendentes = callable('listarPendentes');
 export const aprovarUsuario = callable('aprovarUsuario');
 export const bloquearUsuario = callable('bloquearUsuario');
+export const processarArquivoAtividade = callable('processarArquivoAtividade');
+export const criarAtividadeManual = callable('criarAtividadeManual');
+export const excluirAtividade = callable('excluirAtividade');
+export const obterUrlArquivo = callable('obterUrlArquivo');
+export const recalcularHistorico = callable('recalcularHistorico');

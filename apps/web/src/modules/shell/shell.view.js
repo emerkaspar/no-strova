@@ -2,15 +2,38 @@ import { sair } from '../../application/sessao.js';
 import { h } from '../../utils/dom.js';
 import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { render as renderAprovacoes } from '../admin/aprovacoes.view.js';
+import { render as renderDetalhe } from '../atividades/detalhe.view.js';
+import { render as renderAtividades } from '../atividades/lista.view.js';
+import { render as renderConfiguracao } from '../configuracao/configuracao.view.js';
 import { render as renderInicio } from '../inicio/inicio.view.js';
 
-const ROTAS = {
-  '#/inicio': { rotulo: 'Início', render: renderInicio },
-  '#/admin': { rotulo: 'Aprovações', render: renderAprovacoes, soAdmin: true },
-};
+// Itens do menu. `prefixo` marca o item como ativo também nas sub-rotas.
+const MENU = [
+  { caminho: '#/inicio', rotulo: 'Início' },
+  { caminho: '#/atividades', rotulo: 'Atividades' },
+  { caminho: '#/configuracao', rotulo: 'Configuração' },
+  { caminho: '#/admin', rotulo: 'Aprovações', soAdmin: true },
+];
+
+/** Resolve o hash em { menu, render, params }. Rotas desconhecidas ou proibidas caem no Início. */
+function resolverRota(hash, admin) {
+  const detalhe = /^#\/atividades\/([A-Za-z0-9_-]{8,40})$/.exec(hash);
+  if (detalhe) return { menu: '#/atividades', render: renderDetalhe, params: { id: detalhe[1] } };
+  switch (hash) {
+    case '#/atividades':
+      return { menu: hash, render: renderAtividades, params: {} };
+    case '#/configuracao':
+      return { menu: hash, render: renderConfiguracao, params: {} };
+    case '#/admin':
+      if (admin) return { menu: hash, render: renderAprovacoes, params: {} };
+      break;
+    default:
+  }
+  return { menu: '#/inicio', render: renderInicio, params: {} };
+}
 
 export function render(raiz, sessao) {
-  const rotasVisiveis = Object.entries(ROTAS).filter(([, r]) => !r.soAdmin || sessao.admin);
+  const itens = MENU.filter((m) => !m.soAdmin || sessao.admin);
   const saida = h('main', { class: 'container' });
   const nav = h('nav', { class: 'app-nav', 'aria-label': 'Principal' });
   let destruirRota = null;
@@ -28,18 +51,14 @@ export function render(raiz, sessao) {
   }
   rotularTema();
 
-  function rotaAtual() {
-    const hash = window.location.hash;
-    return rotasVisiveis.some(([caminho]) => caminho === hash) ? hash : '#/inicio';
-  }
-
   function desenharRota() {
     destruirRota?.();
-    const caminho = rotaAtual();
+    const rota = resolverRota(window.location.hash, sessao.admin);
     nav.replaceChildren(
-      ...rotasVisiveis.map(([c, r]) => h('a', { href: c, 'aria-current': c === caminho ? 'page' : null }, r.rotulo)),
+      ...itens.map((m) => h('a', { href: m.caminho, 'aria-current': m.caminho === rota.menu ? 'page' : null }, m.rotulo)),
     );
-    destruirRota = ROTAS[caminho].render(saida, sessao);
+    window.scrollTo(0, 0);
+    destruirRota = rota.render(saida, sessao, rota.params);
   }
 
   raiz.replaceChildren(

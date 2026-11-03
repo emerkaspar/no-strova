@@ -1,4 +1,4 @@
-import { ehAdmin } from "@no-strova/domain";
+import { ehAdmin, type Perfil, usuarioPodeAcessar } from "@no-strova/domain";
 import { type CallableRequest, HttpsError } from "firebase-functions/v2/https";
 import { db } from "./firebase";
 
@@ -8,6 +8,16 @@ export function exigirLogin(request: CallableRequest): string {
     throw new HttpsError("unauthenticated", "Faça login para continuar.");
   }
   return uid;
+}
+
+/** Garante que o chamador está aprovado, ativo e com o aceite LGPD em dia (fonte: users/{uid}, só Admin SDK escreve). */
+export async function exigirAcesso(request: CallableRequest): Promise<{ uid: string; perfil: Perfil }> {
+  const uid = exigirLogin(request);
+  const perfil = (await db.doc(`users/${uid}`).get()).data() as Perfil | undefined;
+  if (!usuarioPodeAcessar(perfil)) {
+    throw new HttpsError("permission-denied", "Seu acesso ainda não está liberado.");
+  }
+  return { uid, perfil: perfil as Perfil };
 }
 
 /** Garante que o chamador é admin aprovado e ativo. A fonte autoritativa é users/{uid} (só Admin SDK escreve). */

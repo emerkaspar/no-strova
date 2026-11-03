@@ -57,10 +57,28 @@ service cloud.firestore {
 
     // Dados do próprio usuário, escritos pelo cliente. A validação de campos de cada
     // coleção entra junto com a funcionalidade (Fases 2, 4 e 5).
+    // Configuração do atleta com vigência: o cliente escreve, mas só valores plausíveis.
+    // As Functions revalidam ao ler (validarConfigAtleta) e ignoram o que for inválido.
+    function configValida() {
+      let c = request.resource.data;
+      return c.keys().hasOnly(['userId', 'vigenteDesde', 'fcMax', 'fcRepouso', 'lthr', 'sexo', 'pesoKg', 'alturaCm'])
+        && c.keys().hasAll(['userId', 'vigenteDesde', 'fcMax', 'fcRepouso', 'lthr', 'sexo', 'pesoKg', 'alturaCm'])
+        && c.userId == request.auth.uid
+        && c.vigenteDesde is string
+        && c.vigenteDesde.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && c.fcMax is int && c.fcMax >= 100 && c.fcMax <= 250
+        && c.fcRepouso is int && c.fcRepouso >= 25 && c.fcRepouso <= 120
+        && c.fcRepouso < c.fcMax
+        && c.lthr is int && c.lthr > c.fcRepouso && c.lthr <= c.fcMax
+        && c.sexo in ['masculino', 'feminino']
+        && c.pesoKg is number && c.pesoKg >= 20 && c.pesoKg <= 400
+        && c.alturaCm is number && c.alturaCm >= 100 && c.alturaCm <= 250;
+    }
+
     match /configsAtleta/{id} {
       allow read, delete: if acessoLiberado() && donoDoRegistro();
-      allow create: if acessoLiberado() && novoRegistroDoUsuario();
-      allow update: if acessoLiberado() && donoDoRegistro() && novoRegistroDoUsuario();
+      allow create: if acessoLiberado() && configValida();
+      allow update: if acessoLiberado() && donoDoRegistro() && configValida();
     }
 
     match /treinosPlanejados/{id} {
