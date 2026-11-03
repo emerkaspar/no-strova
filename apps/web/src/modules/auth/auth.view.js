@@ -2,6 +2,7 @@ import { cadastrar, entrar } from '../../application/sessao.js';
 import { SENHA_MINIMA } from '../../core/constants.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { logo } from '../../utils/marca.js';
 import { definirModo, estadoAuth } from './state.js';
 import { TEXTO_ACEITE_LGPD } from './textos.js';
 
@@ -113,7 +114,7 @@ export function render(raiz) {
       desenhar();
     };
     cartao.replaceChildren(
-      h('p', { class: 'marca' }, 'No Strova'),
+      logo({ grande: true }),
       estadoAuth.modo === 'criar' ? formularioCriar(aoTrocar) : formularioEntrar(aoTrocar),
     );
   }

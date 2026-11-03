@@ -1,15 +1,18 @@
 import { sair } from '../../application/sessao.js';
 import { h } from '../../utils/dom.js';
+import { logo } from '../../utils/marca.js';
 import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { render as renderAprovacoes } from '../admin/aprovacoes.view.js';
 import { render as renderDetalhe } from '../atividades/detalhe.view.js';
 import { render as renderAtividades } from '../atividades/lista.view.js';
 import { render as renderConfiguracao } from '../configuracao/configuracao.view.js';
+import { render as renderForma } from '../forma/forma.view.js';
 import { render as renderInicio } from '../inicio/inicio.view.js';
 
 // Itens do menu. `prefixo` marca o item como ativo também nas sub-rotas.
 const MENU = [
   { caminho: '#/inicio', rotulo: 'Início' },
+  { caminho: '#/forma', rotulo: 'Forma' },
   { caminho: '#/atividades', rotulo: 'Atividades' },
   { caminho: '#/configuracao', rotulo: 'Configuração' },
   { caminho: '#/admin', rotulo: 'Aprovações', soAdmin: true },
@@ -20,6 +23,8 @@ function resolverRota(hash, admin) {
   const detalhe = /^#\/atividades\/([A-Za-z0-9_-]{8,40})$/.exec(hash);
   if (detalhe) return { menu: '#/atividades', render: renderDetalhe, params: { id: detalhe[1] } };
   switch (hash) {
+    case '#/forma':
+      return { menu: hash, render: renderForma, params: {} };
     case '#/atividades':
       return { menu: hash, render: renderAtividades, params: {} };
     case '#/configuracao':
@@ -68,7 +73,7 @@ export function render(raiz, sessao) {
       h(
         'div',
         { class: 'container' },
-        h('span', { class: 'marca' }, 'No Strova'),
+        h('a', { class: 'marca', href: '#/inicio', 'aria-label': 'No Strova — Início' }, logo()),
         nav,
         h('div', { class: 'app-acoes' }, botaoTema, h('button', { class: 'btn btn-secundario', type: 'button', onClick: sair }, 'Sair')),
       ),

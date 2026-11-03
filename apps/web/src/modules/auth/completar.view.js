@@ -1,6 +1,7 @@
 import { completarCadastro, sair } from '../../application/sessao.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { logo } from '../../utils/marca.js';
 import { TEXTO_ACEITE_LGPD } from './textos.js';
 
 /** Para quem tem conta, mas não concluiu o perfil ou o aceite LGPD. */
@@ -53,7 +54,7 @@ export function render(raiz, sessao) {
       h(
         'div',
         { class: 'card' },
-        h('p', { class: 'marca' }, 'No Strova'),
+        logo({ grande: true }),
         h('h1', null, 'Falta pouco'),
         h('p', { class: 'texto-secundario' }, `Conclua o cadastro de ${sessao.email ?? 'sua conta'} para continuar.`),
         form,

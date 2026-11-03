@@ -11,7 +11,7 @@ function svg(nome, atributos = {}, ...filhos) {
 }
 
 /** Escolhe um passo "redondo" para os rótulos do eixo. */
-function passoDoEixo(intervalo, alvo) {
+export function passoDoEixo(intervalo, alvo) {
   const bruto = intervalo / alvo;
   const potencia = 10 ** Math.floor(Math.log10(bruto));
   for (const m of [1, 2, 5, 10]) if (m * potencia >= bruto) return m * potencia;

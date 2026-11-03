@@ -1,4 +1,5 @@
 const CHAVE = 'no-strova:tema';
+const COR_DA_BARRA = { escuro: '#0a0a0a', claro: '#f6f6f4' };
 
 function lerSalvo() {
   try {
@@ -16,22 +17,24 @@ function salvar(tema) {
   }
 }
 
-/** Tema em uso: o escolhido pelo usuário ou, na falta dele, o do sistema. */
+function aplicar(tema) {
+  document.documentElement.dataset.tema = tema;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', COR_DA_BARRA[tema]);
+}
+
+/** Tema em uso. O padrão é o escuro; o claro só vale se o usuário escolheu. */
 export function temaEfetivo() {
-  const escolhido = document.documentElement.dataset.tema;
-  if (escolhido === 'claro' || escolhido === 'escuro') return escolhido;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
+  return document.documentElement.dataset.tema === 'claro' ? 'claro' : 'escuro';
 }
 
 export function aplicarTemaSalvo() {
-  const salvo = lerSalvo();
-  if (salvo === 'claro' || salvo === 'escuro') document.documentElement.dataset.tema = salvo;
+  aplicar(lerSalvo() === 'claro' ? 'claro' : 'escuro');
 }
 
-/** Alterna entre claro e escuro e lembra a escolha. Retorna o novo tema. */
+/** Alterna entre escuro e claro e lembra a escolha. Retorna o novo tema. */
 export function alternarTema() {
   const novo = temaEfetivo() === 'escuro' ? 'claro' : 'escuro';
-  document.documentElement.dataset.tema = novo;
+  aplicar(novo);
   salvar(novo);
   return novo;
 }

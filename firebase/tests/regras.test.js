@@ -183,6 +183,18 @@ describe('Firestore: dados de negócio', () => {
     await assertFails(getDoc(doc(outro, 'atividades/a1/series/fc')));
   });
 
+  it('estresseDiario: dono lê, ninguém escreve pelo cliente', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'estresseDiario/aprovado_20261101'), { userId: 'aprovado', data: '2026-11-01', estresse: 80 });
+    });
+    const dono = env.authenticatedContext('aprovado').firestore();
+    await assertSucceeds(getDoc(doc(dono, 'estresseDiario/aprovado_20261101')));
+    await assertFails(setDoc(doc(dono, 'estresseDiario/aprovado_20261101'), { userId: 'aprovado', data: '2026-11-01', estresse: 999 }));
+    await assertFails(deleteDoc(doc(dono, 'estresseDiario/aprovado_20261101')));
+    await assertFails(getDoc(doc(env.authenticatedContext('outro').firestore(), 'estresseDiario/aprovado_20261101')));
+    await assertFails(getDoc(doc(env.authenticatedContext('admin').firestore(), 'estresseDiario/aprovado_20261101')));
+  });
+
   it('iaUso e vinculosTreinador não têm acesso direto', async () => {
     const db = env.authenticatedContext('aprovado').firestore();
     await assertFails(getDoc(doc(db, 'iaUso/aprovado_20261103')));

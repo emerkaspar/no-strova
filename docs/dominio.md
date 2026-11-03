@@ -30,7 +30,7 @@ Diferenciais em relação ao Elevate:
 - **Somente frequência cardíaca.** Estresse da atividade = **HRSS**, replicando o método do Elevate (ler a referência para a fórmula exata, constantes e tratamento de zonas).
 - Configurações do atleta **com data de vigência**: FC máxima, FC de repouso, LTHR (limiar), sexo (constante do TRIMP), peso e altura. O cálculo usa a configuração vigente na data da atividade; mudar a configuração permite recalcular o histórico.
 - Estresse diário = soma das atividades do dia.
-- **Fitness** = média móvel exponencial do estresse diário (42 dias). **Fadiga** = idem (7 dias). **Forma** = Fitness − Fadiga. Faixas de Forma (Freshness, Neutral, Optimal, Overload) como no Elevate.
+- **Fitness** = média móvel exponencial do estresse diário (42 dias). **Fadiga** = idem (7 dias). **Forma** = Fitness − Fadiga **do dia anterior** (a Forma de hoje usa os valores de ontem, como no Elevate e na convenção do TrainingPeaks). Faixas de Forma (Transição, Freshness, Neutral, Optimal, Overload) como no Elevate; ver "Fitness, Fadiga e Forma (Fase 3)".
 - **Projeção:** para dias futuros, o estresse diário vem dos treinos planejados ainda não realizados. Dias passados usam só o realizado. O gráfico mostra o passado sólido e o futuro tracejado.
 - Os cálculos rodam no cliente a partir dos estresses diários (resposta instantânea ao editar o plano) e as mesmas funções são reutilizadas nas Functions quando necessário.
 
@@ -79,7 +79,7 @@ Diferenciais em relação ao Elevate:
 - **Vínculo planejado × realizado:** o app sugere (mesmo dia e esporte) e o usuário confirma. Treino vinculado não soma duas vezes.
 - **Curva única** de Fitness/Fadiga/Forma na v1 (sem filtro por esporte).
 - **Fitness inicial = 0.** EMA como no Elevate: `ema = ema + (estresse − ema) × (1 − e^(−1/N))`, com N = 42 (Fitness) e N = 7 (Fadiga).
-- **Faixas de Forma** (limites inferiores, como no Elevate): ≥ 25 Freshness, ≥ 5 Neutral, ≥ −10 Optimal, ≥ −30 Overload; abaixo disso, sobrecarga extrema.
+- **Faixas de Forma**: ver "Fitness, Fadiga e Forma (Fase 3)" (corrigidas na Fase 3 conforme o guia do Elevate).
 - **Calorias:** usa as do arquivo quando existirem; senão estima por Keytel (FC, peso, sexo e idade), sempre rotuladas como "estimadas". O perfil coleta `dataNascimento`.
 - **Recalcular histórico** (após mudar a configuração do atleta): somente por botão com confirmação, nunca automático.
 - **Duplicidade:** upload rejeitado com aviso se o hash do arquivo ou o par início + duração já existir.
@@ -109,6 +109,27 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 
 Como o HRSS do Elevate usa só a FC média e o tempo em movimento, a atividade guarda `fcMedia`, `tempoMovimentoS` e `zona`; isso basta para recalcular o HRSS com qualquer configuração sem reler o arquivo (não há `fcHistograma`). O doc `configsAtleta` tem id `{uid}_{yyyymmdd da vigência}`, então salvar a mesma data substitui a configuração.
 
+## Fitness, Fadiga e Forma (Fase 3)
+
+Implementado em `packages/domain/src/forma.js`, replicando o Elevate (`fitness.service.ts` e o guia do Fitness Trend):
+
+- **Estresse do dia** = soma do HRSS das atividades do dia (`estresseDiario`). Dia sem treino vale 0.
+- `Fitness(d) = Fitness(d−1) + (estresse(d) − Fitness(d−1)) × (1 − e^(−1/42))`; Fadiga igual, com 7 no lugar de 42.
+- **Forma(d) = Fitness(d−1) − Fadiga(d−1).** A série começa **um dia antes da primeira atividade**, com Fitness, Fadiga e Forma em 0 (Fitness inicial = 0), e segue até hoje, com decaimento nos dias sem treino.
+- **Faixas de Forma** (guia do Elevate; limite inferior exclusivo):
+
+| Faixa | Forma | Significado |
+|---|---|---|
+| Transição | > +25 | Pausa longa (doença, lesão, fim de temporada): Fitness em queda |
+| Freshness | +5 a +25 | Em forma e descansado: pronto para prova ou dias fortes |
+| Neutral | −10 a +5 | Semana de descanso ou recuperação |
+| Optimal | −30 a −10 | Zona ideal para construir Fitness |
+| Overload | < −30 | Sobrecarga: descanse |
+
+- **Agregação:** o trigger `onAtividadeWrite` recalcula o documento do dia (`estresseDiario/{uid}_{yyyymmdd}`: `estresse`, `kcal`, `qtdAtividades`) a cada criação, exclusão ou recálculo de atividade. Recalcular o dia inteiro a partir das atividades torna as retentativas do trigger inofensivas. Sem atividades no dia, o documento é removido.
+- **Atividades anteriores ao trigger:** a tela de Forma pede `reconstruirEstresseDiario` uma vez por sessão quando não há nenhum dia agregado. A callable regrava todos os dias do usuário e remove os que não têm mais atividade.
+- **Tela** (`#/forma`): indicadores de hoje (Fitness, Fadiga, Forma com a faixa e sua descrição, carga de 7 dias), gráfico em SVG sem biblioteca com as três linhas, as faixas de Forma ao fundo, barras opcionais de estresse diário e tooltip por dia, e legenda das faixas. Períodos: 30 dias, 90 dias (padrão), 6 meses, 1 ano e tudo.
+
 ## Cálculo do HRSS (Fase 2)
 
 Replica o Elevate (`appcore/modules/shared/sync/compute/activity-computer.ts`), em `packages/domain/src/hrss.js`:
@@ -129,7 +150,7 @@ Replica o Elevate (`appcore/modules/shared/sync/compute/activity-computer.ts`), 
 - Cota: até 30 atividades por usuário por dia (arquivo + manual).
 - Cadastro manual exige FC média, zona ou HRSS; a data não pode estar no futuro.
 - **Leitura dos arquivos** (Functions): `fit-file-parser` (FIT) e `fast-xml-parser` (GPX/TCX), ambos MIT. O esporte vem do arquivo e pode ser escolhido pelo usuário.
-- **Pendências desta área:** o trigger `onAtividadeWrite` (agregação em `estresseDiario`) entra na Fase 3, junto do gráfico; a limpeza agendada de arquivos órfãos (upload feito, callable nunca chamada) ainda não existe.
+- **Arquivos órfãos** (upload feito, callable nunca chamada ou falhou): a função agendada `limparArquivosOrfaos` (todos os dias às 03:30, São Paulo) apaga do Storage os arquivos com mais de 24 h sem atividade do mesmo dono. O prazo preserva o arquivo de uma importação sem FC que aguarda a zona.
 - `obterUrlArquivo` gera URL assinada (v4, 10 min). Exige que a conta de serviço das Functions tenha `roles/iam.serviceAccountTokenCreator` sobre si mesma; sem isso só o botão "Baixar arquivo original" falha.
 
 **Índices compostos:** `atividades` (`userId`, `data` desc) e (`userId`, `esporte`, `data` desc); `estresseDiario` (`userId`, `data`); `treinosPlanejados` (`userId`, `data`) e (`userId`, `status`, `data`); `configsAtleta` (`userId`, `vigenteDesde` desc); `pesagens` (`userId`, `data`); `metasPeso` (`userId`, `status`); `iaRascunhos` (`userId`, `criadoEm` desc); `users` (`aprovado`, `criadoEm`).
@@ -152,7 +173,8 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 
 ## Cloud Functions
 - `auth/`: `bootstrapUserOnCreate` (trigger), `ensureUserProfile`, `aprovarUsuario`, `listarPendentes`, `bloquearUsuario`.
-- `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` (implementadas na Fase 2); trigger `onAtividadeWrite` (atualiza `estresseDiario`) e limpeza de órfãos (pendentes, ver acima).
+- `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` e a agendada `limparArquivosOrfaos`.
+- `estresse/` (Fase 3): trigger `onAtividadeWrite` (mantém `estresseDiario`) e a callable `reconstruirEstresseDiario`.
 - `ia/`: `sugerirTreinos`, `sugerirMetaPeso`, `decidirRascunho`.
 - `exportacao/` (Fase 7): `exportarMeusDados`, `excluirMinhaConta`.
 
@@ -160,6 +182,40 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 `packages/domain` (`@no-strova/domain`) é um workspace npm usado pelo web e pelas Functions. O bundle das Functions embute o pacote com esbuild.
 
 ---
+
+# Identidade visual
+
+Preto, branco e laranja (~#FF5200), a partir do logo em `apps/web/assets/logo.png`. Implementada em `apps/web/src/styles/base.css`.
+
+## Tema
+- **Escuro é o padrão**, independente da configuração do sistema; **claro é opção** (botão no cabeçalho, escolha guardada no aparelho). A cor da barra do navegador (`theme-color`) acompanha o tema.
+- Variáveis CSS (nomes do `CLAUDE.md`, mais `--primary-hover`, `--primary-contrast`, `--danger`, `--success`):
+
+| Variável | Escuro | Claro |
+|---|---|---|
+| `--bg-main` | `#0A0A0A` | `#F6F6F4` |
+| `--surface` | `#161616` | `#FFFFFF` |
+| `--surface-light` | `#1F1F1F` | `#EFEFEC` |
+| `--border` | `#2A2A2A` | `#DEDEDA` |
+| `--text-primary` | `#FFFFFF` | `#0A0A0A` |
+| `--text-secondary` | `#A3A3A3` | `#5C5C5C` |
+| `--primary` | `#FF5200` | `#C93C00` |
+| `--primary-hover` | `#FF6A26` | `#A93300` |
+| `--primary-contrast` (texto do botão primário) | `#0A0A0A` | `#FFFFFF` |
+| `--danger` / `--success` | `#F87171` / `#4ADE80` | `#B91C1C` / `#15803D` |
+
+- **Botão primário:** fundo laranja (`--primary`) e texto preto no tema escuro. **No tema claro o texto é branco**: preto sobre `#C93C00` tem contraste de 3,9:1, abaixo do mínimo de 4,5:1 (WCAG AA); branco dá 5,1:1. Para o texto preto também no claro, basta trocar `--primary-contrast` do tema claro para `#0A0A0A` (e aceitar o contraste menor).
+- Contrastes (WCAG): escuro — texto 19,8:1, texto secundário 7,2:1 a 7,9:1, laranja sobre fundo/superfície 5,6:1 a 6,1:1, botão 6,1:1; claro — texto 18,3:1, texto secundário 6,2:1 a 6,7:1, laranja 4,7:1 a 5,1:1, botão 5,1:1.
+
+## Tipografia
+- **Anton** nos títulos (`h1`–`h3`), sempre em caixa alta, com espaçamento de letras de 0,03em. Fallback: Impact.
+- **Inter** no corpo, com **números tabulares** (`font-variant-numeric: tabular-nums`) para alinhar colunas de dados. Pesos 400, 600 e 700.
+- Fontes **self-hosted** pelos pacotes `@fontsource/anton` e `@fontsource/inter` (subconjunto latino, que cobre os acentos do português); nada é carregado de CDN. Licença OFL-1.1.
+
+## Logo, favicon e PWA
+- Logo no cabeçalho (44 px, leva ao Início) e nas telas de acesso (login, cadastro, concluir cadastro, aguardando aprovação, bloqueado).
+- `npm run icones -w apps/web` gera, a partir de `assets/logo.png`: `favicon.ico`, `favicon-32.png` e `favicon-48.png` (recorte justo no texto, para ler em tamanho pequeno), ícones do PWA de 192 e 512 px, ícone "maskable" (logo a 70% do centro sobre preto, por causa do corte do Android) e `apple-touch-icon`.
+- Manifesto do PWA com fundo e tema `#0A0A0A`.
 
 # Prompts por fase (para o Claude Code)
 

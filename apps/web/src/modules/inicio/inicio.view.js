@@ -9,7 +9,7 @@ export function render(raiz, sessao) {
       'section',
       { class: 'card' },
       h('h1', null, `Olá, ${nome}`),
-      h('p', { class: 'texto-secundario' }, 'Importe seus treinos (.fit, .gpx, .tcx) ou registre-os manualmente. Em breve: gráfico de Fitness/Fadiga/Forma, plano de treino e controle de peso.'),
+      h('p', { class: 'texto-secundario' }, 'Importe seus treinos (.fit, .gpx, .tcx) ou registre-os manualmente e acompanhe o Fitness, a Fadiga e a Forma. Em breve: plano de treino e controle de peso.'),
       passos,
     ),
   );
@@ -25,7 +25,7 @@ export function render(raiz, sessao) {
               'Primeiro passo: cadastre a sua FC máxima, FC de repouso e LTHR para calcular o HRSS. ',
               h('a', { href: '#/configuracao' }, 'Abrir Configuração'),
             )
-          : h('p', null, h('a', { href: '#/atividades' }, 'Ver minhas atividades')),
+          : h('p', null, h('a', { href: '#/forma' }, 'Ver minha forma'), ' · ', h('a', { href: '#/atividades' }, 'Ver minhas atividades')),
       );
     },
     () => {},

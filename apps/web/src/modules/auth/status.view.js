@@ -1,5 +1,6 @@
 import { sair } from '../../application/sessao.js';
 import { h } from '../../utils/dom.js';
+import { logo } from '../../utils/marca.js';
 
 function telaStatus(raiz, titulo, mensagem, sessao) {
   raiz.replaceChildren(
@@ -9,7 +10,7 @@ function telaStatus(raiz, titulo, mensagem, sessao) {
       h(
         'div',
         { class: 'card' },
-        h('p', { class: 'marca' }, 'No Strova'),
+        logo({ grande: true }),
         h('h1', null, titulo),
         h('p', { class: 'texto-secundario' }, mensagem),
         sessao?.email ? h('p', { class: 'texto-secundario' }, `Conta: ${sessao.email}`) : null,

@@ -4,6 +4,10 @@ import { render as renderAuth } from './modules/auth/auth.view.js';
 import { render as renderCompletar } from './modules/auth/completar.view.js';
 import { renderBloqueado, renderCarregando, renderErro, renderPendente } from './modules/auth/status.view.js';
 import { render as renderShell } from './modules/shell/shell.view.js';
+import '@fontsource/anton/latin-400.css';
+import '@fontsource/inter/latin-400.css';
+import '@fontsource/inter/latin-600.css';
+import '@fontsource/inter/latin-700.css';
 import './styles/base.css';
 import { aplicarTemaSalvo } from './utils/tema.js';
 

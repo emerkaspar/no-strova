@@ -11,7 +11,7 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 
 ## Tema
 
-O botão **Tema claro/escuro** no topo alterna a aparência. Sem escolha, o app segue o tema do seu aparelho.
+O app abre no **tema escuro**. O botão **Tema claro/escuro** no topo alterna a aparência e o app lembra a sua escolha neste aparelho.
 
 ## Configuração do atleta (comece por aqui)
 
@@ -47,6 +47,18 @@ Usa as calorias do arquivo quando existem. Sem elas, o app **estima** pela FC, p
 
 ### Detalhe, download e exclusão
 Clique na data de uma atividade para ver os indicadores e o gráfico de frequência cardíaca (passe o mouse para ver cada ponto). Dali você pode **baixar o arquivo original** e **excluir** a atividade (o arquivo também é apagado).
+
+## Forma (Fitness, Fadiga e Forma)
+
+A aba **Forma** mostra como o seu treino se acumula, a partir do HRSS das atividades:
+
+- **Fitness:** a carga acumulada nos últimos ~42 dias. Sobe com treino consistente.
+- **Fadiga:** a carga dos últimos ~7 dias. Sobe rápido com treino duro e cai rápido com descanso.
+- **Forma:** Fitness menos Fadiga **do dia anterior**. Valores negativos indicam que você está treinando forte; positivos, que está descansado.
+
+A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25, pausa longa), **Freshness** (+5 a +25, pronto para competir), **Neutral** (−10 a +5, recuperação), **Optimal** (−30 a −10, bom para construir Fitness) e **Overload** (abaixo de −30, descanse).
+
+Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
 
 ## Para administradores
 

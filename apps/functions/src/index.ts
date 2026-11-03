@@ -5,6 +5,7 @@ export {
   processarArquivoAtividade,
   recalcularHistorico,
 } from "./modules/atividades/atividades.functions";
+export { limparArquivosOrfaos } from "./modules/atividades/orfaos.functions";
 export {
   aprovarUsuario,
   bloquearUsuario,
@@ -12,3 +13,4 @@ export {
   ensureUserProfile,
   listarPendentes,
 } from "./modules/auth/auth.functions";
+export { onAtividadeWrite, reconstruirEstresseDiario } from "./modules/estresse/estresse.functions";

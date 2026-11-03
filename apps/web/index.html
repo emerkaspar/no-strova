@@ -3,16 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="theme-color" content="#0a0a0a" />
     <meta name="description" content="Planejamento e análise de treino para quem pedala e corre." />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>No Strova</title>
     <script>
-      // Aplica o tema salvo antes da primeira pintura, para não piscar.
+      // Escuro é o padrão. Se o usuário escolheu o claro, aplica antes da primeira pintura, para não piscar.
       try {
         var t = localStorage.getItem('no-strova:tema');
-        if (t === 'claro' || t === 'escuro') document.documentElement.dataset.tema = t;
+        if (t === 'claro') {
+          document.documentElement.dataset.tema = 'claro';
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f6f6f4');
+        }
       } catch (e) {}
     </script>
   </head>

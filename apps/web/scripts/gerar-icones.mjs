@@ -1,81 +1,57 @@
-// Gera os ícones PNG do PWA sem dependências externas (anel branco sobre azul).
+// Gera favicon, ícones do PWA e o logo da interface a partir de assets/logo.png (arte original, 1254×1254).
 // Uso: npm run icones -w apps/web
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deflateSync } from 'node:zlib';
+import sharp from 'sharp';
 
-const saida = resolve(dirname(fileURLToPath(import.meta.url)), '../public/icons');
-mkdirSync(saida, { recursive: true });
+const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const fonte = resolve(raiz, 'assets/logo.png');
+const publico = resolve(raiz, 'public');
+const icones = resolve(publico, 'icons');
+mkdirSync(icones, { recursive: true });
 
-const FUNDO = [37, 99, 235];
-const TABELA_CRC = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
+const PRETO = { r: 0, g: 0, b: 0, alpha: 1 };
+// Recorte quadrado justo em volta do texto: legível mesmo em 16–32 px.
+const RECORTE_FAVICON = { left: 42, top: 57, width: 1170, height: 1170 };
 
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (const b of buf) c = TABELA_CRC[(c ^ b) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
+const png = (entrada) => entrada.png({ compressionLevel: 9 });
+const completo = (tamanho) => png(sharp(fonte).resize(tamanho, tamanho));
+const favicon = (tamanho) => png(sharp(fonte).extract(RECORTE_FAVICON).resize(tamanho, tamanho));
+
+/** Maskable: o sistema corta até 20% das bordas, então o logo ocupa 70% central sobre fundo preto. */
+async function maskable(tamanho) {
+  const miolo = await sharp(fonte).resize(Math.round(tamanho * 0.7)).png().toBuffer();
+  return png(sharp({ create: { width: tamanho, height: tamanho, channels: 4, background: PRETO } }).composite([{ input: miolo, gravity: 'center' }]));
 }
 
-function bloco(tipo, dados) {
-  const corpo = Buffer.concat([Buffer.from(tipo, 'ascii'), dados]);
-  const tam = Buffer.alloc(4);
-  tam.writeUInt32BE(dados.length);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(corpo));
-  return Buffer.concat([tam, corpo, crc]);
+/** ICO com uma imagem PNG embutida (aceito por todos os navegadores atuais). */
+function empacotarIco(pngBuffer, tamanho) {
+  const cabecalho = Buffer.alloc(22);
+  cabecalho.writeUInt16LE(0, 0); // reservado
+  cabecalho.writeUInt16LE(1, 2); // tipo: ícone
+  cabecalho.writeUInt16LE(1, 4); // quantidade de imagens
+  cabecalho.writeUInt8(tamanho, 6);
+  cabecalho.writeUInt8(tamanho, 7);
+  cabecalho.writeUInt16LE(1, 10); // planos
+  cabecalho.writeUInt16LE(32, 12); // bits por pixel
+  cabecalho.writeUInt32LE(pngBuffer.length, 14);
+  cabecalho.writeUInt32LE(22, 18); // deslocamento dos dados
+  return Buffer.concat([cabecalho, pngBuffer]);
 }
 
-const suave = (d) => Math.min(1, Math.max(0, 0.5 - d));
-
-function gerarPng(tam, { mascara }) {
-  const linhas = Buffer.alloc((tam * 4 + 1) * tam);
-  const centro = tam / 2;
-  const raioExterno = tam * 0.3;
-  const raioInterno = tam * 0.18;
-  const canto = tam * 0.2;
-  for (let y = 0; y < tam; y++) {
-    const base = y * (tam * 4 + 1);
-    for (let x = 0; x < tam; x++) {
-      const px = x + 0.5 - centro;
-      const py = y + 0.5 - centro;
-      const dist = Math.hypot(px, py);
-      // Opacidade do quadrado arredondado (maskable ocupa tudo).
-      let alfa = 1;
-      if (!mascara) {
-        const qx = Math.abs(px) - (centro - canto);
-        const qy = Math.abs(py) - (centro - canto);
-        alfa = suave(Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - canto);
-      }
-      const anel = Math.min(suave(dist - raioExterno), suave(raioInterno - dist));
-      const i = base + 1 + x * 4;
-      for (let c = 0; c < 3; c++) linhas[i + c] = Math.round(FUNDO[c] + (255 - FUNDO[c]) * anel);
-      linhas[i + 3] = Math.round(alfa * 255);
-    }
-  }
-  const cabecalho = Buffer.alloc(13);
-  cabecalho.writeUInt32BE(tam, 0);
-  cabecalho.writeUInt32BE(tam, 4);
-  cabecalho.set([8, 6, 0, 0, 0], 8);
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    bloco('IHDR', cabecalho),
-    bloco('IDAT', deflateSync(linhas)),
-    bloco('IEND', Buffer.alloc(0)),
-  ]);
-}
-
-const arquivos = [
-  ['icon-192.png', 192, false],
-  ['icon-512.png', 512, false],
-  ['icon-maskable-512.png', 512, true],
-  ['apple-touch-icon.png', 180, true],
+const saidas = [
+  [resolve(publico, 'logo.png'), completo(256)],
+  [resolve(publico, 'favicon-32.png'), favicon(32)],
+  [resolve(publico, 'favicon-48.png'), favicon(48)],
+  [resolve(icones, 'icon-192.png'), completo(192)],
+  [resolve(icones, 'icon-512.png'), completo(512)],
+  [resolve(icones, 'icon-maskable-512.png'), await maskable(512)],
+  [resolve(icones, 'apple-touch-icon.png'), completo(180)],
 ];
-for (const [nome, tam, mascara] of arquivos) {
-  writeFileSync(resolve(saida, nome), gerarPng(tam, { mascara }));
-  console.log(`gerado ${nome}`);
+for (const [destino, imagem] of saidas) {
+  writeFileSync(destino, await imagem.toBuffer());
+  console.log(`gerado ${destino.replace(`${raiz}\\`, '').replace(`${raiz}/`, '')}`);
 }
+writeFileSync(resolve(publico, 'favicon.ico'), empacotarIco(await favicon(48).toBuffer(), 48));
+console.log('gerado public/favicon.ico');

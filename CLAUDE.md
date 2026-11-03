@@ -105,7 +105,7 @@ Regras de arquitetura:
 - Listeners do Firestore (`onSnapshot`) devem ser cancelados ao sair da tela.
 
 **UI:**
-- Tema via CSS variables (`--bg-main`, `--text-primary`, `--border`, `--primary`, `--surface-light`), com dark mode.
+- Tema via CSS variables (`--bg-main`, `--text-primary`, `--border`, `--primary`, `--surface-light`). Escuro é o padrão e claro é opcional; paleta, tipografia (Anton + Inter via `@fontsource`) e logo estão em `docs/dominio.md` (seção "Identidade visual").
 - Cards com padding de 28px, raio de 12px e borda de 1px. Grids com `repeat(auto-fit, minmax(200px, 1fr))` e coluna única abaixo de 768px.
 - Tabelas com ordenação clicável, busca em tempo real e scroll horizontal no mobile.
 - Mobile-first e instalável como PWA, com service worker (Workbox) e notificações push opcionais.

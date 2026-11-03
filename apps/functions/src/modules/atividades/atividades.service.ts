@@ -13,6 +13,7 @@ import {
 } from "@no-strova/domain";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { logger } from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
 import { db } from "../../shared/firebase";
 import type { ResultadoProcessamento } from "./atividades.types";
@@ -312,7 +313,9 @@ export async function urlDoArquivo(uid: string, atividadeId: string): Promise<st
       .file(caminho)
       .getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 10 * 60 * 1000 });
     return url;
-  } catch {
+  } catch (err) {
+    // Causa provável: a conta de serviço sem permissão de assinar (iam.serviceAccounts.signBlob).
+    logger.error("Falha ao gerar a URL assinada do arquivo", err);
     throw new HttpsError("internal", "Não foi possível gerar o link de download. Tente novamente.");
   }
 }
