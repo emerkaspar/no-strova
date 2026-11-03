@@ -1,0 +1,107 @@
+# Seção 9 — Domínio da nova aplicação
+
+(Substitui o placeholder da seção 9 do documento de stack.)
+
+## Visão
+
+App web de planejamento e análise de treino para quem pedala e corre, com foco em ciclismo. Inspirado no Elevate (https://github.com/thomaschampagne/elevate, licença MPL-2.0), usado só como **referência de cálculo**: não é fork, o código é reescrito na nossa stack. Cópia local do Elevate para consulta fica **fora** do monorepo (ex.: `../elevate-ref`).
+
+Diferenciais em relação ao Elevate:
+1. **Projeção no gráfico:** o usuário planeja treinos futuros e o gráfico de Fitness/Fadiga/Forma continua nos dias seguintes.
+2. **Controle de peso** integrado ao treino, com metas.
+3. **Sugestões com Gemini** (treinos e metas de peso).
+
+## Usuários e papéis
+
+- Uso inicial: o dono e alguns amigos. Cada um vê somente os próprios dados.
+- Papéis: `admin` (aprova usuários), `atleta`. Papel `treinador` **previsto no modelo, sem UI na v1** (futuro: vínculo treinador–atleta com leitura/escrita no plano do atleta).
+- Fluxo de acesso conforme seção 4 do documento de stack (cadastro → `aprovado: false` → admin aprova).
+
+## Atividades (v1: só upload de arquivos)
+
+- Upload de .FIT, .GPX e .TCX para o Storage (`atividades/{id}/...`).
+- Uma callable processa o arquivo: extrai data, duração, distância, altimetria, série de frequência cardíaca (FC) e calorias, se houver. Grava o resumo em `atividades/{id}`.
+- Esportes: ciclismo, corrida (e "outro").
+- Cadastro manual de atividade (sem arquivo) também permitido.
+- Sem integração com Strava na v1.
+
+## Cálculos (camada `domain/`, funções puras)
+
+- **Somente frequência cardíaca.** Estresse da atividade = **HRSS**, replicando o método do Elevate (ler a referência para a fórmula exata, constantes e tratamento de zonas).
+- Configurações do atleta **com data de vigência**: FC máxima, FC de repouso, LTHR (limiar), sexo (constante do TRIMP), peso e altura. O cálculo usa a configuração vigente na data da atividade; mudar a configuração permite recalcular o histórico.
+- Estresse diário = soma das atividades do dia.
+- **Fitness** = média móvel exponencial do estresse diário (42 dias). **Fadiga** = idem (7 dias). **Forma** = Fitness − Fadiga. Faixas de Forma (Freshness, Neutral, Optimal, Overload) como no Elevate.
+- **Projeção:** para dias futuros, o estresse diário vem dos treinos planejados ainda não realizados. Dias passados usam só o realizado. O gráfico mostra o passado sólido e o futuro tracejado.
+- Os cálculos rodam no cliente a partir dos estresses diários (resposta instantânea ao editar o plano) e as mesmas funções são reutilizadas nas Functions quando necessário.
+
+## Plano de treino
+
+- `treinosPlanejados`: data, esporte, duração, intensidade, estresse estimado (HRSS), observações e vínculo opcional com a atividade realizada.
+- Visão de calendário (semana/mês) e arrastar treino para outro dia atualiza a projeção.
+- Comparativo planejado × realizado.
+- **Meta de forma:** o usuário define "chegar com Forma X na data Y" e o app mostra se o plano atual chega lá.
+
+## Peso e metas
+
+- `pesagens`: data e peso (manual). Tendência com média móvel (7 dias).
+- Indicadores: peso atual, tendência semanal, e metas (`metas`: peso-alvo e data).
+- Cruzar peso com carga de treino no gráfico (eixo secundário, opcional).
+- Gasto calórico de treino: usar as calorias do arquivo quando existirem; senão estimar por FC, peso e duração (documentar a fórmula escolhida).
+- **Sugestão de meta com Gemini:** dado peso atual, peso-alvo, data e carga de treino, sugere ritmo semanal, tempo, distância e calorias para fechar o déficit, distribuídos no plano.
+
+## IA (Genkit + Gemini)
+
+- Callables em `southamerica-east1`, chave via Secret Manager.
+- Entrada: JSON estruturado com métricas resumidas (nunca arquivos brutos nem dados de outros usuários). Saída: schema validado (Genkit structured output).
+- Sugestões de treino (próximas semanas, respeitando Forma-alvo e carga progressiva) e de meta de peso.
+- **Sempre rascunho:** a IA nunca grava no plano diretamente; o usuário revisa e aceita.
+- Limites de segurança aplicados **no código, não só no prompt**: perda de peso sugerida limitada a ritmo seguro (≈ até 0,5–1% do peso por semana), sem sugerir ingestão abaixo de piso calórico razoável, sem metas que levem a IMC abaixo da faixa saudável, aumento semanal de carga limitado. Aviso fixo de que não substitui orientação de médico/nutricionista/treinador.
+- Limite de chamadas por usuário/dia.
+
+## Privacidade (LGPD)
+
+- Peso e FC são dados de saúde: leitura/escrita somente pelo dono. Nem o admin lê pesagens. O treinador (futuro) lê apenas via vínculo aceito pelo atleta.
+- Dados de IA enviados ao Gemini: somente o necessário, sem nome nem e-mail.
+
+## Regras gerais
+
+- Unidades: km, m, kg, bpm, kcal; datas e números em pt-BR.
+- Gráficos próprios em canvas/SVG, sem biblioteca pesada, a menos que justificado.
+
+---
+
+# Prompts por fase (para o Claude Code)
+
+Antes de tudo: salvar o documento de stack como `CLAUDE.md` na raiz do repositório e este arquivo como `docs/dominio.md`.
+
+## Fase 0 — Proposta
+
+Leia `CLAUDE.md` e `docs/dominio.md`. Cumpra o passo 8 do documento: confirme o entendimento e proponha modelo de dados (coleções, campos, índices), papéis/permissões, Cloud Functions e estrutura de módulos do frontend. Não gere código ainda. Pergunte o que for decisão de negócio.
+
+## Fase 1 — Fundação
+
+Gere o scaffolding do monorepo conforme o `CLAUDE.md`: configs do Firebase e Vite, scripts de homolog/produção, regras do Firestore/Storage e estrutura de pastas. Implemente cadastro, `bootstrapUserOnCreate`, `ensureUserProfile`, aprovação por admin e a tela de login. PWA básico com tema claro/escuro.
+
+## Fase 2 — Configuração do atleta e atividades
+
+Implemente as configurações do atleta com data de vigência (FC máx., FC repouso, LTHR, sexo, peso, altura). Implemente o upload de .FIT/.GPX/.TCX para o Storage e uma callable que processa o arquivo e grava o resumo da atividade. Calcule o HRSS em `domain/`, usando como referência o código do Elevate em `../elevate-ref` (somente leitura). Tela de lista de atividades e detalhe.
+
+## Fase 3 — Gráfico de Fitness/Fadiga/Forma (passado)
+
+Implemente em `domain/` o cálculo diário de Fitness (42 d), Fadiga (7 d) e Forma, com testes unitários. Crie a tela do gráfico com períodos selecionáveis, tooltip por dia e faixas de Forma, no estilo do Elevate.
+
+## Fase 4 — Plano de treino e projeção
+
+Implemente `treinosPlanejados` com calendário semanal/mensal, criação/edição/arrastar entre dias e vínculo com a atividade realizada. Estenda o gráfico: dias futuros projetados com base no plano, em linha tracejada. Adicione a meta de forma por data.
+
+## Fase 5 — Peso e metas
+
+Implemente pesagens, tendência (média móvel 7 d), metas de peso e a sobreposição opcional de peso no gráfico. Mostre peso/estresse semanal e gasto calórico dos treinos.
+
+## Fase 6 — IA com Gemini
+
+Configure Genkit com Gemini em callables e a chave em Secret Manager. Implemente (a) sugestão de treinos para as próximas semanas e (b) sugestão de meta de peso (ritmo, tempo, distância, calorias), ambas com saída estruturada validada, como rascunho que o usuário aceita ou descarta, aplicando os limites de segurança do `docs/dominio.md` no código. Limite de chamadas por usuário/dia.
+
+## Fase 7 — Acabamento
+
+Ajuda do produto, push opcional, exportação de dados do usuário e vínculo treinador–atleta (somente se decidirmos fazer agora).
