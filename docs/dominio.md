@@ -104,7 +104,7 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `metasForma/{id}` | `formaAlvo` (−60 a 60), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `calibracoes/{uid}` | `chaves`: mapa `{esporte}_{zona}` → `{ n, mediana, amostras: [{ id, data, v }] }` (HRSS por hora das atividades com FC real), `atualizadoEm` | Somente trigger/callable (o dono lê) |
 | `preferencias/{uid}` | `calibracaoAtiva?` (booleano; sem documento, vale a calibração) e `nivelTreinos?` (`iniciante`/`intermediario`/`avancado`) | Dono (as regras só aceitam esses campos; o app grava mesclando) |
-| `metasCondicionamento/{id}` | `condicionamentoAlvo` (1–250), `condicionamentoInicial?` (o Condicionamento de quando a meta foi criada, base do progresso), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
+| `metasCondicionamento/{id}` | `condicionamentoAlvo` (1–250), `condicionamentoInicial?` (o Condicionamento de quando a meta foi criada; informativo), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `pesagens/{id}` | `data`, `pesoKg` | Dono |
 | `metasPeso/{id}` | `pesoAlvoKg`, `dataAlvo`, `status`, `criadoEm` | Dono |
 | `iaRascunhos/{id}` | `tipo` (`treino`/`peso`), `entradaResumo`, `saida`, `status` (`pendente`/`aceito`/`descartado`), `criadoEm` | Somente callable |
@@ -205,7 +205,7 @@ Implementado em `packages/domain/src/planejamento.js` e `calendario.js` (regras 
 
 ## Meta de Condicionamento (a meta principal)
 - **Por quê:** o Condicionamento (a média móvel de 42 dias do estresse) é a medida direta de evolução: sobe com treino consistente e cai com pausas longas. A Forma serve para chegar descansado a um dia específico. Por isso a meta **principal** do plano é de Condicionamento; a de Forma é **opcional e complementar** (as duas podem estar ativas ao mesmo tempo, cada uma avaliada separadamente).
-- "**Chegar com Condicionamento X na data Y**": X de 1 a 250, Y entre hoje e 365 dias. **Uma meta ativa por vez**; ao definir outra, a anterior é desativada (as anteriores ficam listadas). Ao criar, o app guarda o Condicionamento de hoje (`condicionamentoInicial`) para medir o **progresso** (do valor inicial ao alvo, de 0 a 100%; sem o valor inicial ou com alvo abaixo dele, não há barra). Regras em `packages/domain/src/metaCondicionamento.js`.
+- "**Chegar com Condicionamento X na data Y**": X de 1 a 250, Y entre hoje e 365 dias. **Uma meta ativa por vez**; ao definir outra, a anterior é desativada (as anteriores ficam listadas). O **progresso** é o Condicionamento de hoje dividido pelo alvo (3,1 de 30,0 = 10%, limitado a 0–100%); o `condicionamentoInicial` guardado ao criar a meta não entra mais na conta. Regras em `packages/domain/src/metaCondicionamento.js`.
 - **Avaliação** (`avaliarMetaCondicionamento`): compara o Condicionamento projetado do dia da meta com o alvo. **Chega lá** se a diferença é de até **±3 pontos** (`TOLERANCIA_META_CONDICIONAMENTO`); **Fica abaixo** (falta carga: planejar mais treino); **Fica acima** (dá para treinar um pouco menos).
 - **Ritmo:** de hoje até a data, o app calcula os pontos de Condicionamento **por semana** que o alvo exige (`ritmoNecessario`) e os que o plano atual entrega (`ritmoDoPlano`). Acima de **7 pontos por semana** (`RITMO_MAXIMO_SEMANAL`) a meta é marcada como **agressiva**: o app **avisa, mas não impede** (subir rápido demais é difícil de sustentar e leva a Forma à sobrecarga). Os valores 3, 7 e ±3 são padrões sugeridos.
 - **Horizonte da projeção:** uma meta de Condicionamento mais distante também estende a série até ela (`horizonteDaProjecao`).
@@ -383,6 +383,7 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 
 ## Logo, favicon e PWA
 - Logo no cabeçalho (44 px, leva ao Início) e nas telas de acesso (login, cadastro, concluir cadastro, aguardando aprovação, bloqueado).
+- O logo é a arte "NAO STROVA" (barras brancas, texto branco e laranja) em `assets/logo.png` (1024×1024); o favicon é um recorte quadrado em volta dela.
 - `npm run icones -w apps/web` gera, a partir de `assets/logo.png`: `favicon.ico`, `favicon-32.png` e `favicon-48.png` (recorte justo no texto, para ler em tamanho pequeno), ícones do PWA de 192 e 512 px, ícone "maskable" (logo a 70% do centro sobre preto, por causa do corte do Android) e `apple-touch-icon`.
 - Manifesto do PWA com fundo e tema `#0A0A0A`.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comparativoSemanal, diaDaSemana, inicioDaSemana, montarSemana, proximoTreinoPlanejado, resumoDoPeriodo, sequenciaSemanal, totaisDaSemana } from './semana.js';
+import { comparativoMensal, comparativoSemanal, diaDaSemana, inicioDaSemana, montarSemana, proximoTreinoPlanejado, resumoDoPeriodo, sequenciaSemanal, totaisDaSemana } from './semana.js';
 
 describe('diaDaSemana / inicioDaSemana', () => {
   it('conta a semana de segunda (0) a domingo (6)', () => {
@@ -77,6 +77,21 @@ describe('resumo e comparativo semanal', () => {
     const c = comparativoSemanal('2026-11-03', { atividades, dias });
     expect(c.atual.atividades).toBe(2);
     expect(c.anterior).toEqual({ atividades: 1, duracaoS: 7200, distanciaM: 50000, carga: 90 });
+  });
+
+  it('compara o mês com o mesmo trecho do mês anterior, inclusive na virada do ano e em mês mais curto', () => {
+    const ativ = [
+      { data: '2026-11-02', duracaoS: 3600, distanciaM: 20000 },
+      { data: '2026-10-02', duracaoS: 1800, distanciaM: 10000 },
+      { data: '2026-10-20', duracaoS: 9999, distanciaM: 99999 }, // depois do trecho comparado
+    ];
+    const c = comparativoMensal('2026-11-03', { atividades: ativ, dias: [] });
+    expect(c.atual).toMatchObject({ atividades: 1, duracaoS: 3600 });
+    expect(c.anterior).toMatchObject({ atividades: 1, duracaoS: 1800, distanciaM: 10000 });
+    const jan = comparativoMensal('2027-01-15', { atividades: [{ data: '2026-12-10', duracaoS: 60, distanciaM: 1 }, { data: '2026-12-20', duracaoS: 60, distanciaM: 1 }], dias: [] });
+    expect(jan.anterior.atividades).toBe(1);
+    const mar = comparativoMensal('2026-03-31', { atividades: [{ data: '2026-02-28', duracaoS: 60, distanciaM: 1 }], dias: [] });
+    expect(mar.anterior.atividades).toBe(1); // fevereiro vai até o dia 28
   });
 
   it('sem dados, tudo zero', () => {

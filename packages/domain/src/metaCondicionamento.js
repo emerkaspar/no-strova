@@ -73,12 +73,10 @@ export function avaliarMetaCondicionamento(serie, meta, hoje) {
 }
 
 /**
- * Progresso até o alvo, de 0 a 1: do Condicionamento de quando a meta foi criada até o alvo. Null quando não dá para
- * medir (meta antiga sem o valor inicial, ou alvo que não está acima do inicial).
+ * Progresso até o alvo, de 0 a 1: o Condicionamento de hoje dividido pelo alvo (ex.: 3,1 de 30,0 = 10%). Null quando
+ * não dá para medir (valor ausente ou alvo sem sentido).
  */
-export function progressoDaMetaCondicionamento({ condicionamentoInicial, condicionamentoAtual, condicionamentoAlvo }) {
-  if (![condicionamentoInicial, condicionamentoAtual, condicionamentoAlvo].every(Number.isFinite)) return null;
-  if (condicionamentoAlvo <= condicionamentoInicial) return null;
-  const fracao = (condicionamentoAtual - condicionamentoInicial) / (condicionamentoAlvo - condicionamentoInicial);
-  return Math.min(1, Math.max(0, fracao));
+export function progressoDaMetaCondicionamento({ condicionamentoAtual, condicionamentoAlvo }) {
+  if (![condicionamentoAtual, condicionamentoAlvo].every(Number.isFinite) || condicionamentoAlvo <= 0) return null;
+  return Math.min(1, Math.max(0, condicionamentoAtual / condicionamentoAlvo));
 }

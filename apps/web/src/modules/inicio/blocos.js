@@ -1,8 +1,9 @@
 import { totaisDaSemana } from '@no-strova/domain';
 import { destaqueDoInicio } from '../../application/inicio.js';
 import { h } from '../../utils/dom.js';
+import { icone } from '../../utils/icones.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
-import { formatarData, formatarDistancia, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
+import { formatarData, formatarDistancia, formatarDuracao, formatarDuracaoCurta, formatarNumero } from '../../utils/formatters.js';
 import { pedirImportacao } from '../atividades/state.js';
 import { criarDicaZonas } from './dicaZonas.js';
 import { criarGraficoPrincipal } from './graficoPrincipal.js';
@@ -194,6 +195,69 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
   return h('section', { class: 'card bloco-semana' }, cabecalho, h('ul', { class: 'semana' }, ...colunas), extras);
 }
 
+/** Segundos → "1h 05min" ou "30min" (totais, sem segundos). */
+function duracaoTotal(segundos) {
+  const minutos = Math.round(segundos / 60);
+  const horas = Math.floor(minutos / 60);
+  return horas > 0 ? `${horas}h ${String(minutos % 60).padStart(2, '0')}min` : `${minutos}min`;
+}
+
+/** Variação em %: seta para cima (verde), para baixo (vermelha) ou traço quando igual; "novo" se antes era zero. */
+function indicadorDeVariacao(atual, anterior) {
+  const diferenca = atual - anterior;
+  if (diferenca === 0) return h('span', { class: 'comp-var comp-igual', title: 'Igual ao período anterior' }, atual === 0 ? '—' : '= igual');
+  const sobe = diferenca > 0;
+  const texto = anterior > 0 ? `${formatarNumero((Math.abs(diferenca) / anterior) * 100, 0)}%` : 'novo';
+  return h('span', { class: `comp-var ${sobe ? 'comp-sobe' : 'comp-desce'}`, title: sobe ? 'Acima do período anterior' : 'Abaixo do período anterior' }, icone(sobe ? 'setaCima' : 'setaBaixo', 14), texto);
+}
+
+function secaoComparativa({ titulo, referencia, comparativo }) {
+  const { atual, anterior } = comparativo;
+  const linhas = [
+    ['duracao', 'Tempo', atual.duracaoS, anterior.duracaoS, duracaoTotal],
+    ['hrss', 'HRSS', atual.carga, anterior.carga, (v) => formatarNumero(v, 0)],
+    ['distancia', 'Distância', atual.distanciaM, anterior.distanciaM, (m) => formatarDistancia(m)],
+  ];
+  return h(
+    'div',
+    { class: 'comp-secao' },
+    h('h3', { class: 'comp-titulo' }, titulo),
+    h('p', { class: 'comp-ref' }, referencia),
+    h(
+      'ul',
+      { class: 'comp-lista' },
+      ...linhas.map(([ic, rotulo, a, b, fmt]) =>
+        h(
+          'li',
+          { class: 'comp-linha' },
+          h('span', { class: 'comp-rotulo', title: rotulo }, icone(ic, 16), h('span', { class: 'comp-rotulo-texto' }, rotulo)),
+          h('strong', { class: 'comp-valor' }, a > 0 ? fmt(a) : '—'),
+          indicadorDeVariacao(a, b),
+          h('span', { class: 'comp-antes' }, `antes ${b > 0 ? fmt(b) : '—'}`),
+        ),
+      ),
+    ),
+  );
+}
+
+/** Comparativo de treinos: semana atual × semana passada e mês atual × mês anterior (mesmo trecho de cada um). */
+export function blocoComparativo({ semana, mes, hoje, carregou }) {
+  const topo = cabecalhoDoBloco('Comparativo');
+  if (!carregou) return h('section', { class: 'card bloco-comparativo' }, topo, estadoVazio('Carregando…'));
+  const mesAtual = Number(hoje.slice(5, 7)) - 1;
+  return h(
+    'section',
+    { class: 'card bloco-comparativo' },
+    topo,
+    h(
+      'div',
+      { class: 'comp-secoes' },
+      secaoComparativa({ titulo: 'Semana', referencia: 'Até hoje, contra o mesmo trecho da semana passada.', comparativo: semana }),
+      secaoComparativa({ titulo: 'Mês', referencia: `1 a ${Number(hoje.slice(8))} de ${MESES[mesAtual]}, contra o mesmo trecho de ${MESES[(mesAtual + 11) % 12]}.`, comparativo: mes }),
+    ),
+  );
+}
+
 /** 4a. Últimas atividades: tabela real com as cinco mais recentes. */
 export function blocoAtividades({ atividades, carregou }) {
   const topo = cabecalhoDoBloco('Últimas atividades');
@@ -210,11 +274,11 @@ export function blocoAtividades({ atividades, carregou }) {
       'tr',
       null,
       h('td', null, h('a', { class: 'link-data', href: `#/atividades/${a.id}` }, formatarData(a.data))),
-      h('td', null, ROTULO_ESPORTE[a.esporte] ?? a.esporte),
-      h('td', null, formatarDuracao(a.duracaoS)),
+      h('td', { class: 'celula-esporte' }, h('span', { role: 'img', title: ROTULO_ESPORTE[a.esporte] ?? a.esporte, 'aria-label': ROTULO_ESPORTE[a.esporte] ?? a.esporte }, icone(a.esporte === 'ciclismo' || a.esporte === 'corrida' ? a.esporte : 'outro', 20))),
+      h('td', null, formatarDuracaoCurta(a.duracaoS)),
       h('td', null, formatarDistancia(a.distanciaM)),
-      h('td', null, a.fcMedia ? `${a.fcMedia} bpm` : '—'),
       h('td', { class: 'celula-hrss' }, a.hrss === null || a.hrss === undefined ? '—' : formatarNumero(a.hrss, 1)),
+      h('td', null, a.fcMedia ? String(a.fcMedia) : '—'),
     ),
   );
   return h(
@@ -227,7 +291,22 @@ export function blocoAtividades({ atividades, carregou }) {
       h(
         'table',
         { class: 'tabela tabela-compacta' },
-        h('thead', null, h('tr', null, ...['Data', 'Esporte', 'Duração', 'Distância', 'FC média', 'HRSS'].map((t) => h('th', { scope: 'col' }, t)))),
+        h(
+          'thead',
+          null,
+          h(
+            'tr',
+            null,
+            ...[
+              ['plano', 'Data'],
+              ['esporte', 'Esporte'],
+              ['duracao', 'Duração'],
+              ['distancia', 'Distância'],
+              ['hrss', 'HRSS'],
+              ['fc', 'FC média (bpm)'],
+            ].map(([ic, t]) => h('th', { scope: 'col', title: t, 'aria-label': t }, icone(ic, 16))),
+          ),
+        ),
         h('tbody', null, ...linhas),
       ),
     ),

@@ -8,10 +8,21 @@ const CAMINHOS = Object.freeze({
   treinos: ['M3 17h3.5v-5H10v5h3v-9h3.5v9H20', 'M3 20.5h17'],
   peso: ['M5 4h14a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 5 4z', 'M8.5 11.5a3.5 3.5 0 0 1 7 0', 'M12 11.5l1.8-2.3'],
   configuracao: ['M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1', 'M15 5v4M9 10v4M17 15v4'],
+  // esportes e métricas (tabela de atividades)
+  ciclismo: ['M2.2 17a3.8 3.8 0 1 0 7.6 0a3.8 3.8 0 1 0-7.6 0', 'M14.2 17a3.8 3.8 0 1 0 7.6 0a3.8 3.8 0 1 0-7.6 0', 'M6 17l4-8h5l3 8M10 9l3 8H6M15 9l-1-3h-2'],
+  corrida: ['M12.6 4.5a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0', 'M13 8.5L10.5 13M12.8 9.5L17.5 11.5L19.5 9.5M12.4 10L8.5 9.5L6.5 12', 'M10.5 13L14.5 15.2L13.5 20.5M10.5 13L7.5 16.5L4 15.5'],
+  outro: ['M13 3L5 14h6l-1 7 8-11h-6z'],
+  esporte: ['M8 3h8v6a4 4 0 0 1-8 0z', 'M8 5H4.5v1.5A3.5 3.5 0 0 0 8 10M16 5h3.5v1.5A3.5 3.5 0 0 1 16 10', 'M12 13v4M8.5 21h7M9.5 17.5h5'],
+  setaCima: ['M12 19V5', 'M6 11l6-6 6 6'],
+  setaBaixo: ['M12 5v14', 'M6 13l6 6 6-6'],
+  duracao: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7v5l3 2'],
+  distancia: ['M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z', 'M10 11a2 2 0 1 0 4 0a2 2 0 1 0-4 0'],
+  hrss: ['M13 3L5 14h6l-1 7 8-11h-6z'],
+  fc: ['M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z'],
   aprovacoes: ['M2.5 20c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6', 'M9 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M16.5 10.5l2 2 3.5-4'],
 });
 
-/** Ícone de traço pelo nome (inicio, atividades, plano, treinos, peso, configuracao, aprovacoes). */
+/** Ícone de traço pelo nome (inicio, atividades, plano, treinos, peso, configuracao, aprovacoes, ciclismo, corrida, outro, esporte, setaCima, setaBaixo, duracao, distancia, hrss, fc). */
 export function icone(nome, tamanho = 24) {
   const el = document.createElementNS(NS, 'svg');
   for (const [k, v] of Object.entries({

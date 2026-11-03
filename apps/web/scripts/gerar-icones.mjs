@@ -1,4 +1,4 @@
-// Gera favicon, ícones do PWA e o logo da interface a partir de assets/logo.png (arte original, 1254×1254).
+// Gera favicon, ícones do PWA e o logo da interface a partir de assets/logo.png (arte original, 1024×1024).
 // Uso: npm run icones -w apps/web
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -13,7 +13,7 @@ mkdirSync(icones, { recursive: true });
 
 const PRETO = { r: 0, g: 0, b: 0, alpha: 1 };
 // Recorte quadrado justo em volta do texto: legível mesmo em 16–32 px.
-const RECORTE_FAVICON = { left: 42, top: 57, width: 1170, height: 1170 };
+const RECORTE_FAVICON = { left: 60, top: 40, width: 900, height: 900 };
 
 const png = (entrada) => entrada.png({ compressionLevel: 9 });
 const completo = (tamanho) => png(sharp(fonte).resize(tamanho, tamanho));

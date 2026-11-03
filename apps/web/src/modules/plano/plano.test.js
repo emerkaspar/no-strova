@@ -767,7 +767,7 @@ describe('meta de Condicionamento (a meta principal)', () => {
     expect(c.querySelector('.chip-estado').textContent).toMatch(/^(Chega lá|Fica abaixo|Fica acima)$/);
     expect(c.querySelector('.meta-resultado p').textContent).toContain('Condicionamento');
     expect(c.querySelector('.meta-ritmo').textContent).toMatch(/^Ritmo necessário: [+−][0-9]+,[0-9] por semana · o seu plano entrega [+−0-9,]+ por semana\.$/);
-    expect(c.querySelector('.meta-progresso .texto-secundario').textContent).toContain('de 20,0 até 50,0');
+    expect(c.querySelector('.meta-progresso .texto-secundario').textContent).toMatch(/^Progresso: [0-9]+% do alvo \([0-9]+,[0-9] de 50,0\)\.$/);
     expect(c.querySelector('[role="progressbar"]')).not.toBeNull();
     expect(c.textContent).toContain('Faltam 16 dias.');
   });

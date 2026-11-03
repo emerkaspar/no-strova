@@ -1,4 +1,4 @@
-import { comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
+import { comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
@@ -8,7 +8,7 @@ import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarMetasCondicionamento, observarTreinos } from '../../infrastructure/planoRepo.js';
 import { h } from '../../utils/dom.js';
 import { hojeIso } from '../../utils/formatters.js';
-import { blocoAtividades, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoSemana, blocoSugestao, tituloDoTreino } from './blocos.js';
+import { blocoAtividades, blocoComparativo, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoSemana, blocoSugestao, tituloDoTreino } from './blocos.js';
 import { DIAS_DE_PLANO, rotuloDoDia } from './graficoPrincipal.js';
 import { criarTreinoDoDia } from './treinoDoDia.js';
 
@@ -99,6 +99,12 @@ export function render(raiz, sessao) {
         treinos: treinosDaSemana,
         comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
         carregou: c.dias && c.atividades && c.treinos && c.configs && c.calibracao,
+      }),
+      blocoComparativo({
+        semana: comparativoSemanal(hoje, dados),
+        mes: comparativoMensal(hoje, dados),
+        hoje,
+        carregou: c.dias && c.atividades,
       }),
     );
     grafico.replaceChildren(blocoGrafico({ serie: serieComPlano, carregou: planoPronto, hoje, treinoDoDia, esportesDoDia }));

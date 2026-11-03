@@ -111,7 +111,7 @@ export function cartaoMetaCondicionamento({ meta, avaliacao, condicionamentoAtua
       h('p', { class: 'semana-mini-nota' }, 'Escolha o Condicionamento que quer atingir e a data. ', h('a', { href: '#/plano' }, 'Definir no Plano')),
     );
   }
-  const progresso = progressoDaMetaCondicionamento({ condicionamentoInicial: meta.condicionamentoInicial, condicionamentoAtual, condicionamentoAlvo: meta.condicionamentoAlvo });
+  const progresso = progressoDaMetaCondicionamento({ condicionamentoAtual, condicionamentoAlvo: meta.condicionamentoAlvo });
   const pct = progresso === null ? null : Math.round(progresso * 100);
   const data = formatarData(meta.dataAlvo);
   let nota;

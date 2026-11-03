@@ -37,6 +37,16 @@ export function formatarDuracao(segundos) {
   return `${min}min ${String(s).padStart(2, '0')}s`;
 }
 
+/** Duração compacta para tabelas estreitas: "49:43" (min:s) ou "1:05:12" (h:min:s). */
+export function formatarDuracaoCurta(segundos) {
+  if (segundos === null || segundos === undefined || !Number.isFinite(segundos)) return '—';
+  const total = Math.round(segundos);
+  const h = Math.floor(total / 3600);
+  const min = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(min).padStart(2, '0')}:${s}` : `${min}:${s}`;
+}
+
 /** Metros → "42,2 km"; traço quando não há valor. */
 export function formatarDistancia(metros) {
   if (metros === null || metros === undefined || !Number.isFinite(metros)) return '—';

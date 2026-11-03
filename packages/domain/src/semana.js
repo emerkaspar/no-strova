@@ -95,6 +95,22 @@ export function comparativoSemanal(hojeIso, dados) {
 }
 
 /**
+ * O mês até hoje comparado com o mesmo trecho do mês anterior (dia 1 até o mesmo dia do mês; em mês anterior mais
+ * curto, até o último dia dele).
+ */
+export function comparativoMensal(hojeIso, dados) {
+  const [ano, mes, dia] = hojeIso.split('-').map(Number);
+  const pad = (n) => String(n).padStart(2, '0');
+  const mesAnt = mes === 1 ? 12 : mes - 1;
+  const anoAnt = mes === 1 ? ano - 1 : ano;
+  const diasDoMesAnt = new Date(Date.UTC(anoAnt, mesAnt, 0)).getUTCDate();
+  return {
+    atual: resumoDoPeriodo(dados, `${ano}-${pad(mes)}-01`, hojeIso),
+    anterior: resumoDoPeriodo(dados, `${anoAnt}-${pad(mesAnt)}-01`, `${anoAnt}-${pad(mesAnt)}-${pad(Math.min(dia, diasDoMesAnt))}`),
+  };
+}
+
+/**
  * Semanas seguidas com treino. A sequência continua viva enquanto a semana atual não acabou: sem treino nesta
  * semana, conta as semanas anteriores seguidas.
  * @param {string[]} datasComTreino yyyy-mm-dd dos dias com treino

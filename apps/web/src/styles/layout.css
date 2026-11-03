@@ -185,6 +185,127 @@
   gap: 16px;
 }
 
+/* Comparativo: faixa em largura total abaixo das duas colunas; semana e mês lado a lado, cada métrica num cartinho. */
+.bloco-comparativo {
+  grid-column: 1 / -1;
+}
+
+.comp-secoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 22px 32px;
+  margin-top: 14px;
+}
+
+.comp-titulo {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.comp-ref {
+  margin: 2px 0 10px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.comp-lista {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.comp-linha {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  min-width: 0;
+}
+
+.comp-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.comp-valor {
+  font-size: 1.3rem;
+  white-space: nowrap;
+}
+
+.comp-var {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.comp-sobe {
+  color: var(--success);
+}
+
+.comp-desce {
+  color: var(--danger);
+}
+
+.comp-antes {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 1360px) {
+  .container:has(.inicio) {
+    max-width: 1640px;
+  }
+}
+
+@media (max-width: 480px) {
+  .comp-lista {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .comp-linha {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 2px 12px;
+  }
+
+  .comp-antes {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Sem espaço vazio: os cartões do topo se esticam até a altura da coluna mais alta e distribuem o excesso. */
+.bloco-semana {
+  display: flex;
+  flex-direction: column;
+}
+
+.bloco-semana .semana {
+  flex: 1;
+}
+
+.bloco-semana .dia {
+  display: flex;
+  flex-direction: column;
+}
+
 .inicio-linha {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
@@ -608,7 +729,8 @@
 
 .dia-barras {
   position: relative;
-  height: 170px;
+  flex: 1;
+  min-height: 170px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -670,7 +792,16 @@
 
 /* Tabela compacta (últimas atividades) */
 .tabela-compacta {
-  min-width: 480px;
+  min-width: 0;
+}
+
+.tabela-compacta .celula-esporte span {
+  display: inline-flex;
+  color: var(--text-secondary);
+}
+
+.tabela-compacta th .icone {
+  display: block;
 }
 
 .tabela .celula-hrss,
@@ -679,16 +810,34 @@
 }
 
 .tabela-compacta th {
-  color: var(--text-secondary);
+  color: var(--primary);
+  background: var(--surface-light);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 0 8px 10px 0;
+  padding: 9px 6px 9px 8px;
+  text-align: left;
+}
+
+.tabela-compacta th:first-child {
+  border-radius: 10px 0 0 10px;
+}
+
+.tabela-compacta th:last-child {
+  border-radius: 0 10px 10px 0;
+}
+
+.tabela-compacta thead tr {
+  border-bottom: 0;
+}
+
+.tabela-compacta tbody tr:first-child td {
+  padding-top: 16px;
 }
 
 .tabela-compacta td {
-  padding: 14px 8px 14px 0;
+  padding: 14px 6px 14px 8px;
   white-space: nowrap;
 }
 
@@ -878,7 +1027,7 @@
   }
 
   .dia-barras {
-    height: 110px;
+    min-height: 110px;
   }
 
   .dia .dia-rotulo {

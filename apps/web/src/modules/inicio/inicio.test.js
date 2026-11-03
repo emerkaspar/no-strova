@@ -95,7 +95,7 @@ describe('Início sem dados: cada bloco mostra um estado vazio curto', () => {
 
   it('mantém a ordem dos blocos', () => {
     const ordem = [...raiz.querySelectorAll('.inicio section')].map((el) => el.className.split(' ').pop());
-    expect(ordem).toEqual(['hero-modo-vazio', 'bloco-semana', 'bloco-grafico', 'bloco-atividades', 'bloco-peso', 'bloco-sugestao']);
+    expect(ordem).toEqual(['hero-modo-vazio', 'bloco-semana', 'bloco-comparativo', 'bloco-grafico', 'bloco-atividades', 'bloco-peso', 'bloco-sugestao']);
   });
 
   it('destaque: convida a começar, sem número, e o botão abre a importação', () => {
@@ -287,16 +287,30 @@ describe('Início com dados', () => {
   });
 
   it('Últimas atividades: tabela real com as colunas pedidas, datas e HRSS', () => {
-    const cabecalho = [...raiz.querySelectorAll('.bloco-atividades th')].map((th) => th.textContent);
-    expect(cabecalho).toEqual(['Data', 'Esporte', 'Duração', 'Distância', 'FC média', 'HRSS']);
+    const cabecalho = [...raiz.querySelectorAll('.bloco-atividades th')].map((th) => th.getAttribute('aria-label'));
+    expect(cabecalho).toEqual(['Data', 'Esporte', 'Duração', 'Distância', 'HRSS', 'FC média (bpm)']);
+    expect(raiz.querySelectorAll('.bloco-atividades th svg')).toHaveLength(6);
     const linhas = [...raiz.querySelectorAll('.bloco-atividades tbody tr')];
     expect(linhas).toHaveLength(3);
     const primeira = [...linhas[0].children].map((td) => td.textContent);
-    expect(primeira).toEqual(['03/11/2026', 'Ciclismo', '49min 43s', '17,1 km', '146 bpm', '50,6']);
+    expect(primeira).toEqual(['03/11/2026', '', '49:43', '17,1 km', '50,6', '146']);
+    expect(linhas[0].querySelector('.celula-esporte [role=img]').getAttribute('aria-label')).toBe('Ciclismo');
     expect(linhas[0].querySelector('a').getAttribute('href')).toBe('#/atividades/a3');
     const semDados = [...linhas[2].children].map((td) => td.textContent);
     expect(semDados.slice(3)).toEqual(['—', '—', '—']);
     expect(raiz.querySelector('.bloco-atividades a[href="#/atividades"]')).not.toBeNull();
+  });
+
+  it('Comparativo: semana e mês com tempo, HRSS e distância, setas coloridas e valores anteriores', () => {
+    const secoes = [...raiz.querySelectorAll('.bloco-comparativo .comp-secao')];
+    expect(secoes.map((s) => s.querySelector('.comp-titulo').textContent)).toEqual(['Semana', 'Mês']);
+    const linhas = [...secoes[0].querySelectorAll('.comp-linha')];
+    expect(linhas.map((l) => l.querySelector('.comp-rotulo').textContent)).toEqual(['Tempo', 'HRSS', 'Distância']);
+    for (const l of linhas) {
+      expect(l.querySelector('.comp-var')).not.toBeNull();
+      expect(l.querySelector('.comp-antes').textContent).toMatch(/^antes /);
+    }
+    expect(raiz.querySelectorAll('.bloco-comparativo .comp-sobe svg, .bloco-comparativo .comp-desce svg').length).toBeGreaterThan(0);
   });
 
   it('Peso e Sugestão seguem com estado vazio', () => {
@@ -529,11 +543,10 @@ describe('Meta de Condicionamento no Início', () => {
     expect(cartao.querySelector('.semana-mini-nota').textContent).toMatch(/^Plano atual: (chega lá em 25\/11\/2026|fica [0-9]+,[0-9] pontos abaixo em 25\/11\/2026|passa [0-9]+,[0-9] pontos do alvo em 25\/11\/2026)/);
   });
 
-  it('meta antiga, sem o valor inicial: mostra só a projeção, sem barra de progresso', () => {
+  it('meta antiga, sem o valor inicial, também mostra a barra (o progresso é atual ÷ alvo)', () => {
     mocks.metasCondicionamento = [meta({ condicionamentoInicial: undefined })];
     render(raiz, sessao);
-    expect(raiz.querySelector('.semana-meta [role="progressbar"]')).toBeNull();
-    expect(raiz.querySelector('.semana-meta .semana-mini-nota').textContent).toContain('Plano atual');
+    expect(raiz.querySelector('.semana-meta [role="progressbar"]')).not.toBeNull();
   });
 
   it('meta inativa não aparece; a mais próxima das ativas vale', () => {

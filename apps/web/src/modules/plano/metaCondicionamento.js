@@ -91,7 +91,7 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
   );
 
   const progresso = metaAtiva
-    ? progressoDaMetaCondicionamento({ condicionamentoInicial: metaAtiva.condicionamentoInicial, condicionamentoAtual, condicionamentoAlvo: metaAtiva.condicionamentoAlvo })
+    ? progressoDaMetaCondicionamento({ condicionamentoAtual, condicionamentoAlvo: metaAtiva.condicionamentoAlvo })
     : null;
   const pct = progresso === null ? null : Math.round(progresso * 100);
   const ritmo = avaliacao ? textoDoRitmo(avaliacao) : null;
@@ -116,7 +116,7 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
           : h(
               'div',
               { class: 'meta-progresso' },
-              h('p', { class: 'texto-secundario' }, `Progresso: ${pct}% do caminho (de ${formatarNumero(metaAtiva.condicionamentoInicial, 1)} até ${formatarNumero(metaAtiva.condicionamentoAlvo, 1)}).`),
+              h('p', { class: 'texto-secundario' }, `Progresso: ${pct}% do alvo (${formatarNumero(condicionamentoAtual, 1)} de ${formatarNumero(metaAtiva.condicionamentoAlvo, 1)}).`),
               h('div', { class: 'semana-progresso-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Progresso da meta de Condicionamento' }, h('span', { style: `width:${pct}%` })),
             ),
         avaliacao && avaliacao.dias >= 0 ? h('p', { class: 'texto-secundario' }, avaliacao.dias === 0 ? 'A meta é hoje.' : `Faltam ${avaliacao.dias} dia${avaliacao.dias === 1 ? '' : 's'}.`) : null,

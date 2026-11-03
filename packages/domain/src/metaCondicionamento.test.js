@@ -78,15 +78,16 @@ describe('avaliarMetaCondicionamento', () => {
 });
 
 describe('progressoDaMetaCondicionamento', () => {
-  it('fração do caminho do valor inicial até o alvo, limitada a 0–1', () => {
-    expect(progressoDaMetaCondicionamento({ condicionamentoInicial: 20, condicionamentoAtual: 30, condicionamentoAlvo: 40 })).toBe(0.5);
-    expect(progressoDaMetaCondicionamento({ condicionamentoInicial: 20, condicionamentoAtual: 50, condicionamentoAlvo: 40 })).toBe(1);
-    expect(progressoDaMetaCondicionamento({ condicionamentoInicial: 20, condicionamentoAtual: 10, condicionamentoAlvo: 40 })).toBe(0);
+  it('fração do alvo já alcançada (atual ÷ alvo), limitada a 0–1', () => {
+    expect(progressoDaMetaCondicionamento({ condicionamentoAtual: 3.1, condicionamentoAlvo: 30 })).toBeCloseTo(0.1033, 3);
+    expect(progressoDaMetaCondicionamento({ condicionamentoAtual: 20, condicionamentoAlvo: 40 })).toBe(0.5);
+    expect(progressoDaMetaCondicionamento({ condicionamentoAtual: 50, condicionamentoAlvo: 40 })).toBe(1);
+    expect(progressoDaMetaCondicionamento({ condicionamentoAtual: -2, condicionamentoAlvo: 40 })).toBe(0);
   });
 
-  it('sem valor inicial ou com alvo que não está acima dele: null', () => {
-    expect(progressoDaMetaCondicionamento({ condicionamentoInicial: undefined, condicionamentoAtual: 30, condicionamentoAlvo: 40 })).toBeNull();
-    expect(progressoDaMetaCondicionamento({ condicionamentoInicial: 40, condicionamentoAtual: 30, condicionamentoAlvo: 40 })).toBeNull();
+  it('sem Condicionamento atual: null', () => {
+    expect(progressoDaMetaCondicionamento({ condicionamentoAtual: null, condicionamentoAlvo: 40 })).toBeNull();
+    expect(progressoDaMetaCondicionamento({ condicionamentoAtual: undefined, condicionamentoAlvo: 40 })).toBeNull();
   });
 });
 
