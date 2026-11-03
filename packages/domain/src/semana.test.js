@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diaDaSemana, inicioDaSemana, montarSemana, totaisDaSemana } from './semana.js';
+import { comparativoSemanal, diaDaSemana, inicioDaSemana, montarSemana, proximoTreinoPlanejado, resumoDoPeriodo, sequenciaSemanal, totaisDaSemana } from './semana.js';
 
 describe('diaDaSemana / inicioDaSemana', () => {
   it('conta a semana de segunda (0) a domingo (6)', () => {
@@ -52,5 +52,63 @@ describe('montarSemana', () => {
     const semana = montarSemana('2026-11-02');
     expect(semana[0].hoje).toBe(true);
     expect(semana.slice(1).every((d) => d.futuro)).toBe(true);
+  });
+});
+
+describe('resumo e comparativo semanal', () => {
+  const atividades = [
+    { data: '2026-11-02', duracaoS: 3600, distanciaM: 30000 }, // segunda desta semana
+    { data: '2026-11-03', duracaoS: 1800, distanciaM: 10000 },
+    { data: '2026-10-26', duracaoS: 7200, distanciaM: 50000 }, // segunda da semana passada
+    { data: '2026-10-29', duracaoS: 3600, distanciaM: 20000 }, // quinta: fora do trecho comparável
+  ];
+  const dias = [
+    { data: '2026-11-02', estresse: 60 },
+    { data: '2026-11-03', estresse: 40 },
+    { data: '2026-10-26', estresse: 90 },
+    { data: '2026-10-29', estresse: 50 },
+  ];
+
+  it('soma atividades, tempo, distância e carga do período', () => {
+    expect(resumoDoPeriodo({ atividades, dias }, '2026-11-02', '2026-11-03')).toEqual({ atividades: 2, duracaoS: 5400, distanciaM: 40000, carga: 100 });
+  });
+
+  it('compara com o mesmo trecho da semana passada (segunda até terça)', () => {
+    const c = comparativoSemanal('2026-11-03', { atividades, dias });
+    expect(c.atual.atividades).toBe(2);
+    expect(c.anterior).toEqual({ atividades: 1, duracaoS: 7200, distanciaM: 50000, carga: 90 });
+  });
+
+  it('sem dados, tudo zero', () => {
+    expect(resumoDoPeriodo({}, '2026-11-02', '2026-11-08')).toEqual({ atividades: 0, duracaoS: 0, distanciaM: 0, carga: 0 });
+  });
+});
+
+describe('sequenciaSemanal', () => {
+  it('conta semanas seguidas com treino, incluindo a atual', () => {
+    expect(sequenciaSemanal(['2026-11-03', '2026-10-28', '2026-10-20'], '2026-11-04')).toEqual({ atual: 3, recorde: 3, nestaSemana: true });
+  });
+
+  it('sem treino nesta semana, a sequência segue viva com as semanas anteriores', () => {
+    expect(sequenciaSemanal(['2026-10-28', '2026-10-20'], '2026-11-04')).toEqual({ atual: 2, recorde: 2, nestaSemana: false });
+  });
+
+  it('uma semana inteira sem treino quebra a sequência; o recorde guarda a melhor', () => {
+    const datas = ['2026-09-01', '2026-09-08', '2026-09-15', '2026-09-22', '2026-10-27'];
+    expect(sequenciaSemanal(datas, '2026-11-04')).toEqual({ atual: 1, recorde: 4, nestaSemana: false });
+  });
+
+  it('sem treinos: zero', () => {
+    expect(sequenciaSemanal([], '2026-11-04')).toEqual({ atual: 0, recorde: 0, nestaSemana: false });
+  });
+});
+
+describe('proximoTreinoPlanejado', () => {
+  const t = (id, data, status = 'planejado') => ({ id, data, status });
+  it('pega o planejado mais cedo de hoje em diante', () => {
+    expect(proximoTreinoPlanejado([t('b', '2026-11-07'), t('a', '2026-11-05'), t('p', '2026-11-02')], '2026-11-04').id).toBe('a');
+  });
+  it('ignora pulados, realizados e passados; sem nenhum, null', () => {
+    expect(proximoTreinoPlanejado([t('x', '2026-11-05', 'pulado'), t('y', '2026-11-06', 'realizado'), t('z', '2026-11-01')], '2026-11-04')).toBeNull();
   });
 });

@@ -78,6 +78,7 @@ export function criarEditor({ uid, configs, treino, dataInicial, aoConcluir, aoC
     estimativa,
     mensagem.el,
   );
+  // O botão de enviar precisa estar DENTRO do formulário: fora dele, clicar não dispara o submit.
 
   async function acao(botaoAcao, executar, aviso) {
     botaoAcao.disabled = true;
@@ -122,11 +123,6 @@ export function criarEditor({ uid, configs, treino, dataInicial, aoConcluir, aoC
     botoes.append(excluir);
   }
 
-  return h(
-    'section',
-    { class: 'card', id: 'editor-treino' },
-    h('h2', null, existente ? 'Editar treino' : 'Novo treino'),
-    form,
-    botoes,
-  );
+  form.append(botoes);
+  return h('section', { class: 'card', id: 'editor-treino' }, h('h2', null, existente ? 'Editar treino' : 'Novo treino'), form);
 }

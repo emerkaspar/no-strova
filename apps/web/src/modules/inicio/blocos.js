@@ -6,6 +6,7 @@ import { formatarData, formatarDistancia, formatarDuracao, formatarNumero } from
 import { pedirImportacao } from '../atividades/state.js';
 import { criarDicaZonas } from './dicaZonas.js';
 import { criarGraficoPrincipal } from './graficoPrincipal.js';
+import { cartaoProximoTreino, cartaoSequencia, progressoDaCarga, resumoDaSemana } from './semanaExtras.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -116,8 +117,13 @@ export function tituloDoTreino(treinosDoDia) {
   return `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.zona}`;
 }
 
+/** Dois mini-cartões sob o destaque: o próximo treino planejado e a sequência de semanas com treino. */
+export function blocoMinis({ proximo, sequencia }) {
+  return h('div', { class: 'semana-minis' }, cartaoProximoTreino(proximo), cartaoSequencia(sequencia));
+}
+
 /** 3. Semana atual em 7 colunas: realizado cheio, planejado tracejado, descanso mínimo. */
-export function blocoSemana({ semana, atividades, treinos = [], carregou }) {
+export function blocoSemana({ semana, atividades, treinos = [], carregou, comparativo = null }) {
   const totais = totaisDaSemana(semana);
   const resumo =
     totais.planejado > 0
@@ -164,12 +170,22 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou }) {
       { class: `dia${d.hoje ? ' dia-hoje' : ''}${descanso ? ' dia-descanso' : ''}`, 'aria-current': d.hoje ? 'date' : null },
       barras,
       h('p', { class: 'dia-rotulo' }, `${d.rotulo} ${Number(d.dia)}${d.hoje ? ' · HOJE' : ''}`),
-      h('p', { class: 'dia-titulo' }, titulo ?? (d.planejado > 0 ? 'Treino planejado' : d.futuro ? 'Sem plano' : 'Descanso')),
+      h('p', { class: 'dia-titulo' }, titulo ?? (d.planejado > 0 ? 'Treino planejado' : d.futuro ? 'Livre' : 'Descanso')),
       h('p', { class: 'dia-valor' }, valor),
     );
   });
 
-  return h('section', { class: 'card bloco-semana' }, cabecalho, h('ul', { class: 'semana' }, ...colunas));
+  // abaixo das barras: resumo da semana e progresso da carga
+  const extras =
+    comparativo
+      ? h(
+          'div',
+          { class: 'semana-extras' },
+          resumoDaSemana(comparativo),
+          progressoDaCarga(totais),
+        )
+      : null;
+  return h('section', { class: 'card bloco-semana' }, cabecalho, h('ul', { class: 'semana' }, ...colunas), extras);
 }
 
 /** 4a. Últimas atividades: tabela real com as cinco mais recentes. */

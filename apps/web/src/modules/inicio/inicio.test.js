@@ -74,7 +74,7 @@ describe('Início sem dados: cada bloco mostra um estado vazio curto', () => {
   beforeEach(() => render(raiz, sessao));
 
   it('mantém a ordem dos blocos', () => {
-    const ordem = [...raiz.querySelectorAll('.inicio > * > *, .inicio > * ')].filter((el) => el.matches('section')).map((el) => el.className.split(' ').pop());
+    const ordem = [...raiz.querySelectorAll('.inicio section')].map((el) => el.className.split(' ').pop());
     expect(ordem).toEqual(['hero-modo-vazio', 'bloco-semana', 'bloco-grafico', 'bloco-atividades', 'bloco-peso', 'bloco-sugestao']);
   });
 
@@ -256,7 +256,7 @@ describe('Início com dados', () => {
     expect(dias[0].querySelector('.dia-valor').textContent).toBe('62 · feito');
     expect(dias[1].querySelector('.dia-titulo').textContent).toBe('Ciclismo 17,1 km');
     expect(dias[2].querySelector('.dia-titulo').textContent).toBe('Descanso');
-    expect(dias[3].querySelector('.dia-titulo').textContent).toBe('Sem plano');
+    expect(dias[3].querySelector('.dia-titulo').textContent).toBe('Livre');
     expect(dias[3].querySelector('.dia-valor').textContent).toBe('—');
   });
 
@@ -416,5 +416,69 @@ describe('Semana que cruza dois meses', () => {
     ];
     render(raiz, sessao);
     expect(raiz.querySelector('.semana .dia .dia-titulo').textContent).toBe('2 atividades');
+  });
+});
+
+describe('Semana: resumo, progresso, próximo treino e sequência', () => {
+  const config = { id: 'c1', vigenteDesde: '2026-01-01', fcMax: 190, fcRepouso: 50, lthr: 170, sexo: 'masculino', pesoKg: 75, alturaCm: 178 };
+  const atividades = [
+    { id: 'a2', data: '2026-11-02', esporte: 'ciclismo', duracaoS: 3600, distanciaM: 30000, hrss: 62 },
+    { id: 'a3', data: '2026-11-03', esporte: 'corrida', duracaoS: 1800, distanciaM: 5000, hrss: 50 },
+    { id: 'a0', data: '2026-10-27', esporte: 'ciclismo', duracaoS: 7200, distanciaM: 50000, hrss: 90 },
+  ];
+  const dias = [
+    { data: '2026-10-27', estresse: 90 },
+    { data: '2026-10-28', estresse: 40 },
+    { data: '2026-11-02', estresse: 62 },
+    { data: '2026-11-03', estresse: 50 },
+  ];
+
+  beforeEach(() => {
+    mocks.dias = dias;
+    mocks.daSemana = atividades;
+    mocks.configs = [config];
+  });
+
+  it('resumo: tempo, distância, atividades e carga, com a variação sobre o mesmo trecho da semana passada', () => {
+    render(raiz, sessao);
+    const valor = (id) => texto(`.semana-stat-${id} .semana-stat-valor`);
+    const nota = (id) => texto(`.semana-stat-${id} .semana-stat-nota`);
+    expect(valor('tempo')).toBe('1h 30min');
+    expect(valor('distancia')).toBe('35,0 km');
+    expect(valor('atividades')).toBe('2');
+    expect(valor('carga')).toBe('112');
+    // semana passada, de segunda a terça: 1 atividade de 2h, 50 km e carga 130 (90 + 40)
+    expect(nota('tempo')).toBe('▼ 30min');
+    expect(nota('distancia')).toBe('▼ 15,0 km');
+    expect(nota('atividades')).toBe('▲ 1');
+    expect(nota('carga')).toMatch(/^▼ \d+%$/);
+  });
+
+  it('sem treino planejado, o progresso convida a planejar', () => {
+    render(raiz, sessao);
+    expect(texto('.semana-progresso-vazio')).toContain('Sem treinos planejados');
+    expect(texto('.semana-proximo .semana-mini-valor')).toBe('Nenhum treino planejado');
+  });
+
+  it('com plano: barra de progresso da carga, faltante e próximo treino em destaque', () => {
+    mocks.treinos = [{ id: 'p1', data: '2026-11-06', esporte: 'ciclismo', duracaoMin: 75, zona: 'Z4', status: 'planejado', estresseManual: 98 }];
+    render(raiz, sessao);
+    expect(texto('.semana-progresso-texto')).toContain('112 de 210 (53%)');
+    expect(raiz.querySelector('.semana-progresso-barra').getAttribute('aria-valuenow')).toBe('53');
+    expect(texto('.semana-legenda + .semana-legenda, .semana-progresso .semana-legenda')).toBe('Faltam 98 para fechar o plano.');
+    expect(texto('.semana-proximo .semana-mini-valor')).toBe('Ciclismo Z4 · 75 min');
+    expect(texto('.semana-proximo .semana-mini-nota')).toBe('sex, 6 nov · ~98 de carga');
+  });
+
+  it('sequência: semanas seguidas com treino e o recorde', () => {
+    render(raiz, sessao);
+    expect(texto('.semana-sequencia .semana-mini-numero')).toBe('2');
+    expect(texto('.semana-sequencia .semana-mini-valor')).toContain('semanas seguidas treinando');
+    expect(texto('.semana-sequencia .semana-mini-nota')).toBe('Recorde: 2 semanas.');
+  });
+
+  it('o título do dia quebra em linhas em vez de ser cortado', () => {
+    render(raiz, sessao);
+    expect(getComputedStyle(raiz.querySelector('.dia-titulo')).whiteSpace).not.toBe('nowrap');
   });
 });

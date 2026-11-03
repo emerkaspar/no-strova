@@ -40,7 +40,12 @@ const ICONES = {
     ['circle', { cx: 18, cy: 17, r: 3.8 }],
     ['path', { d: 'M6 17l4-8h5l3 8M10 9l3 8H6M15 9l-1-3h-2' }],
   ],
-  corrida: [['path', { d: 'M3 17c0-2.2 1.6-3.2 3.5-3.4L10 8l2 2c1 1.2 3 2 5 2.6 2.4.6 4 1.2 4 3.4v1H3zM3 20h18M10 8l-1 3' }]],
+  // corredor em passada: cabeça, tronco, braços e pernas
+  corrida: [
+    ['circle', { cx: 14.5, cy: 4.5, r: 1.9 }],
+    ['path', { d: 'M13 8.5L10.5 13M12.8 9.5L17.5 11.5L19.5 9.5M12.4 10L8.5 9.5L6.5 12' }],
+    ['path', { d: 'M10.5 13L14.5 15.2L13.5 20.5M10.5 13L7.5 16.5L4 15.5' }],
+  ],
   outro: [['path', { d: 'M13 3L5 14h6l-1 7 8-11h-6z' }]],
   // o preguiçoso do dia de descanso: carinha de sono, olhos fechados, bocejo e um "z"
   preguica: [

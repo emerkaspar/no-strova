@@ -60,7 +60,8 @@ function digitar(el, valor) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }
-const enviar = (form) => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+// Clica no botão de enviar do cartão (como o usuário), em vez de disparar o evento no form: um botão fora do form não envia.
+const enviar = (form) => (form.closest('section') ?? form).querySelector('button[type="submit"]').click();
 const botao = (texto, onde = raiz) => [...onde.querySelectorAll('button')].find((b) => b.textContent.trim() === texto);
 const celula = (data) => raiz.querySelector(`[data-data="${data}"]`);
 const evento = (tipo) => new Event(tipo, { bubbles: true, cancelable: true });

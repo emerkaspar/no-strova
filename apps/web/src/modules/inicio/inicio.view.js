@@ -1,4 +1,4 @@
-import { estresseDoTreino, inicioDaSemana, montarSemana, somarDias } from '@no-strova/domain';
+import { comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde, observarUltimasAtividades } from '../../infrastructure/atividadesRepo.js';
@@ -7,8 +7,8 @@ import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarTreinos } from '../../infrastructure/planoRepo.js';
 import { h } from '../../utils/dom.js';
 import { hojeIso } from '../../utils/formatters.js';
-import { blocoAtividades, blocoForma, blocoGrafico, blocoPeso, blocoSemana, blocoSugestao, tituloDoDia, tituloDoTreino } from './blocos.js';
-import { DIAS_DE_PLANO } from './graficoPrincipal.js';
+import { blocoAtividades, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoSemana, blocoSugestao, tituloDoDia, tituloDoTreino } from './blocos.js';
+import { DIAS_DE_PLANO, rotuloDoDia } from './graficoPrincipal.js';
 
 /** Dias de histórico de atividades e treinos para nomear o treino de cada dia no gráfico (cobre o período de 10 sem). */
 const DIAS_DE_HISTORICO = 70;
@@ -51,6 +51,17 @@ export function render(raiz, sessao) {
 
   const esportesDoDia = (data) => dados.atividades.filter((a) => a.data === data).map((a) => a.esporte);
 
+  /** Próximo treino planejado (de hoje em diante), com o estresse estimado, para o cartão da semana. */
+  function proximoDoPlano() {
+    const t = proximoTreinoPlanejado(dados.treinos, hoje);
+    if (!t) return null;
+    return {
+      titulo: `${tituloDoTreino([t])} · ${t.duracaoMin} min`,
+      quando: t.data === hoje ? 'Hoje' : rotuloDoDia(t.data),
+      estresse: estresseDoTreino(t, dados.configs),
+    };
+  }
+
   function desenhar() {
     if (!ativa) return;
     const c = dados.carregou;
@@ -65,12 +76,25 @@ export function render(raiz, sessao) {
     const treinosDaSemana = dados.treinos.filter((t) => t.status === 'planejado' && t.data >= hoje && t.data >= segunda);
     const planejado = treinosDaSemana.map((t) => ({ data: t.data, estresse: estresseDoTreino(t, dados.configs) }));
 
+    const comDados = c.dias && dados.dias.length > 0;
     topo.replaceChildren(
-      blocoForma({ serie: serieReal, carregou: c.dias, semHrss: c.dias && dados.dias.length > 0 && serieReal.length === 0 }),
+      // coluna da esquerda: o destaque e, embaixo, o próximo treino e a sequência
+      h(
+        'div',
+        { class: 'inicio-coluna' },
+        blocoForma({ serie: serieReal, carregou: c.dias, semHrss: c.dias && dados.dias.length > 0 && serieReal.length === 0 }),
+        comDados
+          ? blocoMinis({
+              proximo: proximoDoPlano(),
+              sequencia: sequenciaSemanal(dados.dias.filter((d) => d.estresse > 0 || d.qtdAtividades > 0).map((d) => d.data), hoje),
+            })
+          : null,
+      ),
       blocoSemana({
         semana: montarSemana(hoje, { realizado: dados.dias.filter((d) => d.data >= segunda), planejado }),
         atividades: dados.atividades.filter((a) => a.data >= segunda),
         treinos: treinosDaSemana,
+        comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
         carregou: c.dias && c.atividades && c.treinos && c.configs,
       }),
     );
