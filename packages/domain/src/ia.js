@@ -10,24 +10,13 @@ import { FOCOS, resumirTreino } from './treinosEstruturados.js';
  * segurança valem **no código**, não só no prompt. Funções puras, sem Firebase e sem DOM.
  */
 export const LIMITES_IA = Object.freeze({
-  /** Chamadas de IA por usuário por dia (treinos e meta de peso somados). */
+  /** Chamadas de IA por usuário por dia (padrão; o administrador pode mudar). */
   chamadasPorDia: 5,
   semanasMax: 4,
   /** Aumento máximo da carga semanal sobre a base (média das semanas com treino nas últimas 8): 10% por semana. */
   aumentoSemanalMaximo: 0.1,
   /** Piso da base de carga (HRSS por semana): com histórico pequeno, o limite de 10% ficaria apertado demais. */
   pisoDaCargaBase: 100,
-  /** Perda de peso: padrão sugerido 0,5% do peso por semana, máximo 1%. */
-  perdaPadraoSemanalPct: 0.5,
-  perdaMaximaSemanalPct: 1,
-  /** Déficit diário máximo: 20% do gasto diário total (já contando o treino). */
-  deficitMaximoPct: 0.2,
-  /** Ganho de peso: até 0,5% do peso por semana. */
-  ganhoMaximoSemanalPct: 0.5,
-  kcalPorKg: 7700,
-  /** Parte do déficit que a sugestão atribui ao treino (o resto fica para a alimentação). */
-  parteDoTreinoNoDeficit: 0.4,
-  imcMinimo: 18.5,
 });
 
 export const AVISO_IA = 'Sugestão gerada por IA: revise antes de aceitar. Não substitui orientação de médico, nutricionista ou treinador.';
@@ -77,10 +66,14 @@ export function validarEntradaDeTreinos(entrada) {
   return { valido: true, erros, valores: { semanas, diasDaSemana: dias, diasPorSemana: dias.length, diaLongao: longao, horasPorSemana: horas, esporte, observacao } };
 }
 
-/** Catálogo enxuto para a IA escolher: só id, nome, esporte, foco, intensidade, nível e duração. */
-export function catalogoParaIa(esporte = 'ambos') {
+const ORDEM_DE_NIVEL = Object.freeze({ iniciante: 0, intermediario: 1, avancado: 2 });
+
+/** Catálogo enxuto para a IA escolher: só id, nome, esporte, foco, intensidade, nível e duração. `nivelMaximo` corta os treinos acima do nível do atleta. */
+export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado') {
+  const teto = ORDEM_DE_NIVEL[nivelMaximo] ?? ORDEM_DE_NIVEL.avancado;
   return modelosDoCatalogo({})
     .filter((m) => esporte === 'ambos' || m.esporte === esporte)
+    .filter((m) => (ORDEM_DE_NIVEL[m.nivel] ?? 0) <= teto)
     .map((m) => ({
       id: m.id,
       nome: m.nome,
@@ -123,15 +116,15 @@ export function cargaBaseSemanal(dias, hoje) {
  * @param {{
  *   hoje: string, entrada: ReturnType<typeof validarEntradaDeTreinos>['valores'],
  *   ocupados?: string[], intensosAnteriores?: string[], cargaBase: number, estimarEstresse: (modelo: any) => number,
- *   estresseJaPlanejadoPorSemana?: Record<string, number>
+ *   estresseJaPlanejadoPorSemana?: Record<string, number>, nivel?: string
  * }} ctx `ocupados`: datas que já têm treino; `intensosAnteriores`: datas de treinos intensos já no plano ou recentes
  * @returns {{ itens: any[], avisos: string[], cargaPorSemana: Record<string, number> }}
  */
 export function validarSugestaoDeTreinos(saida, ctx) {
-  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {} } = ctx;
+  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {}, nivel = 'intermediario' } = ctx;
   const avisos = [];
   const diasEscolhidos = new Set(entrada.diasDaSemana);
-  const catalogo = new Map(catalogoParaIa(entrada.esporte).map((m) => [m.id, m]));
+  const catalogo = new Map(catalogoParaIa(entrada.esporte, nivel).map((m) => [m.id, m]));
   const modelos = new Map(modelosDoCatalogo({}).map((m) => [m.id, m]));
   const primeiro = somarDias(hoje, 1);
   const ultimo = somarDias(hoje, 7 * entrada.semanas);
@@ -150,7 +143,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   for (const t of brutos) {
     const ref = catalogo.get(t?.modeloId);
     if (!ref) {
-      avisos.push(`Um treino sugerido ("${String(t?.modeloId ?? '').slice(0, 40)}") não existe no catálogo e foi descartado.`);
+      avisos.push(`Um treino sugerido ("${String(t?.modeloId ?? '').slice(0, 40)}") não existe no catálogo (ou é acima do seu nível) e foi descartado.`);
       continue;
     }
     if (!dataIsoValida(t.data) || t.data < primeiro || t.data > ultimo) {
@@ -168,6 +161,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   const itens = [];
   const intensos = [...intensosAnteriores];
   const semanas = new Map();
+  const usos = new Map();
   const cargaPorSemana = {};
   let trocados = false;
   let completados = 0;
@@ -184,6 +178,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
     const inicio = inicioDaSemana(data);
     const semana = estadoDaSemana(inicio);
     usadas.add(data);
+    usos.set(ref.id, (usos.get(ref.id) ?? 0) + 1);
     if (ref.intensidade === 'alta') {
       intensos.push(data);
       semana.intensos += 1;
@@ -210,11 +205,12 @@ export function validarSugestaoDeTreinos(saida, ctx) {
     if (lista.length === 0) return null;
     const ehLongao = entrada.diaLongao !== null && diaDaSemana(data) === entrada.diaLongao;
     const cabem = lista.filter((m) => semana.carga + m.estresse <= limite);
-    const ordem = (a, b) => (ehLongao ? b.ref.duracaoMin - a.ref.duracaoMin : b.estresse - a.estresse);
+    // variedade primeiro: o treino menos usado até aqui; depois, o mais longo (longão) ou o mais forte que cabe
+    const ordem = (a, b) => (usos.get(a.ref.id) ?? 0) - (usos.get(b.ref.id) ?? 0) || (ehLongao ? b.ref.duracaoMin - a.ref.duracaoMin : b.estresse - a.estresse);
     const preferidos = cabem.filter((m) => !naSemana.has(m.ref.id)).sort(ordem);
     const escolhido = preferidos[0] ?? cabem.sort(ordem)[0];
     if (escolhido) return { ...escolhido, dentro: true };
-    return { ...lista.sort((a, b) => a.estresse - b.estresse)[0], dentro: false };
+    return { ...lista.sort((a, b) => (usos.get(a.ref.id) ?? 0) - (usos.get(b.ref.id) ?? 0) || a.estresse - b.estresse)[0], dentro: false };
   };
   const nomesNaSemana = (inicio) => new Set(itens.filter((it) => inicioDaSemana(it.data) === inicio).map((it) => it.modeloId));
 
@@ -276,6 +272,46 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   }
   if (completados > 0) avisos.push(`${completados} dia(s) que você escolheu ficaram sem treino na sugestão da IA e foram completados com treinos leves.`);
 
+  // Variedade: o mesmo treino não se repete em menos de 14 dias. O repetido é trocado por outro do mesmo tipo (mesma
+  // intensidade e esporte) menos usado e de duração parecida, respeitando as horas da semana e a carga.
+  // Janelas de tolerância: tenta 14 dias; se o catálogo não tem treinos suficientes, 7 e depois 3 (nestas, só se o novo
+  // for menos usado que o atual, para não ficar trocando à toa).
+  const minutosDaSemana = (inicio, menos) => itens.filter((it) => it !== menos && inicioDaSemana(it.data) === inicio).reduce((t, it) => t + it.duracaoMin, 0);
+  const mantidos = [];
+  let variados = 0;
+  for (const it of [...itens].sort((a, b) => (a.data < b.data ? -1 : 1))) {
+    const repetidoEm = (id, janela) => mantidos.some((m) => m.modeloId === id && Math.abs(diasEntre(m.data, it.data)) < janela);
+    if (repetidoEm(it.modeloId, 14)) {
+      const inicio = inicioDaSemana(it.data);
+      const limite = limiteDeCarga(inicio);
+      const cargaSemSelf = (estadoDaSemana(inicio).carga ?? 0) - it.estresse;
+      const usoAtual = usos.get(it.modeloId) ?? 1;
+      let troca = null;
+      for (const janela of [14, 7, 3]) {
+        const alternativas = [...catalogo.values()]
+          .filter((m) => m.esporte === it.esporte && m.intensidade === it.intensidade && m.id !== it.modeloId && !repetidoEm(m.id, janela) && minutosDaSemana(inicio, it) + m.duracaoMin <= limiteMin)
+          .filter((m) => janela === 14 || (usos.get(m.id) ?? 0) < usoAtual)
+          .map((m) => ({ ref: m, estresse: estimar(m.id) }))
+          .filter((m) => m.estresse > 0 && (it.intensidade === 'alta' || cargaSemSelf + m.estresse <= limite || m.estresse <= it.estresse))
+          .sort((a, b) => (usos.get(a.ref.id) ?? 0) - (usos.get(b.ref.id) ?? 0) || Math.abs(a.ref.duracaoMin - it.duracaoMin) - Math.abs(b.ref.duracaoMin - it.duracaoMin));
+        if (alternativas.length > 0) {
+          troca = alternativas[0];
+          break;
+        }
+      }
+      if (troca) {
+        usos.set(it.modeloId, Math.max(0, usoAtual - 1));
+        usos.set(troca.ref.id, (usos.get(troca.ref.id) ?? 0) + 1);
+        estadoDaSemana(inicio).carga = cargaSemSelf + troca.estresse;
+        cargaPorSemana[inicio] = estadoDaSemana(inicio).carga;
+        Object.assign(it, { modeloId: troca.ref.id, nome: troca.ref.nome, foco: troca.ref.foco, duracaoMin: troca.ref.duracaoMin, estresse: Math.round(troca.estresse), motivo: 'Trocado para variar os treinos.' });
+        variados += 1;
+      }
+    }
+    mantidos.push(it);
+  }
+  if (variados > 0) avisos.push(`${variados} treino(s) repetido(s) foram trocados por outros do mesmo tipo, para variar.`);
+
   // Longão: o treino mais longo da semana fica no dia do longão (troca de data, se nenhum dos dois for intenso).
   if (entrada.diaLongao !== null) {
     const porSemana = new Map();
@@ -289,6 +325,9 @@ export function validarSugestaoDeTreinos(saida, ctx) {
       if (!doLongao || !maisLongo || maisLongo === doLongao || maisLongo.duracaoMin <= doLongao.duracaoMin) continue;
       if (doLongao.intensidade === 'alta' || maisLongo.intensidade === 'alta') continue;
       [doLongao.data, maisLongo.data] = [maisLongo.data, doLongao.data];
+      // o motivo escrito para o dia antigo deixaria de fazer sentido
+      doLongao.motivo = 'Treino reposicionado para o dia do longão.';
+      maisLongo.motivo = 'Treino mais longo da semana, no dia do longão.';
     }
     itens.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0));
   }
@@ -297,91 +336,4 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   if (!(cargaBase > 0)) avisos.push('Sem histórico de treino recente: não dá para limitar o aumento de carga. Os dias escolhidos foram mantidos; comece leve e aumente aos poucos.');
   if (itens.length === 0) avisos.push('Nenhum treino da sugestão passou pelas regras de segurança. Tente de novo ou ajuste dias e horas.');
   return { itens, avisos, cargaPorSemana };
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-// Sugestão de meta de peso
-// ---------------------------------------------------------------------------------------------------------------
-
-/**
- * Médias semanais de treino nas últimas 4 semanas, para converter calorias em horas e quilômetros.
- * @param {Array<{ data: string, duracaoS?: number, distanciaM?: number, calorias?: number }>} atividades
- */
-export function resumoDeTreinoRecente(atividades, hoje) {
-  const de = somarDias(hoje, -27);
-  const recentes = atividades.filter((a) => a.data >= de && a.data <= hoje);
-  const soma = (campo) => recentes.reduce((s, a) => s + (Number.isFinite(a[campo]) ? a[campo] : 0), 0);
-  const horas = soma('duracaoS') / 3600;
-  const km = soma('distanciaM') / 1000;
-  const kcal = soma('calorias');
-  return {
-    horasSemana: arredondar(horas / 4, 2),
-    distanciaKmSemana: arredondar(km / 4, 1),
-    kcalSemana: Math.round(kcal / 4),
-    kcalPorHora: horas > 0 && kcal > 0 ? Math.round(kcal / horas) : 500,
-    kcalPorKm: km > 0 && kcal > 0 ? arredondar(kcal / km, 1) : 30,
-    atividades: recentes.length,
-  };
-}
-
-/**
- * Plano numérico para chegar ao peso-alvo, com os limites de segurança aplicados. Gasto: Mifflin-St Jeor × 1,2 (sem
- * treino) mais o treino médio. O ritmo é limitado a 1% do peso por semana e a um déficit de 20% do gasto total; se o
- * pedido passa disso, o ritmo é reduzido e a data é empurrada. Recusa alvo com IMC abaixo de 18,5.
- * @param {{
- *   pesoAtualKg: number, pesoAlvoKg: number, dataAlvo: string, hoje: string, alturaCm?: number|null,
- *   sexo?: 'masculino'|'feminino'|null, idadeAnos?: number|null, treino: ReturnType<typeof resumoDeTreinoRecente>
- * }} e
- */
-export function planejarMetaDePeso(e) {
-  const { pesoAtualKg, pesoAlvoKg, dataAlvo, hoje, alturaCm = null, sexo = null, idadeAnos = null, treino } = e;
-  if (!(pesoAtualKg > 0) || !(pesoAlvoKg > 0)) return { valido: false, erro: 'Registre o seu peso atual e informe o peso desejado.' };
-  if (!dataIsoValida(dataAlvo) || dataAlvo <= hoje) return { valido: false, erro: 'A data da meta deve ser depois de hoje.' };
-  if (alturaCm > 0) {
-    const imcAlvo = pesoAlvoKg / (alturaCm / 100) ** 2;
-    if (imcAlvo < LIMITES_IA.imcMinimo) return { valido: false, erro: `Com a sua altura, ${pt(pesoAlvoKg)} kg dá IMC ${pt(imcAlvo)}, abaixo de 18,5. Escolha um peso maior.` };
-  }
-  const avisos = [];
-  const perder = pesoAlvoKg < pesoAtualKg;
-  const diferenca = Math.abs(pesoAtualKg - pesoAlvoKg);
-  if (diferenca < 0.3) return { valido: false, erro: 'O peso desejado já é praticamente o seu peso atual.' };
-  const semanas = diasEntre(hoje, dataAlvo) / 7;
-
-  let basal;
-  if (alturaCm > 0 && idadeAnos > 0 && sexo) basal = 10 * pesoAtualKg + 6.25 * alturaCm - 5 * idadeAnos + (sexo === 'feminino' ? -161 : 5);
-  else {
-    basal = pesoAtualKg * 22;
-    avisos.push('Sem altura, idade ou sexo completos, o gasto foi estimado só pelo peso (menos preciso).');
-  }
-  const gastoBase = basal * 1.2;
-  const gastoDiario = gastoBase + treino.kcalSemana / 7;
-
-  const pedido = diferenca / semanas;
-  const limitePct = (pesoAtualKg * (perder ? LIMITES_IA.perdaMaximaSemanalPct : LIMITES_IA.ganhoMaximoSemanalPct)) / 100;
-  const limiteDeficit = perder ? (LIMITES_IA.deficitMaximoPct * gastoDiario * 7) / LIMITES_IA.kcalPorKg : Infinity;
-  const limite = Math.min(limitePct, limiteDeficit);
-  const aplicado = Math.min(pedido, limite);
-  const ajustada = pedido > limite + 1e-9;
-  const dataSugerida = ajustada ? somarDias(hoje, Math.ceil((diferenca / aplicado) * 7)) : dataAlvo;
-  if (ajustada) avisos.push(`Chegar a ${pt(pesoAlvoKg)} kg até a data pedida exigiria ${pt(pedido, 2)} kg por semana, acima do limite seguro (${pt(limite, 2)} kg por semana). A data sugerida foi ajustada.`);
-  else if (perder && (aplicado / pesoAtualKg) * 100 > LIMITES_IA.perdaPadraoSemanalPct) avisos.push(`O ritmo (${pt((aplicado / pesoAtualKg) * 100, 2)}% do peso por semana) está acima do padrão sugerido de ${LIMITES_IA.perdaPadraoSemanalPct}%, mas dentro do limite de segurança.`);
-
-  const saldoSemanalKcal = Math.round(aplicado * LIMITES_IA.kcalPorKg);
-  const base = { valido: true, perder, semanas: arredondar(semanas, 1), ritmoPedidoKgSemana: arredondar(pedido, 2), ritmoAplicadoKgSemana: arredondar(aplicado, 2), ajustada, dataPedida: dataAlvo, dataSugerida, gastoDiarioKcal: Math.round(gastoDiario), treinoAtual: treino, avisos };
-  if (!perder) {
-    return { ...base, saldoDiarioKcal: Math.round(saldoSemanalKcal / 7), deficitPct: 0, treinoSugerido: null, reducaoDaAlimentacaoKcalDia: null };
-  }
-  const extraKcal = saldoSemanalKcal * LIMITES_IA.parteDoTreinoNoDeficit;
-  const alimentacaoKcalDia = Math.round((saldoSemanalKcal * (1 - LIMITES_IA.parteDoTreinoNoDeficit)) / 7);
-  return {
-    ...base,
-    saldoDiarioKcal: -Math.round(saldoSemanalKcal / 7),
-    deficitPct: arredondar(saldoSemanalKcal / 7 / gastoDiario, 3),
-    reducaoDaAlimentacaoKcalDia: alimentacaoKcalDia,
-    treinoSugerido: {
-      horasSemana: arredondar(treino.horasSemana + extraKcal / treino.kcalPorHora, 1),
-      distanciaKmSemana: arredondar(treino.distanciaKmSemana + extraKcal / treino.kcalPorKm, 0),
-      kcalSemana: Math.round(treino.kcalSemana + extraKcal),
-    },
-  };
 }

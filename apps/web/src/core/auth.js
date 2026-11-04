@@ -1,13 +1,21 @@
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
 } from 'firebase/auth';
 import { app } from './firebase.js';
 
 const auth = getAuth(app);
+
+export function entrarComGoogle() {
+  const provedor = new GoogleAuthProvider();
+  provedor.setCustomParameters({ prompt: 'select_account' });
+  return signInWithPopup(auth, provedor);
+}
 
 /** @returns {() => void} função que cancela o listener */
 export function observarSessao(aoMudar) {
@@ -35,6 +43,8 @@ const MENSAGENS = {
   'auth/weak-password': 'A senha é fraca demais. Use ao menos 8 caracteres.',
   'auth/user-disabled': 'Esta conta está bloqueada. Fale com o administrador.',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco e tente de novo.',
+  'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Libere pop-ups e tente de novo.',
+  'auth/account-exists-with-different-credential': 'Já existe uma conta com este e-mail. Entre com e-mail e senha.',
   'auth/network-request-failed': 'Sem conexão com o servidor. Verifique sua internet.',
 };
 

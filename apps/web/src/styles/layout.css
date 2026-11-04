@@ -3332,46 +3332,6 @@ textarea {
   font-size: 0.85rem;
 }
 
-.ia-numeros {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 10px;
-  margin: 0 0 12px;
-  padding: 0;
-  list-style: none;
-}
-
-.ia-numero {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  background: var(--surface-light);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-
-.ia-numero-rotulo {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.ia-numero-rotulo .icone {
-  color: var(--primary);
-}
-
-.ia-dicas {
-  margin: 0 0 12px;
-  padding-left: 20px;
-  color: var(--text-secondary);
-}
-
 @media (max-width: 767px) {
   .ia-item {
     grid-template-columns: auto minmax(0, 1fr);

@@ -7,6 +7,8 @@
 3. Depois de criar a conta, o acesso fica em **Aguardando aprovação** até um administrador liberar. A tela atualiza sozinha quando isso acontece.
 4. Se a sua conta for bloqueada, a tela mostra **Acesso bloqueado**; fale com o administrador.
 
+Se preferir, use **Entrar com o Google** (ou **Cadastrar com o Google**) no topo do formulário. No primeiro acesso o app pede para concluir o cadastro (nome já preenchido com o do Google e aceite dos dados de saúde) e a aprovação do administrador continua valendo.
+
 Se você criou a conta mas não terminou o cadastro, o app pede para **concluir o cadastro** (nome e aceite) no próximo acesso.
 
 ## Navegação
@@ -87,10 +89,9 @@ A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25,
 Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
 
 ## Sugestões com IA
-Há duas sugestões feitas por IA (Gemini). Em ambas a IA **só sugere**: nada muda no seu plano ou na sua meta até você aceitar, e há um limite diário de sugestões (as duas somadas), **definido pelo administrador** em Administração → Sistema (padrão: 5 por usuário por dia; também pode ser "sem limite"). O app mostra quantas restam.
+Há uma sugestão feita por IA (Gemini). A IA **só sugere**: nada muda no seu plano ou na sua meta até você aceitar, e há um limite diário de sugestões, **definido pelo administrador** em Administração → Sistema (padrão: 5 por usuário por dia; também pode ser "sem limite"). O app mostra quantas restam.
 
 - **Plano → Sugestão de treinos com IA:** informe quantas semanas, as horas por semana, o esporte e, se quiser, uma observação ("viajo na semana 2"). **Você escolhe os dias da semana em que quer treinar** (marque Seg, Ter, Qua…) e, se quiser, **qual deles é o dia do longão**, que recebe o treino mais longo da semana. A IA monta os treinos com os do catálogo, olhando o seu Condicionamento, a Forma e o que já está no plano. Você vê a lista, desmarca o que não quiser e clica em **Aceitar**. Os dias que você escolheu são sempre respeitados: se a IA deixar algum vazio, o app completa com um treino leve, e se um treino passar do aumento de carga de 10% por semana, ele é trocado por um mais leve (com aviso). Treinos que quebrem os outros limites (mais de 2 intensos por semana, menos de 48 h entre eles, passar das horas por semana) são descartados, com um aviso. Se você não tem histórico no app, os dias escolhidos valem do mesmo jeito: comece leve.
-- **Peso → Plano de peso com IA:** informe o peso desejado e a data. O app calcula o ritmo, o déficit de calorias e quanto treinar por semana, **com limites de segurança** (no máximo 1% do peso por semana e 20% de déficit; se o seu pedido passar disso, a data é empurrada). A IA explica o plano e dá dicas. Clique em **Usar como meta** para criar a meta de peso.
 - A IA não substitui médico, nutricionista ou treinador.
 
 ## Treinos intervalados

@@ -12,7 +12,7 @@ export function render(raiz, sessao) {
     autocomplete: 'name',
     required: true,
     maxlength: 80,
-    value: sessao.perfil?.nome ?? '',
+    value: sessao.perfil?.nome || sessao.nomeSugerido || '',
   });
   const nascimento = campo({
     id: 'nascimento',

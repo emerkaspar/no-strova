@@ -251,6 +251,149 @@ a:focus-visible {
   font-size: 0.9rem;
 }
 
+/* Tela de acesso (login/cadastro): apresentação à esquerda, formulário à direita */
+.acesso {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.acesso .card {
+  width: 100%;
+}
+
+.acesso-hero .logo-grande {
+  margin: 0 0 24px;
+}
+
+.acesso-selo {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 4px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.acesso-titulo {
+  margin: 0 0 16px;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+}
+
+.acesso-titulo .destaque {
+  color: var(--primary);
+}
+
+.acesso-texto {
+  max-width: 46ch;
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+}
+
+.acesso-lista {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.acesso-lista li::before {
+  content: '→';
+  margin-right: 8px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.google-bloco {
+  margin-bottom: 4px;
+}
+
+.btn-google {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-google:hover:not(:disabled) {
+  background: #f1f3f4;
+}
+
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.google-bloco .mensagem {
+  margin: 12px 0 0;
+}
+
+.divisor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.divisor::before,
+.divisor::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+@media (max-width: 768px) {
+  .acesso {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 24px 16px;
+  }
+
+  .acesso-hero {
+    text-align: center;
+  }
+
+  .acesso-hero .logo-grande {
+    margin: 0 auto 16px;
+    width: 80px;
+    height: 80px;
+  }
+
+  .acesso-texto {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .acesso-lista {
+    display: none;
+  }
+}
+
 /* Mensagens */
 .mensagem {
   padding: 10px 12px;

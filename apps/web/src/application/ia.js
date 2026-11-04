@@ -1,4 +1,4 @@
-import { decidirRascunho, iaChamadasRestantes, sugerirMetaPeso, sugerirTreinos } from '../core/functions.js';
+import { decidirRascunho, iaChamadasRestantes, sugerirTreinos } from '../core/functions.js';
 import { adicionarVariosAoPlano } from './treinos.js';
 
 /** Quantas sugestões de IA ainda restam hoje. */
@@ -25,14 +25,4 @@ export async function aceitarTreinosDaIa({ uid, rascunhoId, itens, configs }) {
 
 export function descartarRascunho(rascunhoId) {
   return decidirRascunho({ rascunhoId, decisao: 'descartado' });
-}
-
-/** Pede à IA o plano para uma meta de peso: { pesoAlvoKg, dataAlvo }. Retorna { rascunhoId, restantes, saida }. */
-export function pedirPlanoDePesoDaIa(entrada) {
-  return sugerirMetaPeso(entrada);
-}
-
-/** Marca o rascunho do plano de peso como aceito (a meta em si é gravada por quem chama, pelo caminho de sempre). */
-export function marcarPlanoDePesoAceito(rascunhoId) {
-  return decidirRascunho({ rascunhoId, decisao: 'aceito' });
 }

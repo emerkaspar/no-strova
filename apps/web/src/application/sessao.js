@@ -51,7 +51,15 @@ export function iniciarSessao() {
       return;
     }
 
-    publicar({ acesso: 'carregando', uid: usuario.uid, email: usuario.email, perfil: null, admin: false, erro: null });
+    publicar({
+      acesso: 'carregando',
+      uid: usuario.uid,
+      email: usuario.email,
+      nomeSugerido: usuario.displayName ?? '',
+      perfil: null,
+      admin: false,
+      erro: null,
+    });
     cancelarPerfil = observarPerfil(
       usuario.uid,
       (perfil) => {
@@ -77,6 +85,17 @@ export async function entrar(email, senha) {
   try {
     await authApi.entrar(email, senha);
   } catch (err) {
+    throw new Error(traduzirErro(err));
+  }
+}
+
+/** Entra (ou cria a conta) com Google. Quem é novo cai na tela "completar" para aceitar a LGPD. */
+export async function entrarComGoogle() {
+  try {
+    await authApi.entrarComGoogle();
+  } catch (err) {
+    // Fechar a janela do Google não é erro.
+    if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') return;
     throw new Error(traduzirErro(err));
   }
 }

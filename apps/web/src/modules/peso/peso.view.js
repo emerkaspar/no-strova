@@ -10,7 +10,6 @@ import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { criarGraficoPeso, PERIODOS_DO_PESO } from './graficoPeso.js';
-import { criarCartaoPlanoDePesoIa } from './sugestaoPesoIa.js';
 
 const DIAS_DE_TREINO = 70;
 
@@ -234,7 +233,7 @@ export function render(raiz, sessao) {
             : h(
                 'div',
                 { class: 'meta-progresso' },
-                h('p', { class: 'texto-secundario' }, `Progresso: ${pct}% do caminho (de ${kg(meta.pesoInicialKg)} até ${kg(meta.pesoAlvoKg)}).`),
+                h('p', { class: 'texto-secundario' }, `Progresso: ${pct}% do caminho (de ${kg(meta.pesoInicialKg)} até ${kg(meta.pesoAlvoKg)}) · faltam ${formatarNumero(Math.abs((r.atual?.pesoKg ?? meta.pesoInicialKg) - meta.pesoAlvoKg), 1)} kg. O progresso conta a partir do peso de quando a meta foi criada.`),
                 h('div', { class: 'semana-progresso-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Progresso da meta de peso' }, h('span', { style: `width:${pct}%` })),
               ),
           avaliacao.dias >= 0 ? h('p', { class: 'texto-secundario' }, avaliacao.dias === 0 ? 'A meta é hoje.' : `Faltam ${avaliacao.dias} dia${avaliacao.dias === 1 ? '' : 's'}.`) : null,
@@ -355,8 +354,6 @@ export function render(raiz, sessao) {
     desenharHistorico();
   }
 
-  const cartaoIa = criarCartaoPlanoDePesoIa({ uid: sessao.uid, hoje, obter: () => ({ metaAtiva: metaAtiva(), pesagens: dados.pesagens, alturaCm: alturaCm() }) });
-
   raiz.replaceChildren(
     h(
       'div',
@@ -367,7 +364,6 @@ export function render(raiz, sessao) {
       tiles,
       graficoCartao,
       metaCartao,
-      cartaoIa,
       semanalCartao,
       historicoCartao,
     ),

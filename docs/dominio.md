@@ -181,7 +181,7 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 - `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` e a agendada `limparArquivosOrfaos`.
 - `estresse/` (Fase 3): trigger `onAtividadeWrite` (mantém `estresseDiario`) e a callable `reconstruirEstresseDiario`.
 - `calibracao/`: callable `reconstruirCalibracao` e o serviço que o gatilho `onAtividadeWrite` (e `recalcularHistorico`) usa para manter `calibracoes/{uid}`. O teste de LTHR não tem Function: roda no cliente.
-- `ia/`: `sugerirTreinos`, `sugerirMetaPeso`, `decidirRascunho`.
+- `ia/`: `sugerirTreinos`, `decidirRascunho`, `iaChamadasRestantes`.
 - `exportacao/` (Fase 7): `exportarMeusDados`, `excluirMinhaConta`.
 
 ## Código compartilhado
@@ -383,6 +383,7 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 
 ## Logo, favicon e PWA
 - Logo no cabeçalho (44 px, leva ao Início) e nas telas de acesso (login, cadastro, concluir cadastro, aguardando aprovação, bloqueado).
+- Login/cadastro em duas colunas (apresentação com texto bem-humorado + cartão do formulário; empilha no mobile) e botão "Entrar com o Google" (Firebase Auth, `signInWithPopup`). Contas novas via Google seguem o mesmo fluxo: perfil inicial, tela "concluir cadastro" (aceite LGPD) e aprovação do admin.
 - O logo é a arte "NAO STROVA" (barras brancas, texto branco e laranja) em `assets/logo.png` (1024×1024); o favicon é um recorte quadrado em volta dela.
 - `npm run icones -w apps/web` gera, a partir de `assets/logo.png`: `favicon.ico`, `favicon-32.png` e `favicon-48.png` (recorte justo no texto, para ler em tamanho pequeno), ícones do PWA de 192 e 512 px, ícone "maskable" (logo a 70% do centro sobre preto, por causa do corte do Android) e `apple-touch-icon`.
 - Manifesto do PWA com fundo e tema `#0A0A0A`.
@@ -419,7 +420,7 @@ Regras puras em `packages/domain/src/peso.js`; tela em `modules/peso/`; dados em
 - **Meta de peso:** "chegar a X kg na data Y" (data de amanhã a 2 anos). Uma ativa por vez; a anterior vira `anterior`. Guarda o peso de hoje (`pesoInicialKg`) para o **progresso** (do peso inicial ao alvo, vale para perder e para ganhar). **Recusa** alvo que leve a **IMC abaixo de 18,5** (com altura cadastrada) e **avisa** (sem impedir) perda acima de **1% do peso por semana**.
 - **Avaliação** (`avaliarMetaPeso`) pela tendência: **Atingida** (a até 0,3 kg do alvo), **No ritmo** (o peso projetado na data fica a até 0,5 kg do alvo), **Atrasada** (a tendência não leva ao alvo a tempo), **Adiantada** (passa do alvo antes da data) e **sem dados** (precisa de pesagens em duas semanas). Mostra o ritmo necessário em kg por semana.
 - **Tela:** registrar peso, cinco indicadores, gráfico (pesagens, média móvel e meta tracejada; 30 dias, 90 dias, 6 meses ou tudo), cartão da meta, tabela **peso e treino por semana** (peso médio, carga HRSS e gasto dos treinos das últimas 8 semanas) e histórico. No **Início**, o painel de peso do gráfico principal e o cartão "Peso" passam a ter dados.
-- **Fora desta etapa:** a sugestão de meta de peso com IA é da Fase 6.
+- **IA no peso:** não há (foi removida; a IA só sugere treinos).
 
 ## Fase 5 — Peso e metas
 
@@ -427,13 +428,12 @@ Implemente pesagens, tendência (média móvel 7 d), metas de peso e a sobreposi
 
 ## IA com Gemini (Fase 6, implementada)
 
-Regras puras em `packages/domain/src/ia.js`; Functions em `apps/functions/src/modules/ia/`; telas em `modules/plano/sugestaoIa.js` e `modules/peso/sugestaoPesoIa.js`.
+Regras puras em `packages/domain/src/ia.js`; Functions em `apps/functions/src/modules/ia/`; tela em `modules/plano/sugestaoIa.js`.
 - **Infra:** Genkit com `@genkit-ai/google-genai`, modelo em `MODELO_GEMINI` (`ia.modelo.ts`, hoje `gemini-flash-lite-latest`, o mais barato e o que costuma ter cota gratuita), chave no **Secret Manager** (`GEMINI_API_KEY`, `defineSecret`). Região `southamerica-east1`. Saída estruturada (schema zod) validada.
-- **Callables:** `sugerirTreinos`, `sugerirMetaPeso`, `decidirRascunho` e `iaChamadasRestantes`. A IA **nunca grava no plano nem na meta**: o servidor grava só o rascunho em `iaRascunhos` (status `pendente`); o app grava o plano/meta pelos caminhos de sempre (validação e regras) e depois chama `decidirRascunho` (`aceito`/`descartado`).
-- **Cota:** por padrão 5 chamadas por usuário por dia, treinos e peso somados (`iaUso/{uid_yyyymmdd}`, transação). O **administrador define o limite** (1 a 500 ou sem limite) no cartão "Limite das sugestões de IA" da aba Sistema da página Administração, gravado em `configuracoes/ia` (regras: só admin escreve; as Functions leem com o Admin SDK). Falha do serviço **devolve** a chamada.
+- **Callables:** `sugerirTreinos`, `decidirRascunho` e `iaChamadasRestantes`. A IA **nunca grava no plano nem na meta**: o servidor grava só o rascunho em `iaRascunhos` (status `pendente`); o app grava o plano/meta pelos caminhos de sempre (validação e regras) e depois chama `decidirRascunho` (`aceito`/`descartado`).
+- **Cota:** por padrão 5 chamadas por usuário por dia (`iaUso/{uid_yyyymmdd}`, transação). O **administrador define o limite** (1 a 500 ou sem limite) no cartão "Limite das sugestões de IA" da aba Sistema da página Administração, gravado em `configuracoes/ia` (regras: só admin escreve; as Functions leem com o Admin SDK). Falha do serviço **devolve** a chamada.
 - **Privacidade:** a entrada da IA é um JSON de métricas resumidas (Condicionamento, Fadiga, Forma, carga semanal, meta, peso, treino médio); nunca arquivos brutos, nome, e-mail nem dados de outros usuários. A observação livre do usuário vai como dado, não como instrução.
 - **Sugestão de treinos:** entrada = semanas (1–4), **dias da semana escolhidos** (1–7, de segunda a domingo), **dia do longão** (opcional, um dos escolhidos), horas por semana (1–25), esporte e observação (até 300). A IA escolhe **só do catálogo** (id, data, motivo). O código (`validarSugestaoDeTreinos`) **descarta** o que violar: modelo fora do catálogo, data fora do período ou já ocupada, mais dias ou horas que o pedido, mais de 2 treinos intensos por semana, menos de 48 h entre intensos e **aumento de carga acima de 10% por semana** (o treino que passaria disso é **trocado por um mais leve**, mantendo o dia escolhido; dias escolhidos que a IA deixou vazios são completados com treino leve; o longão recebe o treino mais longo da semana) sobre a base (média das semanas com treino nas últimas 8, com piso de 100 de HRSS por semana). Cada descarte vira um aviso. Aceitar cria `treinosPlanejados` (com a cópia dos passos).
-- **Plano de peso:** os **números são calculados no código** (`planejarMetaDePeso`) e a IA só **explica** (e dá 3 dicas). Gasto = Mifflin-St Jeor × 1,2 + treino médio; ritmo limitado a **1% do peso por semana** e a **déficit de 20%** do gasto total (se o pedido passa disso, o ritmo cai e a **data é empurrada**); aviso acima de 0,5% por semana; ganho até 0,5% por semana; **recusa IMC abaixo de 18,5**. O treino sugerido converte 40% do déficit em horas, km e kcal pelo seu histórico; o resto é alimentação. Se a IA falhar, o plano sai com texto padrão e a chamada é devolvida.
 - **Aviso fixo:** "Sugestão gerada por IA: revise antes de aceitar. Não substitui orientação de médico, nutricionista ou treinador."
 - **Preparar o ambiente (uma vez por projeto Firebase):** `firebase functions:secrets:set GEMINI_API_KEY --project homolog` (e `production`), com a chave do Google AI Studio; o projeto precisa do plano Blaze. Depois publique as Functions.
 

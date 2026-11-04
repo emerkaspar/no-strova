@@ -339,7 +339,7 @@ export function blocoPeso({ pesagens = [], meta = null, hoje, carregou = true } 
       ? h(
           'div',
           { class: 'peso-inicio-meta' },
-          h('p', { class: 'texto-secundario' }, `Meta: ${formatarNumero(meta.pesoAlvoKg, 1)} kg até ${formatarData(meta.dataAlvo)}${pct === null ? '' : ` · ${pct}%`}`),
+          h('p', { class: 'texto-secundario' }, `Meta: ${formatarNumero(meta.pesoAlvoKg, 1)} kg até ${formatarData(meta.dataAlvo)}${pct === null ? '' : ` · ${pct}%`} · faltam ${formatarNumero(Math.abs(r.atual.pesoKg - meta.pesoAlvoKg), 1)} kg`),
           pct === null ? null : h('div', { class: 'semana-progresso-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Progresso da meta de peso' }, h('span', { style: `width:${pct}%` })),
         )
       : h('p', { class: 'texto-secundario' }, 'Sem meta de peso. ', h('a', { href: '#/peso' }, 'Definir meta')),
