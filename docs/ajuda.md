@@ -47,6 +47,8 @@ A estimativa de HRSS dos treinos planejados parte de uma fórmula. Com a **calib
 
 ## Atividades
 
+A tela mostra, de cima para baixo: filtros de **período** (30 dias, 6 meses, este ano, um ano à escolha ou tudo) e de **esporte**; os **totais** do filtro (atividades, tempo, distância, elevação e carga); os **recordes** de uma única atividade (maior distância, tempo, elevação, HRSS e FC máxima, a semana mais pesada, a maior sequência de semanas treinando e o **maior Condicionamento**, o pico da sua curva, com o selo "Geral" porque vale para todos os esportes), que no período mostram também o recorde histórico; e a **tabela**, com velocidade média (km/h no ciclismo e min/km na corrida), busca e ordenação por coluna.
+
 ### Importar arquivo
 Em **Atividades → Importar arquivo**, escolha arquivos **.fit, .gpx ou .tcx** de até 15 MB (pode selecionar vários). O app lê data, duração, distância, subida, FC e calorias, e calcula o **HRSS**.
 
@@ -96,6 +98,14 @@ Em **Treinos** você encontra uma biblioteca de treinos intervalados para **cicl
 - **Direto do Plano:** ao criar um treino em **Plano → Novo treino** (ou no "+" de um dia), o campo **Treino da biblioteca** lista os intervalados do esporte escolhido, por foco, e os seus treinos. Escolha um e a duração, a zona e o HRSS vêm dos passos; deixe em "Treino livre" para informar a zona e a duração à mão.
 - **No plano:** o treino aparece no calendário com o nome e a duração. Ao abri-lo, você vê o perfil e os passos; a duração e a zona vêm dos passos.
 - **Dica:** em esforços muito curtos (20 a 30 segundos), a frequência cardíaca demora a subir: guie-se pelo esforço descrito no treino, não só pela FC.
+
+## Peso
+Em **Peso**, registre o seu peso (**uma pesagem por dia**: se registrar de novo na mesma data, ela substitui a anterior). A tela mostra o peso atual, a **média de 7 dias** (que suaviza as oscilações do dia), a **tendência semanal**, a variação em 30 dias e o IMC (precisa da altura na Configuração), além do gráfico da evolução com a meta.
+
+- **Meta de peso:** informe o peso desejado e a data. O app mostra se, mantendo a tendência atual, você chega lá (**No ritmo**, **Atrasada** ou **Adiantada**) e quantos kg por semana seriam necessários. Perder mais de **1% do peso por semana** gera um aviso, e metas que levem a IMC abaixo de 18,5 não são aceitas. Há uma meta ativa por vez.
+- **Peso e treino por semana:** o peso médio, a carga (HRSS) e o gasto calórico dos treinos de cada uma das últimas 8 semanas.
+- No **Início**, o gráfico principal mostra o peso e a meta, e o cartão **Peso** resume o peso atual, a tendência e o progresso.
+- O peso não substitui orientação de médico, nutricionista ou treinador.
 
 ## Plano de treino
 

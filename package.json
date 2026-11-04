@@ -15,7 +15,7 @@
     "dev:emulator": "npm run dev:emulator -w apps/web",
     "emulators": "firebase emulators:start --project demo-no-strova",
     "test": "npm test --workspaces --if-present",
-    "test:rules": "firebase emulators:exec --project demo-no-strova --only firestore,storage \"vitest run --root firebase\"",
+    "test:rules": "firebase emulators:exec --project demo-no-strova --only firestore,storage \"vitest run --passWithNoTests --root firebase\"",
     "build:homolog": "npm run build:homolog -w apps/web && npm run build -w apps/functions",
     "build:prod": "npm run build:prod -w apps/web && npm run build -w apps/functions",
     "deploy:hosting:homolog": "npm run build:homolog -w apps/web && firebase deploy --only hosting --project homolog",

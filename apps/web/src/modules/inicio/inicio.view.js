@@ -6,6 +6,7 @@ import { observarAtividadesDesde, observarUltimasAtividades } from '../../infras
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarMetasCondicionamento, observarTreinos } from '../../infrastructure/planoRepo.js';
+import { observarMetasPeso, observarPesagens } from '../../infrastructure/pesoRepo.js';
 import { h } from '../../utils/dom.js';
 import { hojeIso } from '../../utils/formatters.js';
 import { blocoAtividades, blocoComparativo, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoSemana, blocoSugestao, tituloDoTreino } from './blocos.js';
@@ -32,7 +33,9 @@ export function render(raiz, sessao) {
     configs: [],
     calibracao: null,
     metasCondicionamento: [],
-    carregou: { dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false },
+    pesagens: [],
+    metasPeso: [],
+    carregou: { pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false },
   };
   let ativa = true;
 
@@ -107,10 +110,13 @@ export function render(raiz, sessao) {
         carregou: c.dias && c.atividades,
       }),
     );
-    grafico.replaceChildren(blocoGrafico({ serie: serieComPlano, carregou: planoPronto, hoje, treinoDoDia, esportesDoDia }));
+    const metaPesoAtiva = dados.metasPeso.find((m) => m.status === 'ativa') ?? null;
+    const pesos = dados.pesagens.map((p) => ({ data: p.data, kg: p.pesoKg }));
+    const metaPeso = metaPesoAtiva ? { dataAlvo: metaPesoAtiva.dataAlvo, kg: metaPesoAtiva.pesoAlvoKg } : null;
+    grafico.replaceChildren(blocoGrafico({ serie: serieComPlano, carregou: planoPronto, hoje, treinoDoDia, esportesDoDia, pesos, metaPeso }));
     linha.replaceChildren(
       blocoAtividades({ atividades: dados.ultimas, carregou: c.ultimas }),
-      blocoPeso(),
+      blocoPeso({ pesagens: dados.pesagens, meta: metaPesoAtiva, hoje, carregou: c.pesagens && c.metasPeso }),
       blocoSugestao(),
     );
   }
@@ -138,6 +144,8 @@ export function render(raiz, sessao) {
     ouvir('atividades', 'atividades', (ok, erro) => observarAtividadesDesde(sessao.uid, desdeHistorico, ok, erro)),
     ouvir('treinos', 'treinos', (ok, erro) => observarTreinos(sessao.uid, desdeHistorico, ok, erro)),
     ouvir('configs', 'configs', (ok, erro) => observarConfigs(sessao.uid, ok, erro)),
+    ouvir('pesagens', 'pesagens', (ok, erro) => observarPesagens(sessao.uid, ok, erro)),
+    ouvir('metasPeso', 'metasPeso', (ok, erro) => observarMetasPeso(sessao.uid, ok, erro)),
     ouvir('metasCondicionamento', 'metasCondicionamento', (ok, erro) => observarMetasCondicionamento(sessao.uid, ok, erro)),
     observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
       dados.calibracao = efetiva;

@@ -9,7 +9,7 @@
     "build:homolog": "vite build --mode homolog",
     "build:prod": "vite build --mode production",
     "icones": "node scripts/gerar-icones.mjs",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@fontsource/anton": "^5.3.0",

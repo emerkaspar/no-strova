@@ -105,8 +105,8 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `calibracoes/{uid}` | `chaves`: mapa `{esporte}_{zona}` → `{ n, mediana, amostras: [{ id, data, v }] }` (HRSS por hora das atividades com FC real), `atualizadoEm` | Somente trigger/callable (o dono lê) |
 | `preferencias/{uid}` | `calibracaoAtiva?` (booleano; sem documento, vale a calibração) e `nivelTreinos?` (`iniciante`/`intermediario`/`avancado`) | Dono (as regras só aceitam esses campos; o app grava mesclando) |
 | `metasCondicionamento/{id}` | `condicionamentoAlvo` (1–250), `condicionamentoInicial?` (o Condicionamento de quando a meta foi criada; informativo), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
-| `pesagens/{id}` | `data`, `pesoKg` | Dono |
-| `metasPeso/{id}` | `pesoAlvoKg`, `dataAlvo`, `status`, `criadoEm` | Dono |
+| `pesagens/{id}` | `data`, `pesoKg` (20–400), `criadoEm`. **Uma por dia**: o id é `uid_yyyymmdd`, então regravar a data substitui | Dono (as regras validam campos e faixa) |
+| `metasPeso/{id}` | `pesoAlvoKg` (20–400), `pesoInicialKg?` (o peso de quando a meta foi criada, base do progresso), `dataAlvo`, `status` (`ativa`/`anterior`), `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `iaRascunhos/{id}` | `tipo` (`treino`/`peso`), `entradaResumo`, `saida`, `status` (`pendente`/`aceito`/`descartado`), `criadoEm` | Somente callable |
 | `iaUso/{uid_yyyymmdd}` | `chamadas` | Admin SDK |
 | `vinculosTreinador/{id}` | `treinadorId`, `atletaId`, `status` | Previsto no modelo; sem UI nem regras na v1 |
@@ -317,7 +317,7 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 - **Importar arquivo** leva a `#/atividades` com o painel de importação aberto (se a lista já está aberta, abre o painel na hora).
 - **Largura:** o bloco da saudação é o que cede espaço (reticências). De 1000 a 1179 px a data sai e o rótulo vira "Importar"; de 768 a 999 px a saudação também sai e o menu fica mais compacto. Medido com as fontes do projeto: em 1205 px com admin (6 itens) sobram ~250 px para a data (237 px).
 - **Abaixo de 768 px** o menu em pílula some e vira uma **barra de abas fixa no rodapé** com ícones de traço (início, atividades, plano, treinos, peso, configuração e, para admin, aprovações) e rótulos pequenos; o item ativo fica laranja. O cabeçalho mantém logo, saudação reduzida, "Importar" e avatar.
-- A tela **Forma** (`#/forma`) não tem item de menu: abre pelo "Ver gráfico completo" do Início e mantém Início ativo. **Plano** (`#/plano`) está pronto (Fase 4); **Peso** (`#/peso`) é uma tela "em breve" até a Fase 5.
+- A tela **Forma** (`#/forma`) não tem item de menu: abre pelo "Ver gráfico completo" do Início e mantém Início ativo. **Plano** (`#/plano`) está pronto (Fase 4); **Peso** (`#/peso`) está pronto (Fase 5).
 
 **Cartões:** raio de 20 px (era 12 px no `CLAUDE.md`, atualizado), borda de 1 px, padding de 28 px; conteúdo com largura máxima de 1200 px.
 
@@ -410,6 +410,16 @@ Implemente em `domain/` o cálculo diário de Condicionamento (42 d), Fadiga (7 
 ## Fase 4 — Plano de treino e projeção (implementada)
 
 Implemente `treinosPlanejados` com calendário semanal/mensal, criação/edição/arrastar entre dias e vínculo com a atividade realizada. Estenda o gráfico: dias futuros projetados com base no plano, em linha tracejada. Adicione a meta de forma por data.
+
+## Peso e metas de peso (Fase 5, implementada)
+
+Regras puras em `packages/domain/src/peso.js`; tela em `modules/peso/`; dados em `infrastructure/pesoRepo.js` (sem Function: as regras do Firestore validam).
+- **Pesagem:** peso de 20 a 400 kg (vírgula aceita, arredonda a 0,1), data não futura, **uma por dia** (regravar substitui). Excluir pela tabela do histórico.
+- **Indicadores:** peso atual (última pesagem), **média móvel de 7 dias** (média das pesagens dos 7 dias que terminam no dia), **tendência semanal** (média de hoje menos a de 7 dias atrás, em kg/semana), variação em 30 dias e IMC (altura da configuração vigente).
+- **Meta de peso:** "chegar a X kg na data Y" (data de amanhã a 2 anos). Uma ativa por vez; a anterior vira `anterior`. Guarda o peso de hoje (`pesoInicialKg`) para o **progresso** (do peso inicial ao alvo, vale para perder e para ganhar). **Recusa** alvo que leve a **IMC abaixo de 18,5** (com altura cadastrada) e **avisa** (sem impedir) perda acima de **1% do peso por semana**.
+- **Avaliação** (`avaliarMetaPeso`) pela tendência: **Atingida** (a até 0,3 kg do alvo), **No ritmo** (o peso projetado na data fica a até 0,5 kg do alvo), **Atrasada** (a tendência não leva ao alvo a tempo), **Adiantada** (passa do alvo antes da data) e **sem dados** (precisa de pesagens em duas semanas). Mostra o ritmo necessário em kg por semana.
+- **Tela:** registrar peso, cinco indicadores, gráfico (pesagens, média móvel e meta tracejada; 30 dias, 90 dias, 6 meses ou tudo), cartão da meta, tabela **peso e treino por semana** (peso médio, carga HRSS e gasto dos treinos das últimas 8 semanas) e histórico. No **Início**, o painel de peso do gráfico principal e o cartão "Peso" passam a ter dados.
+- **Fora desta etapa:** a sugestão de meta de peso com IA é da Fase 6.
 
 ## Fase 5 — Peso e metas
 

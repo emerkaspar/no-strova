@@ -2690,3 +2690,420 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ===== Atividades: cabeçalho, filtros, totais, recordes e tabela ===== */
+.ativ-pagina {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ativ-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.ativ-cabecalho h1 {
+  margin: 0;
+}
+
+.ativ-cabecalho p {
+  margin: 4px 0 0;
+}
+
+.ativ-cabecalho .linha-botoes {
+  margin: 0;
+}
+
+.ativ-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.ativ-grupo {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.ativ-chip,
+.ativ-ano {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ativ-ano {
+  width: auto;
+  background-color: var(--surface-light);
+}
+
+.ativ-chip:hover,
+.ativ-ano:hover {
+  color: var(--text-primary);
+}
+
+.ativ-chip.ativo,
+.ativ-ano.ativo {
+  color: var(--primary-contrast, #fff);
+  background: var(--primary);
+}
+
+.ativ-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.ativ-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.ativ-tile-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ativ-tile-rotulo .icone {
+  color: var(--primary);
+}
+
+.ativ-tile-valor {
+  font-size: 1.5rem;
+  white-space: nowrap;
+}
+
+.ativ-tabela-card .tabela th {
+  color: var(--primary);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tabela-atividades tbody tr:hover {
+  background: var(--surface-light);
+}
+
+.tabela-atividades td {
+  white-space: nowrap;
+}
+
+.ativ-esporte {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ativ-esporte .icone {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 767px) {
+  .ativ-recordes {
+    padding: 18px;
+  }
+}
+
+/* Recorde: o selo "Histórico" fica no rodapé, ao lado da data, para não espremer o rótulo. */
+.ativ-tile-nota {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+
+/* Recordes: cartões que se esticam para preencher cada linha (sem espaço vazio, seja qual for a quantidade). */
+.ativ-recordes-grade {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.ativ-recorde {
+  position: relative;
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 18px 18px 14px 22px;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--surface-light), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.ativ-recorde::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--border);
+}
+
+.ativ-recorde-historico::before {
+  background: var(--primary);
+}
+
+.ativ-recorde-topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ativ-recorde-icone {
+  display: inline-flex;
+  padding: 7px;
+  color: var(--primary);
+  background: rgba(255, 82, 0, 0.14);
+  border-radius: 10px;
+}
+
+.ativ-recorde-rotulo {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ativ-recorde-valor {
+  margin-top: 6px;
+  font-family: var(--fonte-titulo);
+  font-size: 2.1rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.ativ-recorde-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.ativ-recorde-quando {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.ativ-recorde-hist {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.ativ-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+}
+
+.ativ-selo-geral {
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.ativ-recordes {
+  padding: 24px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.ativ-recordes-topo h2 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.ativ-recordes-topo p {
+  margin: 2px 0 16px;
+}
+
+@media (max-width: 767px) {
+  .ativ-recordes {
+    padding: 18px;
+  }
+}
+
+/* ===== Peso ===== */
+.peso-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin: 14px 0 6px;
+}
+
+.peso-form .campo {
+  margin: 0;
+  min-width: 160px;
+}
+
+.peso-grafico {
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+}
+
+.peso-grade {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.peso-rotulo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.peso-hoje {
+  stroke: var(--text-secondary);
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
+}
+
+.peso-media {
+  fill: none;
+  stroke: #facc15;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.peso-ponto {
+  fill: #facc15;
+  fill-opacity: 0.45;
+  stroke: #facc15;
+}
+
+.peso-meta,
+.peso-alvo {
+  stroke: #facc15;
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+}
+
+.peso-alvo {
+  stroke-width: 1;
+  opacity: 0.4;
+}
+
+.peso-losango {
+  fill: #facc15;
+}
+
+.peso-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+
+.peso-leg::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-top: 3px solid #facc15;
+}
+
+.peso-leg-ponto::before {
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: #facc15;
+  opacity: 0.6;
+}
+
+.peso-leg-meta::before {
+  border-top-style: dashed;
+}
+
+.peso-anteriores {
+  margin-top: 14px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.peso-anteriores ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.peso-anteriores li {
+  margin-bottom: 6px;
+}
+
+.peso-historico {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.btn-pequeno {
+  padding: 4px 12px;
+  font-size: 0.8rem;
+}
+
+.peso-inicio-valor {
+  margin: 4px 0;
+  font-size: 1.6rem;
+}
+
+.peso-inicio-meta {
+  margin-top: 8px;
+}
+
+.peso-inicio-meta .semana-progresso-barra {
+  margin-top: 6px;
+}

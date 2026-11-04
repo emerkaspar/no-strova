@@ -15,6 +15,7 @@ const CAMINHOS = Object.freeze({
   esporte: ['M8 3h8v6a4 4 0 0 1-8 0z', 'M8 5H4.5v1.5A3.5 3.5 0 0 0 8 10M16 5h3.5v1.5A3.5 3.5 0 0 1 16 10', 'M12 13v4M8.5 21h7M9.5 17.5h5'],
   setaCima: ['M12 19V5', 'M6 11l6-6 6 6'],
   setaBaixo: ['M12 5v14', 'M6 13l6 6 6-6'],
+  elevacao: ['M3 19l6-10 4.5 7 2.5-3.5L21 19z', 'M9 9l1.8 2.2 1.2-1.2'],
   duracao: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7v5l3 2'],
   distancia: ['M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z', 'M10 11a2 2 0 1 0 4 0a2 2 0 1 0-4 0'],
   hrss: ['M13 3L5 14h6l-1 7 8-11h-6z'],
@@ -22,7 +23,7 @@ const CAMINHOS = Object.freeze({
   aprovacoes: ['M2.5 20c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6', 'M9 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M16.5 10.5l2 2 3.5-4'],
 });
 
-/** Ícone de traço pelo nome (inicio, atividades, plano, treinos, peso, configuracao, aprovacoes, ciclismo, corrida, outro, esporte, setaCima, setaBaixo, duracao, distancia, hrss, fc). */
+/** Ícone de traço pelo nome (inicio, atividades, plano, treinos, peso, configuracao, aprovacoes, ciclismo, corrida, outro, esporte, elevacao, setaCima, setaBaixo, duracao, distancia, hrss, fc). */
 export function icone(nome, tamanho = 24) {
   const el = document.createElementNS(NS, 'svg');
   for (const [k, v] of Object.entries({

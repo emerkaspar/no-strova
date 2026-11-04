@@ -1,15 +1,367 @@
+import { avaliarMetaPeso, calcularImc, configVigenteEm, progressoDaMetaPeso, resumoDePeso, resumoSemanalDePeso, somarDias } from '@no-strova/domain';
+import { salvarMetaDePeso, salvarPesagem } from '../../application/peso.js';
+import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
+import { observarConfigs } from '../../infrastructure/configsRepo.js';
+import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
+import { excluirMetaPeso, excluirPesagem, idDaPesagem, observarMetasPeso, observarPesagens } from '../../infrastructure/pesoRepo.js';
+import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
+import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
+import { criarGraficoPeso, PERIODOS_DO_PESO } from './graficoPeso.js';
 
-/** Peso e metas: a tela completa chega em uma etapa futura. */
-export function render(raiz) {
+const DIAS_DE_TREINO = 70;
+
+const kg = (v, casas = 1) => `${formatarNumero(v, casas)} kg`;
+const comSinal = (v, casas = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${formatarNumero(Math.abs(v), casas)}`;
+
+/** Frase que explica a avaliação da meta de peso e o que fazer. */
+export function textoDaAvaliacaoPeso(a) {
+  const data = formatarData(a.dataAlvo);
+  if (a.estado === 'sem-dados') return `Ainda não dá para projetar o peso em ${data}: registre pesagens por pelo menos duas semanas para ver a tendência.`;
+  if (a.estado === 'atingida') return 'Você já está no peso da meta. Agora é manter.';
+  const projetado = kg(a.pesoProjetadoKg);
+  const ritmo = a.ritmoAtualKg === null ? '' : ` (${comSinal(a.ritmoAtualKg)} kg por semana)`;
+  if (a.estado === 'no-ritmo') return `Mantendo a tendência atual${ritmo}, você chega a cerca de ${projetado} em ${data}, dentro da meta.`;
+  if (a.estado === 'adiantada') return `Mantendo a tendência atual${ritmo}, você chega a cerca de ${projetado} em ${data}: passa do alvo antes da data. Dá para desacelerar.`;
+  return `Mantendo a tendência atual${ritmo}, você chega a cerca de ${projetado} em ${data}, ${formatarNumero(Math.abs(a.diferencaKg), 1)} kg ${a.diferencaKg > 0 ? 'acima' : 'abaixo'} do alvo. Seria preciso ${comSinal(a.ritmoNecessarioKg)} kg por semana.`;
+}
+
+const ROTULO_ESTADO = Object.freeze({ atingida: 'Atingida', 'no-ritmo': 'No ritmo', atrasada: 'Atrasada', adiantada: 'Adiantada' });
+
+function tile(rotulo, valor, nomeIcone, nota = null, classeNota = '') {
+  return h(
+    'div',
+    { class: 'ativ-tile' },
+    h('span', { class: 'ativ-tile-rotulo' }, icone(nomeIcone, 16), rotulo),
+    h('strong', { class: 'ativ-tile-valor' }, valor),
+    nota ? h('span', { class: `ativ-tile-nota ${classeNota}` }, nota) : null,
+  );
+}
+
+/** Peso e metas: registro de pesagens, indicadores, gráfico, meta de peso e resumo semanal com o treino. */
+export function render(raiz, sessao) {
+  const hoje = hojeIso();
+  const dados = { pesagens: [], metas: [], configs: [], dias: [], atividades: [] };
+  const carregou = { pesagens: false, metas: false };
+  let periodoId = '90d';
+  const cancelar = [];
+
+  const tiles = h('div', { class: 'ativ-resumo' });
+  const graficoCartao = h('section', { class: 'card peso-grafico-cartao' });
+  const metaCartao = h('section', { class: 'card peso-meta' });
+  const semanalCartao = h('section', { class: 'card' });
+  const historicoCartao = h('section', { class: 'card' });
+  const erroGeral = areaMensagem();
+
+  const metaAtiva = () => dados.metas.find((m) => m.status === 'ativa') ?? null;
+  const alturaCm = () => configVigenteEm(dados.configs, hoje)?.alturaCm ?? dados.configs[dados.configs.length - 1]?.alturaCm ?? null;
+
+  // ---- registro de pesagem
+  const dataCampo = campo({ id: 'peso-data', rotulo: 'Data', tipo: 'date', value: hoje, max: hoje });
+  const pesoCampo = campo({ id: 'peso-kg', rotulo: 'Peso (kg)', inputmode: 'decimal', placeholder: 'ex.: 82,4', autocomplete: 'off' });
+  const msgRegistro = areaMensagem();
+  const botaoRegistro = h('button', { class: 'btn', type: 'submit' }, 'Registrar peso');
+  const formRegistro = h(
+    'form',
+    {
+      class: 'peso-form',
+      novalidate: true,
+      onSubmit: (e) => {
+        e.preventDefault();
+        executarComBotao(botaoRegistro, msgRegistro, async () => {
+          await salvarPesagem({ uid: sessao.uid, entrada: { data: dataCampo.input.value, pesoKg: pesoCampo.input.value }, hoje });
+          pesoCampo.input.value = '';
+          pesoCampo.input.focus();
+        });
+      },
+    },
+    dataCampo.raiz,
+    pesoCampo.raiz,
+    h('div', { class: 'campo campo-botao' }, botaoRegistro),
+  );
+
+  // ---- indicadores
+  function desenharTiles() {
+    const r = resumoDePeso(dados.pesagens, hoje);
+    const meta = metaAtiva();
+    const perder = meta && r.atual ? meta.pesoAlvoKg < r.atual.pesoKg : null;
+    // verde quando a variação vai na direção da meta; neutro sem meta
+    const classeDaVariacao = (v) => (v === null || v === 0 || perder === null ? '' : (v < 0) === perder ? 'comp-sobe' : 'comp-desce');
+    const imc = calcularImc(r.atual?.pesoKg, alturaCm());
+    tiles.replaceChildren(
+      tile('Peso atual', r.atual ? kg(r.atual.pesoKg) : '—', 'peso', r.atual ? `em ${formatarData(r.atual.data)}` : 'Sem pesagens'),
+      tile('Média de 7 dias', r.media7 === null ? '—' : kg(r.media7), 'atividades', 'Suaviza as oscilações do dia'),
+      tile('Tendência semanal', r.semanalKg === null ? '—' : `${comSinal(r.semanalKg)} kg`, r.semanalKg !== null && r.semanalKg > 0 ? 'setaCima' : 'setaBaixo', 'Média de hoje contra a de 7 dias atrás', classeDaVariacao(r.semanalKg)),
+      tile('Em 30 dias', r.variacao30Kg === null ? '—' : `${comSinal(r.variacao30Kg)} kg`, 'plano', 'Contra a pesagem de 30 dias atrás', classeDaVariacao(r.variacao30Kg)),
+      tile('IMC', imc === null ? '—' : formatarNumero(imc, 1), 'configuracao', imc === null ? 'Cadastre a altura na Configuração' : `Altura ${alturaCm()} cm`),
+    );
+  }
+
+  // ---- gráfico
+  function desenharGrafico() {
+    const chips = h(
+      'div',
+      { class: 'ativ-grupo', role: 'group', 'aria-label': 'Período do gráfico' },
+      ...PERIODOS_DO_PESO.map((p) =>
+        h(
+          'button',
+          {
+            type: 'button',
+            class: `ativ-chip${p.id === periodoId ? ' ativo' : ''}`,
+            'aria-pressed': String(p.id === periodoId),
+            onClick: () => {
+              periodoId = p.id;
+              desenharGrafico();
+            },
+          },
+          p.rotulo,
+        ),
+      ),
+    );
+    const grafico = criarGraficoPeso({ pesagens: dados.pesagens, meta: metaAtiva(), hoje, periodoId });
+    graficoCartao.replaceChildren(
+      h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Evolução do peso'), chips),
+      grafico ?? estadoVazio(carregou.pesagens ? 'Registre a primeira pesagem acima para ver o gráfico.' : 'Carregando…'),
+      grafico
+        ? h(
+            'p',
+            { class: 'peso-legenda texto-secundario' },
+            h('span', { class: 'peso-leg peso-leg-ponto' }, 'Pesagem'),
+            h('span', { class: 'peso-leg peso-leg-media' }, 'Média de 7 dias'),
+            metaAtiva() ? h('span', { class: 'peso-leg peso-leg-meta' }, 'Meta') : null,
+          )
+        : null,
+    );
+  }
+
+  // ---- meta de peso
+  function desenharMeta() {
+    const meta = metaAtiva();
+    const anteriores = dados.metas.filter((m) => m.status !== 'ativa').sort((a, b) => (a.dataAlvo < b.dataAlvo ? 1 : -1));
+    const r = resumoDePeso(dados.pesagens, hoje);
+    const avaliacao = avaliarMetaPeso(meta, dados.pesagens, hoje);
+    const alvo = campo({ id: 'metapeso-alvo', rotulo: 'Peso desejado (kg)', inputmode: 'decimal', value: meta ? String(meta.pesoAlvoKg).replace('.', ',') : '', dica: r.atual ? `Hoje: ${kg(r.atual.pesoKg)}.` : 'Registre o peso de hoje para medir o progresso.' });
+    const dataAlvo = campo({ id: 'metapeso-data', rotulo: 'Na data', tipo: 'date', value: meta?.dataAlvo ?? '', min: somarDias(hoje, 1) });
+    const mensagem = areaMensagem();
+    const botao = h('button', { class: 'btn', type: 'submit' }, meta ? 'Trocar a meta' : 'Definir meta');
+    const form = h(
+      'form',
+      {
+        novalidate: true,
+        class: 'peso-form',
+        onSubmit: (e) => {
+          e.preventDefault();
+          executarComBotao(botao, mensagem, async () => {
+            const avisos = await salvarMetaDePeso({ uid: sessao.uid, hoje, entrada: { pesoAlvoKg: alvo.input.value, dataAlvo: dataAlvo.input.value }, metasAtivas: meta ? [meta] : [], pesagens: dados.pesagens, alturaCm: alturaCm() });
+            if (avisos.length > 0) mensagem.mostrar(avisos.join(' '), 'aviso');
+          });
+        },
+      },
+      alvo.raiz,
+      dataAlvo.raiz,
+      h('div', { class: 'campo campo-botao' }, botao),
+    );
+
+    const progresso = meta ? progressoDaMetaPeso({ pesoInicialKg: meta.pesoInicialKg, pesoAtualKg: r.atual?.pesoKg, pesoAlvoKg: meta.pesoAlvoKg }) : null;
+    const pct = progresso === null ? null : Math.round(progresso * 100);
+    const resultado = !meta
+      ? h('p', { class: 'texto-secundario' }, 'Defina “chegar a X kg na data Y” e o app mostra se a sua tendência atual leva até lá e em que ritmo. Perder mais de 1% do peso por semana gera um aviso.')
+      : h(
+          'div',
+          { class: `meta-resultado meta-${avaliacao.estado === 'atrasada' ? 'abaixo' : avaliacao.estado === 'adiantada' ? 'acima' : avaliacao.estado === 'sem-dados' ? 'sem-dados' : 'atinge'}`, role: 'status' },
+          ROTULO_ESTADO[avaliacao.estado] ? h('span', { class: 'chip-estado' }, ROTULO_ESTADO[avaliacao.estado]) : null,
+          h('p', null, textoDaAvaliacaoPeso(avaliacao)),
+          avaliacao.agressiva ? h('p', { class: 'mensagem mensagem-aviso' }, 'Ritmo agressivo: perder mais de 1% do peso por semana é difícil de sustentar. Considere uma data mais distante ou um peso maior.') : null,
+          pct === null
+            ? null
+            : h(
+                'div',
+                { class: 'meta-progresso' },
+                h('p', { class: 'texto-secundario' }, `Progresso: ${pct}% do caminho (de ${kg(meta.pesoInicialKg)} até ${kg(meta.pesoAlvoKg)}).`),
+                h('div', { class: 'semana-progresso-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Progresso da meta de peso' }, h('span', { style: `width:${pct}%` })),
+              ),
+          avaliacao.dias >= 0 ? h('p', { class: 'texto-secundario' }, avaliacao.dias === 0 ? 'A meta é hoje.' : `Faltam ${avaliacao.dias} dia${avaliacao.dias === 1 ? '' : 's'}.`) : null,
+        );
+
+    metaCartao.replaceChildren(
+      h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Meta de peso')),
+      resultado,
+      form,
+      mensagem.el,
+      anteriores.length > 0
+        ? h(
+            'details',
+            { class: 'peso-anteriores' },
+            h('summary', null, `Metas anteriores (${anteriores.length})`),
+            h(
+              'ul',
+              null,
+              ...anteriores.map((m) =>
+                h(
+                  'li',
+                  null,
+                  `${kg(m.pesoAlvoKg)} até ${formatarData(m.dataAlvo)} `,
+                  h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onClick: () => excluirMetaPeso(m.id).catch(() => erroGeral.mostrar('Não foi possível excluir a meta.')) }, 'Excluir'),
+                ),
+              ),
+            ),
+          )
+        : null,
+    );
+  }
+
+  // ---- peso e treino por semana
+  function desenharSemanal() {
+    const linhas = resumoSemanalDePeso({ pesagens: dados.pesagens, dias: dados.dias, atividades: dados.atividades }, hoje, 8);
+    const temAlgo = linhas.some((l) => l.pesoMedioKg !== null || l.cargaHrss > 0 || l.kcalTreino > 0);
+    semanalCartao.replaceChildren(
+      h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Peso e treino por semana')),
+      temAlgo
+        ? h(
+            'div',
+            { class: 'tabela-wrap' },
+            h(
+              'table',
+              { class: 'tabela tabela-compacta' },
+              h('thead', null, h('tr', null, ...['Semana', 'Peso médio', 'Carga (HRSS)', 'Gasto dos treinos'].map((t) => h('th', { scope: 'col' }, t)))),
+              h(
+                'tbody',
+                null,
+                ...linhas.map((l) =>
+                  h(
+                    'tr',
+                    null,
+                    h('td', null, `${formatarData(l.inicio).slice(0, 5)} a ${formatarData(l.fim).slice(0, 5)}`),
+                    h('td', null, l.pesoMedioKg === null ? '—' : kg(l.pesoMedioKg)),
+                    h('td', { class: 'celula-hrss' }, l.cargaHrss > 0 ? formatarNumero(l.cargaHrss, 0) : '—'),
+                    h('td', null, l.kcalTreino > 0 ? `${formatarNumero(l.kcalTreino, 0)} kcal` : '—'),
+                  ),
+                ),
+              ),
+            ),
+          )
+        : estadoVazio('Sem dados nas últimas 8 semanas.'),
+    );
+  }
+
+  // ---- histórico de pesagens
+  function desenharHistorico() {
+    const lista = [...dados.pesagens].sort((a, b) => (a.data < b.data ? 1 : -1));
+    historicoCartao.replaceChildren(
+      h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Histórico de pesagens')),
+      lista.length === 0
+        ? estadoVazio(carregou.pesagens ? 'Nenhuma pesagem ainda.' : 'Carregando…')
+        : h(
+            'div',
+            { class: 'tabela-wrap peso-historico' },
+            h(
+              'table',
+              { class: 'tabela tabela-compacta' },
+              h('thead', null, h('tr', null, ...['Data', 'Peso', ''].map((t) => h('th', { scope: 'col' }, t)))),
+              h(
+                'tbody',
+                null,
+                ...lista.slice(0, 60).map((p) =>
+                  h(
+                    'tr',
+                    null,
+                    h('td', null, formatarData(p.data)),
+                    h('td', { class: 'celula-hrss' }, kg(p.pesoKg)),
+                    h(
+                      'td',
+                      null,
+                      h(
+                        'button',
+                        {
+                          class: 'btn btn-secundario btn-pequeno',
+                          type: 'button',
+                          'aria-label': `Excluir a pesagem de ${formatarData(p.data)}`,
+                          onClick: () => excluirPesagem(p.id ?? idDaPesagem(sessao.uid, p.data)).catch(() => erroGeral.mostrar('Não foi possível excluir a pesagem.')),
+                        },
+                        'Excluir',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            lista.length > 60 ? h('p', { class: 'texto-secundario' }, `Mostrando as 60 mais recentes de ${lista.length}.`) : null,
+          ),
+    );
+  }
+
+  function desenhar() {
+    desenharTiles();
+    desenharGrafico();
+    desenharMeta();
+    desenharSemanal();
+    desenharHistorico();
+  }
+
   raiz.replaceChildren(
     h(
-      'section',
-      { class: 'card' },
-      h('h1', null, 'Peso'),
-      estadoVazio('Em breve: registre o peso, acompanhe a tendência e defina metas.'),
+      'div',
+      { class: 'ativ-pagina' },
+      h('header', { class: 'ativ-cabecalho' }, h('div', null, h('h1', null, 'Peso'), h('p', { class: 'texto-secundario' }, 'Registre o peso, acompanhe a tendência e cruze com a carga de treino.'))),
+      erroGeral.el,
+      h('section', { class: 'card' }, h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Registrar peso')), formRegistro, msgRegistro.el),
+      tiles,
+      graficoCartao,
+      metaCartao,
+      semanalCartao,
+      historicoCartao,
     ),
   );
-  return () => {};
+  desenhar();
+
+  const aoErro = () => erroGeral.mostrar('Não foi possível carregar os dados de peso.');
+  cancelar.push(
+    observarPesagens(
+      sessao.uid,
+      (lista) => {
+        dados.pesagens = lista;
+        carregou.pesagens = true;
+        desenhar();
+      },
+      aoErro,
+    ),
+    observarMetasPeso(
+      sessao.uid,
+      (lista) => {
+        dados.metas = lista;
+        carregou.metas = true;
+        desenhar();
+      },
+      aoErro,
+    ),
+    observarConfigs(
+      sessao.uid,
+      (lista) => {
+        dados.configs = lista;
+        desenharTiles();
+        desenharMeta();
+      },
+      () => {},
+    ),
+    observarEstresseDiario(
+      sessao.uid,
+      (lista) => {
+        dados.dias = lista;
+        desenharSemanal();
+      },
+      () => {},
+    ),
+    observarAtividadesDesde(
+      sessao.uid,
+      somarDias(hoje, -DIAS_DE_TREINO),
+      (lista) => {
+        dados.atividades = lista;
+        desenharSemanal();
+      },
+      () => {},
+    ),
+  );
+  return () => cancelar.forEach((fn) => fn());
 }

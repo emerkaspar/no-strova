@@ -1,4 +1,4 @@
-import { totaisDaSemana } from '@no-strova/domain';
+import { progressoDaMetaPeso, resumoDePeso, totaisDaSemana } from '@no-strova/domain';
 import { destaqueDoInicio } from '../../application/inicio.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
@@ -314,13 +314,36 @@ export function blocoAtividades({ atividades, carregou }) {
   );
 }
 
-/** 4b. Peso e meta: sem registros até a tela de peso existir. */
-export function blocoPeso() {
+/** 4b. Peso e meta: peso atual, tendência semanal e o progresso da meta; sem pesagens, convida a registrar. */
+export function blocoPeso({ pesagens = [], meta = null, hoje, carregou = true } = {}) {
+  const topo = cabecalhoDoBloco('Peso');
+  const r = resumoDePeso(pesagens, hoje);
+  if (!carregou || !r.atual) {
+    return h(
+      'section',
+      { class: 'card bloco-peso' },
+      topo,
+      estadoVazio(carregou ? 'Sem pesagens ainda.' : 'Carregando…', carregou ? { href: '#/peso', rotulo: 'Registrar peso' } : null),
+    );
+  }
+  const sinal = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${formatarNumero(Math.abs(v), 1)}`;
+  const progresso = meta ? progressoDaMetaPeso({ pesoInicialKg: meta.pesoInicialKg, pesoAtualKg: r.atual.pesoKg, pesoAlvoKg: meta.pesoAlvoKg }) : null;
+  const pct = progresso === null ? null : Math.round(progresso * 100);
   return h(
     'section',
     { class: 'card bloco-peso' },
-    cabecalhoDoBloco('Peso'),
-    estadoVazio('Disponível quando houver registro de peso.', { href: '#/peso', rotulo: 'Abrir Peso' }),
+    topo,
+    h('p', { class: 'peso-inicio-valor' }, h('strong', null, `${formatarNumero(r.atual.pesoKg, 1)} kg`), h('span', { class: 'texto-secundario' }, ` em ${formatarData(r.atual.data)}`)),
+    h('p', { class: 'texto-secundario' }, r.semanalKg === null ? 'Tendência: registre pesagens por duas semanas.' : `Tendência: ${sinal(r.semanalKg)} kg por semana`),
+    meta
+      ? h(
+          'div',
+          { class: 'peso-inicio-meta' },
+          h('p', { class: 'texto-secundario' }, `Meta: ${formatarNumero(meta.pesoAlvoKg, 1)} kg até ${formatarData(meta.dataAlvo)}${pct === null ? '' : ` · ${pct}%`}`),
+          pct === null ? null : h('div', { class: 'semana-progresso-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Progresso da meta de peso' }, h('span', { style: `width:${pct}%` })),
+        )
+      : h('p', { class: 'texto-secundario' }, 'Sem meta de peso. ', h('a', { href: '#/peso' }, 'Definir meta')),
+    h('p', { class: 'bloco-rodape' }, h('a', { href: '#/peso' }, 'Abrir Peso')),
   );
 }
 

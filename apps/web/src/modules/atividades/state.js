@@ -2,6 +2,8 @@
 export const estadoAtividades = {
   busca: '',
   esporte: '',
+  /** Período dos cards e da tabela: '30d', '6m', 'ano', 'ano:2025' ou 'tudo'. */
+  periodo: 'tudo',
   ordem: { campo: 'data', direcao: 'desc' },
   /** O botão "Importar arquivo" do cabeçalho pede para abrir o painel de importação. */
   abrirImportar: false,

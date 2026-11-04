@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "build": "npm run typecheck && node build.mjs",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0",

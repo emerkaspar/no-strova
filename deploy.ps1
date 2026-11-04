@@ -119,6 +119,8 @@ function Producao-Configurada {
 
 function Sugerir-MensagemIA($diffText) {
     if (-not $diffText) { return $null }
+    # O diff pode chegar como lista de linhas: junta em um texto unico antes de cortar.
+    $diffText = ($diffText | Out-String)
     if ($diffText.Length -gt 6000) { $diffText = $diffText.Substring(0, 6000) }
     $prompt = "Gere uma mensagem de commit curta em portugues, no estilo: comeca com verbo, sem ponto final, max 70 caracteres. Responda SOMENTE com a mensagem, sem aspas, sem explicacao. Diff:`n`n$diffText"
     try {
