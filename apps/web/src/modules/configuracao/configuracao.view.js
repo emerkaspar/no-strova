@@ -44,7 +44,6 @@ function cartaoDadosPessoais(sessao) {
   return h('section', { class: 'card' }, h('h2', null, 'Seus dados'), form);
 }
 
-import { criarCartaoLimiteIa } from './limiteIa.js';
 
 export function render(raiz, sessao) {
   let configs = [];
@@ -218,9 +217,6 @@ export function render(raiz, sessao) {
     });
   });
 
-  const cartaoLimiteIa = sessao.admin ? criarCartaoLimiteIa() : null;
-  if (cartaoLimiteIa) cancelar.push(cartaoLimiteIa.cancelar);
-
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
       cartaoDadosPessoais(sessao),
@@ -233,7 +229,6 @@ export function render(raiz, sessao) {
         corpoTabela,
         areaForm,
       ),
-      cartaoLimiteIa,
       testeLthr.raiz,
       h(
         'section',

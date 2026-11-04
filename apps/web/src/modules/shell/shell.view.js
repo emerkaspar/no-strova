@@ -1,5 +1,5 @@
 import { h } from '../../utils/dom.js';
-import { render as renderAprovacoes } from '../admin/aprovacoes.view.js';
+import { render as renderAdmin } from '../admin/admin.view.js';
 import { render as renderDetalhe } from '../atividades/detalhe.view.js';
 import { render as renderAtividades } from '../atividades/lista.view.js';
 import { render as renderConfiguracao } from '../configuracao/configuracao.view.js';
@@ -18,7 +18,7 @@ const MENU = [
   { caminho: '#/treinos', rotulo: 'Treinos', icone: 'treinos' },
   { caminho: '#/peso', rotulo: 'Peso', icone: 'peso' },
   { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao' },
-  { caminho: '#/admin', rotulo: 'Aprovações', icone: 'aprovacoes', soAdmin: true },
+  { caminho: '#/admin', rotulo: 'Administração', icone: 'aprovacoes', soAdmin: true },
 ];
 
 /** Resolve o hash em { menu, render, params }. Rotas desconhecidas ou proibidas caem no Início. */
@@ -39,7 +39,7 @@ function resolverRota(hash, admin) {
     case '#/configuracao':
       return { menu: hash, render: renderConfiguracao, params: {} };
     case '#/admin':
-      if (admin) return { menu: hash, render: renderAprovacoes, params: {} };
+      if (admin) return { menu: hash, render: renderAdmin, params: {} };
       break;
     default:
   }

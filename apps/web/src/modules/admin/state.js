@@ -11,3 +11,6 @@ export function alternarOrdem(campo) {
     direcao: atual.campo === campo && atual.direcao === 'asc' ? 'desc' : 'asc',
   };
 }
+
+/** Aba aberta na página de Administração: 'aprovacoes' ou 'sistema'. */
+export const estadoAdmin = { aba: 'aprovacoes' };

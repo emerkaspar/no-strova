@@ -11,7 +11,7 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 
 ## Navegação
 
-- **Cabeçalho (todas as telas):** o logo (leva ao Início), a data por extenso, a saudação ("Bom dia", "Boa tarde" ou "Boa noite") e, à direita, o menu **Início, Atividades, Plano, Peso e Configuração** (**Aprovações** só aparece para administradores), o botão laranja **Importar arquivo** e o círculo com a sua inicial, que abre o menu da conta (tema e **Sair**). Em telas pequenas o menu vira uma **barra de abas no rodapé**.
+- **Cabeçalho (todas as telas):** o logo (leva ao Início), a data por extenso, a saudação ("Bom dia", "Boa tarde" ou "Boa noite") e, à direita, o menu **Início, Atividades, Plano, Peso e Configuração** (**Administração** só aparece para administradores), o botão laranja **Importar arquivo** e o círculo com a sua inicial, que abre o menu da conta (tema e **Sair**). Em telas pequenas o menu vira uma **barra de abas no rodapé**.
 - **Importar arquivo:** abre a tela de Atividades já com o painel de importação aberto.
 - **Plano** é onde você planeja os treinos (veja abaixo). **Peso** ainda está em construção e mostra só um aviso.
 
@@ -87,7 +87,7 @@ A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25,
 Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
 
 ## Sugestões com IA
-Há duas sugestões feitas por IA (Gemini). Em ambas a IA **só sugere**: nada muda no seu plano ou na sua meta até você aceitar, e há um limite diário de sugestões (as duas somadas), **definido pelo administrador** em Configuração (padrão: 5 por usuário por dia; também pode ser "sem limite"). O app mostra quantas restam.
+Há duas sugestões feitas por IA (Gemini). Em ambas a IA **só sugere**: nada muda no seu plano ou na sua meta até você aceitar, e há um limite diário de sugestões (as duas somadas), **definido pelo administrador** em Administração → Sistema (padrão: 5 por usuário por dia; também pode ser "sem limite"). O app mostra quantas restam.
 
 - **Plano → Sugestão de treinos com IA:** informe quantas semanas, as horas por semana, o esporte e, se quiser, uma observação ("viajo na semana 2"). **Você escolhe os dias da semana em que quer treinar** (marque Seg, Ter, Qua…) e, se quiser, **qual deles é o dia do longão**, que recebe o treino mais longo da semana. A IA monta os treinos com os do catálogo, olhando o seu Condicionamento, a Forma e o que já está no plano. Você vê a lista, desmarca o que não quiser e clica em **Aceitar**. Os dias que você escolheu são sempre respeitados: se a IA deixar algum vazio, o app completa com um treino leve, e se um treino passar do aumento de carga de 10% por semana, ele é trocado por um mais leve (com aviso). Treinos que quebrem os outros limites (mais de 2 intensos por semana, menos de 48 h entre eles, passar das horas por semana) são descartados, com um aviso. Se você não tem histórico no app, os dias escolhidos valem do mesmo jeito: comece leve.
 - **Peso → Plano de peso com IA:** informe o peso desejado e a data. O app calcula o ritmo, o déficit de calorias e quanto treinar por semana, **com limites de segurança** (no máximo 1% do peso por semana e 20% de déficit; se o seu pedido passar disso, a data é empurrada). A IA explica o plano e dá dicas. Clique em **Usar como meta** para criar a meta de peso.
@@ -131,4 +131,6 @@ Em **Plano** você organiza os treinos que ainda vai fazer e vê, na hora, como 
 
 ## Para administradores
 
-A aba **Aprovações** lista quem concluiu o cadastro e aguarda liberação. É possível buscar por nome ou e-mail, ordenar clicando no título da coluna, **Aprovar** ou **Bloquear** (com confirmação).
+A página **Administração** (só para você, como dono do sistema) tem duas abas. A aba **Aprovações** lista quem concluiu o cadastro e aguarda liberação. É possível buscar por nome ou e-mail, ordenar clicando no título da coluna, **Aprovar** ou **Bloquear** (com confirmação).
+
+A aba **Sistema** guarda os ajustes do sistema. Hoje tem o **limite das sugestões de IA** por usuário por dia (de 1 a 500, ou sem limite).
