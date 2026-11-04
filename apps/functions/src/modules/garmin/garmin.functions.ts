@@ -1,0 +1,39 @@
+import { defineSecret } from "firebase-functions/params";
+import { onCall } from "firebase-functions/v2/https";
+import { REGIAO } from "../../shared/config";
+import { exigirAcesso, lerObjeto } from "../../shared/guards";
+import * as servico from "./garmin.service";
+
+/**
+ * Chave de criptografia das chaves pessoais do Garmin (Secret Manager):
+ * `firebase functions:secrets:set GARMIN_CHAVE_CRIPTO` com um texto aleatório longo (ex.: 48 caracteres).
+ * Trocar o valor invalida as chaves já guardadas; os usuários precisam conectar de novo.
+ */
+const GARMIN_CHAVE_CRIPTO = defineSecret("GARMIN_CHAVE_CRIPTO");
+
+export const garminSituacao = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  return servico.situacao(uid);
+});
+
+export const garminConectar = onCall({ region: REGIAO, secrets: [GARMIN_CHAVE_CRIPTO] }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  const dados = lerObjeto(request.data);
+  return servico.conectar(uid, dados.chave, dados.validadeDias, GARMIN_CHAVE_CRIPTO.value());
+});
+
+export const garminDesconectar = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  await servico.desconectar(uid);
+  return { ok: true };
+});
+
+/** Processa um lote; o app repete a chamada com `proximo` até `terminou`. */
+export const garminSincronizar = onCall(
+  { region: REGIAO, memory: "512MiB", timeoutSeconds: 300, secrets: [GARMIN_CHAVE_CRIPTO] },
+  async (request) => {
+    const { uid, perfil } = await exigirAcesso(request);
+    const dataNascimento = typeof perfil.dataNascimento === "string" ? perfil.dataNascimento : null;
+    return servico.sincronizarLote(uid, dataNascimento, lerObjeto(request.data), GARMIN_CHAVE_CRIPTO.value());
+  },
+);

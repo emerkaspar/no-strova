@@ -8,6 +8,7 @@ import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/comp
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
+import { criarCartaoGarmin } from './garmin.js';
 import { editar, estadoConfiguracao } from './state.js';
 
 const ROTULO_SEXO = { [SEXOS.MASCULINO]: 'Masculino', [SEXOS.FEMININO]: 'Feminino' };
@@ -220,6 +221,7 @@ export function render(raiz, sessao) {
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
       cartaoDadosPessoais(sessao),
+      criarCartaoGarmin().raiz,
       h(
         'section',
         { class: 'card' },

@@ -10,6 +10,7 @@
 
 /* Tudo numa única linha: o bloco da saudação é o que cede espaço (reticências). */
 .topo-conteudo {
+  container-type: inline-size;
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
@@ -21,22 +22,34 @@
 .topo-marca {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
   flex: 1 1 0;
 }
 
+/*
+ * A marca fica à parte do texto: uma barra laranja fina separa o logo da data e da saudação, e a saudação usa Inter
+ * (não a Anton do logo), para os dois não se lerem como uma frase só.
+ */
 .topo-logo {
   display: inline-flex;
   flex: none;
+  align-items: center;
   line-height: 0;
 }
 
+.topo-logo::after {
+  content: '';
+  width: 3px;
+  height: 44px;
+  margin-left: 16px;
+  border-radius: 2px;
+  background: var(--primary);
+}
+
 .topo-logo .logo {
-  width: 68px;
-  height: 68px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
+  width: auto;
+  height: 56px;
 }
 
 .topo-texto {
@@ -46,7 +59,7 @@
 .topo-data {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -55,9 +68,26 @@
 
 .topo-saudacao {
   margin: 0;
-  font-family: var(--fonte-titulo);
-  font-size: 1.5rem;
-  line-height: 1.15;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topo-slogan {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 3px 0 0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--primary);
+  color: #0a0a0a;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.3;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -76,7 +106,7 @@
 }
 
 .menu-pilula a {
-  padding: 8px 11px;
+  padding: 8px 9px;
   border-radius: 999px;
   color: var(--text-secondary);
   font-size: 0.92rem;
@@ -848,20 +878,14 @@
   color: var(--primary);
 }
 
-/* Larguras médias: a data e o rótulo "arquivo" saem para o cabeçalho caber em uma linha. */
-@media (min-width: 768px) and (max-width: 1179px) {
+/* Larguras médias: o rótulo "arquivo" sai para o cabeçalho caber em uma linha. */
+@media (min-width: 768px) and (max-width: 1439px) {
   .topo-conteudo {
     gap: 12px;
   }
 
-  .topo-data,
   .so-desktop {
     display: none;
-  }
-
-  .topo-logo .logo {
-    width: 60px;
-    height: 60px;
   }
 
   .menu-pilula a {
@@ -870,7 +894,28 @@
   }
 
   .topo-saudacao {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
+  }
+}
+
+/* Cabeçalho estreito: a data vai na versão curta ("Qua, 4 nov 2026"); a por extenso só cabe a partir de 1500 px. */
+.data-curta {
+  display: none;
+}
+
+@container (max-width: 1499px) {
+  .data-longa {
+    display: none;
+  }
+
+  .data-curta {
+    display: inline;
+  }
+}
+
+@media (min-width: 1000px) and (max-width: 1199px) {
+  .menu-pilula a {
+    padding: 8px 7px;
   }
 }
 
@@ -878,6 +923,11 @@
 @media (min-width: 768px) and (max-width: 999px) {
   .topo-texto {
     display: none;
+  }
+
+  .topo-logo .logo {
+    width: auto;
+    height: 40px;
   }
 
   .topo-marca {
@@ -905,6 +955,13 @@
   }
 }
 
+/* Celulares estreitos: sem espaço para o slogan ao lado do logo. */
+@media (max-width: 479px) {
+  .topo-slogan {
+    display: none;
+  }
+}
+
 /* ===== Mobile: o menu vira barra de abas no rodapé ===== */
 @media (max-width: 767px) {
   .menu-pilula {
@@ -917,9 +974,13 @@
   }
 
   .topo-logo .logo {
-    width: 50px;
-    height: 50px;
-    border-radius: 12px;
+    width: auto;
+    height: 36px;
+  }
+
+  .topo-logo::after {
+    height: 32px;
+    margin-left: 10px;
   }
 
   .topo-marca {
@@ -931,7 +992,11 @@
   }
 
   .topo-saudacao {
-    font-size: 1.1rem;
+    font-size: 1rem;
+  }
+
+  .topo-slogan {
+    font-size: 0.6rem;
   }
 
   .so-desktop {

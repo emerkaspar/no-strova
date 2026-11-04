@@ -1,8 +1,9 @@
 import { sair } from '../../application/sessao.js';
 import { h } from '../../utils/dom.js';
-import { dataPorExtenso, horaNoFuso, saudacaoDaHora } from '../../utils/formatters.js';
+import { dataCurta, dataPorExtenso, horaNoFuso, saudacaoDaHora } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { logo } from '../../utils/marca.js';
+import { sloganAleatorio } from '../../utils/slogans.js';
 import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { pedirImportacao } from '../atividades/state.js';
 import { abrirWizard } from '../onboarding/wizard.js';
@@ -29,8 +30,8 @@ export function criarCabecalho(sessao, itens) {
   const marca = h(
     'div',
     { class: 'topo-marca' },
-    h('a', { href: '#/inicio', class: 'topo-logo', 'aria-label': 'No Strova — Início' }, logo()),
-    h('div', { class: 'topo-texto' }, h('p', { class: 'topo-data' }, dataPorExtenso()), h('p', { class: 'topo-saudacao' }, saudacao)),
+    h('a', { href: '#/inicio', class: 'topo-logo', 'aria-label': 'NÃO STROVA — Início' }, logo()),
+    h('div', { class: 'topo-texto' }, h('p', { class: 'topo-data' }, h('span', { class: 'data-longa' }, dataPorExtenso()), h('span', { class: 'data-curta' }, dataCurta())), h('p', { class: 'topo-saudacao' }, saudacao), h('p', { class: 'topo-slogan' }, sloganAleatorio())),
   );
 
   // --- menu em pílula (desktop) e barra de abas (mobile) ---

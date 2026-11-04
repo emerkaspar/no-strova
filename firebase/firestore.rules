@@ -308,5 +308,7 @@ service cloud.firestore {
     }
 
     // iaUso e vinculosTreinador: sem acesso direto (somente Admin SDK).
+    // users/{uid}/segredos/garmin (chave pessoal do Garmin, cifrada): sem regra, logo negado ao cliente. A regra de
+    // /users/{uid} não vale para subcoleções. Não crie um `match` curinga em users/{uid}/{document=**}.
   }
 }

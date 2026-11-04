@@ -27,6 +27,8 @@ import { ArquivoInvalidoError, type Extensao, lerArquivo } from "./parsers";
 export const TAMANHO_MAXIMO_BYTES = 15 * 1024 * 1024;
 /** Limite de atividades criadas por usuário por dia (arquivo + manual), contra abuso. */
 export const LIMITE_CADASTROS_POR_DIA = 30;
+/** Valor do campo `fonte` das atividades trazidas pela sincronização com o Garmin. */
+export const FONTE_GARMIN = "garmin";
 const ID_ATIVIDADE = /^[A-Za-z0-9_-]{8,40}$/;
 const ZONAS_VALIDAS = Object.keys(ZONAS);
 
@@ -60,7 +62,15 @@ async function exigirCotaDiaria(uid: string): Promise<void> {
     .where("criadoEm", ">=", inicioDoDia)
     .count()
     .get();
-  if (agregado.data().count >= LIMITE_CADASTROS_POR_DIA) {
+  if (agregado.data().count < LIMITE_CADASTROS_POR_DIA) return;
+  // Atividades sincronizadas do Garmin têm limite próprio e não consomem a cota de quem cadastra à mão.
+  const doDia = await db
+    .collection("atividades")
+    .where("userId", "==", uid)
+    .where("criadoEm", ">=", inicioDoDia)
+    .select("fonte")
+    .get();
+  if (doDia.docs.filter((d) => d.get("fonte") !== FONTE_GARMIN).length >= LIMITE_CADASTROS_POR_DIA) {
     throw new HttpsError(
       "resource-exhausted",
       `Limite de ${LIMITE_CADASTROS_POR_DIA} atividades por dia atingido. Tente novamente amanhã.`,
@@ -84,11 +94,13 @@ function esporteOpcional(valor: unknown): string | null {
   return valor;
 }
 
-interface PedidoArquivo {
+export interface PedidoArquivo {
   atividadeId: string;
   extensao: Extensao;
   esporte: string | null;
   zona: string | null;
+  /** Origem externa do arquivo (sincronização); ela tem limite próprio e não consome a cota diária. */
+  fonte?: typeof FONTE_GARMIN;
 }
 
 export function lerPedidoArquivo(dados: Record<string, unknown>, extensao: Extensao): PedidoArquivo {
@@ -140,7 +152,7 @@ export async function processarArquivo(
     return rejeitar("invalid-argument", "O arquivo está vazio ou passa do limite de 15 MB.");
   }
 
-  await exigirCotaDiaria(uid);
+  if (!pedido.fonte) await exigirCotaDiaria(uid);
 
   const [conteudo] = await arquivo.download();
   const hashArquivo = createHash("sha256").update(conteudo).digest("hex");
@@ -221,6 +233,7 @@ export async function processarArquivo(
     arquivoPath: arquivo.name,
     extensao: pedido.extensao,
     hashArquivo,
+    ...(pedido.fonte ? { fonte: pedido.fonte } : {}),
     criadoEm: FieldValue.serverTimestamp(),
   });
   const serie = reduzirSerieFc(lido.amostras);

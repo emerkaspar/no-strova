@@ -1,5 +1,5 @@
 /*
- * Identidade visual do No Strova: preto, branco e laranja (~#FF5200).
+ * Identidade visual do NÃO STROVA: preto, branco e laranja (~#FF5200).
  * Tema escuro é o padrão; o claro é opcional (data-tema="claro" no <html>).
  * Títulos em Anton (caixa alta), corpo em Inter com números tabulares. Fontes self-hosted (@fontsource).
  */
@@ -290,14 +290,15 @@ a:focus-visible {
   gap: 16px;
 }
 
-.acesso-marca .logo {
-  margin: 0;
+.acesso-marca .logo-completo {
+  display: block;
+  width: 252px;
+  height: auto;
 }
 
 @media (max-width: 960px) {
-  .acesso-marca .logo {
-    width: 80px;
-    height: 80px;
+  .acesso-marca .logo-completo {
+    width: 180px;
   }
 }
 
@@ -795,13 +796,23 @@ h3 {
 /* Logo */
 .logo {
   display: block;
-  border-radius: 10px;
-  background: #000;
+}
+
+/* Logo por tema: escuro é o padrão */
+.logo-claro {
+  display: none;
+}
+
+:root[data-tema='claro'] .logo-claro {
+  display: block;
+}
+
+:root[data-tema='claro'] .logo-escuro {
+  display: none;
 }
 
 .logo-grande {
   margin: 0 auto 20px;
-  border-radius: 16px;
 }
 
 a.marca {

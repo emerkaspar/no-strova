@@ -2,7 +2,7 @@ import { cadastrar, entrar, entrarComGoogle } from '../../application/sessao.js'
 import { SENHA_MINIMA } from '../../core/constants.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
-import { logo } from '../../utils/marca.js';
+import { logoCompleto } from '../../utils/marca.js';
 import { definirModo, estadoAuth } from './state.js';
 import { TEXTO_ACEITE_LGPD } from './textos.js';
 
@@ -179,7 +179,7 @@ export function render(raiz) {
   const topo = h(
     'header',
     { class: 'acesso-topo' },
-    h('div', { class: 'acesso-marca' }, logo({ grande: true })),
+    h('div', { class: 'acesso-marca' }, logoCompleto()),
     h('p', { class: 'acesso-troca' }, pergunta, ' ', alternar),
   );
   raiz.replaceChildren(h('main', { class: 'acesso' }, topo, h('div', { class: 'acesso-corpo' }, painelApresentacao(), cartao)));

@@ -1,4 +1,4 @@
-# Ajuda do No Strova
+# Ajuda do NÃO STROVA
 
 ## Criar conta e acessar
 
@@ -76,6 +76,19 @@ Em **Atividades → Importar arquivo**, escolha arquivos **.fit, .gpx ou .tcx** 
 - Se o mesmo arquivo (ou uma atividade com o mesmo início e duração) já foi importado, o app avisa e não duplica.
 - Se o arquivo **não tem frequência cardíaca**, o app pede a **zona predominante** do treino (Z1 a Z5) e estima o estresse por ela.
 - Limite de 30 atividades por dia.
+
+### Sincronizar com o Garmin
+Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin Connect**. Em **Configuração → Garmin Connect**:
+
+1. No Garmin Connect, abra as configurações e a página **Personal API Key**, aceite os termos, escolha a validade (30, 90, 180 dias ou 1 ano) e crie a chave. O Garmin mostra a chave **uma única vez**.
+2. Cole a chave no campo **Chave pessoal**, escolha a mesma validade e clique em **Conectar**. A chave é validada e guardada criptografada; o app nunca a mostra de novo.
+3. Escolha o período (30, 60, 90 dias ou 6 meses) e clique em **Sincronizar agora**. A sincronização só acontece quando você clica. Nas vezes seguintes, dá para trazer só o que é novo desde a última vez.
+
+- Corrida e ciclismo entram com o esporte certo; qualquer outro esporte entra como **outro**.
+- Atividade já importada (ou igual a uma que você enviou à mão) não é duplicada.
+- Atividade **sem frequência cardíaca** não é importada pela sincronização; o resumo avisa quantas ficaram de fora. Para essas, envie o arquivo em **Importar arquivo** e informe a zona.
+- Cada sincronização traz até 200 atividades; se chegar ao limite, sincronize de novo.
+- A chave expira na validade que você escolheu (o app avisa quando faltam 7 dias). Aí é só apagar a chave no Garmin Connect, criar outra e conectar de novo. **Desconectar** apaga a chave guardada; as atividades já importadas continuam.
 
 ### Registrar manualmente
 Em **Atividades → Registrar manualmente**, informe esporte, data, duração e, no mínimo, **uma** destas: FC média, zona predominante ou HRSS. Distância, subida e calorias são opcionais.

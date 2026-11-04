@@ -1,4 +1,4 @@
-export const NOME_APP = 'No Strova';
+export const NOME_APP = 'NÃO STROVA';
 export const REGIAO_FUNCTIONS = 'southamerica-east1';
 
 export const SENHA_MINIMA = 8;

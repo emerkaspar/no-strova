@@ -39,3 +39,7 @@ export const calcularMelhoresEsforcos = callable('calcularMelhoresEsforcos');
 export const marcarConquistasComoVistas = callable('marcarConquistasComoVistas');
 export const decidirRascunho = callable('decidirRascunho');
 export const iaChamadasRestantes = callable('iaChamadasRestantes');
+export const garminSituacao = callable('garminSituacao');
+export const garminConectar = callable('garminConectar');
+export const garminDesconectar = callable('garminDesconectar');
+export const garminSincronizar = callable('garminSincronizar');

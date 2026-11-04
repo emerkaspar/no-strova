@@ -1,5 +1,5 @@
 const CHAVE = 'no-strova:tema';
-const COR_DA_BARRA = { escuro: '#0a0a0a', claro: '#f6f6f4' };
+const COR_DA_BARRA = { escuro: '#FF5200', claro: '#f6f6f4' };
 
 function lerSalvo() {
   try {

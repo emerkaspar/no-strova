@@ -77,6 +77,17 @@ export function dataPorExtenso(instanteMs = Date.now()) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+/** "Qua, 4 nov 2026", no fuso de São Paulo (versão curta de dataPorExtenso, para cabeçalhos estreitos). */
+export function dataCurta(instanteMs = Date.now()) {
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+      .formatToParts(new Date(instanteMs))
+      .map((p) => [p.type, p.value.replace(/\.$/, '')]),
+  );
+  const semana = partes.weekday.charAt(0).toUpperCase() + partes.weekday.slice(1);
+  return `${semana}, ${partes.day} ${partes.month} ${partes.year}`;
+}
+
 /**
  * Forma com sinal explícito e `casas` decimais: "+12", "−8" (sinal de menos de verdade) ou "0";
  * com 1 casa: "+0,2", "−19,4", "0,0".

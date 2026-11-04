@@ -1,30 +1,26 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Base pública do site: o og:image precisa de URL absoluta.
+const URL_BASE_SITE = 'https://no-strova-app.web.app';
+
+/** Troca %URL_BASE_SITE% no index.html pela constante acima. */
+const urlBaseNoHtml = () => ({
+  name: 'url-base-no-html',
+  transformIndexHtml: (html) => html.replaceAll('%URL_BASE_SITE%', URL_BASE_SITE),
+});
+
 // As variáveis VITE_* vêm de .env.<modo> na raiz do monorepo (homolog, production).
 export default defineConfig({
   envDir: '../../',
   build: { outDir: 'dist' },
   plugins: [
+    urlBaseNoHtml(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'favicon-32.png', 'favicon-48.png', 'logo.png', 'icons/apple-touch-icon.png'],
-      manifest: {
-        name: 'No Strova',
-        short_name: 'No Strova',
-        description: 'Planejamento e análise de treino para quem pedala e corre.',
-        lang: 'pt-BR',
-        start_url: '/',
-        scope: '/',
-        display: 'standalone',
-        background_color: '#0a0a0a',
-        theme_color: '#0a0a0a',
-        icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
+      // O manifesto é o public/site.webmanifest (linkado no index.html), não um gerado pelo plugin.
+      manifest: false,
+      includeAssets: ['favicon.ico', 'site.webmanifest', 'icons/apple-touch-icon.png', 'icons/favicon.svg'],
       workbox: {
         navigateFallback: '/index.html',
         // /__/ é reservado ao Firebase Hosting; /api/ será de Functions HTTP.

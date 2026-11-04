@@ -24,6 +24,7 @@ Diferenciais em relação ao Elevate:
 - Esportes: ciclismo, corrida (e "outro").
 - Cadastro manual de atividade (sem arquivo) também permitido.
 - Sem integração com Strava na v1.
+- **Sincronização com o Garmin Connect** (Personal API, só pelo botão): ver "Sincronização com o Garmin" abaixo.
 
 ## Cálculos (camada `domain/`, funções puras)
 
@@ -161,6 +162,16 @@ Replica o Elevate (`appcore/modules/shared/sync/compute/activity-computer.ts`), 
 - **Arquivos órfãos** (upload feito, callable nunca chamada ou falhou): a função agendada `limparArquivosOrfaos` (todos os dias às 03:30, São Paulo) apaga do Storage os arquivos com mais de 24 h sem atividade do mesmo dono. O prazo preserva o arquivo de uma importação sem FC que aguarda a zona.
 - `obterUrlArquivo` gera URL assinada (v4, 10 min). Exige que a conta de serviço das Functions tenha `roles/iam.serviceAccountTokenCreator` sobre si mesma; sem isso só o botão "Baixar arquivo original" falha.
 
+### Sincronização com o Garmin
+- Usa a **Garmin Connect Personal API** (gratuita, somente leitura, só os dados do dono da chave). O usuário cria a chave no Garmin Connect (validade de 30, 90, 180 dias ou 1 ano; ela é exibida uma única vez) e cola em **Configuração → Garmin Connect**. A Garmin diz no FAQ que essa API não é para aplicações comerciais com vários usuários; para abrir o app ao público, o caminho correto é o Garmin Connect Developer Program.
+- Troca da chave por token: `POST https://personal.connectapi.garmin.com/personalapitoken-service/personal-api/personal-api-key/token` (`Authorization: ApiKey <chave>`); o token (JWT em texto puro) vale até 24 h e não há refresh token. Listagem: `GET /activitylist-service/activities/search/activities` (`start`, `limit`, `startDate`, `endDate`). Arquivo: `GET /download-service/files/activity/{id}`, que devolve um ZIP com o .fit.
+- **Chave guardada** em `users/{uid}/segredos/garmin` (`chaveCifrada`, `criadaEm`, `expiraEm`, `ultimaSincronizacao`). Nenhuma regra do Firestore libera essa subcoleção (negada por padrão); só o Admin SDK lê e escreve. A chave é cifrada com AES-256-GCM e o segredo de cifra é `GARMIN_CHAVE_CRIPTO` (Secret Manager). A data de expiração é informada pelo usuário, porque a API não a informa.
+- **Callables** (`garmin/`): `garminSituacao`, `garminConectar` (valida a chave pedindo um token antes de guardar), `garminDesconectar` e `garminSincronizar`.
+- **Sincronização:** só pelo botão. O usuário escolhe 30, 60, 90 ou 180 dias (máximo de 6 meses); da segunda vez em diante há também "só o que é novo desde a última vez". A callable processa **um lote de 10 atividades** e devolve `proximo` e `terminou`; o app repete a chamada e mostra o progresso. Cada atividade nova vira o arquivo `atividades/{uid}/garmin_{id}/original.fit` e passa por `processarArquivo`, o mesmo caminho do envio manual. O id `garmin_{id}` é determinístico: sincronizar de novo não duplica. Atividade igual a uma enviada à mão (mesmo início e duração) é contada como "já existia".
+- Esporte que não é corrida nem ciclismo vira "outro" (`esporteDoArquivo`). Atividade sem FC não é importada (a sincronização não pergunta a zona): fica de fora e é contada no resumo.
+- **Limites:** até 200 atividades por sincronização. As atividades do Garmin (campo `fonte: "garmin"`) não entram na cota de 30 por dia do envio manual.
+- O formato do JSON da listagem não é documentado publicamente: o código lê `activityId` de cada item e registra um aviso no log se a lista vier com itens sem esse campo.
+
 **Índices compostos:** `atividades` (`userId`, `data` desc) e (`userId`, `esporte`, `data` desc); `estresseDiario` (`userId`, `data`); `treinosPlanejados` (`userId`, `data`) e (`userId`, `status`, `data`); `configsAtleta` (`userId`, `vigenteDesde` desc); `pesagens` (`userId`, `data`); `metasPeso` (`userId`, `status`); `iaRascunhos` (`userId`, `criadoEm` desc); `users` (`aprovado`, `criadoEm`).
 
 ## Papéis e permissões
@@ -182,6 +193,7 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 ## Cloud Functions
 - `auth/`: `bootstrapUserOnCreate` (trigger), `ensureUserProfile`, `aprovarUsuario`, `listarPendentes`, `bloquearUsuario`.
 - `atividades/`: `processarArquivoAtividade`, `calcularMelhoresEsforcos` (melhor 5 km e 10 km das atividades antigas, relendo os arquivos), `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` e a agendada `limparArquivosOrfaos`.
+- `garmin/`: `garminSituacao`, `garminConectar`, `garminDesconectar`, `garminSincronizar`.
 - `estresse/` (Fase 3): trigger `onAtividadeWrite` (mantém `estresseDiario`) e a callable `reconstruirEstresseDiario`.
 - `calibracao/`: callable `reconstruirCalibracao` e o serviço que o gatilho `onAtividadeWrite` (e `recalcularHistorico`) usa para manter `calibracoes/{uid}`. O teste de LTHR não tem Function: roda no cliente.
 - `ia/`: `sugerirTreinos`, `decidirRascunho`, `iaChamadasRestantes`.
@@ -292,7 +304,7 @@ Tela cheia em `modules/onboarding/` (`wizard.js` e `passos.js`), com regras pura
 
 # Identidade visual
 
-Preto, branco e laranja (~#FF5200), a partir do logo em `apps/web/assets/logo.png`. Implementada em `apps/web/src/styles/base.css`.
+Preto, branco e laranja (~#FF5200), a partir do kit "NÃO STROVA" em `apps/web/public/` (`logo/`, `icons/`, `og/`). Implementada em `apps/web/src/styles/base.css`.
 
 ## Tema
 - **Escuro é o padrão**, independente da configuração do sistema; **claro é opção** (botão no cabeçalho, escolha guardada no aparelho). A cor da barra do navegador (`theme-color`) acompanha o tema.
@@ -324,10 +336,10 @@ Preto, branco e laranja (~#FF5200), a partir do logo em `apps/web/assets/logo.pn
 Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/src/styles/layout.css`, `modules/shell/` e `modules/inicio/`.
 
 **Cabeçalho (em uma única linha em qualquer largura a partir de 768 px)**
-- À esquerda: logo (68 px; quadrado preto com "NO" e "STROVA"), a data por extenso em pt-BR (`America/Sao_Paulo`, em cinza, 13 px) e, abaixo, a saudação em Anton caixa alta, 24 px (`Bom dia` 5h–11h59, `Boa tarde` 12h–17h59, `Boa noite` 18h–4h59, com o primeiro nome). A saudação é deliberadamente leve; o logo é o elemento de maior peso.
+- À esquerda: logo sem slogan (56 px de altura; `logo/naostrova-logo-escuro-sem-slogan.png` no tema escuro e `-claro-sem-slogan.png` no claro; 40 px de 768 a 999 px e 36 px no celular), separado do texto por uma **barra laranja vertical** de 3 px; a saudação usa Inter 700 (não a Anton do logo) para não se ler como parte da marca, e, sob a saudação, uma etiqueta laranja com um **slogan sorteado** a cada carregamento, sem repetir o anterior (tiradas curtas e ácidas em `utils/slogans.js`; some abaixo de 480 px e de 1000 px, onde a saudação também sai), a data por extenso em pt-BR (`America/Sao_Paulo`, em cinza, 13 px) e, abaixo, a saudação em Inter 700, 19 px (`Bom dia` 5h–11h59, `Boa tarde` 12h–17h59, `Boa noite` 18h–4h59, com o primeiro nome). A saudação é deliberadamente leve; o logo é o elemento de maior peso.
 - À direita: menu em pílula (**Início, Atividades, Plano, Treinos, Peso, Configuração**; **Administração** (abas Aprovações e Sistema) só para admin) com o item ativo preenchido de laranja (texto preto no escuro, branco no claro; ver "Botão primário"), o botão laranja **Importar arquivo** e o avatar com a inicial, que abre um menu com **Tema claro/escuro** e **Sair** (fecha com Esc ou clique fora).
 - **Importar arquivo** leva a `#/atividades` com o painel de importação aberto (se a lista já está aberta, abre o painel na hora).
-- **Largura:** o bloco da saudação é o que cede espaço (reticências). De 1000 a 1179 px a data sai e o rótulo vira "Importar"; de 768 a 999 px a saudação também sai e o menu fica mais compacto. Medido com as fontes do projeto: em 1205 px com admin (6 itens) sobram ~250 px para a data (237 px).
+- **Largura:** o bloco da saudação é o que cede espaço (reticências). A data aparece sempre (exceto no celular e no tablet estreito): por extenso com o cabeçalho de 1500 px ou mais e curta ("Qua, 4 nov 2026") abaixo disso, por container query; de 768 a 1439 px o rótulo "arquivo" sai e o rótulo vira "Importar"; de 768 a 999 px a saudação também sai e o menu fica mais compacto. Medido com as fontes do projeto: em 1205 px com admin (6 itens) sobram ~250 px para a data (237 px).
 - **Abaixo de 768 px** o menu em pílula some e vira uma **barra de abas fixa no rodapé** com ícones de traço (início, atividades, plano, treinos, peso, configuração e, para admin, aprovações) e rótulos pequenos; o item ativo fica laranja. O cabeçalho mantém logo, saudação reduzida, "Importar" e avatar.
 - A tela **Forma** (`#/forma`) não tem item de menu: abre pelo "Ver gráfico completo" do Início e mantém Início ativo. **Plano** (`#/plano`) está pronto (Fase 4); **Peso** (`#/peso`) está pronto (Fase 5).
 
@@ -394,11 +406,12 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 **Botão primário e itens laranja:** vale a regra de contraste já registrada (texto `--primary-contrast`: preto no escuro, branco no claro). Isso vale também para o bloco "Forma hoje", a pílula ativa e o botão "Importar arquivo".
 
 ## Logo, favicon e PWA
-- Logo no cabeçalho (44 px, leva ao Início) e nas telas de acesso (login, cadastro, concluir cadastro, aguardando aprovação, bloqueado).
+- Marca escrita **"NÃO STROVA"** (título, cabeçalho, login, manifesto). O nome do sistema nos ids, coleções e rotas não muda.
+- Cabeçalho (leva ao Início, `alt="NÃO STROVA"`): logo `naostrova-logo-escuro-sem-slogan.png` ou `-claro-sem-slogan.png` conforme o tema. Ícone (`icons/naostrova-icone.svg`) nas telas de status (concluir cadastro, aguardando aprovação, bloqueado).
 - Login/cadastro em duas colunas (apresentação com texto bem-humorado + cartão do formulário; empilha no mobile) e botão "Entrar com o Google" (Firebase Auth, `signInWithPopup`). Contas novas via Google seguem o mesmo fluxo: perfil inicial, tela "concluir cadastro" (aceite LGPD) e aprovação do admin.
-- O logo é a arte "NAO STROVA" (barras brancas, texto branco e laranja) em `assets/logo.png` (1024×1024); o favicon é um recorte quadrado em volta dela.
-- `npm run icones -w apps/web` gera, a partir de `assets/logo.png`: `favicon.ico`, `favicon-32.png` e `favicon-48.png` (recorte justo no texto, para ler em tamanho pequeno), ícones do PWA de 192 e 512 px, ícone "maskable" (logo a 70% do centro sobre preto, por causa do corte do Android) e `apple-touch-icon`.
-- Manifesto do PWA com fundo e tema `#0A0A0A`.
+- Login/cadastro usam o logo completo `logo/naostrova-logo-laranja.svg` (sobre o cartaz laranja). Há ainda as variantes `-claro` e `-escuro` (fundo transparente) e `-sem-slogan`.
+- `<head>` (`apps/web/index.html`): `favicon.ico` (48×48), `icons/favicon.svg`, `apple-touch-icon`, manifesto, `theme-color` `#FF5200`, Open Graph e `twitter:card` `summary_large_image`. A URL absoluta do `og:image` usa a constante `URL_BASE_SITE` em `vite.config.js`.
+- Manifesto do PWA em `public/site.webmanifest` (fundo `#0A0A0A`, tema `#FF5200`, ícones 192/512 e maskable em `/icons/`); o plugin PWA não gera outro. Os ícones vêm prontos do kit (não há mais script gerador).
 
 # Prompts por fase (para o Claude Code)
 

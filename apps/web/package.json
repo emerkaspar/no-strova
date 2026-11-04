@@ -7,7 +7,6 @@
     "dev": "vite --mode homolog",
     "build:homolog": "vite build --mode homolog",
     "build:prod": "vite build --mode production",
-    "icones": "node scripts/gerar-icones.mjs",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
