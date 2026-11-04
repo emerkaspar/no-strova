@@ -1453,15 +1453,30 @@ textarea {
   background: none;
 }
 
-/* Coluna "Esforço planejado" ao lado da semana (e de cada linha do mês) */
+/* Coluna "Esforço planejado" ao lado da semana (e de cada linha do mês): painel discreto, com a cor da marca só na barra */
+.cal-esforco-coluna,
+.cal-esforco {
+  --esforco-fundo: color-mix(in srgb, var(--primary) 5%, var(--surface));
+  --esforco-borda: color-mix(in srgb, var(--primary) 16%, var(--border));
+}
+
 .cal-esforco-coluna {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   min-width: 0;
-  padding: 8px;
-  border: 1px dashed var(--border);
+  margin-left: 6px; /* separa a coluna do calendário */
+  padding: 12px;
+  background: var(--esforco-fundo);
+  border: 1px solid var(--esforco-borda);
   border-radius: 12px;
+}
+
+/* tema escuro: o tom alaranjado vira marrom sujo; aqui a coluna é um painel neutro, mais fundo que os dias */
+:root:not([data-tema='claro']) .cal-esforco-coluna,
+:root:not([data-tema='claro']) .cal-esforco {
+  --esforco-fundo: #2a2a2a;
+  --esforco-borda: color-mix(in srgb, var(--text-primary) 14%, var(--border));
 }
 
 .cal-esforco-titulo,
@@ -1470,6 +1485,10 @@ textarea {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.1em;
+}
+
+.cal-cabecalho-esforco {
+  padding-left: 12px !important;
 }
 
 .cal-esforco {
@@ -1481,29 +1500,91 @@ textarea {
 
 .cal-esforco-compacto {
   justify-content: center;
-  padding: 6px;
-  background: var(--surface-light);
-  border: 1px dashed var(--border);
+  gap: 7px;
+  margin-left: 6px; /* separa a coluna do calendário */
+  padding: 10px 12px;
+  background: var(--esforco-fundo);
+  border: 1px solid var(--esforco-borda);
   border-radius: 10px;
-  font-size: 0.72rem;
 }
 
-.cal-esforco-bloco {
+.cal-esforco-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+}
+
+.cal-esforco-total {
+  color: var(--text-primary);
+  font-family: var(--fonte-titulo);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cal-esforco-compacto .cal-esforco-total {
+  font-size: 1.2rem;
+}
+
+.cal-esforco-meta {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.cal-esforco-barra {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  border-radius: 999px;
+}
+
+.cal-esforco-barra span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+.cal-esforco-barra-prevista {
+  background: color-mix(in srgb, var(--primary) 38%, transparent);
+}
+
+.cal-esforco-barra-feita {
+  background: var(--primary);
+}
+
+.cal-esforco-detalhe {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
 
-.cal-esforco-bloco strong {
-  font-size: 1.05rem;
+.cal-esforco-detalhe span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.cal-esforco-compacto .cal-esforco-bloco strong {
-  font-size: 0.85rem;
+.cal-ponto {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
 
-.cal-esforco-bloco small,
-.cal-esforco-rotulo {
+.cal-ponto-feito {
+  background: var(--primary);
+}
+
+.cal-ponto-previsto {
+  background: color-mix(in srgb, var(--primary) 38%, transparent);
+}
+
+.cal-esforco-fase {
   color: var(--text-secondary);
   font-size: 0.72rem;
 }
@@ -1512,12 +1593,37 @@ textarea {
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.8rem;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .cal-esforco-traco {
   color: var(--text-secondary);
   text-align: center;
+}
+
+/* meta atingida: a barra e o contorno ficam verdes e o badge aparece */
+.cal-esforco-conquista {
+  border-color: color-mix(in srgb, var(--success) 55%, var(--border));
+}
+
+.cal-esforco-conquista .cal-esforco-barra-feita,
+.cal-esforco-conquista .cal-ponto-feito {
+  background: var(--success);
+}
+
+.badge-conquista {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 2px 8px;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* Telas pequenas: semana em lista e mês só com a contagem */
@@ -1532,13 +1638,29 @@ textarea {
     grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.4fr);
   }
 
-  .cal-esforco-compacto .cal-esforco-rotulo {
+  .cal-esforco-coluna {
+    margin-left: 0;
+    margin-top: 4px;
+  }
+
+  /* no mês do celular sobra só o total, a meta e a barra */
+  .cal-esforco-compacto {
+    margin-left: 2px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .cal-esforco-compacto .cal-esforco-total {
+    font-size: 0.9rem;
+  }
+
+  .cal-esforco-compacto .cal-esforco-meta,
+  .cal-esforco-compacto .cal-esforco-detalhe {
     display: none;
   }
 
-  .cal-esforco-compacto {
-    padding: 2px;
-    text-align: center;
+  .cal-cabecalho-esforco {
+    padding-left: 2px !important;
   }
 
   .cal-dia {
