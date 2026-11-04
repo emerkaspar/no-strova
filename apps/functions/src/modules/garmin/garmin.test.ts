@@ -1,7 +1,16 @@
 import { Buffer } from "node:buffer";
 import { deflateRawSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
-import { baixarArquivoZip, extrairFit, extrairItens, GarminErroApi, listarAtividades, obterToken } from "./garmin.cliente";
+import {
+  baixarArquivoZip,
+  descreverDownload,
+  extrairFit,
+  extrairItens,
+  GarminErroApi,
+  listarAtividades,
+  obterFit,
+  obterToken,
+} from "./garmin.cliente";
 import { criptografar, descriptografar } from "./garmin.cripto";
 
 /** Monta um ZIP mínimo (suficiente para o leitor). */
@@ -62,10 +71,32 @@ describe("extrairFit", () => {
   });
 });
 
+describe("obterFit e descreverDownload", () => {
+  const cabecalho = Buffer.alloc(32);
+  cabecalho.write(".FIT", 8, "latin1");
+
+  it("aceita o .fit puro, sem ZIP", () => {
+    expect(obterFit(cabecalho, 1024)?.equals(cabecalho)).toBe(true);
+    expect(obterFit(cabecalho, 10)).toBeNull();
+  });
+
+  it("descreve o ZIP sem .fit e o que não é ZIP", () => {
+    const zip = montarZip([{ nome: "leia-me.txt", conteudo: Buffer.from("oi"), metodo: 0 }]);
+    expect(obterFit(zip, 1024)).toBeNull();
+    expect(descreverDownload(zip)).toContain("leia-me.txt");
+    expect(descreverDownload(Buffer.from("<html>erro</html>"))).toContain("não é ZIP nem FIT");
+  });
+});
+
 describe("extrairItens", () => {
   it("aceita lista na raiz ou dentro de um objeto e só ids válidos", () => {
     expect(extrairItens([{ activityId: 11 }, { activityId: "22" }, { activityId: -1 }, {}, null]).itens).toEqual([{ id: "11" }, { id: "22" }]);
     expect(extrairItens({ activities: [{ activityId: 5 }] }).itens).toEqual([{ id: "5" }]);
+  });
+
+  it("monta o rótulo com nome e data quando a listagem os traz", () => {
+    const { itens } = extrairItens([{ activityId: 7, activityName: "Corrida matinal", startTimeLocal: "2026-11-04 06:30:00" }]);
+    expect(itens).toEqual([{ id: "7", rotulo: "Corrida matinal em 04/11/2026" }]);
   });
 
   it("conta o total da página mesmo quando nenhum item é reconhecido", () => {

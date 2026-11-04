@@ -20,6 +20,15 @@ const CAMINHOS = Object.freeze({
   ciclismo: ['M2.2 17a3.8 3.8 0 1 0 7.6 0a3.8 3.8 0 1 0-7.6 0', 'M14.2 17a3.8 3.8 0 1 0 7.6 0a3.8 3.8 0 1 0-7.6 0', 'M6 17l4-8h5l3 8M10 9l3 8H6M15 9l-1-3h-2'],
   corrida: ['M12.6 4.5a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0', 'M13 8.5L10.5 13M12.8 9.5L17.5 11.5L19.5 9.5M12.4 10L8.5 9.5L6.5 12', 'M10.5 13L14.5 15.2L13.5 20.5M10.5 13L7.5 16.5L4 15.5'],
   outro: ['M13 3L5 14h6l-1 7 8-11h-6z'],
+  // avisos
+  fechar: ['M6 6l12 12', 'M18 6L6 18'],
+  ok: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M8 12.5l3 3 5-6'],
+  info: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 11v5', 'M12 7.8v.2'],
+  alerta: ['M12 4l9 16H3z', 'M12 10v4', 'M12 17v.2'],
+  // origem da atividade (tabela de atividades)
+  garmin: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7.5l4.5 8.5h-9z'],
+  lapis: ['M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z', 'M14 7l3 3'],
+  arquivo: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5'],
   esporte: ['M8 3h8v6a4 4 0 0 1-8 0z', 'M8 5H4.5v1.5A3.5 3.5 0 0 0 8 10M16 5h3.5v1.5A3.5 3.5 0 0 1 16 10', 'M12 13v4M8.5 21h7M9.5 17.5h5'],
   setaCima: ['M12 19V5', 'M6 11l6-6 6 6'],
   setaBaixo: ['M12 5v14', 'M6 13l6 6 6-6'],
@@ -32,7 +41,7 @@ const CAMINHOS = Object.freeze({
   aprovacoes: ['M2.5 20c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6', 'M9 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M16.5 10.5l2 2 3.5-4'],
 });
 
-/** Ícone de traço pelo nome (inicio, atividades, plano, treinos, peso, configuracao, aprovacoes, ciclismo, corrida, outro, esporte, elevacao, setaCima, setaBaixo, duracao, distancia, hrss, fc). */
+/** Ícone de traço pelo nome (inicio, atividades, plano, treinos, peso, configuracao, aprovacoes, ciclismo, corrida, outro, garmin, lapis, arquivo, fechar, ok, info, alerta, esporte, elevacao, setaCima, setaBaixo, duracao, distancia, hrss, fc). */
 export function icone(nome, tamanho = 24) {
   const el = document.createElementNS(NS, 'svg');
   for (const [k, v] of Object.entries({

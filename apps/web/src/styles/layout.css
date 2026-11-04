@@ -41,15 +41,17 @@
 .topo-logo::after {
   content: '';
   width: 3px;
-  height: 44px;
+  height: 74px;
   margin-left: 16px;
   border-radius: 2px;
   background: var(--primary);
 }
 
+/* O ícone do app é quadrado e traz o próprio fundo arredondado, então destaca igual nos dois temas. */
 .topo-logo .logo {
   width: auto;
-  height: 56px;
+  height: 96px;
+  border-radius: 18%; /* acompanha os cantos do PNG (proporcionais), para o contorno não ficar serrilhado */
 }
 
 .topo-texto {
@@ -926,8 +928,7 @@
   }
 
   .topo-logo .logo {
-    width: auto;
-    height: 40px;
+    height: 72px;
   }
 
   .topo-marca {
@@ -974,12 +975,12 @@
   }
 
   .topo-logo .logo {
-    width: auto;
-    height: 36px;
+    height: 56px;
+    border-radius: 8px;
   }
 
   .topo-logo::after {
-    height: 32px;
+    height: 44px;
     margin-left: 10px;
   }
 
@@ -2859,25 +2860,81 @@ textarea {
 }
 
 .ativ-tabela-card .tabela th {
-  color: var(--primary);
-  font-size: 0.72rem;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.ativ-tabela-card .tabela th button:hover,
+.ativ-tabela-card .tabela th[aria-sort='ascending'] button,
+.ativ-tabela-card .tabela th[aria-sort='descending'] button {
+  color: var(--primary);
+}
+
+.tabela-atividades {
+  font-variant-numeric: tabular-nums;
+}
+
+.tabela-atividades td {
+  padding: 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  white-space: nowrap;
+}
+
+.tabela-atividades tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tabela-atividades tbody tr {
+  transition: background 0.12s ease;
 }
 
 .tabela-atividades tbody tr:hover {
   background: var(--surface-light);
 }
 
-.tabela-atividades td {
-  white-space: nowrap;
+.tabela-atividades tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.ativ-data {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ativ-data:hover {
+  text-decoration: underline;
 }
 
 .ativ-esporte {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.ativ-esporte-icone,
+.ativ-origem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--surface-light);
+  color: var(--text-secondary);
+}
+
+.ativ-origem-garmin {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.ativ-origem-manual {
+  color: var(--text-primary);
 }
 
 .ativ-esporte .icone {
@@ -5082,5 +5139,147 @@ textarea {
   .avatar {
     width: 40px;
     height: 40px;
+  }
+}
+
+/* Botão só com o ícone para sincronizar com o Garmin Connect, no azul da marca Garmin (#007CC3) */
+.btn-garmin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #007cc3;
+  border-radius: 12px;
+  background: #007cc3;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 124, 195, 0.35);
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-garmin:hover:not(:disabled),
+.btn-garmin:focus-visible {
+  background: #0069a6;
+  border-color: #0069a6;
+}
+
+.btn-garmin:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.btn-garmin:disabled {
+  cursor: progress;
+  opacity: 0.8;
+}
+
+.btn-garmin.carregando .icone {
+  animation: garmin-gira 1s linear infinite;
+}
+
+@keyframes garmin-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-garmin.carregando .icone {
+    animation: none;
+  }
+}
+
+.btn-garmin[hidden] {
+  display: none;
+}
+
+/* Aviso em faixa (utils/avisoDispensavel.js): ícone, texto e botão de fechar; a cor do tipo vem de --aviso */
+.aviso-faixa {
+  --aviso: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 12px 12px 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--aviso) 35%, var(--border));
+  border-left: 4px solid var(--aviso);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--aviso) 9%, var(--surface));
+  color: var(--text-primary);
+  animation: aviso-entra 0.18s ease-out;
+}
+
+.aviso-faixa[hidden] {
+  display: none;
+}
+
+.aviso-ok {
+  --aviso: var(--success);
+}
+
+.aviso-erro {
+  --aviso: var(--danger);
+}
+
+.aviso-carregando {
+  --aviso: #007cc3;
+}
+
+.aviso-icone {
+  display: inline-flex;
+  flex: none;
+  color: var(--aviso);
+}
+
+.aviso-carregando .aviso-icone .icone {
+  animation: garmin-gira 1s linear infinite;
+}
+
+.aviso-texto {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.aviso-fechar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.aviso-fechar[hidden] {
+  display: none;
+}
+
+.aviso-fechar:hover,
+.aviso-fechar:focus-visible {
+  background: color-mix(in srgb, var(--aviso) 15%, transparent);
+  color: var(--text-primary);
+}
+
+@keyframes aviso-entra {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aviso-faixa,
+  .aviso-carregando .aviso-icone .icone {
+    animation: none;
   }
 }

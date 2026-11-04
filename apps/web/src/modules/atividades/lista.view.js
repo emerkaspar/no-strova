@@ -1,10 +1,12 @@
 import { anosComAtividades, melhoresEsforcosDasAtividades, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, velocidadeMediaMs } from '@no-strova/domain';
 import { montarSerie } from '../../application/forma.js';
-import { calcularMelhoresEsforcos } from '../../core/functions.js';
+import { calcularMelhoresEsforcos, garminSituacao } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
+import { avisoDispensavel } from '../../utils/avisoDispensavel.js';
 import { areaMensagem } from '../../utils/componentes.js';
+import { resumoSincronizacao, semNovidades, sincronizarGarmin } from '../configuracao/garmin.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
@@ -23,10 +25,18 @@ const COLUNAS = [
   { campo: 'altimetriaM', rotulo: 'Elevação' },
   { campo: 'fcMedia', rotulo: 'FC média' },
   { campo: 'hrss', rotulo: 'HRSS' },
+  { campo: 'fonteOrdem', rotulo: 'Origem' },
 ];
 
+/** De onde veio a atividade: sincronizada do Garmin (`fonte`), arquivo enviado ou cadastro manual (`origem`). */
+function origemDaAtividade(a) {
+  if (a.fonte === 'garmin') return { id: 'garmin', rotulo: 'Garmin Connect', icone: 'garmin' };
+  if (a.origem === 'manual') return { id: 'manual', rotulo: 'Cadastro manual', icone: 'lapis' };
+  return { id: 'arquivo', rotulo: 'Arquivo importado', icone: 'arquivo' };
+}
+
 function textoBusca(a) {
-  return [formatarData(a.data), a.data, ROTULO_ESPORTE[a.esporte], a.origem].join(' ').toLowerCase();
+  return [formatarData(a.data), a.data, ROTULO_ESPORTE[a.esporte], origemDaAtividade(a).rotulo].join(' ').toLowerCase();
 }
 
 /** Velocidade média: km/h no ciclismo (e em "outro"); ritmo em min/km na corrida. */
@@ -77,8 +87,8 @@ function filtrarEOrdenar(atividades) {
   return atividades
     .filter((a) => !termo || textoBusca(a).includes(termo))
     .sort((a, b) => {
-      const va = a[campo] ?? null;
-      const vb = b[campo] ?? null;
+      const va = campo === 'fonteOrdem' ? origemDaAtividade(a).rotulo : (a[campo] ?? null);
+      const vb = campo === 'fonteOrdem' ? origemDaAtividade(b).rotulo : (b[campo] ?? null);
       if (va === null && vb === null) return 0;
       if (va === null) return 1; // vazios sempre no fim
       if (vb === null) return -1;
@@ -94,6 +104,7 @@ export function render(raiz, sessao) {
   const cancelar = [];
   const mensagem = areaMensagem();
   const aviso = h('p', { class: 'mensagem', hidden: true });
+  const mensagemGarmin = avisoDispensavel();
   const corpo = h('div', { class: 'tabela-wrap' });
   const paineis = h('div');
   const contagem = h('span', { class: 'texto-secundario' });
@@ -312,13 +323,53 @@ export function render(raiz, sessao) {
   window.addEventListener(EVENTO_IMPORTAR, abrirPainelDeImportacao);
   const abrirManual = () => painelManual();
 
+  /** Sincroniza com o Garmin sem sair da tela. Só aparece para quem conectou o Garmin em Configuração. A lista se atualiza sozinha (onSnapshot). */
+  const botaoGarmin = h('button', {
+    class: 'btn-garmin',
+    type: 'button',
+    hidden: true,
+    title: 'Sincronizar com o Garmin Connect',
+    'aria-label': 'Sincronizar com o Garmin Connect',
+  }, icone('garmin', 22));
+  botaoGarmin.addEventListener('click', async () => {
+    botaoGarmin.disabled = true;
+    botaoGarmin.classList.add('carregando');
+    mensagemGarmin.limpar();
+    try {
+      const situacao = await garminSituacao();
+      if (!situacao.conectado) {
+        botaoGarmin.hidden = true;
+        mensagemGarmin.mostrar('O Garmin não está mais conectado. Conecte de novo em Configuração.');
+        return;
+      }
+      mensagemGarmin.mostrar('Sincronizando com o Garmin…', 'carregando');
+      const primeira = !situacao.ultimaSincronizacao;
+      const { total, limitado } = await sincronizarGarmin({ dias: primeira ? 30 : undefined });
+      const vazio = primeira ? 'Nos últimos 30 dias, nenhuma atividade foi encontrada.' : 'Desde a última sincronização, nenhuma atividade foi encontrada.';
+      mensagemGarmin.mostrar(resumoSincronizacao(total, limitado, vazio), semNovidades(total) ? 'info' : 'ok');
+    } catch (err) {
+      mensagemGarmin.mostrar(err.message || 'Não foi possível sincronizar com o Garmin.');
+    } finally {
+      botaoGarmin.disabled = false;
+      botaoGarmin.classList.remove('carregando');
+    }
+  });
+
+  garminSituacao().then(
+    (situacao) => {
+      botaoGarmin.hidden = !situacao.conectado;
+    },
+    () => {}, // sem estado do Garmin, o botão fica escondido
+  );
+
   function linha(a) {
     const origem = ROTULO_ORIGEM_HRSS[a.hrssOrigem];
+    const fonte = origemDaAtividade(a);
     return h(
       'tr',
       null,
-      h('td', null, h('a', { href: `#/atividades/${a.id}` }, formatarData(a.data))),
-      h('td', null, h('span', { class: 'ativ-esporte' }, iconeDoEsporte(a.esporte), ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
+      h('td', null, h('a', { class: 'ativ-data', href: `#/atividades/${a.id}` }, formatarData(a.data))),
+      h('td', null, h('span', { class: 'ativ-esporte' }, h('span', { class: 'ativ-esporte-icone' }, iconeDoEsporte(a.esporte)), ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
       h('td', null, formatarDuracao(a.duracaoS)),
       h('td', null, formatarDistancia(a.distanciaM)),
       h('td', null, textoVelocidade(a)),
@@ -330,6 +381,11 @@ export function render(raiz, sessao) {
         a.hrss === null || a.hrss === undefined ? h('span', { class: 'badge badge-aviso', title: 'HRSS não calculado' }, 'sem HRSS') : formatarNumero(a.hrss, 1),
         origem && a.hrssOrigem !== 'fc' ? h('small', { class: 'dica', title: `HRSS ${origem}` }, ` (${a.hrssOrigem})`) : null,
         a.alertas?.length ? h('span', { class: 'badge badge-aviso', title: 'Há avisos nesta atividade' }, '!') : null,
+      ),
+      h(
+        'td',
+        null,
+        h('span', { class: `ativ-origem ativ-origem-${fonte.id}`, title: fonte.rotulo, role: 'img', 'aria-label': fonte.rotulo }, icone(fonte.icone, 16)),
       ),
     );
   }
@@ -404,10 +460,12 @@ export function render(raiz, sessao) {
         h(
           'div',
           { class: 'linha-botoes' },
+          botaoGarmin,
           h('button', { class: 'btn', type: 'button', onClick: () => mostrarPainel('importar', abrirImportar) }, 'Importar arquivo'),
           h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => mostrarPainel('manual', abrirManual) }, 'Registrar manualmente'),
         ),
       ),
+      mensagemGarmin.el,
       aviso,
       paineis,
       filtros,

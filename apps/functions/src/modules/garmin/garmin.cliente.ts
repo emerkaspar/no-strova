@@ -46,6 +46,8 @@ export async function obterToken(chave: string, f: Requisitor = fetch): Promise<
 export interface ItemAtividade {
   /** Somente dígitos. */
   id: string;
+  /** Nome e data da atividade no Garmin, quando a listagem os traz (para explicar uma falha ao usuário). */
+  rotulo?: string;
 }
 
 export interface ParametrosLista {
@@ -77,6 +79,15 @@ function idDoItem(item: unknown): string | null {
   return /^[0-9]{1,20}$/.test(texto) && Number(texto) > 0 ? texto : null;
 }
 
+function rotuloDoItem(item: unknown): { rotulo?: string } {
+  const o = item as Record<string, unknown>;
+  const nome = typeof o.activityName === "string" ? o.activityName.trim().slice(0, 60) : "";
+  const inicio = typeof o.startTimeLocal === "string" ? /^(\d{4})-(\d{2})-(\d{2})/.exec(o.startTimeLocal) : null;
+  const data = inicio ? `${inicio[3]}/${inicio[2]}/${inicio[1]}` : "";
+  const rotulo = [nome, data].filter(Boolean).join(" em ");
+  return rotulo ? { rotulo } : {};
+}
+
 /**
  * Extrai os identificadores da resposta da listagem. O formato exato não é documentado publicamente, então
  * aceita uma lista na raiz ou dentro de um objeto, e lê `activityId` de cada item.
@@ -92,7 +103,7 @@ export function extrairItens(resposta: unknown): { itens: ItemAtividade[]; total
   const itens: ItemAtividade[] = [];
   for (const item of lista) {
     const id = idDoItem(item);
-    if (id) itens.push({ id });
+    if (id) itens.push({ id, ...rotuloDoItem(item) });
   }
   return { itens, total: lista.length };
 }
@@ -110,6 +121,36 @@ export async function baixarArquivoZip(token: string, atividadeId: string, f: Re
   if (conteudo.length === 0) throw new GarminErroApi(502, "O arquivo da atividade veio vazio.");
   if (conteudo.length > TAMANHO_MAXIMO_ZIP_BYTES) throw new GarminErroApi(413, "O arquivo da atividade é grande demais.");
   return conteudo;
+}
+
+/** Um arquivo FIT começa com o cabeçalho de 12 ou 14 bytes e tem ".FIT" nos bytes 8 a 11. */
+export function pareceFit(conteudo: Buffer): boolean {
+  return conteudo.length > 14 && conteudo.toString("latin1", 8, 12) === ".FIT";
+}
+
+/** O download costuma vir em ZIP, mas aceita também o .fit puro. */
+export function obterFit(conteudo: Buffer, limiteBytes: number): Buffer | null {
+  if (pareceFit(conteudo)) return conteudo.length <= limiteBytes ? conteudo : null;
+  return extrairFit(conteudo, limiteBytes);
+}
+
+/** Descreve o que veio do Garmin quando não há .fit (nomes e tamanhos das entradas do ZIP), para o log. */
+export function descreverDownload(conteudo: Buffer): string {
+  const inicio = conteudo.subarray(0, 4).toString("hex");
+  const minimo = Math.max(0, conteudo.length - 22 - 0xffff);
+  for (let i = conteudo.length - 22; i >= minimo; i -= 1) {
+    if (conteudo.readUInt32LE(i) !== FIM_DIRETORIO) continue;
+    const entradas: string[] = [];
+    let pos = conteudo.readUInt32LE(i + 16);
+    for (let n = 0; n < conteudo.readUInt16LE(i + 10) && pos + 46 <= conteudo.length && n < 20; n += 1) {
+      if (conteudo.readUInt32LE(pos) !== ENTRADA_DIRETORIO) break;
+      const nome = conteudo.toString("utf8", pos + 46, pos + 46 + conteudo.readUInt16LE(pos + 28));
+      entradas.push(`${nome} (método ${conteudo.readUInt16LE(pos + 10)}, ${conteudo.readUInt32LE(pos + 24)} bytes)`);
+      pos += 46 + conteudo.readUInt16LE(pos + 28) + conteudo.readUInt16LE(pos + 30) + conteudo.readUInt16LE(pos + 32);
+    }
+    return `ZIP de ${conteudo.length} bytes com: ${entradas.join(", ") || "nenhuma entrada"}`;
+  }
+  return `${conteudo.length} bytes, não é ZIP nem FIT (começa com ${inicio})`;
 }
 
 const FIM_DIRETORIO = 0x06054b50;

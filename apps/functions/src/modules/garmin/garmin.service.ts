@@ -13,10 +13,11 @@ import {
 } from "../atividades/atividades.service";
 import {
   baixarArquivoZip,
-  extrairFit,
+  descreverDownload,
   extrairItens,
   GarminErroApi,
   listarAtividades,
+  obterFit,
   obterToken,
   type Requisitor,
 } from "./garmin.cliente";
@@ -43,6 +44,8 @@ export interface ResultadoLote {
   jaExistiam: number;
   semFc: number;
   falhas: number;
+  /** Por que cada atividade que ficou de fora (sem FC ou com falha) não foi importada. */
+  problemas: Array<{ atividade: string; motivo: string }>;
   /** Posição para pedir o próximo lote. */
   proximo: number;
   terminou: boolean;
@@ -187,7 +190,7 @@ export async function sincronizarLote(
   const ultima = snap.get("ultimaSincronizacao");
   const dias = diasDaSincronizacao(entrada.dias, ultima instanceof Timestamp ? ultima.toMillis() : null, agora);
 
-  const resultado: ResultadoLote = { importadas: 0, jaExistiam: 0, semFc: 0, falhas: 0, proximo: inicio, terminou: false, limitado: false };
+  const resultado: ResultadoLote = { importadas: 0, jaExistiam: 0, semFc: 0, falhas: 0, problemas: [], proximo: inicio, terminou: false, limitado: false };
   if (inicio >= LIMITE_POR_SINCRONIZACAO) {
     return { ...resultado, terminou: true, limitado: true };
   }
@@ -231,10 +234,20 @@ export async function sincronizarLote(
       continue;
     }
     const caminho = caminhoDoArquivo(uid, atividadeId, "fit");
+    const nomeDaAtividade = item.rotulo ?? `atividade ${item.id}`;
     try {
-      const fit = extrairFit(await baixarArquivoZip(token, item.id, requisitor), TAMANHO_MAXIMO_BYTES);
+      const baixado = await baixarArquivoZip(token, item.id, requisitor);
+      const fit = obterFit(baixado, TAMANHO_MAXIMO_BYTES);
       if (!fit) {
+        logger.warn("Garmin: o download da atividade não trouxe um .fit utilizável", {
+          atividadeId,
+          conteudo: descreverDownload(baixado),
+        });
         resultado.falhas += 1;
+        resultado.problemas.push({
+          atividade: nomeDaAtividade,
+          motivo: "o Garmin não trouxe um arquivo .fit dela (comum em atividades criadas à mão ou sem sensores)",
+        });
         continue;
       }
       await getStorage().bucket().file(caminho).save(fit, { resumable: false, contentType: "application/octet-stream" });
@@ -247,10 +260,13 @@ export async function sincronizarLote(
         resultado.jaExistiam += 1; // a mesma atividade já foi enviada à mão
       } else if (err instanceof HttpsError && err.code === "failed-precondition" && (err.details as { codigo?: string })?.codigo === "sem-fc") {
         resultado.semFc += 1;
+        resultado.problemas.push({ atividade: nomeDaAtividade, motivo: "não tem frequência cardíaca" });
         await getStorage().bucket().file(caminho).delete({ ignoreNotFound: true });
       } else {
         resultado.falhas += 1;
+        resultado.problemas.push({ atividade: nomeDaAtividade, motivo: motivoDaFalha(err) });
         logger.error("Falha ao importar atividade do Garmin", { atividadeId, err });
+        await getStorage().bucket().file(caminho).delete({ ignoreNotFound: true }).catch(() => undefined);
       }
     }
   }
@@ -265,6 +281,18 @@ export async function sincronizarLote(
     await docChave(uid).set({ ultimaSincronizacao: FieldValue.serverTimestamp() }, { merge: true });
   }
   return resultado;
+}
+
+/** Motivo de uma falha, em português, para mostrar ao usuário (a causa técnica vai para o log). */
+export function motivoDaFalha(err: unknown): string {
+  if (err instanceof HttpsError) {
+    const mensagem = err.message.replace(/\.$/, "");
+    return mensagem.charAt(0).toLowerCase() + mensagem.slice(1);
+  }
+  if (err instanceof GarminErroApi) {
+    return err.status === 0 ? "o Garmin não respondeu ao baixar o arquivo" : `o Garmin recusou o download (erro ${err.status})`;
+  }
+  return "erro inesperado ao ler o arquivo";
 }
 
 /** Identificador determinístico: sincronizar de novo a mesma atividade nunca a duplica. */

@@ -3,15 +3,14 @@ import { NOME_APP } from '../core/constants.js';
 
 /**
  * Logo da interface. `grande` é o ícone (public/icons/naostrova-icone.svg), das telas de status. O padrão (cabeçalho)
- * é o logo sem slogan, em duas versões (escuro, para o tema escuro; claro, para o claro) e o CSS mostra a do tema atual; o slogan vai em texto, sorteado em utils/slogans.js.
+ * é o ícone do app (public/icons/icon-512.png), que traz o próprio fundo e por isso serve
+ * aos dois temas; o slogan vai em texto, sorteado em utils/slogans.js.
  */
 export function logo({ grande = false } = {}) {
   if (grande) {
     return h('img', { src: '/icons/naostrova-icone.svg', alt: NOME_APP, class: 'logo logo-grande', width: 112, height: 112 });
   }
-  const versao = (tema) =>
-    h('img', { src: `/logo/naostrova-logo-${tema}-sem-slogan.png`, alt: NOME_APP, class: `logo logo-${tema}`, width: 107, height: 44 });
-  return [versao('escuro'), versao('claro')];
+  return h('img', { src: '/icons/icon-512.png', alt: NOME_APP, class: 'logo', width: 56, height: 56 });
 }
 
 /** Logo completo com slogan (public/logo/naostrova-logo-laranja.svg), para a tela de login sobre fundo laranja. */

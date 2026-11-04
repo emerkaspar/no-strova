@@ -20,12 +20,56 @@ function plural(n, singular, pluralTexto) {
   return `${n} ${n === 1 ? singular : pluralTexto}`;
 }
 
-function resumo(t) {
-  const partes = [`${plural(t.importadas, 'atividade importada', 'atividades importadas')}`];
-  if (t.jaExistiam > 0) partes.push(`${t.jaExistiam} já existiam`);
+/** Nada novo: nenhuma importada e nada que mereça aviso (sem FC ou falha). Os "já existiam" não interessam nesse caso. */
+export function semNovidades(t) {
+  return t.importadas === 0 && t.semFc === 0 && t.falhas === 0;
+}
+
+export function resumo(t, vazio = 'Nenhuma atividade foi encontrada no período.') {
+  if (semNovidades(t)) return vazio;
+  const partes = [];
+  if (t.importadas > 0) {
+    partes.push(plural(t.importadas, 'atividade importada', 'atividades importadas'));
+    if (t.jaExistiam > 0) partes.push(`${t.jaExistiam} já existiam`);
+  }
   if (t.semFc > 0) partes.push(`${plural(t.semFc, 'ficou de fora por não ter', 'ficaram de fora por não terem')} frequência cardíaca`);
   if (t.falhas > 0) partes.push(`${plural(t.falhas, 'não pôde ser lida', 'não puderam ser lidas')}`);
-  return `${partes.join(' · ')}.`;
+  return `${partes.join(' · ')}.${detalhesDosProblemas(t.problemas)}`;
+}
+
+const MAXIMO_DE_PROBLEMAS_LISTADOS = 5;
+
+/** Quais atividades ficaram de fora e por quê ("Corrida em 04/11/2026: não tem frequência cardíaca"). */
+function detalhesDosProblemas(problemas = []) {
+  if (problemas.length === 0) return '';
+  const lista = problemas.slice(0, MAXIMO_DE_PROBLEMAS_LISTADOS).map((p) => `${p.atividade}: ${p.motivo}`);
+  const resto = problemas.length - lista.length;
+  return ` Ficaram de fora → ${lista.join('; ')}${resto > 0 ? `; e mais ${resto}` : ''}.`;
+}
+
+/** Mensagem final de uma sincronização (resumo + aviso do limite por rodada). `vazio` é o texto de quando nada foi encontrado. */
+export function resumoSincronizacao(total, limitado, vazio) {
+  return `${resumo(total, vazio)}${limitado ? ' Foi atingido o limite de 200 atividades; sincronize de novo para continuar.' : ''}`;
+}
+
+/**
+ * Sincroniza as atividades do Garmin, rodada a rodada, até terminar. `dias` omitido traz só o que é novo desde a última vez.
+ * `aoProgresso` recebe os totais parciais a cada rodada. Lança Error em português (o servidor valida a conexão).
+ */
+export async function sincronizarGarmin({ dias, aoProgresso } = {}) {
+  const total = { importadas: 0, jaExistiam: 0, semFc: 0, falhas: 0, problemas: [] };
+  let inicio = 0;
+  let limitado = false;
+  for (;;) {
+    aoProgresso?.(total);
+    const r = await garminSincronizar({ dias, inicio });
+    for (const k of ['importadas', 'jaExistiam', 'semFc', 'falhas']) total[k] += r[k];
+    total.problemas.push(...(r.problemas ?? []));
+    inicio = r.proximo;
+    limitado = r.limitado;
+    if (r.terminou) break;
+  }
+  return { total, limitado };
 }
 
 /** Cartão "Garmin Connect": colar a chave pessoal, ver o estado e sincronizar as atividades. */
@@ -106,23 +150,16 @@ export function criarCartaoGarmin() {
         botao,
         mensagem,
         async () => {
-          const total = { importadas: 0, jaExistiam: 0, semFc: 0, falhas: 0 };
           const dias = periodo.select.value === '' ? undefined : Number(periodo.select.value);
-          let inicio = 0;
-          let limitado = false;
-          try {
-            for (;;) {
-              progresso.textContent = `Sincronizando… ${plural(total.importadas, 'atividade importada', 'atividades importadas')}`;
-              const r = await garminSincronizar({ dias, inicio });
-              for (const k of Object.keys(total)) total[k] += r[k];
-              inicio = r.proximo;
-              limitado = r.limitado;
-              if (r.terminou) break;
-            }
-          } finally {
+          const { total, limitado } = await sincronizarGarmin({
+            dias,
+            aoProgresso: (t) => {
+              progresso.textContent = `Sincronizando… ${plural(t.importadas, 'atividade importada', 'atividades importadas')}`;
+            },
+          }).finally(() => {
             progresso.textContent = '';
-          }
-          mensagem.mostrar(`${resumo(total)}${limitado ? ' Foi atingido o limite de 200 atividades; sincronize de novo para continuar.' : ''}`, 'ok');
+          });
+          mensagem.mostrar(resumoSincronizacao(total, limitado), 'ok');
           desenhar(await garminSituacao());
         },
         'Sincronizando…',
