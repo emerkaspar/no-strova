@@ -52,7 +52,7 @@ A estimativa de HRSS dos treinos planejados parte de uma fórmula. Com a **calib
 A tela mostra, de cima para baixo: filtros de **período** (30 dias, 6 meses, este ano, um ano à escolha ou tudo) e de **esporte**; os **totais** do filtro (atividades, tempo, distância, elevação e carga); os **recordes** de uma única atividade (maior distância, tempo, elevação, HRSS e FC máxima, a semana mais pesada, a maior sequência de semanas treinando e o **maior Condicionamento**, o pico da sua curva, com o selo "Geral" porque vale para todos os esportes), que no período mostram também o recorde histórico; os **melhores 5 km e 10 km** (o trecho contínuo mais rápido de uma atividade; "Todos" mostra a corrida, e o filtro de esporte troca para o ciclismo; atividades importadas antes desse recurso aparecem depois de clicar em **Calcular melhores 5 km e 10 km do histórico**), e a **tabela**, com velocidade média (km/h no ciclismo e min/km na corrida), busca e ordenação por coluna.
 
 ### Importar arquivo
-Em **Atividades → Importar arquivo**, escolha arquivos **.fit, .gpx ou .tcx** de até 15 MB (pode selecionar vários). O app lê data, duração, distância, subida, FC e calorias, e calcula o **HRSS**.
+Em **Atividades → Importar arquivo**, escolha arquivos **.fit, .gpx ou .tcx** de até 15 MB (pode selecionar vários). O app lê data, duração, distância, subida, FC e calorias, e calcula o **HRSS**. Na tela de cada atividade aparecem também o **melhor 5 km** e o **melhor 10 km** dela (se chegou a essa distância), com o tempo e o ritmo; atividades antigas são calculadas na primeira vez que você abre a tela.
 
 - O esporte é detectado pelo arquivo; você pode escolher outro antes de enviar.
 - Se o mesmo arquivo (ou uma atividade com o mesmo início e duração) já foi importado, o app avisa e não duplica.
@@ -74,7 +74,7 @@ Usa as calorias do arquivo quando existem. Sem elas, o app **estima** pela FC, p
 - **FC máxima acima da configurada:** revise a sua FC máxima.
 
 ### Detalhe, download e exclusão
-Clique na data de uma atividade para ver os indicadores e o gráfico de frequência cardíaca (passe o mouse para ver cada ponto). Dali você pode **baixar o arquivo original** e **excluir** a atividade (o arquivo também é apagado).
+Clique na data de uma atividade para ver os indicadores, o **mapa do trajeto** (nos arquivos com GPS) e o gráfico de **elevação, frequência cardíaca e velocidade** (corrida mostra o **ritmo** em min/km). Passe o mouse (ou o dedo) no gráfico para ver os valores de cada ponto: a posição aparece também no mapa. Os botões acima do gráfico ligam e desligam cada linha. Atividades importadas antes deste recurso ganham o mapa e o gráfico na primeira vez que você abre o detalhe (o app relê o arquivo original; leva alguns segundos). Dali você pode **baixar o arquivo original** e **excluir** a atividade (o arquivo também é apagado).
 
 ## Forma (Condicionamento, Fadiga e Forma)
 

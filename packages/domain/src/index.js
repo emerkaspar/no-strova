@@ -11,6 +11,7 @@ export * from './metaCondicionamento.js';
 export * from './lthr.js';
 export * from './planejamento.js';
 export * from './esforcos.js';
+export * from './serieDetalhe.js';
 export * from './ia.js';
 export * from './peso.js';
 export * from './recordesAtividades.js';

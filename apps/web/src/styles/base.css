@@ -15,6 +15,10 @@
   --primary-contrast: #0a0a0a; /* texto sobre botão primário: preto */
   --danger: #f87171;
   --success: #4ade80;
+  /* séries do gráfico da atividade */
+  --serie-alt: #4ade80;
+  --serie-fc: #f87171;
+  --serie-vel: #60a5fa;
   --radius: 20px;
   --fonte-titulo: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --fonte-corpo: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -34,6 +38,9 @@
   --primary-contrast: #ffffff;
   --danger: #b91c1c;
   --success: #15803d;
+  --serie-alt: #15803d;
+  --serie-fc: #c62828;
+  --serie-vel: #1d4ed8;
   color-scheme: light;
 }
 

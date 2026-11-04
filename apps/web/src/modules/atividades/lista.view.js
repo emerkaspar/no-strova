@@ -1,4 +1,4 @@
-import { anosComAtividades, melhoresEsforcosDasAtividades, ritmoDoEsforco, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, velocidadeMediaMs } from '@no-strova/domain';
+import { anosComAtividades, melhoresEsforcosDasAtividades, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, velocidadeMediaMs } from '@no-strova/domain';
 import { montarSerie } from '../../application/forma.js';
 import { calcularMelhoresEsforcos } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
@@ -8,6 +8,7 @@ import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
+import { tempoDeEsforco, ritmoTexto } from './esforcos.js';
 import { painelImportar } from './importar.js';
 import { painelManual } from './manual.js';
 import { alternarOrdem, estadoAtividades, EVENTO_IMPORTAR } from './state.js';
@@ -42,23 +43,14 @@ function textoVelocidade(a) {
 const metros = (m) => (Number.isFinite(m) && m > 0 ? `${formatarNumero(m, 0)} m` : '—');
 
 /** Cards de recorde: rótulo, campo, ícone e como formatar o valor. */
-/** Tempo de um esforço: "21:45" ou "1:05:30". */
-function tempoDeEsforco(segundos) {
-  const h = Math.floor(segundos / 3600);
-  const m = Math.floor((segundos % 3600) / 60);
-  const s = Math.round(segundos % 60);
-  const dois = (n) => String(n).padStart(2, '0');
-  return h > 0 ? `${h}:${dois(m)}:${dois(s)}` : `${m}:${dois(s)}`;
-}
+/** Cartões de melhor 5 km e 10 km de um esporte (um par por esporte mostrado). */
+const cartoesDeEsforco = (esporte) => [
+  { id: `melhor5k-${esporte}`, rotulo: `Melhor 5 km · ${ROTULO_ESPORTE[esporte] ?? esporte}`, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 5000, esporte },
+  { id: `melhor10k-${esporte}`, rotulo: `Melhor 10 km · ${ROTULO_ESPORTE[esporte] ?? esporte}`, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 10000, esporte },
+];
 
-/** Ritmo (corrida, min/km) ou velocidade (ciclismo, km/h) de um esforço de `metros`. */
-function ritmoTexto(esporte, tempoS, metros) {
-  if (esporte === 'corrida') {
-    const porKm = ritmoDoEsforco(tempoS, metros);
-    return porKm === null ? '' : `${Math.floor(porKm / 60)}:${String(porKm % 60).padStart(2, '0')} /km`;
-  }
-  return `${formatarNumero((metros / tempoS) * 3.6, 1)} km/h`;
-}
+/** O cálculo do histórico roda sozinho uma vez por abertura do app (o botão continua para tentar de novo). */
+let calculoAutomaticoIniciado = false;
 
 const CARDS_DE_RECORDE = [
   { id: 'distancia', rotulo: 'Maior distância', icone: 'distancia', formatar: (v) => formatarDistancia(v) },
@@ -66,8 +58,6 @@ const CARDS_DE_RECORDE = [
   { id: 'elevacao', rotulo: 'Maior elevação', icone: 'elevacao', formatar: metros },
   { id: 'hrss', rotulo: 'Maior HRSS', icone: 'hrss', formatar: (v) => formatarNumero(v, 1) },
   { id: 'fcMax', rotulo: 'Maior FC máxima', icone: 'fc', formatar: (v) => `${formatarNumero(v, 0)} bpm` },
-  { id: 'melhor5k', rotulo: 'Melhor 5 km', icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 5000 },
-  { id: 'melhor10k', rotulo: 'Melhor 10 km', icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 10000 },
   { id: 'semanaPesada', rotulo: 'Semana mais pesada', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} HRSS` },
   { id: 'sequencia', rotulo: 'Maior sequência', icone: 'plano', formatar: (v) => `${v} semana${v === 1 ? '' : 's'}` },
   { id: 'condicionamento', rotulo: 'Maior Condicionamento', icone: 'atividades', formatar: (v) => formatarNumero(v, 1), geral: true },
@@ -233,8 +223,8 @@ export function render(raiz, sessao) {
       return;
     }
     const todos = estadoAtividades.periodo === 'tudo';
-    // Melhor 5 km e 10 km: tempos só se comparam dentro de um esporte, então "Todos" mostra a corrida.
-    const esporteEsforco = estadoAtividades.esporte || 'corrida';
+    // Melhor 5 km e 10 km: tempos só se comparam dentro de um esporte; "Todos" mostra um par por esporte.
+    const esportesEsforco = estadoAtividades.esporte ? [estadoAtividades.esporte] : ['corrida', 'ciclismo'];
     const pendentes = atividades.filter((a) => a.origem === 'arquivo' && a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS).length;
     // O Condicionamento não vem de uma atividade: é o pico da curva diária (vale para todos os esportes).
     // Recordes que não são de uma única atividade (semana, sequência e Condicionamento) entram sem link, com um texto de "quando".
@@ -245,7 +235,12 @@ export function render(raiz, sessao) {
       const sem = (id, valor, quando) => ({ valor, atividade: { id, semLink: true, quando } });
       return {
         ...recordesDasAtividades(lista),
-        ...melhoresEsforcosDasAtividades(lista.filter((a) => a.esporte === esporteEsforco)),
+        ...Object.fromEntries(
+          esportesEsforco.flatMap((e) => {
+            const m = melhoresEsforcosDasAtividades(lista.filter((a) => a.esporte === e));
+            return [[`melhor5k-${e}`, m.melhor5k], [`melhor10k-${e}`, m.melhor10k]];
+          }),
+        ),
         semanaPesada: semana ? sem(`sem:${semana.inicio}`, semana.valor, `Semana de ${formatarData(semana.inicio).slice(0, 5)}`) : null,
         sequencia: sequencia ? sem(`seq:${sequencia.valor}`, sequencia.valor, 'Semanas seguidas') : null,
         condicionamento: pico ? sem(`cond:${pico.data}`, pico.valor, formatarData(pico.data)) : null,
@@ -254,12 +249,19 @@ export function render(raiz, sessao) {
     const doPeriodo = calculados(visiveis(), intervaloDoPeriodo(estadoAtividades.periodo, hoje));
     const historicos = todos ? doPeriodo : calculados(doEsporte(atividades), null);
     const subtitulo = todos ? 'O maior valor em uma única atividade, de todos os tempos.' : 'O maior valor em uma única atividade no período, com o recorde histórico ao lado.';
+    const comEsforcos = CARDS_DE_RECORDE.flatMap((c) => (c.id === 'duracao' ? [c, ...esportesEsforco.flatMap(cartoesDeEsforco)] : [c]));
+    const cartoes = comEsforcos.filter((c) => !c.esforcoM || atividades.some((a) => a.esporte === c.esporte && a.distanciaM >= c.esforcoM));
+    const botaoCalculo = pendentes > 0 ? botaoDeEsforcos(pendentes) : null;
+    if (botaoCalculo && !calculoAutomaticoIniciado) {
+      calculoAutomaticoIniciado = true;
+      setTimeout(() => botaoCalculo.querySelector('button')?.click(), 0);
+    }
     recordes.replaceChildren(
-      h('div', { class: 'ativ-recordes-topo' }, h('h2', null, 'Recordes'), h('p', { class: 'texto-secundario' }, subtitulo), pendentes > 0 ? botaoDeEsforcos(pendentes) : null),
+      h('div', { class: 'ativ-recordes-topo' }, h('h2', null, 'Recordes'), h('p', { class: 'texto-secundario' }, subtitulo), botaoCalculo),
       h(
         'div',
         { class: 'ativ-recordes-grade' },
-        ...CARDS_DE_RECORDE.filter((c) => !c.esforcoM || atividades.some((a) => a.esporte === esporteEsforco && a.distanciaM >= c.esforcoM)).map((c) => {
+        ...cartoes.map((c) => {
           const r = doPeriodo[c.id];
           const hist = historicos[c.id];
           const ehHistorico = Boolean(r && hist && r.atividade.id === hist.atividade.id);
@@ -270,7 +272,7 @@ export function render(raiz, sessao) {
               'div',
               { class: 'ativ-recorde-topo' },
               h('span', { class: 'ativ-recorde-icone' }, icone(c.icone, 18)),
-              h('span', { class: 'ativ-recorde-rotulo' }, c.esforcoM ? `${c.rotulo} · ${ROTULO_ESPORTE[esporteEsforco] ?? esporteEsforco}` : c.rotulo),
+              h('span', { class: 'ativ-recorde-rotulo' }, c.rotulo),
             ),
             h('strong', { class: 'ativ-recorde-valor' }, r ? c.formatar(r.valor) : '—'),
             h(

@@ -38,3 +38,8 @@ export function observarAtividadesDesde(uid, dataInicio, aoDados, aoErro) {
     aoErro,
   );
 }
+
+/** Série detalhada ({ t, dist, alt, vel, fc, lat, lon }) para o gráfico e o mapa, ou null (atividade sem arquivo ou ainda não gerada). */
+export function lerSerieDetalhe(id) {
+  return lerDocumento(`atividades/${id}/series/detalhe`);
+}

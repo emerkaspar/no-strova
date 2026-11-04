@@ -3373,3 +3373,209 @@ textarea {
 .ativ-esforcos-estado {
   font-size: 0.85rem;
 }
+
+/* Grades de indicadores sem espaço vazio: a linha sempre se estica até o fim, seja qual for a quantidade de itens. */
+.grid.indicadores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.grid.indicadores > .indicador {
+  flex: 1 1 200px;
+}
+
+.ativ-resumo {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ativ-resumo > .ativ-tile {
+  flex: 1 1 170px;
+}
+
+.ativ-indicadores {
+  margin: 20px 0;
+}
+
+/* Detalhe da atividade: mapa ao lado dos indicadores */
+.ativ-detalhe-topo {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 20px;
+  align-items: stretch;
+  margin: 20px 0;
+}
+
+.ativ-detalhe-topo-sem-mapa {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ativ-detalhe-topo .ativ-indicadores {
+  margin: 0;
+  align-content: flex-start;
+}
+
+.mapa-trajeto {
+  min-height: 340px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface-light);
+  z-index: 0;
+}
+
+.mapa-trajeto.leaflet-container {
+  font-family: var(--fonte-corpo);
+}
+
+@media (max-width: 900px) {
+  .ativ-detalhe-topo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mapa-trajeto {
+    min-height: 280px;
+  }
+}
+
+/* Gráfico da atividade (elevação, FC e velocidade) */
+.ga-c-alt { --c: var(--serie-alt); }
+.ga-c-fc { --c: var(--serie-fc); }
+.ga-c-vel { --c: var(--serie-vel); }
+
+.ga-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ga-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ga-chip[aria-pressed='true'] {
+  color: var(--text-primary);
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+.ga-chip-ponto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+  flex: none;
+}
+
+.ga-chip[aria-pressed='false'] .ga-chip-ponto {
+  opacity: 0.35;
+}
+
+.ga-palco {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+}
+
+.ga-palco svg {
+  display: block;
+  touch-action: pan-y;
+}
+
+.ga-grade {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.ga-rotulo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.ga-eixo .ga-rotulo,
+.ga-eixo .ga-unidade {
+  fill: var(--c);
+}
+
+.ga-unidade {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ga-linha {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ga-area {
+  fill: color-mix(in srgb, var(--c) 22%, transparent);
+  stroke: none;
+}
+
+.ga-guia {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.ga-ponto {
+  fill: var(--c);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.ga-captura {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.ga-dica {
+  position: absolute;
+  top: 8px;
+  min-width: 190px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
+  font-size: 0.85rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ga-dica[hidden] {
+  display: none;
+}
+
+.ga-dica-x {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.ga-dica-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.ga-dica-linha b {
+  margin-left: auto;
+  padding-left: 12px;
+}

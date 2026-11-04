@@ -6,10 +6,12 @@ import {
   ESPORTES_VALIDOS,
   esporteDoArquivo,
   melhoresEsforcos,
+  reduzirSerieDetalhe,
   reduzirSerieFc,
   resumirAmostras,
   validarAtividadeManual,
   validarConfigAtleta,
+  VERSAO_DO_DETALHE,
   VERSAO_DOS_ESFORCOS,
   ZONAS,
 } from "@no-strova/domain";
@@ -212,6 +214,7 @@ export async function processarArquivo(
     ...resumo,
     ...melhoresEsforcos(lido.amostras),
     melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
+    detalheEm: VERSAO_DO_DETALHE,
     zona,
     ...calorias,
     ...estresse,
@@ -224,6 +227,8 @@ export async function processarArquivo(
   if (serie.fc.length > 0) {
     lote.set(ref.collection("series").doc("fc"), { passoS: 5, ...serie });
   }
+  const detalhe = reduzirSerieDetalhe(lido.amostras);
+  if (detalhe) lote.set(ref.collection("series").doc("detalhe"), detalhe);
   await lote.commit();
 
   return { atividadeId: pedido.atividadeId, hrss: estresse.hrss, alertas: estresse.alertas, jaExistia: false };
@@ -395,24 +400,38 @@ export async function recalcularHistorico(
  * Storage. Processa até `limite` atividades por chamada (o app chama de novo até `restantes` chegar a zero). Um arquivo
  * que não pode ser lido é marcado como calculado (sem tempos) para não travar a fila.
  */
-export async function calcularMelhoresEsforcosDoUsuario(uid: string, limite = 25): Promise<{ processadas: number; restantes: number }> {
+export async function calcularMelhoresEsforcosDoUsuario(
+  uid: string,
+  prioritaria: string | null = null,
+  limite = 25,
+): Promise<{ processadas: number; restantes: number }> {
   const snap = await db.collection("atividades").where("userId", "==", uid).limit(5000).get();
   const pendentes = snap.docs.filter((d) => {
     const a = d.data();
-    return a.origem === "arquivo" && typeof a.arquivoPath === "string" && a.arquivoPath.startsWith(`atividades/${uid}/`) && a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS;
+    const temArquivo = a.origem === "arquivo" && typeof a.arquivoPath === "string" && a.arquivoPath.startsWith(`atividades/${uid}/`);
+    return temArquivo && (a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS || a.detalheEm !== VERSAO_DO_DETALHE);
   });
+  // a atividade que o usuário está vendo vai primeiro
+  pendentes.sort((x, y) => Number(y.id === prioritaria) - Number(x.id === prioritaria));
   let processadas = 0;
   for (const doc of pendentes.slice(0, limite)) {
     const a = doc.data();
-    let tempos: { melhor5kS: number | null; melhor10kS: number | null } = { melhor5kS: null, melhor10kS: null };
+    let tempos: { melhor5kS: number | null; melhor10kS: number | null } | null = null;
+    let detalhe: ReturnType<typeof reduzirSerieDetalhe> = null;
     try {
       const [conteudo] = await getStorage().bucket().file(a.arquivoPath as string).download();
       const lido = await lerArquivo(conteudo, a.extensao as Extensao);
       tempos = melhoresEsforcos(lido.amostras);
+      detalhe = reduzirSerieDetalhe(lido.amostras);
     } catch (err) {
-      logger.warn("Não foi possível calcular os melhores esforços de uma atividade", { atividadeId: doc.id, erro: String(err) });
+      logger.warn("Não foi possível reler o arquivo de uma atividade", { atividadeId: doc.id, erro: String(err) });
     }
-    await doc.ref.update({ ...tempos, melhoresEsforcosEm: VERSAO_DOS_ESFORCOS });
+    const lote = db.batch();
+    if (detalhe) lote.set(doc.ref.collection("series").doc("detalhe"), detalhe);
+    // arquivo ilegível: marca como calculado, sem apagar tempos que já existiam
+    const novosTempos = tempos ?? (a.melhoresEsforcosEm === VERSAO_DOS_ESFORCOS ? {} : { melhor5kS: null, melhor10kS: null });
+    lote.update(doc.ref, { ...novosTempos, melhoresEsforcosEm: VERSAO_DOS_ESFORCOS, detalheEm: VERSAO_DO_DETALHE });
+    await lote.commit();
     processadas += 1;
   }
   return { processadas, restantes: Math.max(0, pendentes.length - processadas) };
