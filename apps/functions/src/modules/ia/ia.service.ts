@@ -40,16 +40,33 @@ const SISTEMA_BASE =
 
 const refUso = (uid: string, hoje: string) => db.doc(`iaUso/${uid}_${hoje.replaceAll("-", "")}`);
 
-/** Reserva uma chamada da cota do dia; lança resource-exhausted quando acabou. Retorna quantas restam. */
-async function reservarChamada(uid: string, hoje: string): Promise<number> {
+/**
+ * Limite diário de sugestões de IA por usuário, definido pelo administrador em `configuracoes/ia` (tela Configuração).
+ * Sem o documento vale o padrão (5). `null` = sem limite.
+ */
+export async function lerLimiteDiario(): Promise<number | null> {
+  try {
+    const dados = (await db.doc("configuracoes/ia").get()).data();
+    if (dados?.semLimite === true) return null;
+    const n = Number(dados?.chamadasPorDia);
+    if (Number.isInteger(n) && n >= 1) return n;
+  } catch (err) {
+    logger.error("Falha ao ler o limite de IA; usando o padrão", err);
+  }
+  return LIMITES_IA.chamadasPorDia;
+}
+
+/** Reserva uma chamada da cota do dia; lança resource-exhausted quando acabou. Retorna quantas restam (null = sem limite). */
+async function reservarChamada(uid: string, hoje: string): Promise<number | null> {
+  const limite = await lerLimiteDiario();
   const ref = refUso(uid, hoje);
   return db.runTransaction(async (tx) => {
     const usadas = ((await tx.get(ref)).data()?.chamadas as number | undefined) ?? 0;
-    if (usadas >= LIMITES_IA.chamadasPorDia) {
-      throw new HttpsError("resource-exhausted", `Você já usou as ${LIMITES_IA.chamadasPorDia} sugestões de IA de hoje. Tente novamente amanhã.`);
+    if (limite !== null && usadas >= limite) {
+      throw new HttpsError("resource-exhausted", `Você já usou as ${limite} sugestões de IA de hoje. Tente novamente amanhã.`);
     }
     tx.set(ref, { userId: uid, chamadas: usadas + 1, atualizadoEm: FieldValue.serverTimestamp() }, { merge: true });
-    return LIMITES_IA.chamadasPorDia - (usadas + 1);
+    return limite === null ? null : limite - (usadas + 1);
   });
 }
 
@@ -62,10 +79,13 @@ async function devolverChamada(uid: string, hoje: string): Promise<void> {
   }
 }
 
-export async function chamadasRestantes(uid: string): Promise<number> {
+/** Quantas sugestões restam hoje (null = sem limite). */
+export async function chamadasRestantes(uid: string): Promise<number | null> {
   const hoje = diaNoFuso(Date.now());
+  const limite = await lerLimiteDiario();
+  if (limite === null) return null;
   const usadas = ((await refUso(uid, hoje).get()).data()?.chamadas as number | undefined) ?? 0;
-  return Math.max(0, LIMITES_IA.chamadasPorDia - usadas);
+  return Math.max(0, limite - usadas);
 }
 
 /** Erro 402 do Gemini: créditos pré-pagos esgotados ou faturamento desativado. */
@@ -92,7 +112,7 @@ const schemaTreinos = z.object({
 
 export interface RascunhoDeTreinos {
   rascunhoId: string;
-  restantes: number;
+  restantes: number | null;
   saida: {
     resumo: string;
     itens: unknown[];
@@ -199,7 +219,7 @@ const schemaPeso = z.object({
 
 export interface RascunhoDePeso {
   rascunhoId: string;
-  restantes: number;
+  restantes: number | null;
   saida: { plano: unknown; explicacao: string; dicas: string[]; textoPorIa: boolean; aviso: string };
 }
 
@@ -272,7 +292,7 @@ export async function sugerirMetaDePesoDoUsuario(
     status: "pendente",
     criadoEm: FieldValue.serverTimestamp(),
   });
-  return { rascunhoId: ref.id, restantes: textoPorIa ? restantes : restantes + 1, saida };
+  return { rascunhoId: ref.id, restantes: textoPorIa || restantes === null ? restantes : restantes + 1, saida };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -78,7 +78,7 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
   const botao = h('button', { class: 'btn', type: 'submit' }, 'Sugerir treinos');
 
   function atualizarRestantes(n) {
-    contador.textContent = n === null || n === undefined ? '' : `Restam ${n} sugest${n === 1 ? 'ão' : 'ões'} de IA hoje (limite de 5 por dia, somando treinos e peso).`;
+    contador.textContent = n === undefined ? '' : n === null ? 'Sem limite de sugestões de IA por dia.' : `Restam ${n} sugest${n === 1 ? 'ão' : 'ões'} de IA hoje (limite definido pelo administrador, somando treinos e peso).`;
   }
   restantesDaIa().then(atualizarRestantes).catch(() => {});
 

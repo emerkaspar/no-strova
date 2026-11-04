@@ -181,53 +181,7 @@ service cloud.firestore {
         && p.keys().hasAll(['userId', 'data', 'pesoKg'])
         && p.userId == request.auth.uid
         && p.data is string
-        && p.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}
-    // Leitura pelo dono; escrita somente via callable/trigger (Admin SDK).
-    match /atividades/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-
-      match /series/{serie} {
-        allow read: if acessoLiberado()
-          && get(/databases/$(database)/documents/atividades/$(id)).data.userId == request.auth.uid;
-        allow write: if false;
-      }
-    }
-
-    match /estresseDiario/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-    }
-
-    // Resumo de calibração da estimativa de HRSS (mediana do HRSS/h por esporte e zona): o servidor grava, o dono lê.
-    match /calibracoes/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-    }
-
-    // Preferências do usuário, um documento por usuário (id = uid): usar ou não a calibração nas estimativas e o nível dos
-    // treinos intervalados.
-    match /preferencias/{uid} {
-      allow read: if acessoLiberado() && request.auth.uid == uid;
-      allow create, update: if acessoLiberado()
-        && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos'])
-        && request.resource.data.keys().hasAll(['userId'])
-        && request.resource.data.userId == request.auth.uid
-        && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
-        && (!('nivelTreinos' in request.resource.data) || request.resource.data.nivelTreinos in ['iniciante', 'intermediario', 'avancado']);
-      allow delete: if false;
-    }
-
-    match /iaRascunhos/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-    }
-
-    // iaUso e vinculosTreinador: sem acesso direto (somente Admin SDK).
-  }
-}
-)
+        && p.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && p.pesoKg is number && p.pesoKg >= 20 && p.pesoKg <= 400
         && (!('criadoEm' in p) || p.criadoEm is timestamp);
     }
@@ -239,7 +193,7 @@ service cloud.firestore {
     }
 
     // Meta de peso: "chegar a X kg na data Y". Uma ativa por vez (as demais ficam como "anterior").
-    // `pesoInicialKg` é o peso de quando a meta foi criada (base do progresso).
+    // pesoInicialKg é o peso de quando a meta foi criada (base do progresso).
     function metaPesoValida() {
       let m = request.resource.data;
       return m.keys().hasOnly(['userId', 'pesoAlvoKg', 'pesoInicialKg', 'dataAlvo', 'status', 'criadoEm'])
@@ -249,53 +203,7 @@ service cloud.firestore {
         && (!('pesoInicialKg' in m) || m.pesoInicialKg == null
             || (m.pesoInicialKg is number && m.pesoInicialKg >= 20 && m.pesoInicialKg <= 400))
         && m.dataAlvo is string
-        && m.dataAlvo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}
-    // Leitura pelo dono; escrita somente via callable/trigger (Admin SDK).
-    match /atividades/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-
-      match /series/{serie} {
-        allow read: if acessoLiberado()
-          && get(/databases/$(database)/documents/atividades/$(id)).data.userId == request.auth.uid;
-        allow write: if false;
-      }
-    }
-
-    match /estresseDiario/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-    }
-
-    // Resumo de calibração da estimativa de HRSS (mediana do HRSS/h por esporte e zona): o servidor grava, o dono lê.
-    match /calibracoes/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-    }
-
-    // Preferências do usuário, um documento por usuário (id = uid): usar ou não a calibração nas estimativas e o nível dos
-    // treinos intervalados.
-    match /preferencias/{uid} {
-      allow read: if acessoLiberado() && request.auth.uid == uid;
-      allow create, update: if acessoLiberado()
-        && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos'])
-        && request.resource.data.keys().hasAll(['userId'])
-        && request.resource.data.userId == request.auth.uid
-        && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
-        && (!('nivelTreinos' in request.resource.data) || request.resource.data.nivelTreinos in ['iniciante', 'intermediario', 'avancado']);
-      allow delete: if false;
-    }
-
-    match /iaRascunhos/{id} {
-      allow read: if acessoLiberado() && donoDoRegistro();
-      allow write: if false;
-    }
-
-    // iaUso e vinculosTreinador: sem acesso direto (somente Admin SDK).
-  }
-}
-)
+        && m.dataAlvo.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && m.status in ['ativa', 'anterior']
         && (!('criadoEm' in m) || m.criadoEm is timestamp);
     }
@@ -346,6 +254,19 @@ service cloud.firestore {
     match /iaRascunhos/{id} {
       allow read: if acessoLiberado() && donoDoRegistro();
       allow write: if false;
+    }
+
+    // Configurações do sistema, definidas pelo administrador (o servidor lê com o Admin SDK).
+    // configuracoes/ia: limite diário de sugestões de IA por usuário.
+    match /configuracoes/ia {
+      allow read: if ehAdmin();
+      allow create, update: if ehAdmin()
+        && request.resource.data.keys().hasOnly(['chamadasPorDia', 'semLimite', 'atualizadoEm'])
+        && request.resource.data.keys().hasAll(['chamadasPorDia', 'semLimite'])
+        && request.resource.data.chamadasPorDia is int && request.resource.data.chamadasPorDia >= 1 && request.resource.data.chamadasPorDia <= 500
+        && request.resource.data.semLimite is bool
+        && (!('atualizadoEm' in request.resource.data) || request.resource.data.atualizadoEm is timestamp);
+      allow delete: if false;
     }
 
     // iaUso e vinculosTreinador: sem acesso direto (somente Admin SDK).
