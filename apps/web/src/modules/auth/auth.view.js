@@ -6,11 +6,25 @@ import { logo } from '../../utils/marca.js';
 import { definirModo, estadoAuth } from './state.js';
 import { TEXTO_ACEITE_LGPD } from './textos.js';
 
-function formularioEntrar(aoTrocar, google) {
-  const email = campo({ id: 'email', rotulo: 'E-mail', tipo: 'email', autocomplete: 'email', required: true });
-  const senha = campo({ id: 'senha', rotulo: 'Senha', tipo: 'password', autocomplete: 'current-password', required: true });
+function formularioEntrar(google) {
+  const email = campo({
+    id: 'email',
+    rotulo: 'E-mail',
+    tipo: 'email',
+    autocomplete: 'email',
+    required: true,
+    placeholder: 'voce@email.com',
+  });
+  const senha = campo({
+    id: 'senha',
+    rotulo: 'Senha',
+    tipo: 'password',
+    autocomplete: 'current-password',
+    required: true,
+    placeholder: '••••••••',
+  });
   const mensagem = areaMensagem();
-  const botao = h('button', { class: 'btn btn-bloco', type: 'submit' }, 'Entrar');
+  const botao = h('button', { class: 'btn btn-bloco', type: 'submit' }, 'Ir treinar');
 
   const form = h(
     'form',
@@ -18,31 +32,19 @@ function formularioEntrar(aoTrocar, google) {
       novalidate: true,
       onSubmit: (e) => {
         e.preventDefault();
-        executarComBotao(botao, mensagem, () => entrar(email.input.value.trim(), senha.input.value));
+        executarComBotao(botao, mensagem, () => entrar(email.input.value.trim(), senha.input.value), 'Entrando...');
       },
     },
     email.raiz,
     senha.raiz,
-    mensagem.el,
     botao,
+    mensagem.el,
   );
 
-  return h(
-    'div',
-    null,
-    h('h1', null, 'Entrar'),
-    google,
-    form,
-    h(
-      'p',
-      { class: 'alternar' },
-      'Ainda não tem conta? ',
-      h('button', { class: 'btn-link', type: 'button', onClick: () => aoTrocar('criar') }, 'Criar conta'),
-    ),
-  );
+  return h('div', { class: 'acesso-form' }, h('h2', null, 'Entra aí'), google, form);
 }
 
-function formularioCriar(aoTrocar, google) {
+function formularioCriar(google) {
   const nome = campo({ id: 'nome', rotulo: 'Nome', autocomplete: 'name', required: true, maxlength: 80 });
   const email = campo({ id: 'email', rotulo: 'E-mail', tipo: 'email', autocomplete: 'email', required: true });
   const senha = campo({
@@ -86,23 +88,17 @@ function formularioCriar(aoTrocar, google) {
     senha.raiz,
     nascimento.raiz,
     h('div', { class: 'aceite' }, aceite, h('label', { for: 'aceite' }, TEXTO_ACEITE_LGPD)),
-    mensagem.el,
     botao,
+    mensagem.el,
   );
 
   return h(
     'div',
-    null,
-    h('h1', null, 'Criar conta'),
-    h('p', { class: 'texto-secundario' }, 'Depois de criar a conta, um administrador precisa aprovar o seu acesso.'),
+    { class: 'acesso-form' },
+    h('h2', null, 'Criar conta'),
+    h('p', { class: 'acesso-nota' }, 'Depois de criar a conta, um administrador precisa aprovar o seu acesso.'),
     google,
     form,
-    h(
-      'p',
-      { class: 'alternar' },
-      'Já tem conta? ',
-      h('button', { class: 'btn-link', type: 'button', onClick: () => aoTrocar('entrar') }, 'Entrar'),
-    ),
   );
 }
 
@@ -153,7 +149,7 @@ function blocoGoogle(rotulo) {
     { class: 'google-bloco' },
     botao,
     mensagem.el,
-    h('div', { class: 'divisor' }, h('span', null, 'ou use e-mail e senha')),
+    h('div', { class: 'divisor' }, h('span', null, 'ou com e-mail')),
   );
 }
 
@@ -161,42 +157,45 @@ function painelApresentacao() {
   return h(
     'section',
     { class: 'acesso-hero' },
-    logo({ grande: true }),
-    h('p', { class: 'acesso-selo' }, 'Sem fotinho. Sem vídeo. Sem filtro.'),
     h(
-      'h2',
+      'h1',
       { class: 'acesso-titulo' },
-      'Pedalar. ',
-      h('span', { class: 'destaque' }, 'E até correr.'),
+      h('span', null, 'Sem fotinho.'),
+      h('span', null, 'Sem plateia.'),
+      h('span', { class: 'acesso-titulo-ultima' }, 'Só o treino.'),
     ),
     h(
       'p',
       { class: 'acesso-texto' },
-      'O No Strova é para quem não tem paciência com fotinho de atividade, vídeo de drone e legenda inspiradora. ',
-      'Aqui o foco é no que realmente interessa: pedalar e, vá lá, correr também.',
-    ),
-    h(
-      'ul',
-      { class: 'acesso-lista' },
-      h('li', null, 'Seus treinos, seus números, sua evolução.'),
-      h('li', null, 'Nenhum story sobre o café pós-pedal.'),
+      'Um app de treino que não pede foto, não pede legenda e não vai te chamar de guerreiro.',
     ),
   );
 }
 
 export function render(raiz) {
   const cartao = h('div', { class: 'card' });
-  raiz.replaceChildren(h('main', { class: 'acesso' }, painelApresentacao(), cartao));
+  const alternar = h('button', { class: 'acesso-alternar', type: 'button' });
+  const pergunta = h('span');
+  const topo = h(
+    'header',
+    { class: 'acesso-topo' },
+    h('div', { class: 'acesso-marca' }, logo({ grande: true })),
+    h('p', { class: 'acesso-troca' }, pergunta, ' ', alternar),
+  );
+  raiz.replaceChildren(h('main', { class: 'acesso' }, topo, h('div', { class: 'acesso-corpo' }, painelApresentacao(), cartao)));
 
   function desenhar() {
-    const aoTrocar = (modo) => {
-      definirModo(modo);
-      desenhar();
-    };
     const criando = estadoAuth.modo === 'criar';
     const google = blocoGoogle(criando ? 'Cadastrar com o Google' : 'Entrar com o Google');
-    cartao.replaceChildren(criando ? formularioCriar(aoTrocar, google) : formularioEntrar(aoTrocar, google));
+    cartao.replaceChildren(criando ? formularioCriar(google) : formularioEntrar(google));
+    pergunta.textContent = criando ? 'Já tem conta?' : 'Sem conta?';
+    alternar.textContent = criando ? 'Entrar' : 'Criar uma';
   }
+
+  alternar.addEventListener('click', () => {
+    definirModo(estadoAuth.modo === 'criar' ? 'entrar' : 'criar');
+    desenhar();
+  });
 
   desenhar();
   return () => {};

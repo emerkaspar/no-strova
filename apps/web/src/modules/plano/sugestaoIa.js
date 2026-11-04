@@ -1,4 +1,5 @@
 import { AVISO_IA, modeloPorId } from '@no-strova/domain';
+import { lerPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { aceitarTreinosDaIa, descartarRascunho, pedirTreinosDaIa, restantesDaIa } from '../../application/ia.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -71,6 +72,20 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
       { valor: 'corrida', rotulo: 'Corrida' },
     ],
   });
+  // Pré-preenche com a rotina salva no perfil de treino (wizard): dias, longão, horas e esporte.
+  lerPreferencias(uid)
+    .then((p) => {
+      if (!p) return;
+      if (Array.isArray(p.diasTreino) && p.diasTreino.length > 0) {
+        escolhidos.clear();
+        p.diasTreino.forEach((d) => escolhidos.add(d));
+        longaoSelecionado.valor = p.diaLongao === null || p.diaLongao === undefined ? '' : String(p.diaLongao);
+        desenharDias();
+      }
+      if (Number.isFinite(p.horasSemana)) horas.input.value = String(p.horasSemana).replace('.', ',');
+      if (p.esportePrincipal) esporte.select.value = p.esportePrincipal;
+    })
+    .catch(() => {});
   const observacao = campo({ id: 'ia-obs', rotulo: 'Observação (opcional)', maxlength: '300', placeholder: 'ex.: viajo na semana 2; joelho sensível', autocomplete: 'off' });
   const mensagem = areaMensagem();
   const contador = h('p', { class: 'texto-secundario ia-restantes' });

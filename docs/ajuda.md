@@ -13,7 +13,7 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 
 ## Navegação
 
-- **Cabeçalho (todas as telas):** o logo (leva ao Início), a data por extenso, a saudação ("Bom dia", "Boa tarde" ou "Boa noite") e, à direita, o menu **Início, Atividades, Plano, Peso e Configuração** (**Administração** só aparece para administradores), o botão laranja **Importar arquivo** e o círculo com a sua inicial, que abre o menu da conta (tema e **Sair**). Em telas pequenas o menu vira uma **barra de abas no rodapé**.
+- **Cabeçalho (todas as telas):** o logo (leva ao Início), a data por extenso, a saudação ("Bom dia", "Boa tarde" ou "Boa noite") e, à direita, o menu **Início, Atividades, Plano, Peso e Configuração** (**Administração** só aparece para administradores), o botão laranja **Importar arquivo** e o círculo com a sua inicial, que abre o menu da conta (**Perfil de treino**, a **Administração** para administradores, e **Sair**). Em telas pequenas o menu vira uma **barra de abas no rodapé**.
 - **Importar arquivo:** abre a tela de Atividades já com o painel de importação aberto.
 - **Plano** é onde você planeja os treinos (veja abaixo). **Peso** ainda está em construção e mostra só um aviso.
 
@@ -30,6 +30,24 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 ## Tema
 
 O app abre no **tema escuro**. Para alternar, clique no **círculo com a sua inicial** (canto superior direito) e escolha **Tema claro** ou **Tema escuro**; o app lembra a sua escolha neste aparelho.
+
+## Perfil de treino (o passo a passo inicial)
+
+No primeiro acesso depois da aprovação, o app abre um **passo a passo** em tela cheia para você preencher tudo o que entra nos cálculos. São sete etapas, com barra de progresso:
+
+1. **Você:** nome e data de nascimento.
+2. **Corpo:** sexo, peso e altura (mostra o IMC na hora).
+3. **Coração:** FC de repouso, FC máxima e LTHR. Não sabe? **Não sei: estimar pra mim** preenche a FC máxima pela idade (208 − 0,7 × idade) e o LTHR com 90% dela. São estimativas: o **Teste de LTHR** (em Configuração) acerta bem mais. As suas **cinco zonas de FC** aparecem conforme você digita.
+4. **Nível:** iniciante, intermediário ou avançado, e o esporte principal. As sugestões de treino usam o nível.
+5. **Semana:** os dias em que dá para treinar, o **dia do longão** e as **horas por semana**. A **Sugestão de treinos com IA** (no Plano) já abre com essa rotina.
+6. **Meta de peso (opcional):** peso desejado e data. O app avisa se o ritmo passa de 1% do peso por semana e recusa metas que levem o IMC abaixo de 18,5.
+7. **Pronto:** resumo com **Editar** em cada item. Se você já tem atividades importadas e mudou os números, há o botão **Recalcular o meu histórico agora** (com confirmação).
+
+- **Cada etapa salva ao continuar:** se você sair no meio, o que já foi feito fica guardado.
+- **Dá para preencher depois:** **Preencher depois** (ou Esc) fecha o passo a passo. Enquanto o perfil não estiver completo, o **Início** mostra uma faixa **Completar perfil**.
+- **Quando quiser:** abra o **menu da conta** (círculo com a sua inicial) e escolha **Perfil de treino**. Tudo vem preenchido com o que já está salvo.
+- Se os números de FC, peso ou altura mudarem, valem **a partir de hoje** (nova vigência); o histórico não muda sozinho.
+- Quem já tinha a configuração de FC cadastrada não vê o passo a passo sozinho: continua abrindo pelo menu da conta.
 
 ## Configuração do atleta (comece por aqui)
 

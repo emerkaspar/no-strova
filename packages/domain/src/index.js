@@ -9,6 +9,7 @@ export * from './forma.js';
 export * from './hrss.js';
 export * from './metaCondicionamento.js';
 export * from './lthr.js';
+export * from './onboarding.js';
 export * from './planejamento.js';
 export * from './esforcos.js';
 export * from './serieDetalhe.js';

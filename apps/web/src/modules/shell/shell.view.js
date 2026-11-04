@@ -1,3 +1,6 @@
+import { situacaoDoPerfilDeTreino } from '@no-strova/domain';
+import { observarPreferencias } from '../../infrastructure/calibracaoRepo.js';
+import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { h } from '../../utils/dom.js';
 import { render as renderAdmin } from '../admin/admin.view.js';
 import { render as renderDetalhe } from '../atividades/detalhe.view.js';
@@ -8,6 +11,7 @@ import { render as renderInicio } from '../inicio/inicio.view.js';
 import { render as renderPeso } from '../peso/peso.view.js';
 import { render as renderPlano } from '../plano/plano.view.js';
 import { render as renderProgressao } from '../progressao/progressao.view.js';
+import { abrirWizard, wizardAberto } from '../onboarding/wizard.js';
 import { render as renderTreinos } from '../treinos/treinos.view.js';
 import { criarCabecalho } from './cabecalho.js';
 
@@ -49,20 +53,72 @@ function resolverRota(hash, admin) {
   return { menu: '#/inicio', render: renderInicio, params: {} };
 }
 
+/** O wizard abre sozinho uma vez por carregamento da página (quem fecha sem concluir vê a faixa do Início). */
+let wizardJaOferecido = false;
+
 export function render(raiz, sessao) {
   const cabecalho = criarCabecalho(sessao, MENU);
   const saida = h('main', { class: 'container conteudo' });
+  const faixa = h(
+    'div',
+    { class: 'container faixa-perfil-wrap', hidden: true },
+    h(
+      'aside',
+      { class: 'faixa-perfil', 'aria-label': 'Perfil de treino incompleto' },
+      h('p', null, h('strong', null, 'Falta preencher o seu perfil de treino.'), h('span', null, 'Sem os seus números, o app só chuta zonas, HRSS e plano.')),
+      h('button', { class: 'btn', type: 'button', onClick: () => abrirWizard({ sessao }) }, 'Completar perfil'),
+    ),
+  );
   let destruirRota = null;
+  let menuAtual = '#/inicio';
+  let situacao = 'ok';
+  const dadosPerfil = { preferencias: undefined, configs: undefined };
+
+  function atualizarFaixa() {
+    faixa.hidden = !(situacao === 'pulado' && menuAtual === '#/inicio');
+  }
+
+  /** Reavalia o perfil quando as preferências e as configurações já chegaram. */
+  function avaliarPerfil() {
+    if (dadosPerfil.preferencias === undefined || dadosPerfil.configs === undefined) return;
+    situacao = situacaoDoPerfilDeTreino(dadosPerfil);
+    atualizarFaixa();
+    if (situacao === 'novo' && !wizardJaOferecido && !wizardAberto()) {
+      wizardJaOferecido = true;
+      abrirWizard({ sessao, primeiraVez: true });
+    }
+  }
+
+  const cancelarPerfil = [
+    observarPreferencias(
+      sessao.uid,
+      (p) => {
+        dadosPerfil.preferencias = p;
+        avaliarPerfil();
+      },
+      () => {},
+    ),
+    observarConfigs(
+      sessao.uid,
+      (c) => {
+        dadosPerfil.configs = c;
+        avaliarPerfil();
+      },
+      () => {},
+    ),
+  ];
 
   function desenharRota() {
     destruirRota?.();
     const rota = resolverRota(window.location.hash, sessao.admin);
     cabecalho.marcarAtivo(rota.menu);
+    menuAtual = rota.menu;
+    atualizarFaixa();
     window.scrollTo(0, 0);
     destruirRota = rota.render(saida, sessao, rota.params);
   }
 
-  raiz.replaceChildren(cabecalho.topo, saida, cabecalho.abas);
+  raiz.replaceChildren(cabecalho.topo, faixa, saida, cabecalho.abas);
 
   window.addEventListener('hashchange', desenharRota);
   desenharRota();
@@ -70,6 +126,7 @@ export function render(raiz, sessao) {
   return () => {
     window.removeEventListener('hashchange', desenharRota);
     cabecalho.destruir();
+    cancelarPerfil.forEach((fn) => fn());
     destruirRota?.();
   };
 }

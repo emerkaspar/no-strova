@@ -1,0 +1,707 @@
+/*
+ * Wizard de perfil (primeiro acesso e "Perfil de treino" no menu da conta) e a faixa de lembrete do Início.
+ * Segue o tema do app (variáveis de base.css).
+ */
+.wz-travado {
+  overflow: hidden;
+}
+
+.wizard {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-main);
+  background-image: radial-gradient(60rem 36rem at 92% -12%, rgba(255, 82, 0, 0.16), transparent 62%),
+    radial-gradient(44rem 28rem at -8% 112%, rgba(255, 82, 0, 0.09), transparent 60%);
+  color: var(--text-primary);
+}
+
+/* Topo e progresso */
+.wz-topo {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 40px 8px;
+}
+
+.wz-marca .logo {
+  width: 44px;
+  height: 44px;
+}
+
+.wz-contador {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.wz-fechar {
+  justify-self: end;
+  font-size: 14px;
+}
+
+.wz-progresso {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 720px;
+  margin: 16px auto 0;
+  padding: 0 24px;
+  list-style: none;
+}
+
+.wz-etapa {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wz-etapa-barra {
+  display: block;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border);
+  transition: background 0.3s ease;
+}
+
+.wz-etapa.feito .wz-etapa-barra,
+.wz-etapa.atual .wz-etapa-barra {
+  background: var(--primary);
+}
+
+.wz-etapa.feito .wz-etapa-barra {
+  opacity: 0.55;
+}
+
+.wz-etapa-nome {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.wz-etapa.atual .wz-etapa-nome {
+  color: var(--primary);
+}
+
+/* Palco e passo */
+.wz-palco {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 28px 24px 56px;
+}
+
+.wz-carregando {
+  align-self: center;
+  color: var(--text-secondary);
+}
+
+.wz-passo {
+  width: 100%;
+  max-width: 680px;
+  margin: auto 0;
+  animation: wz-vai 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.wz-passo.wz-volta {
+  animation-name: wz-volta;
+}
+
+@keyframes wz-vai {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+
+@keyframes wz-volta {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
+.wz-cabeca {
+  position: relative;
+}
+
+.wz-numero {
+  position: absolute;
+  top: -34px;
+  right: 0;
+  z-index: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 168px;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--border);
+  pointer-events: none;
+  user-select: none;
+}
+
+.wz-eyebrow {
+  position: relative;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.wz-titulo {
+  position: relative;
+  margin: 0 0 14px;
+  max-width: 14ch;
+  font-size: clamp(2.5rem, 7vw, 4.4rem);
+  letter-spacing: 0.01em;
+  line-height: 0.98;
+  outline: none;
+}
+
+.wz-sub {
+  position: relative;
+  max-width: 54ch;
+  margin: 0;
+  font-size: 17px;
+  color: var(--text-secondary);
+}
+
+.wz-campos {
+  display: grid;
+  gap: 22px;
+  margin-top: 32px;
+}
+
+.wz-campos .campo,
+.wz-campos .campo label,
+.wz-rotulo {
+  margin: 0;
+}
+
+.wz-rotulo,
+.wz-campos .campo label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wz-campos .campo {
+  gap: 8px;
+}
+
+.wz-linha {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.wz-linha-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wizard input[type='text'],
+.wizard input[type='date'],
+.wizard input[type='number'] {
+  height: 52px;
+  padding: 0 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  font-size: 16px;
+}
+
+.wizard input:focus,
+.wizard input:focus-visible {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.wizard .dica {
+  font-size: 13px;
+}
+
+.wz-nota,
+.wz-vazio {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.wz-acoes-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Cartões de escolha */
+.wz-opcoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.wz-opcoes-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wz-opcoes-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wz-opcao {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.wz-opcao strong {
+  font-size: 17px;
+}
+
+.wz-opcao span {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.wz-opcao:hover {
+  border-color: var(--text-secondary);
+}
+
+.wz-opcao[aria-checked='true'] {
+  border-color: var(--primary);
+  background: rgba(255, 82, 0, 0.1);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.wz-opcoes-curtas .wz-opcao {
+  align-items: center;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+/* Informações ao vivo */
+.wz-chip {
+  align-self: start;
+  justify-self: start;
+  margin: 0;
+  padding: 8px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wz-chip[hidden] {
+  display: none;
+}
+
+.wz-zonas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.wz-zona {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--cor);
+  border-radius: 12px;
+}
+
+.wz-zona strong {
+  font-family: var(--fonte-titulo);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--cor);
+}
+
+.wz-zona span {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.wz-zona small {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.wz-veredito {
+  margin: 0;
+  font-size: 14px;
+}
+
+.wz-veredito:empty {
+  display: none;
+}
+
+.wz-veredito-ok,
+.wz-veredito-aviso,
+.wz-veredito-erro {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-light);
+}
+
+.wz-veredito-ok {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.wz-veredito-aviso {
+  border-color: var(--zona-3);
+  color: var(--zona-3);
+}
+
+.wz-veredito-erro {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Semana */
+.wz-dias {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wz-dia {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 84px;
+  padding: 8px 2px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.wz-dia strong {
+  font-family: var(--fonte-titulo);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.wz-dia:hover {
+  border-color: var(--text-secondary);
+}
+
+.wz-dia[aria-pressed='true'] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-contrast);
+  transform: translateY(-2px);
+}
+
+.wz-longao {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wz-chip-botao {
+  appearance: none;
+  padding: 9px 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wz-chip-botao:hover {
+  border-color: var(--text-secondary);
+}
+
+.wz-chip-botao[aria-checked='true'] {
+  border-color: var(--primary);
+  background: rgba(255, 82, 0, 0.12);
+  color: var(--primary);
+}
+
+.wz-horas {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wz-horas input[type='range'] {
+  flex: 1;
+  accent-color: var(--primary);
+}
+
+.wz-horas-valor {
+  min-width: 72px;
+  font-family: var(--fonte-titulo);
+  font-size: 32px;
+  text-align: right;
+}
+
+/* Boas-vindas e resumo */
+.wz-vantagens {
+  display: grid;
+  gap: 12px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wz-vantagens li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.wz-vantagens p {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.wz-vantagens .wz-vantagens-nota {
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.wz-icone {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 82, 0, 0.12);
+  border-radius: 12px;
+  color: var(--primary);
+}
+
+.wz-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.wz-resumo-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.wz-resumo-item strong {
+  font-size: 18px;
+}
+
+.wz-resumo-item small {
+  color: var(--text-secondary);
+}
+
+.wz-resumo-rotulo {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.wz-resumo-item .btn-link {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 13px;
+}
+
+.wz-recalcular {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Rodapé */
+.wz-rodape {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.wz-rodape .btn {
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.wz-continuar {
+  min-width: 190px;
+  margin-left: auto;
+}
+
+.wz-passo .mensagem {
+  margin-top: 20px;
+}
+
+/* Faixa de lembrete no Início */
+.faixa-perfil-wrap {
+  padding-top: 16px;
+  padding-bottom: 0;
+}
+
+.faixa-perfil {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 14px 20px;
+  background: rgba(255, 82, 0, 0.09);
+  border: 1px solid var(--primary);
+  border-radius: 16px;
+}
+
+.faixa-perfil p {
+  margin: 0;
+}
+
+.faixa-perfil strong {
+  display: block;
+}
+
+.faixa-perfil span {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .wz-topo {
+    grid-template-columns: auto 1fr auto;
+    padding: 16px 20px 4px;
+  }
+
+  .wz-contador {
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .wz-progresso {
+    margin-top: 10px;
+    padding: 0 20px;
+  }
+
+  .wz-etapa-nome {
+    display: none;
+  }
+
+  .wz-palco {
+    padding: 20px 20px 40px;
+  }
+
+  .wz-numero {
+    top: -10px;
+    font-size: 96px;
+  }
+
+  .wz-linha-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .wz-opcoes-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .wz-dia {
+    min-height: 68px;
+  }
+
+  .wz-dia strong {
+    font-size: 16px;
+  }
+
+  .wz-rodape {
+    position: sticky;
+    bottom: -40px;
+    padding: 16px 0 24px;
+    background: linear-gradient(to top, var(--bg-main) 70%, transparent);
+  }
+
+  .wz-continuar {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wz-passo,
+  .wz-passo.wz-volta {
+    animation: none;
+  }
+
+  .wz-opcao,
+  .wz-dia,
+  .wz-etapa-barra {
+    transition: none;
+  }
+}

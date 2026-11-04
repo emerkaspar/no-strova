@@ -270,73 +270,196 @@ a:focus-visible {
   font-size: 0.9rem;
 }
 
-/* Tela de acesso (login/cadastro): apresentação à esquerda, formulário à direita */
+/*
+ * Tela de acesso (login/cadastro): "cartaz laranja". É igual em qualquer tema, por isso usa cores fixas
+ * e não as variáveis de tema.
+ */
 .acesso {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  display: flex;
+  flex-direction: column;
+  padding: 48px 72px 56px;
+  background: #ff5200;
+  color: #0a0a0a;
+}
+
+.acesso-topo {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 56px;
-  max-width: 1020px;
-  margin: 0 auto;
-  padding: 32px 24px;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.acesso .card {
-  width: 100%;
+.acesso-marca .logo {
+  margin: 0;
 }
 
-.acesso-hero .logo-grande {
-  margin: 0 0 24px;
+@media (max-width: 960px) {
+  .acesso-marca .logo {
+    width: 80px;
+    height: 80px;
+  }
 }
 
-.acesso-selo {
-  display: inline-block;
-  margin-bottom: 16px;
-  padding: 4px 12px;
-  border: 1px solid var(--primary);
-  border-radius: 999px;
-  color: var(--primary);
-  font-size: 0.8rem;
+.acesso-troca {
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+}
+
+.acesso-alternar {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #0a0a0a;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.acesso-corpo {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  align-items: center;
+  gap: 56px;
+  padding-top: 24px;
 }
 
 .acesso-titulo {
-  margin: 0 0 16px;
-  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  margin: 0 0 28px;
+  font-size: clamp(64px, calc((100vw - 620px) / 5.2), 124px);
+  letter-spacing: 0;
+  line-height: 0.93;
 }
 
-.acesso-titulo .destaque {
-  color: var(--primary);
+.acesso-titulo span {
+  display: block;
+}
+
+.acesso-titulo-ultima {
+  color: #ffffff;
 }
 
 .acesso-texto {
-  max-width: 46ch;
-  font-size: 1.05rem;
-  color: var(--text-secondary);
+  max-width: 520px;
+  margin: 0;
+  font-size: 19px;
+  font-weight: 500;
 }
 
-.acesso-lista {
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
+.acesso-alternar:focus-visible {
+  outline-color: #0a0a0a;
+}
+
+/* Cartão preto */
+.acesso .card {
+  width: 100%;
+  max-width: 420px;
+  padding: 34px;
+  background: #0a0a0a;
+  border: 0;
+  border-radius: 24px;
+  color: #ffffff;
+}
+
+.acesso-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.acesso-form h2 {
+  margin: 0;
+  font-size: 38px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.acesso-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.acesso-nota {
+  margin: 0;
+  font-size: 13px;
+  color: #a3a3a3;
+}
+
+.acesso .campo {
   gap: 8px;
-  font-size: 0.95rem;
+  margin: 0;
 }
 
-.acesso-lista li::before {
-  content: '→';
-  margin-right: 8px;
-  color: var(--primary);
+.acesso .campo label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.acesso .campo input:not([type='checkbox']) {
+  height: 48px;
+  padding: 0 16px;
+  background: #161616;
+  color: #ffffff;
+  border: 1px solid #2e2e2e;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.acesso .campo input::placeholder {
+  color: #8a8a8a;
+}
+
+.acesso .campo input:focus,
+.acesso .campo input:focus-visible {
+  border-color: #ff5200;
+  outline: none;
+}
+
+.acesso .dica {
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+.acesso .aceite {
+  margin: 0;
+  font-size: 13px;
+  color: #a3a3a3;
+}
+
+.acesso .btn {
+  height: 52px;
+  padding: 0 16px;
+  background: #ff5200;
+  border: 0;
+  border-radius: 12px;
+  color: #0a0a0a;
+  font-size: 16px;
   font-weight: 700;
 }
 
+.acesso .btn:hover:not(:disabled) {
+  background: #ff7a3d;
+}
+
+.acesso .btn:disabled {
+  opacity: 0.7;
+}
+
+.acesso .btn:focus-visible,
+.acesso .btn-google:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
 .google-bloco {
-  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .btn-google {
@@ -344,20 +467,22 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 10px 16px;
+  height: 48px;
+  padding: 0 16px;
   background: #ffffff;
-  color: #1f1f1f;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
+  color: #111111;
+  border: 0;
+  border-radius: 12px;
   font: inherit;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .btn-google:hover:not(:disabled) {
-  background: #f1f3f4;
+  background: #f1f1f1;
 }
 
 .btn-google:disabled {
@@ -365,17 +490,12 @@ a:focus-visible {
   cursor: not-allowed;
 }
 
-.google-bloco .mensagem {
-  margin: 12px 0 0;
-}
-
 .divisor {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 18px 0 4px;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
+  color: #8a8a8a;
+  font-size: 12px;
 }
 
 .divisor::before,
@@ -383,33 +503,39 @@ a:focus-visible {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: #2a2a2a;
 }
 
-@media (max-width: 768px) {
+.acesso .mensagem {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 13px;
+}
+
+.acesso .mensagem-erro {
+  color: #ff8a8a;
+}
+
+@media (max-width: 960px) {
   .acesso {
+    padding: 32px 24px 40px;
+  }
+
+  .acesso-corpo {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
-    padding: 24px 16px;
+    align-items: start;
+    gap: 36px;
+    padding-top: 32px;
   }
 
-  .acesso-hero {
-    text-align: center;
+  .acesso-titulo {
+    font-size: clamp(48px, 17vw, 64px);
   }
 
-  .acesso-hero .logo-grande {
-    margin: 0 auto 16px;
-    width: 80px;
-    height: 80px;
-  }
-
-  .acesso-texto {
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .acesso-lista {
-    display: none;
+  .acesso .card {
+    padding: 28px 24px;
   }
 }
 

@@ -35,10 +35,10 @@ export function sair() {
 }
 
 const MENSAGENS = {
-  'auth/invalid-credential': 'E-mail ou senha incorretos.',
-  'auth/wrong-password': 'E-mail ou senha incorretos.',
-  'auth/user-not-found': 'E-mail ou senha incorretos.',
-  'auth/invalid-email': 'E-mail inválido.',
+  'auth/invalid-credential': 'Senha errada. Pelo menos o treino você lembra.',
+  'auth/wrong-password': 'Senha errada. Pelo menos o treino você lembra.',
+  'auth/user-not-found': 'Senha errada. Pelo menos o treino você lembra.',
+  'auth/invalid-email': 'E-mail inválido. Confere aí.',
   'auth/email-already-in-use': 'Já existe uma conta com este e-mail.',
   'auth/weak-password': 'A senha é fraca demais. Use ao menos 8 caracteres.',
   'auth/user-disabled': 'Esta conta está bloqueada. Fale com o administrador.',

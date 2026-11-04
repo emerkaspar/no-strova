@@ -272,11 +272,20 @@ service cloud.firestore {
       allow read: if acessoLiberado() && request.auth.uid == uid;
       allow create, update: if acessoLiberado()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos'])
+        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding'])
         && request.resource.data.keys().hasAll(['userId'])
         && request.resource.data.userId == request.auth.uid
         && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
-        && (!('nivelTreinos' in request.resource.data) || request.resource.data.nivelTreinos in ['iniciante', 'intermediario', 'avancado']);
+        && (!('nivelTreinos' in request.resource.data) || request.resource.data.nivelTreinos in ['iniciante', 'intermediario', 'avancado'])
+        && (!('diasTreino' in request.resource.data) || (request.resource.data.diasTreino is list
+          && request.resource.data.diasTreino.size() >= 1 && request.resource.data.diasTreino.size() <= 7
+          && request.resource.data.diasTreino.hasOnly([0, 1, 2, 3, 4, 5, 6])))
+        && (!('diaLongao' in request.resource.data) || request.resource.data.diaLongao == null
+          || (request.resource.data.diaLongao is int && request.resource.data.diaLongao >= 0 && request.resource.data.diaLongao <= 6))
+        && (!('horasSemana' in request.resource.data) || (request.resource.data.horasSemana is number
+          && request.resource.data.horasSemana >= 1 && request.resource.data.horasSemana <= 25))
+        && (!('esportePrincipal' in request.resource.data) || request.resource.data.esportePrincipal in ['ciclismo', 'corrida', 'ambos'])
+        && (!('onboarding' in request.resource.data) || request.resource.data.onboarding in ['concluido', 'pulado']);
       allow delete: if false;
     }
 

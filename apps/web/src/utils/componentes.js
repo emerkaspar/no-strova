@@ -53,10 +53,10 @@ export function areaMensagem() {
  * Executa uma ação assíncrona travando o botão e exibindo o erro na área de mensagem.
  * @returns {Promise<boolean>} true se a ação terminou sem erro
  */
-export async function executarComBotao(botao, mensagem, acao) {
+export async function executarComBotao(botao, mensagem, acao, textoCarregando = 'Aguarde…') {
   const textoOriginal = botao.textContent;
   botao.disabled = true;
-  botao.textContent = 'Aguarde…';
+  botao.textContent = textoCarregando;
   mensagem.limpar();
   try {
     await acao();

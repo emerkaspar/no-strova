@@ -5,6 +5,7 @@ import { icone } from '../../utils/icones.js';
 import { logo } from '../../utils/marca.js';
 import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { pedirImportacao } from '../atividades/state.js';
+import { abrirWizard } from '../onboarding/wizard.js';
 
 function inicialDe(sessao) {
   const base = (sessao.perfil?.nome || sessao.email || '?').trim();
@@ -17,7 +18,7 @@ function primeiroNome(sessao) {
 
 /**
  * Cabeçalho de todas as telas: logo, data por extenso e saudação, menu em pílula, e à direita três ícones: importar
- * arquivo, tema (claro/escuro) e o avatar, cujo menu tem a Administração (só para admin) e Sair. Abaixo de 768 px o menu
+ * arquivo, tema (claro/escuro) e o avatar, cujo menu tem o Perfil de treino (o wizard), a Administração (só para admin) e Sair. Abaixo de 768 px o menu
  * vira barra de abas no rodapé (os dois menus ficam no DOM; o CSS mostra um por vez).
  * @param {{ perfil?: any, email?: string, admin?: boolean }} sessao
  * @param {Array<{ caminho: string, rotulo: string, icone: string }>} itens
@@ -64,6 +65,20 @@ export function criarCabecalho(sessao, itens) {
   const itemAdmin = sessao.admin
     ? h('a', { class: 'menu-conta-item', href: '#/admin', role: 'menuitem', 'data-caminho': '#/admin' }, icone('aprovacoes', 18), 'Administração')
     : null;
+  const itemPerfil = h(
+    'button',
+    {
+      class: 'menu-conta-item',
+      type: 'button',
+      role: 'menuitem',
+      onClick: () => {
+        fechar(false);
+        abrirWizard({ sessao });
+      },
+    },
+    icone('perfil', 18),
+    'Perfil de treino',
+  );
   const itemSair = h('button', { class: 'menu-conta-item', type: 'button', role: 'menuitem', onClick: sair }, icone('sair', 18), 'Sair');
   const perfil = h(
     'div',
@@ -71,7 +86,7 @@ export function criarCabecalho(sessao, itens) {
     h('strong', null, (sessao.perfil?.nome || '').trim() || 'Minha conta'),
     sessao.email ? h('span', null, sessao.email) : null,
   );
-  const menu = h('div', { class: 'menu-conta', role: 'menu', 'aria-label': 'Conta', hidden: true }, perfil, h('div', { class: 'menu-conta-itens' }, itemAdmin, itemSair));
+  const menu = h('div', { class: 'menu-conta', role: 'menu', 'aria-label': 'Conta', hidden: true }, perfil, h('div', { class: 'menu-conta-itens' }, itemPerfil, itemAdmin, itemSair));
   const avatar = h(
     'button',
     { class: 'avatar', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Menu da conta' },
@@ -101,7 +116,7 @@ export function criarCabecalho(sessao, itens) {
     avatar.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', foraDoMenu, true);
     document.addEventListener('keydown', teclas);
-    (itemAdmin ?? itemSair).focus();
+    itemPerfil.focus();
   }
   function fechar(devolverFoco) {
     menu.hidden = true;
