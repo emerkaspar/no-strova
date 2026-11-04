@@ -16,10 +16,10 @@ function primeiroNome(sessao) {
 }
 
 /**
- * Cabeçalho de todas as telas: logo, data por extenso e saudação, menu em pílula, botão
- * "Importar arquivo" e avatar com menu (tema e sair). Abaixo de 768 px o menu vira barra de abas
- * no rodapé (os dois menus ficam no DOM; o CSS mostra um por vez).
- * @param {{ perfil?: any, email?: string }} sessao
+ * Cabeçalho de todas as telas: logo, data por extenso e saudação, menu em pílula, e à direita três ícones: importar
+ * arquivo, tema (claro/escuro) e o avatar, cujo menu tem a Administração (só para admin) e Sair. Abaixo de 768 px o menu
+ * vira barra de abas no rodapé (os dois menus ficam no DOM; o CSS mostra um por vez).
+ * @param {{ perfil?: any, email?: string, admin?: boolean }} sessao
  * @param {Array<{ caminho: string, rotulo: string, icone: string }>} itens
  */
 export function criarCabecalho(sessao, itens) {
@@ -38,40 +38,57 @@ export function criarCabecalho(sessao, itens) {
   const linksAbas = itens.map((m) => h('a', { href: m.caminho, 'data-caminho': m.caminho }, icone(m.icone), h('span', null, m.rotulo)));
   const abas = h('nav', { class: 'barra-abas', 'aria-label': 'Principal (abas)' }, ...linksAbas);
 
-  function marcarAtivo(caminho) {
-    for (const link of [...linksPilula, ...linksAbas]) {
-      if (link.dataset.caminho === caminho) link.setAttribute('aria-current', 'page');
-      else link.removeAttribute('aria-current');
-    }
-  }
-
-  // --- botão de importar ---
+  // --- importar arquivo (só o ícone) ---
   const importar = h(
     'button',
-    { class: 'btn btn-importar', type: 'button', 'aria-label': 'Importar arquivo', onClick: pedirImportacao },
-    'Importar',
-    h('span', { class: 'so-desktop' }, ' arquivo'),
+    { class: 'btn-icone btn-icone-primario', type: 'button', 'aria-label': 'Importar arquivo', title: 'Importar arquivo', onClick: pedirImportacao },
+    icone('importar', 22),
   );
 
-  // --- avatar com menu ---
-  const itemTema = h('button', { class: 'menu-conta-item', type: 'button', role: 'menuitem' });
-  const itemSair = h('button', { class: 'menu-conta-item', type: 'button', role: 'menuitem', onClick: sair }, 'Sair');
-  const menu = h('div', { class: 'menu-conta', role: 'menu', 'aria-label': 'Conta', hidden: true }, itemTema, itemSair);
+  // --- tema: ícone sempre visível (sol no tema escuro, lua no claro) ---
+  const botaoTema = h('button', { class: 'btn-icone', type: 'button' });
+  function rotularTema() {
+    const escuro = temaEfetivo() === 'escuro';
+    const texto = escuro ? 'Mudar para o tema claro' : 'Mudar para o tema escuro';
+    botaoTema.replaceChildren(icone(escuro ? 'sol' : 'lua', 22));
+    botaoTema.setAttribute('aria-label', texto);
+    botaoTema.title = texto;
+  }
+  rotularTema();
+  botaoTema.addEventListener('click', () => {
+    alternarTema();
+    rotularTema();
+  });
+
+  // --- avatar com menu da conta ---
+  const itemAdmin = sessao.admin
+    ? h('a', { class: 'menu-conta-item', href: '#/admin', role: 'menuitem', 'data-caminho': '#/admin' }, icone('aprovacoes', 18), 'Administração')
+    : null;
+  const itemSair = h('button', { class: 'menu-conta-item', type: 'button', role: 'menuitem', onClick: sair }, icone('sair', 18), 'Sair');
+  const perfil = h(
+    'div',
+    { class: 'menu-conta-perfil' },
+    h('strong', null, (sessao.perfil?.nome || '').trim() || 'Minha conta'),
+    sessao.email ? h('span', null, sessao.email) : null,
+  );
+  const menu = h('div', { class: 'menu-conta', role: 'menu', 'aria-label': 'Conta', hidden: true }, perfil, h('div', { class: 'menu-conta-itens' }, itemAdmin, itemSair));
   const avatar = h(
     'button',
     { class: 'avatar', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Menu da conta' },
     inicialDe(sessao),
   );
 
-  function rotularTema() {
-    itemTema.textContent = temaEfetivo() === 'escuro' ? 'Tema claro' : 'Tema escuro';
+  function marcarAtivo(caminho) {
+    for (const link of [...linksPilula, ...linksAbas]) {
+      if (link.dataset.caminho === caminho) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    }
+    // Administração mora no menu da conta: na tela dela, o avatar fica destacado
+    const naAdmin = caminho === '#/admin';
+    avatar.classList.toggle('avatar-ativo', naAdmin);
+    if (naAdmin) itemAdmin?.setAttribute('aria-current', 'page');
+    else itemAdmin?.removeAttribute('aria-current');
   }
-  rotularTema();
-  itemTema.addEventListener('click', () => {
-    alternarTema();
-    rotularTema();
-    fechar(true);
-  });
 
   const foraDoMenu = (e) => {
     if (!menu.contains(e.target) && !avatar.contains(e.target)) fechar(false);
@@ -80,12 +97,11 @@ export function criarCabecalho(sessao, itens) {
     if (e.key === 'Escape') fechar(true);
   };
   function abrir() {
-    rotularTema();
     menu.hidden = false;
     avatar.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', foraDoMenu, true);
     document.addEventListener('keydown', teclas);
-    itemTema.focus();
+    (itemAdmin ?? itemSair).focus();
   }
   function fechar(devolverFoco) {
     menu.hidden = true;
@@ -95,6 +111,8 @@ export function criarCabecalho(sessao, itens) {
     if (devolverFoco) avatar.focus();
   }
   avatar.addEventListener('click', () => (menu.hidden ? abrir() : fechar(false)));
+  // ir para a Administração fecha o menu
+  itemAdmin?.addEventListener('click', () => fechar(false));
 
   const topo = h(
     'header',
@@ -104,7 +122,7 @@ export function criarCabecalho(sessao, itens) {
       { class: 'container topo-conteudo' },
       marca,
       pilula,
-      h('div', { class: 'topo-acoes' }, importar, h('div', { class: 'conta' }, avatar, menu)),
+      h('div', { class: 'topo-acoes' }, importar, botaoTema, h('div', { class: 'conta' }, avatar, menu)),
     ),
   );
 

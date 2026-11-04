@@ -102,12 +102,6 @@
   gap: 10px;
 }
 
-.btn-importar {
-  border-radius: 999px;
-  padding: 11px 20px;
-  font-size: 0.95rem;
-  white-space: nowrap;
-}
 
 .conta {
   position: relative;
@@ -938,11 +932,6 @@
 
   .topo-saudacao {
     font-size: 1.1rem;
-  }
-
-  .btn-importar {
-    padding: 10px 14px;
-    font-size: 0.9rem;
   }
 
   .so-desktop {
@@ -4897,4 +4886,136 @@ textarea {
 .link-acao:hover .icone,
 .link-acao:focus-visible .icone {
   transform: translateX(3px);
+}
+
+/* ===== Ações do cabeçalho: importar, tema e conta, todos como ícones redondos ===== */
+.topo-acoes {
+  gap: 8px;
+}
+
+.btn-icone,
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.btn-icone:hover,
+.btn-icone:focus-visible {
+  border-color: var(--text-secondary);
+  background: var(--surface-light);
+  color: var(--text-primary);
+}
+
+.btn-icone:active {
+  transform: scale(0.94);
+}
+
+.btn-icone-primario {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-contrast);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.btn-icone-primario:hover,
+.btn-icone-primario:focus-visible {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+  color: var(--primary-contrast);
+}
+
+.avatar {
+  color: var(--text-primary);
+}
+
+.avatar-ativo {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* menu da conta: cabeçalho com nome e e-mail, itens com ícone */
+.menu-conta {
+  min-width: 240px;
+  max-width: calc(100vw - 32px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.menu-conta-perfil {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-light);
+}
+
+.menu-conta-perfil strong {
+  overflow: hidden;
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-conta-perfil span {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-conta-itens {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+
+.menu-conta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.menu-conta-item .icone {
+  color: var(--text-secondary);
+}
+
+.menu-conta-item:hover,
+.menu-conta-item:focus-visible {
+  background: var(--surface-light);
+}
+
+.menu-conta-item[aria-current='page'] {
+  color: var(--primary);
+}
+
+.menu-conta-item[aria-current='page'] .icone {
+  color: var(--primary);
+}
+
+@media (max-width: 767px) {
+  .topo-acoes {
+    gap: 6px;
+  }
+
+  .btn-icone,
+  .avatar {
+    width: 40px;
+    height: 40px;
+  }
 }

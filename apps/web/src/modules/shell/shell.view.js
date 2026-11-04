@@ -11,7 +11,7 @@ import { render as renderProgressao } from '../progressao/progressao.view.js';
 import { render as renderTreinos } from '../treinos/treinos.view.js';
 import { criarCabecalho } from './cabecalho.js';
 
-// Itens do menu (a tela de Forma abre pelo Início e não tem item próprio).
+// Itens do menu principal (a tela de Forma abre pelo Início e não tem item próprio; a Administração fica no menu da conta).
 const MENU = [
   { caminho: '#/inicio', rotulo: 'Início', icone: 'inicio' },
   { caminho: '#/atividades', rotulo: 'Atividades', icone: 'atividades' },
@@ -20,7 +20,6 @@ const MENU = [
   { caminho: '#/treinos', rotulo: 'Treinos', icone: 'treinos' },
   { caminho: '#/peso', rotulo: 'Peso', icone: 'peso' },
   { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao' },
-  { caminho: '#/admin', rotulo: 'Administração', icone: 'aprovacoes', soAdmin: true },
 ];
 
 /** Resolve o hash em { menu, render, params }. Rotas desconhecidas ou proibidas caem no Início. */
@@ -51,8 +50,7 @@ function resolverRota(hash, admin) {
 }
 
 export function render(raiz, sessao) {
-  const itens = MENU.filter((m) => !m.soAdmin || sessao.admin);
-  const cabecalho = criarCabecalho(sessao, itens);
+  const cabecalho = criarCabecalho(sessao, MENU);
   const saida = h('main', { class: 'container conteudo' });
   let destruirRota = null;
 
