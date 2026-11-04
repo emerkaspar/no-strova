@@ -82,7 +82,47 @@ function chipAtividade(a) {
  *   aoExcluir: (id: string) => void
  * }} p
  */
-export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = null, porDia, aoEditar, aoNovo, aoMover, aoExcluir }) {
+export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = null, porDia, metaDaSemana = () => null, aoEditar, aoNovo, aoMover, aoExcluir }) {
+  /**
+   * Coluna "Esforço planejado" de uma semana (segunda a domingo): a meta do plano anual (quando a semana está nele) e a soma dos
+   * treinos avulsos previstos. Sem nenhum dos dois, explica o que aparece ali.
+   */
+  function colunaEsforco(inicioSemana, compacta = false) {
+    let previsto = 0;
+    let treinos = 0;
+    for (let i = 0; i < 7; i++) {
+      const data = somarDias(inicioSemana, i);
+      if (data < hoje) continue;
+      for (const t of porDia.get(data)?.treinos ?? []) {
+        if (t.status !== 'planejado') continue;
+        previsto += estresseDoTreino(t, configs, calibracao);
+        treinos += 1;
+      }
+    }
+    const meta = metaDaSemana(inicioSemana);
+    const vazio = !meta && treinos === 0;
+    const el = h('div', {
+      class: `cal-esforco${compacta ? ' cal-esforco-compacto' : ''}${vazio ? ' cal-esforco-vazio' : ''}`,
+      role: 'group',
+      'aria-label': `Esforço planejado da semana de ${formatarData(inicioSemana)}`,
+    });
+    if (vazio) {
+      el.append(compacta ? h('span', { class: 'cal-esforco-traco', title: 'Sem esforço planejado nesta semana' }, '—') : h('p', null, 'Sem esforço previsto. Aqui aparecem a meta do plano anual e os treinos avulsos planejados da semana.'));
+      return el;
+    }
+    if (meta) {
+      el.append(
+        h('div', { class: 'cal-esforco-bloco' }, h('span', { class: 'cal-esforco-rotulo' }, compacta ? 'Plano' : `Plano anual · ${meta.fase}`), h('strong', null, `Meta ${formatarNumero(meta.cargaAlvo, 0)}`), !compacta && meta.detalhe ? h('small', null, meta.detalhe) : null),
+      );
+    }
+    if (treinos > 0) {
+      el.append(
+        h('div', { class: 'cal-esforco-bloco' }, h('span', { class: 'cal-esforco-rotulo' }, compacta ? 'Treinos' : 'Treinos previstos'), h('strong', null, `~${formatarNumero(previsto, 0)}`), !compacta ? h('small', null, `${treinos} ${treinos === 1 ? 'treino' : 'treinos'}`) : null),
+      );
+    }
+    return el;
+  }
+
   /** Idêntico para semana e mês: o treino arrastado até aqui é excluído (depois de confirmar). */
   function lixeira() {
     const el = h(
@@ -184,8 +224,8 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
       h(
         'div',
         { class: 'cal cal-mes', role: 'grid', 'aria-label': 'Calendário do mês' },
-        h('div', { class: 'cal-cabecalho', 'aria-hidden': 'true' }, ...ROTULOS_DIA.map((r) => h('span', null, r))),
-        ...grade.map((semana) => h('div', { class: 'cal-semana-linha', role: 'row' }, ...semana.map((d, i) => celula(d.data, i, { doMes: d.doMes, compacta: true })))),
+        h('div', { class: 'cal-cabecalho', 'aria-hidden': 'true' }, ...ROTULOS_DIA.map((r) => h('span', null, r)), h('span', { class: 'cal-cabecalho-esforco' }, 'ESFORÇO')),
+        ...grade.map((semana) => h('div', { class: 'cal-semana-linha', role: 'row' }, ...semana.map((d, i) => celula(d.data, i, { doMes: d.doMes, compacta: true })), colunaEsforco(semana[0].data, true))),
       ),
     );
   }
@@ -195,6 +235,6 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
     'div',
     { class: 'cal-bloco' },
     lixeira(),
-    h('div', { class: 'cal cal-semana', role: 'group', 'aria-label': 'Calendário da semana' }, ...Array.from({ length: 7 }, (_, i) => celula(somarDias(inicio, i), i))),
+    h('div', { class: 'cal cal-semana', role: 'group', 'aria-label': 'Calendário da semana' }, ...Array.from({ length: 7 }, (_, i) => celula(somarDias(inicio, i), i)), h('div', { class: 'cal-esforco-coluna' }, h('span', { class: 'cal-esforco-titulo' }, 'ESFORÇO PLANEJADO'), colunaEsforco(inicio))),
   );
 }

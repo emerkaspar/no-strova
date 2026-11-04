@@ -1168,7 +1168,7 @@ textarea {
 
 .cal-semana {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.15fr);
   gap: 8px;
 }
 
@@ -1181,7 +1181,7 @@ textarea {
 .cal-cabecalho,
 .cal-semana-linha {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.15fr);
   gap: 4px;
 }
 
@@ -1453,10 +1453,92 @@ textarea {
   background: none;
 }
 
+/* Coluna "Esforço planejado" ao lado da semana (e de cada linha do mês) */
+.cal-esforco-coluna {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.cal-esforco-titulo,
+.cal-cabecalho-esforco {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.cal-esforco {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cal-esforco-compacto {
+  justify-content: center;
+  padding: 6px;
+  background: var(--surface-light);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 0.72rem;
+}
+
+.cal-esforco-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cal-esforco-bloco strong {
+  font-size: 1.05rem;
+}
+
+.cal-esforco-compacto .cal-esforco-bloco strong {
+  font-size: 0.85rem;
+}
+
+.cal-esforco-bloco small,
+.cal-esforco-rotulo {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.cal-esforco-vazio p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.cal-esforco-traco {
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 /* Telas pequenas: semana em lista e mês só com a contagem */
 @media (max-width: 767px) {
   .cal-semana {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* mês: a coluna de esforço fica estreita, só com os números */
+  .cal-cabecalho,
+  .cal-semana-linha {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.4fr);
+  }
+
+  .cal-esforco-compacto .cal-esforco-rotulo {
+    display: none;
+  }
+
+  .cal-esforco-compacto {
+    padding: 2px;
+    text-align: center;
   }
 
   .cal-dia {

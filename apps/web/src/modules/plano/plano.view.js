@@ -1,7 +1,8 @@
-import { inicioDaSemana, primeiroDoMes, RECURSOS, rotuloDoMes, somarDias, somarMeses, temRecurso, treinosFuturos } from '@no-strova/domain';
+import { FASES, inicioDaSemana, primeiroDoMes, provaDoPlano, RECURSOS, rotuloDoMes, somarDias, somarMeses, temRecurso, treinosFuturos } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { obterSessao } from '../../application/sessao.js';
 import { modelosProprios } from '../../application/modelos.js';
+import { montarPlanoAnual } from '../../application/provas.js';
 import { agruparPorDia, dataInicialDoHistorico, montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
 import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
@@ -206,6 +207,16 @@ Os treinos já realizados e o de hoje não são afetados.`,
     );
   }
 
+  /** Semanas do plano anual da prova do plano (vazio quando não há prova ou o plano não pôde ser montado). */
+  function semanasDoPlanoAnual() {
+    try {
+      const prova = provaDoPlano(dados.provas, hoje);
+      return prova ? montarPlanoAnual({ hoje, prova, dias: dados.dias }).semanas : [];
+    } catch {
+      return [];
+    }
+  }
+
   // ---- desenho ----
   function desenhar() {
     if (!ativa) return;
@@ -218,6 +229,14 @@ Os treinos já realizados e o de hoje não são afetados.`,
     }
 
     desenharBarra();
+    const semanasAnual = pronto ? semanasDoPlanoAnual() : [];
+    const metaDaSemana = (inicio) => {
+      const fim = somarDias(inicio, 6);
+      const s = semanasAnual.find((x) => x.inicio <= fim && x.fim >= inicio);
+      if (!s) return null;
+      const extras = [s.recuperacao ? 'recuperação' : null, s.semanaDaProva ? 'semana da prova' : null].filter(Boolean);
+      return { cargaAlvo: s.cargaAlvo, fase: FASES[s.fase]?.rotulo ?? s.fase, detalhe: extras.join(' · ') };
+    };
     const futurosN = pronto ? treinosFuturos(dados.treinos, hoje).length : 0;
     calendario.replaceChildren(
       ...[
@@ -229,6 +248,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
             configs: dados.configs,
             calibracao: dados.calibracao,
             porDia: agruparPorDia(dados.treinos, dados.atividades),
+            metaDaSemana,
             aoEditar: (t) => abrirEditor(t, t.data),
             aoNovo: (data) => abrirEditor(null, data),
             aoMover: (id, data) => {
