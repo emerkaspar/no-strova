@@ -16,7 +16,50 @@ const rotuloDaData = (iso) => `${DIAS[new Date(`${iso}T12:00:00Z`).getUTCDay()]}
  */
 export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} }) {
   const semanas = selecao({ id: 'ia-semanas', rotulo: 'Semanas', valor: '2', opcoes: [1, 2, 3, 4].map((n) => ({ valor: String(n), rotulo: `${n} semana${n === 1 ? '' : 's'}` })) });
-  const dias = selecao({ id: 'ia-dias', rotulo: 'Dias de treino por semana', valor: '4', opcoes: [1, 2, 3, 4, 5, 6, 7].map((n) => ({ valor: String(n), rotulo: String(n) })) });
+  const ABREV = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  const NOMES = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
+  const escolhidos = new Set([1, 3, 5, 6]);
+  const longaoSelecionado = { valor: '6' };
+  const diasCampo = h('div', { class: 'campo ia-dias-campo' }, h('span', { class: 'ia-rotulo' }, 'Dias de treino'));
+  const longao = h('select', { id: 'ia-longao', name: 'ia-longao', 'aria-label': 'Dia do longão' });
+  const longaoCampo = h('div', { class: 'campo' }, h('label', { for: 'ia-longao' }, 'Dia do longão'), longao);
+  longao.addEventListener('change', () => {
+    longaoSelecionado.valor = longao.value;
+  });
+  function desenharDias() {
+    const ordenados = [...escolhidos].sort((a, b) => a - b);
+    if (!escolhidos.has(Number(longaoSelecionado.valor))) longaoSelecionado.valor = '';
+    longao.replaceChildren(
+      h('option', { value: '' }, 'Sem longão'),
+      ...ordenados.map((d) => h('option', { value: String(d), selected: String(d) === longaoSelecionado.valor }, NOMES[d])),
+    );
+    longao.value = longaoSelecionado.valor;
+    diasCampo.replaceChildren(
+      h('span', { class: 'ia-rotulo' }, `Dias de treino (${escolhidos.size} por semana)`),
+      h(
+        'div',
+        { class: 'ia-dias', role: 'group', 'aria-label': 'Dias da semana em que você quer treinar' },
+        ...ABREV.map((rotulo, d) =>
+          h(
+            'button',
+            {
+              type: 'button',
+              class: `ativ-chip${escolhidos.has(d) ? ' ativo' : ''}`,
+              'aria-pressed': String(escolhidos.has(d)),
+              title: NOMES[d],
+              onClick: () => {
+                if (escolhidos.has(d)) escolhidos.delete(d);
+                else escolhidos.add(d);
+                desenharDias();
+              },
+            },
+            rotulo,
+          ),
+        ),
+      ),
+    );
+  }
+  desenharDias();
   const horas = campo({ id: 'ia-horas', rotulo: 'Horas por semana', inputmode: 'decimal', value: '6' });
   const esporte = selecao({
     id: 'ia-esporte',
@@ -111,7 +154,7 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
         executarComBotao(botao, mensagem, async () => {
           resultado.replaceChildren(h('p', { class: 'texto-secundario', role: 'status' }, 'A IA está montando o plano… pode levar alguns segundos.'));
           try {
-            const r = await pedirTreinosDaIa({ semanas: semanas.select.value, diasPorSemana: dias.select.value, horasPorSemana: horas.input.value, esporte: esporte.select.value, observacao: observacao.input.value });
+            const r = await pedirTreinosDaIa({ semanas: semanas.select.value, diasDaSemana: [...escolhidos], diaLongao: longaoSelecionado.valor === '' ? null : Number(longaoSelecionado.valor), horasPorSemana: horas.input.value, esporte: esporte.select.value, observacao: observacao.input.value });
             mostrarRascunho(r);
           } catch (err) {
             resultado.replaceChildren();
@@ -121,9 +164,10 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
       },
     },
     semanas.raiz,
-    dias.raiz,
     horas.raiz,
     esporte.raiz,
+    diasCampo,
+    longaoCampo,
     observacao.raiz,
     h('div', { class: 'campo campo-botao' }, botao),
   );
@@ -132,7 +176,7 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
     'section',
     { class: 'card ia-cartao' },
     h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Sugestão de treinos com IA')),
-    h('p', { class: 'texto-secundario' }, 'A IA monta as próximas semanas com treinos do catálogo, olhando o seu Condicionamento, a Forma e o que já está no plano. Você revisa e escolhe o que entra.'),
+    h('p', { class: 'texto-secundario' }, 'Escolha os dias em que quer treinar (e o dia do longão): a IA monta as próximas semanas com treinos do catálogo, olhando o seu Condicionamento, a Forma e o que já está no plano. Você revisa e escolhe o que entra.'),
     form,
     mensagem.el,
     contador,

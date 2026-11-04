@@ -3382,3 +3382,26 @@ textarea {
     grid-column: 2;
   }
 }
+
+/* Sugestão de treinos: dias da semana escolhidos pelo usuário */
+.ia-dias-campo {
+  min-width: 0;
+}
+
+.ia-rotulo {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.ia-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ia-dias .ativ-chip {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+}
