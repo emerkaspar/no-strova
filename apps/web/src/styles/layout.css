@@ -3365,3 +3365,11 @@ textarea {
   padding: 8px 12px;
   border: 1px solid var(--border);
 }
+
+.ativ-esforcos {
+  margin: 8px 0 14px;
+}
+
+.ativ-esforcos-estado {
+  font-size: 0.85rem;
+}

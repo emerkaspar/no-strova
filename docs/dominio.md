@@ -96,7 +96,7 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 |---|---|---|
 | `users/{uid}` | `nome`, `email`, `role` (`admin`/`atleta`/`treinador`), `aprovado`, `ativo`, `dataNascimento`, `aceiteLgpd`, `criadoEm` | Admin SDK; o dono edita só `nome` e `dataNascimento` |
 | `configsAtleta/{id}` | `vigenteDesde`, `fcMax`, `fcRepouso`, `lthr`, `sexo`, `pesoKg`, `alturaCm` | Dono |
-| `atividades/{id}` | `origem` (`arquivo`/`manual`), `esporte`, `inicio` (Timestamp), `data` (dia em São Paulo), `duracaoS`, `tempoMovimentoS`, `distanciaM`, `altimetriaM`, `fcMedia`, `fcMax`, `zona`, `calorias`, `caloriasOrigem` (`arquivo`/`informada`/`estimada`), `hrss`, `hrssOrigem` (`fc`/`zona`/`manual`), `configIdUsada`, `alertas[]`, `arquivoPath`, `extensao`, `hashArquivo`, `criadoEm` | Somente callable (HRSS é autoritativo) |
+| `atividades/{id}` | `origem` (`arquivo`/`manual`), `esporte`, `inicio` (Timestamp), `data` (dia em São Paulo), `duracaoS`, `tempoMovimentoS`, `distanciaM`, `altimetriaM`, `melhor5kS`, `melhor10kS` (melhor tempo contínuo em 5 km e 10 km, calculado nas amostras do arquivo; `melhoresEsforcosEm` marca a versão do cálculo), `fcMedia`, `fcMax`, `zona`, `calorias`, `caloriasOrigem` (`arquivo`/`informada`/`estimada`), `hrss`, `hrssOrigem` (`fc`/`zona`/`manual`), `configIdUsada`, `alertas[]`, `arquivoPath`, `extensao`, `hashArquivo`, `criadoEm` | Somente callable (HRSS é autoritativo) |
 | `atividades/{id}/series/fc` | série de FC reduzida (1 ponto a cada 5 s) para o gráfico do detalhe | Admin SDK |
 | `estresseDiario/{uid_yyyymmdd}` | `data`, `estresse`, `kcal`, `qtdAtividades` | Trigger sobre `atividades` |
 | `treinosPlanejados/{id}` | `data`, `esporte`, `duracaoMin` (inteiro, 5–1440), `zona` (Z1–Z5), `estresseEstimado` (referência gravada ao salvar), `estresseManual?` (sobrescreve a estimativa), `observacoes` (até 500), `status` (`planejado`/`realizado`/`pulado`), `atividadeId?`, `criadoEm`, e, nos treinos intervalados, `passos?` (os blocos), `nomeTreino?` e `modeloId?` | Dono (as regras validam todos os campos) |
@@ -178,7 +178,7 @@ Regras do Storage (`firebase/storage.rules`, default deny):
 
 ## Cloud Functions
 - `auth/`: `bootstrapUserOnCreate` (trigger), `ensureUserProfile`, `aprovarUsuario`, `listarPendentes`, `bloquearUsuario`.
-- `atividades/`: `processarArquivoAtividade`, `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` e a agendada `limparArquivosOrfaos`.
+- `atividades/`: `processarArquivoAtividade`, `calcularMelhoresEsforcos` (melhor 5 km e 10 km das atividades antigas, relendo os arquivos), `criarAtividadeManual`, `excluirAtividade`, `recalcularHistorico`, `obterUrlArquivo` e a agendada `limparArquivosOrfaos`.
 - `estresse/` (Fase 3): trigger `onAtividadeWrite` (mantém `estresseDiario`) e a callable `reconstruirEstresseDiario`.
 - `calibracao/`: callable `reconstruirCalibracao` e o serviço que o gatilho `onAtividadeWrite` (e `recalcularHistorico`) usa para manter `calibracoes/{uid}`. O teste de LTHR não tem Function: roda no cliente.
 - `ia/`: `sugerirTreinos`, `decidirRascunho`, `iaChamadasRestantes`.

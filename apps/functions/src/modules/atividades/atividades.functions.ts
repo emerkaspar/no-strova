@@ -51,3 +51,9 @@ export const recalcularHistorico = onCall({ region: REGIAO, timeoutSeconds: 300 
   }
   return resultado;
 });
+
+/** Calcula o melhor 5 km e 10 km das atividades antigas (o app chama até `restantes` zerar). */
+export const calcularMelhoresEsforcos = onCall({ region: REGIAO, timeoutSeconds: 300, memory: "512MiB" }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  return servico.calcularMelhoresEsforcosDoUsuario(uid);
+});

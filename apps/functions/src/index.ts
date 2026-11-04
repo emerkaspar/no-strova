@@ -1,4 +1,5 @@
 export {
+  calcularMelhoresEsforcos,
   criarAtividadeManual,
   excluirAtividade,
   obterUrlArquivo,

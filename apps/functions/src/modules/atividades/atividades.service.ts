@@ -5,10 +5,12 @@ import {
   diaNoFuso,
   ESPORTES_VALIDOS,
   esporteDoArquivo,
+  melhoresEsforcos,
   reduzirSerieFc,
   resumirAmostras,
   validarAtividadeManual,
   validarConfigAtleta,
+  VERSAO_DOS_ESFORCOS,
   ZONAS,
 } from "@no-strova/domain";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -208,6 +210,8 @@ export async function processarArquivo(
     inicio,
     data,
     ...resumo,
+    ...melhoresEsforcos(lido.amostras),
+    melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
     zona,
     ...calorias,
     ...estresse,
@@ -384,4 +388,32 @@ export async function recalcularHistorico(
   }
   if (pendentes > 0) await lote.commit();
   return { total: snap.size, atualizadas, semConfig };
+}
+
+/**
+ * Calcula o melhor 5 km e o melhor 10 km das atividades importadas antes desse recurso, relendo o arquivo original no
+ * Storage. Processa até `limite` atividades por chamada (o app chama de novo até `restantes` chegar a zero). Um arquivo
+ * que não pode ser lido é marcado como calculado (sem tempos) para não travar a fila.
+ */
+export async function calcularMelhoresEsforcosDoUsuario(uid: string, limite = 25): Promise<{ processadas: number; restantes: number }> {
+  const snap = await db.collection("atividades").where("userId", "==", uid).limit(5000).get();
+  const pendentes = snap.docs.filter((d) => {
+    const a = d.data();
+    return a.origem === "arquivo" && typeof a.arquivoPath === "string" && a.arquivoPath.startsWith(`atividades/${uid}/`) && a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS;
+  });
+  let processadas = 0;
+  for (const doc of pendentes.slice(0, limite)) {
+    const a = doc.data();
+    let tempos: { melhor5kS: number | null; melhor10kS: number | null } = { melhor5kS: null, melhor10kS: null };
+    try {
+      const [conteudo] = await getStorage().bucket().file(a.arquivoPath as string).download();
+      const lido = await lerArquivo(conteudo, a.extensao as Extensao);
+      tempos = melhoresEsforcos(lido.amostras);
+    } catch (err) {
+      logger.warn("Não foi possível calcular os melhores esforços de uma atividade", { atividadeId: doc.id, erro: String(err) });
+    }
+    await doc.ref.update({ ...tempos, melhoresEsforcosEm: VERSAO_DOS_ESFORCOS });
+    processadas += 1;
+  }
+  return { processadas, restantes: Math.max(0, pendentes.length - processadas) };
 }

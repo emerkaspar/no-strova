@@ -1,5 +1,6 @@
-import { anosComAtividades, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, velocidadeMediaMs } from '@no-strova/domain';
+import { anosComAtividades, melhoresEsforcosDasAtividades, ritmoDoEsforco, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, velocidadeMediaMs } from '@no-strova/domain';
 import { montarSerie } from '../../application/forma.js';
+import { calcularMelhoresEsforcos } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
@@ -41,12 +42,32 @@ function textoVelocidade(a) {
 const metros = (m) => (Number.isFinite(m) && m > 0 ? `${formatarNumero(m, 0)} m` : '—');
 
 /** Cards de recorde: rótulo, campo, ícone e como formatar o valor. */
+/** Tempo de um esforço: "21:45" ou "1:05:30". */
+function tempoDeEsforco(segundos) {
+  const h = Math.floor(segundos / 3600);
+  const m = Math.floor((segundos % 3600) / 60);
+  const s = Math.round(segundos % 60);
+  const dois = (n) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${dois(m)}:${dois(s)}` : `${m}:${dois(s)}`;
+}
+
+/** Ritmo (corrida, min/km) ou velocidade (ciclismo, km/h) de um esforço de `metros`. */
+function ritmoTexto(esporte, tempoS, metros) {
+  if (esporte === 'corrida') {
+    const porKm = ritmoDoEsforco(tempoS, metros);
+    return porKm === null ? '' : `${Math.floor(porKm / 60)}:${String(porKm % 60).padStart(2, '0')} /km`;
+  }
+  return `${formatarNumero((metros / tempoS) * 3.6, 1)} km/h`;
+}
+
 const CARDS_DE_RECORDE = [
   { id: 'distancia', rotulo: 'Maior distância', icone: 'distancia', formatar: (v) => formatarDistancia(v) },
   { id: 'duracao', rotulo: 'Maior tempo', icone: 'duracao', formatar: (v) => formatarDuracao(v) },
   { id: 'elevacao', rotulo: 'Maior elevação', icone: 'elevacao', formatar: metros },
   { id: 'hrss', rotulo: 'Maior HRSS', icone: 'hrss', formatar: (v) => formatarNumero(v, 1) },
   { id: 'fcMax', rotulo: 'Maior FC máxima', icone: 'fc', formatar: (v) => `${formatarNumero(v, 0)} bpm` },
+  { id: 'melhor5k', rotulo: 'Melhor 5 km', icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 5000 },
+  { id: 'melhor10k', rotulo: 'Melhor 10 km', icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 10000 },
   { id: 'semanaPesada', rotulo: 'Semana mais pesada', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} HRSS` },
   { id: 'sequencia', rotulo: 'Maior sequência', icone: 'plano', formatar: (v) => `${v} semana${v === 1 ? '' : 's'}` },
   { id: 'condicionamento', rotulo: 'Maior Condicionamento', icone: 'atividades', formatar: (v) => formatarNumero(v, 1), geral: true },
@@ -183,12 +204,38 @@ export function render(raiz, sessao) {
     );
   }
 
+  /** Botão que calcula o melhor 5 km e 10 km das atividades importadas antes desse recurso (o servidor relê os arquivos). */
+  function botaoDeEsforcos(pendentes) {
+    const estado = h('span', { class: 'texto-secundario ativ-esforcos-estado' });
+    const botao = h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button' }, `Calcular melhores 5 km e 10 km do histórico (${pendentes} atividade${pendentes === 1 ? '' : 's'})`);
+    botao.addEventListener('click', async () => {
+      botao.disabled = true;
+      let feitas = 0;
+      try {
+        for (;;) {
+          estado.textContent = ` Calculando… ${feitas} de ${pendentes}`;
+          const r = await calcularMelhoresEsforcos();
+          feitas += r.processadas;
+          if (r.restantes === 0 || r.processadas === 0) break;
+        }
+        estado.textContent = ' Pronto.';
+      } catch (err) {
+        estado.textContent = ` ${err.message || 'Não foi possível calcular agora.'}`;
+        botao.disabled = false;
+      }
+    });
+    return h('p', { class: 'ativ-esforcos' }, botao, estado);
+  }
+
   function desenharRecordes() {
     if (atividades.length === 0) {
       recordes.replaceChildren();
       return;
     }
     const todos = estadoAtividades.periodo === 'tudo';
+    // Melhor 5 km e 10 km: tempos só se comparam dentro de um esporte, então "Todos" mostra a corrida.
+    const esporteEsforco = estadoAtividades.esporte || 'corrida';
+    const pendentes = atividades.filter((a) => a.origem === 'arquivo' && a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS).length;
     // O Condicionamento não vem de uma atividade: é o pico da curva diária (vale para todos os esportes).
     // Recordes que não são de uma única atividade (semana, sequência e Condicionamento) entram sem link, com um texto de "quando".
     const calculados = (lista, intervalo) => {
@@ -198,6 +245,7 @@ export function render(raiz, sessao) {
       const sem = (id, valor, quando) => ({ valor, atividade: { id, semLink: true, quando } });
       return {
         ...recordesDasAtividades(lista),
+        ...melhoresEsforcosDasAtividades(lista.filter((a) => a.esporte === esporteEsforco)),
         semanaPesada: semana ? sem(`sem:${semana.inicio}`, semana.valor, `Semana de ${formatarData(semana.inicio).slice(0, 5)}`) : null,
         sequencia: sequencia ? sem(`seq:${sequencia.valor}`, sequencia.valor, 'Semanas seguidas') : null,
         condicionamento: pico ? sem(`cond:${pico.data}`, pico.valor, formatarData(pico.data)) : null,
@@ -207,11 +255,11 @@ export function render(raiz, sessao) {
     const historicos = todos ? doPeriodo : calculados(doEsporte(atividades), null);
     const subtitulo = todos ? 'O maior valor em uma única atividade, de todos os tempos.' : 'O maior valor em uma única atividade no período, com o recorde histórico ao lado.';
     recordes.replaceChildren(
-      h('div', { class: 'ativ-recordes-topo' }, h('h2', null, 'Recordes'), h('p', { class: 'texto-secundario' }, subtitulo)),
+      h('div', { class: 'ativ-recordes-topo' }, h('h2', null, 'Recordes'), h('p', { class: 'texto-secundario' }, subtitulo), pendentes > 0 ? botaoDeEsforcos(pendentes) : null),
       h(
         'div',
         { class: 'ativ-recordes-grade' },
-        ...CARDS_DE_RECORDE.map((c) => {
+        ...CARDS_DE_RECORDE.filter((c) => !c.esforcoM || atividades.some((a) => a.esporte === esporteEsforco && a.distanciaM >= c.esforcoM)).map((c) => {
           const r = doPeriodo[c.id];
           const hist = historicos[c.id];
           const ehHistorico = Boolean(r && hist && r.atividade.id === hist.atividade.id);
@@ -222,7 +270,7 @@ export function render(raiz, sessao) {
               'div',
               { class: 'ativ-recorde-topo' },
               h('span', { class: 'ativ-recorde-icone' }, icone(c.icone, 18)),
-              h('span', { class: 'ativ-recorde-rotulo' }, c.rotulo),
+              h('span', { class: 'ativ-recorde-rotulo' }, c.esforcoM ? `${c.rotulo} · ${ROTULO_ESPORTE[esporteEsforco] ?? esporteEsforco}` : c.rotulo),
             ),
             h('strong', { class: 'ativ-recorde-valor' }, r ? c.formatar(r.valor) : '—'),
             h(
@@ -231,7 +279,7 @@ export function render(raiz, sessao) {
               r?.atividade.semLink
                 ? h('span', { class: 'ativ-recorde-quando' }, r.atividade.quando)
                 : r
-                ? h('a', { class: 'ativ-recorde-quando', href: `#/atividades/${r.atividade.id}` }, iconeDoEsporte(r.atividade.esporte), formatarData(r.atividade.data))
+                ? h('a', { class: 'ativ-recorde-quando', href: `#/atividades/${r.atividade.id}` }, iconeDoEsporte(r.atividade.esporte), formatarData(r.atividade.data), c.esforcoM ? ` · ${ritmoTexto(r.atividade.esporte, r.valor, c.esforcoM)}` : '')
                 : h('span', { class: 'ativ-recorde-quando texto-secundario' }, 'Sem registro'),
               c.geral ? h('span', { class: 'ativ-selo ativ-selo-geral', title: 'Vale para todos os esportes: não segue o filtro de esporte' }, 'Geral') : null,
               ehHistorico && !todos ? h('span', { class: 'ativ-selo', title: 'É o recorde de todos os tempos' }, icone('esporte', 14), 'Histórico') : null,
