@@ -1,4 +1,4 @@
-import { progressoDaMetaPeso, resumoDePeso, totaisDaSemana } from '@no-strova/domain';
+import { diasEntre, progressoDaMetaPeso, resumoDePeso, somarDias, totaisDaSemana } from '@no-strova/domain';
 import { destaqueDoInicio } from '../../application/inicio.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
@@ -83,7 +83,7 @@ export function blocoForma({ serie, carregou, semHrss = false }) {
  * 2. Gráfico principal: Condicionamento, fadiga e forma com o plano projetado, Peso e meta e a coluna lateral do
  * dia selecionado (ver graficoPrincipal.js). `serie` vem de montarProjecao (itens com `projetado`).
  */
-export function blocoGrafico({ serie, carregou, hoje, treinoDoDia, esportesDoDia, pesos = [], metaPeso = null }) {
+export function blocoGrafico({ serie, carregou, hoje, treinoDoDia, esportesDoDia, pesos = [], metaPeso = null, aoClicarDia = null, diaClicavel = null }) {
   if (!carregou || serie.length === 0) {
     return h(
       'section',
@@ -92,7 +92,7 @@ export function blocoGrafico({ serie, carregou, hoje, treinoDoDia, esportesDoDia
       estadoVazio(carregou ? SEM_HRSS : 'Carregando…'),
     );
   }
-  return criarGraficoPrincipal({ serie, hoje, treinoDoDia, esportesDoDia, pesos, metaPeso });
+  return criarGraficoPrincipal({ serie, hoje, treinoDoDia, esportesDoDia, pesos, metaPeso, aoClicarDia, diaClicavel });
 }
 
 function tituloDaSemana(semana) {
@@ -347,12 +347,37 @@ export function blocoPeso({ pesagens = [], meta = null, hoje, carregou = true } 
   );
 }
 
-/** 4c. Sugestão (rascunho da IA): sem conteúdo até haver plano de treino. */
-export function blocoSugestao() {
+/**
+ * 4c. Registro de peso: há quantos dias o usuário não pesa, a última pesagem e quantas vezes pesou nos últimos 30 dias.
+ * Até 3 dias sem pesar está tudo bem; de 4 a 7 pede atenção; acima disso, alerta.
+ */
+export function blocoRegistroDePeso({ pesagens = [], hoje, carregou = true } = {}) {
+  const topo = cabecalhoDoBloco('Registro de peso');
+  if (!carregou) return h('section', { class: 'card bloco-registro-peso' }, topo, estadoVazio('Carregando…'));
+  const datas = pesagens.map((p) => p.data).filter((d) => typeof d === 'string' && d <= hoje).sort();
+  const ultima = datas[datas.length - 1] ?? null;
+  if (!ultima) {
+    return h('section', { class: 'card bloco-registro-peso' }, topo, estadoVazio('Você ainda não registrou o peso.', { href: '#/peso', rotulo: 'Registrar peso' }));
+  }
+  const dias = diasEntre(ultima, hoje);
+  const gravidade = dias <= 3 ? 'ok' : dias <= 7 ? 'atencao' : 'alerta';
+  const ultimoPeso = pesagens.find((p) => p.data === ultima)?.pesoKg;
+  const limite = somarDias(hoje, -29);
+  const noMes = new Set(datas.filter((d) => d >= limite)).size;
+  const grande = dias === 0 ? 'Hoje' : `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  const frase = dias === 0 ? 'Você já registrou o peso de hoje.' : `sem registrar o peso (última pesagem em ${formatarData(ultima)})`;
   return h(
     'section',
-    { class: 'card bloco-sugestao' },
-    cabecalhoDoBloco('Sugestão'),
-    estadoVazio('Disponível quando houver plano de treino.'),
+    { class: 'card bloco-registro-peso' },
+    topo,
+    h('p', { class: `registro-peso-valor peso-${gravidade}` }, h('strong', null, grande)),
+    h('p', { class: 'texto-secundario' }, frase),
+    h(
+      'ul',
+      { class: 'registro-peso-lista' },
+      h('li', null, h('span', { class: 'texto-secundario' }, 'Último peso'), h('strong', null, ultimoPeso === undefined ? '—' : `${formatarNumero(ultimoPeso, 1)} kg`)),
+      h('li', null, h('span', { class: 'texto-secundario' }, 'Dias pesados em 30 dias'), h('strong', null, String(noMes))),
+    ),
+    h('p', { class: 'bloco-rodape' }, h('a', { href: '#/peso' }, dias === 0 ? 'Abrir Peso' : 'Registrar peso agora')),
   );
 }

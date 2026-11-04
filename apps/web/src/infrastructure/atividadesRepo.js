@@ -43,3 +43,13 @@ export function observarAtividadesDesde(uid, dataInicio, aoDados, aoErro) {
 export function lerSerieDetalhe(id) {
   return lerDocumento(`atividades/${id}/series/detalhe`);
 }
+
+/** Atividades de uma data (yyyy-mm-dd) em diante para a progressão do ano (vários anos, então o limite é maior que o do Início). */
+export function observarAtividadesParaProgressao(uid, dataInicio, aoDados, aoErro) {
+  return observarConsulta(
+    'atividades',
+    { onde: [['userId', '==', uid], ['data', '>=', dataInicio]], ordenarPor: [['data', 'desc']], limite: 3000 },
+    aoDados,
+    aoErro,
+  );
+}

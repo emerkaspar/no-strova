@@ -36,5 +36,6 @@ export const reconstruirEstresseDiario = callable('reconstruirEstresseDiario');
 export const reconstruirCalibracao = callable('reconstruirCalibracao');
 export const sugerirTreinos = callable('sugerirTreinos');
 export const calcularMelhoresEsforcos = callable('calcularMelhoresEsforcos');
+export const marcarConquistasComoVistas = callable('marcarConquistasComoVistas');
 export const decidirRascunho = callable('decidirRascunho');
 export const iaChamadasRestantes = callable('iaChamadasRestantes');

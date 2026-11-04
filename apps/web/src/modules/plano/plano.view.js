@@ -3,6 +3,7 @@ import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { modelosProprios } from '../../application/modelos.js';
 import { agruparPorDia, dataInicialDoHistorico, montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
+import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarModelos } from '../../infrastructure/modelosRepo.js';
@@ -186,8 +187,12 @@ export function render(raiz, sessao) {
         metaCondicionamento: metaCondAtiva,
         avaliacaoCondicionamento,
         treinoDoDia,
-        // clicar num dia abre o treino planejado dele ou um novo treino naquela data
-        aoClicarDia: (data) => abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data),
+        // clicar num dia com atividade abre a atividade (modal para escolher, se houver mais de uma); nos demais, o treino planejado
+        // dele ou um novo treino naquela data
+        aoClicarDia: (data) => {
+          if (abrirAtividadeDoDia(data, dados.atividades)) return;
+          abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);
+        },
       }),
       criarCartaoMetaCondicionamento({ uid: sessao.uid, hoje, metaAtiva: metaCondAtiva, metasAnteriores: anterioresCond, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
       criarCartaoMeta({ uid: sessao.uid, hoje, metaAtiva, metasAnteriores: anteriores, avaliacao }),

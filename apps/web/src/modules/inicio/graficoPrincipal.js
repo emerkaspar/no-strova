@@ -164,6 +164,7 @@ function diasEntreIso(a, b) {
  *   meta?: { dataAlvo: string, formaAlvo: number }|null,
  *   metaCondicionamento?: { dataAlvo: string, condicionamentoAlvo: number }|null,
  *   aoClicarDia?: ((data: string) => void)|null
+ *   diaClicavel?: ((data: string) => boolean)|null  (quando informado, só esses dias mostram o cursor de clique)
  * }} p
  *   `modo: 'plano'` é o gráfico da tela Plano: seletor com mais futuro, sem peso, barras de estresse do dia no lugar dos
  *   ícones de atividade, as metas (de Condicionamento no painel de cima e de Forma no da Forma) marcadas e, com `aoClicarDia`, um clique no dia abre o treino dele.
@@ -179,6 +180,7 @@ export function criarGraficoPrincipal({
   meta = null,
   metaCondicionamento = null,
   aoClicarDia = null,
+  diaClicavel = null,
 }) {
   const plano = modo === 'plano';
   const periodos = plano ? PERIODOS_PLANO : PERIODOS;
@@ -640,7 +642,8 @@ export function criarGraficoPrincipal({
     area.addEventListener('pointermove', (e) => destacar(indiceDoPonteiro(e)));
     area.addEventListener('pointerdown', (e) => destacar(indiceDoPonteiro(e)));
     if (aoClicarDia) {
-      area.classList.add('cg-clicavel');
+      if (!diaClicavel) area.classList.add('cg-clicavel');
+      else area.addEventListener('pointermove', (e) => area.classList.toggle('cg-clicavel', diaClicavel(dias[indiceDoPonteiro(e)].data)));
       area.addEventListener('click', (e) => aoClicarDia(dias[indiceDoPonteiro(e)].data));
     }
     area.addEventListener('pointerleave', (e) => {

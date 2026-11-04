@@ -1,6 +1,7 @@
-import { VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
+import { calcularHrss, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
 import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo } from '../../core/functions.js';
 import { lerAtividade, lerSerieDetalhe, lerSerieFc } from '../../infrastructure/atividadesRepo.js';
+import { lerConfig } from '../../infrastructure/configsRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
@@ -39,7 +40,7 @@ function suavizar(valores, raio = 2) {
 const ritmoDoEixo = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
 /** Monta o gráfico a partir da série detalhada (ou, nas atividades antigas, só da FC). Null se não há o que mostrar. */
-function montarGrafico(a, detalhe, serieFc, aoPassar) {
+function montarGrafico(a, detalhe, serieFc, aoPassar, aoSelecionar) {
   if (detalhe?.t?.length > 1) {
     const emKm = Array.isArray(detalhe.dist);
     const x = emKm ? detalhe.dist : detalhe.t.map((s) => s / 60);
@@ -62,6 +63,7 @@ function montarGrafico(a, detalhe, serieFc, aoPassar) {
       formatarEixoX: (v) => (emKm ? `${formatarNumero(v, v < 10 && v % 1 ? 1 : 0)} km` : `${Math.round(v)} min`),
       series,
       aoPassar,
+      aoSelecionar,
     });
   }
   if (serieFc?.fc?.length > 1) {
@@ -89,9 +91,64 @@ function indicadoresDeEsforco(a, calculando) {
     });
 }
 
+/** Card "Frequência cardíaca por zona": uma coluna por zona (tempo, % e faixa em bpm). */
+function cartaoDeZonas(zonas, ehTrecho) {
+  const maior = Math.max(...zonas.map((z) => z.segundos), 1);
+  return [
+    h('h2', null, ehTrecho ? 'Frequência cardíaca por zona · trecho selecionado' : 'Frequência cardíaca por zona'),
+    h(
+      'div',
+      { class: 'zonas-barras', role: 'list' },
+      zonas.map((z, k) =>
+        h(
+          'div',
+          { class: `zona-coluna zona-${k + 1}`, role: 'listitem', title: `${z.zona}: ${tempoDeEsforco(z.segundos)} (${formatarNumero(z.fracao * 100, 0)}%)` },
+          h('span', { class: 'zona-tempo' }, z.segundos > 0 ? tempoDeEsforco(z.segundos) : '—'),
+          h('div', { class: 'zona-trilho' }, h('div', { class: 'zona-barra', style: `height:${Math.max(z.segundos > 0 ? 3 : 0, (z.segundos / maior) * 100)}%` })),
+          h('strong', { class: 'zona-nome' }, z.zona),
+          h('span', { class: 'zona-faixa' }, k === 0 ? `até ${z.faixa[1]} bpm` : k === 4 ? `${z.faixa[0]}+ bpm` : `${z.faixa[0]}–${z.faixa[1]} bpm`),
+          h('span', { class: 'zona-pct' }, `${formatarNumero(z.fracao * 100, 0)}%`),
+        ),
+      ),
+    ),
+  ];
+}
+
+/** Os mesmos indicadores, calculados só para o trecho `sel` ({ i0, i1 }) da série detalhada. Null se o trecho é inválido. */
+function indicadoresDoTrecho(a, detalhe, sel, config) {
+  const r = resumirTrecho(detalhe, sel.i0, sel.i1, a.esporte);
+  if (!r) return null;
+  const hrss = a.hrssOrigem === 'fc' && config && r.fcMedia ? calcularHrss({ fcMedia: r.fcMedia, tempoMovimentoS: r.tempoMovimentoS, config }) : null;
+  const calorias = a.calorias && a.duracaoS > 0 ? Math.round((a.calorias * r.duracaoS) / a.duracaoS) : null;
+  const pontos = pontosDeDistanciaDoTrecho(detalhe, sel.i0, sel.i1);
+  const esforcos = [
+    ['Melhor 5 km', 5000],
+    ['Melhor 10 km', 10000],
+  ]
+    .filter(([, metros]) => (r.distanciaM ?? 0) >= metros)
+    .map(([rotulo, metros]) => {
+      const tempo = melhorTempoNaDistancia(pontos, metros);
+      return tempo ? indicador(rotulo, tempoDeEsforco(tempo), ritmoTexto(a.esporte, tempo, metros), 'duracao') : indicador(rotulo, '—', 'Sem dados de distância no trecho', 'duracao');
+    });
+  return h(
+    'div',
+    { class: 'ativ-recordes-grade ativ-indicadores ativ-indicadores-trecho' },
+    indicador('HRSS', hrss === null ? '—' : formatarNumero(hrss, 1), hrss === null ? 'Precisa de FC e da sua configuração' : 'do trecho, pela FC média', 'hrss'),
+    indicador('Duração', formatarDuracao(r.duracaoS), null, 'duracao'),
+    indicador('Em movimento', formatarDuracao(r.tempoMovimentoS), null, 'duracao'),
+    indicador('Distância', r.distanciaM === null ? '—' : formatarDistancia(r.distanciaM), null, 'distancia'),
+    indicador('Subida', r.altimetriaM === null ? '—' : `${formatarNumero(r.altimetriaM)} m`, null, 'elevacao'),
+    indicador('FC média', r.fcMedia ? `${r.fcMedia} bpm` : '—', null, 'fc'),
+    indicador('FC máxima', r.fcMax ? `${r.fcMax} bpm` : '—', 'média de poucos segundos', 'fc'),
+    indicador('Calorias', calorias ? `${formatarNumero(calorias)} kcal` : '—', 'proporcional ao tempo do trecho', 'atividades'),
+    ...esforcos,
+  );
+}
+
 export function render(raiz, sessao, { id }) {
   let ativa = true;
   let limparVisuais = () => {};
+  let configDoHrss; // undefined = ainda não buscada; null = indisponível
   const mensagem = areaMensagem();
   raiz.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
 
@@ -156,12 +213,68 @@ export function render(raiz, sessao, { id }) {
     const hrssTexto = a.hrss === null || a.hrss === undefined ? '—' : formatarNumero(a.hrss, 1);
     const caloriasNota = a.caloriasOrigem ? ROTULO_ORIGEM_CALORIAS[a.caloriasOrigem] : null;
     const mapa = detalhe?.lat && detalhe?.lon ? mapaTrajeto(detalhe.lat, detalhe.lon) : null;
-    const grafico = montarGrafico(a, detalhe, serie, (i) => mapa?.destacar(i));
+    let selecaoAtual = null;
+    let grafico = null;
+    const aviso = h('div', { class: 'ativ-selecao-aviso', hidden: true });
+    const botaoLimpar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Limpar seleção');
+    botaoLimpar.addEventListener('click', () => grafico?.limparSelecao());
+
+    /** Troca os cards (e o aviso) pelos do trecho selecionado, ou pelos da atividade inteira. */
+    function atualizarSelecao() {
+      const doTrecho = selecaoAtual && detalhe ? indicadoresDoTrecho(a, detalhe, selecaoAtual, configDoHrss) : null;
+      const novo = doTrecho ?? montarIndicadores();
+      indicadores.replaceWith(novo);
+      indicadores = novo;
+      aviso.hidden = !doTrecho;
+      if (doTrecho) {
+        const d0 = detalhe.dist?.[selecaoAtual.i0];
+        const d1 = detalhe.dist?.[selecaoAtual.i1];
+        const faixa = Number.isFinite(d0) && Number.isFinite(d1) ? `${formatarNumero(d0, 2)} a ${formatarNumero(d1, 2)} km` : `${formatarDuracao(detalhe.t[selecaoAtual.i0])} a ${formatarDuracao(detalhe.t[selecaoAtual.i1])}`;
+        aviso.replaceChildren(h('span', null, h('strong', null, 'Trecho selecionado: '), `${faixa}. Os indicadores abaixo mostram só esse trecho.`), botaoLimpar);
+      }
+    }
+
+    /** Configuração de FC usada no cálculo da atividade (para HRSS e zonas do trecho). */
+    async function garantirConfig() {
+      if (configDoHrss !== undefined) return;
+      configDoHrss = null;
+      if (!a.configIdUsada) return;
+      try {
+        configDoHrss = await lerConfig(a.configIdUsada);
+      } catch {
+        configDoHrss = null;
+      }
+    }
+
+    const zonasEl = h('div', { class: 'ativ-grafico ativ-zonas', hidden: true });
+    function atualizarZonas() {
+      const sel = selecaoAtual;
+      const zonas = detalhe?.fc && configDoHrss ? tempoPorZonaDeFc(detalhe, sel ? sel.i0 : 0, sel ? sel.i1 : detalhe.t.length - 1, configDoHrss) : null;
+      zonasEl.hidden = !zonas;
+      if (zonas) zonasEl.replaceChildren(...cartaoDeZonas(zonas, !!sel));
+    }
+
+    async function aoSelecionar(sel) {
+      selecaoAtual = sel;
+      mapa?.selecionar(sel);
+      if (sel) {
+        await garantirConfig();
+        if (selecaoAtual !== sel) return; // o usuário mudou a seleção enquanto a configuração carregava
+      }
+      if (ativa) {
+        atualizarSelecao();
+        atualizarZonas();
+      }
+    }
+    if (detalhe?.fc) garantirConfig().then(() => ativa && atualizarZonas());
+
+    grafico = montarGrafico(a, detalhe, serie, (i) => mapa?.destacar(i), detalhe ? aoSelecionar : undefined);
     limparVisuais = () => {
       grafico?.destruir();
       mapa?.destruir();
     };
-    const indicadores = h(
+    const montarIndicadores = () =>
+      h(
       'div',
       { class: 'ativ-recordes-grade ativ-indicadores' },
       indicador('HRSS', hrssTexto, a.hrssOrigem ? ROTULO_ORIGEM_HRSS[a.hrssOrigem] : null, 'hrss'),
@@ -174,6 +287,7 @@ export function render(raiz, sessao, { id }) {
       indicador('Calorias', a.calorias ? `${formatarNumero(a.calorias)} kcal` : '—', caloriasNota, 'atividades'),
       ...indicadoresDeEsforco(a, calculando),
     );
+    let indicadores = montarIndicadores();
 
     raiz.replaceChildren(
       h(
@@ -187,9 +301,12 @@ export function render(raiz, sessao, { id }) {
           `${a.origem === 'arquivo' ? `Importada de arquivo .${a.extensao}` : 'Registrada manualmente'} · início ${formatarDataHora(a.inicio?.toMillis?.())}`,
         ),
         ...(a.alertas ?? []).map((alerta) => h('p', { class: 'mensagem' }, TEXTO_ALERTA[alerta] ?? alerta)),
-        h('div', { class: mapa ? 'ativ-detalhe-topo' : 'ativ-detalhe-topo ativ-detalhe-topo-sem-mapa' }, mapa ? mapa.el : null, indicadores),
+        aviso,
+        indicadores,
+        mapa ? mapa.el : null,
         carregandoDetalhe && !grafico ? h('p', { class: 'texto-secundario', role: 'status' }, 'Gerando o gráfico e o mapa a partir do arquivo da atividade…') : null,
         grafico ? h('div', { class: 'ativ-grafico' }, h('h2', null, 'Desempenho'), grafico.el) : null,
+        zonasEl,
         mensagem.el,
         h('div', { class: 'linha-botoes' }, a.arquivoPath ? baixar : null, excluir),
       ),

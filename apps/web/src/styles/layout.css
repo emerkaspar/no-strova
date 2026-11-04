@@ -1585,7 +1585,7 @@ textarea {
 
 .cg-fadiga {
   stroke: var(--cg-fadiga);
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 
 .cg-peso {
@@ -3398,26 +3398,10 @@ textarea {
   margin: 20px 0;
 }
 
-/* Detalhe da atividade: mapa ao lado dos indicadores */
-.ativ-detalhe-topo {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 20px;
-  align-items: stretch;
-  margin: 20px 0;
-}
-
-.ativ-detalhe-topo-sem-mapa {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.ativ-detalhe-topo .ativ-indicadores {
-  margin: 0;
-  align-content: flex-start;
-}
-
+/* Detalhe da atividade: mapa em largura total, cartões de indicador do sistema e gráfico no mesmo estilo */
 .mapa-trajeto {
-  min-height: 340px;
+  height: 300px;
+  margin: 0 0 20px;
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
@@ -3425,17 +3409,19 @@ textarea {
   z-index: 0;
 }
 
+/* O OpenStreetMap só tem estilo claro: no tema escuro inverte as cores do mapa base (trajeto e marcadores ficam intactos). */
+:root:not([data-tema='claro']) .mapa-base {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}
+
 .mapa-trajeto.leaflet-container {
   font-family: var(--fonte-corpo);
 }
 
 @media (max-width: 900px) {
-  .ativ-detalhe-topo {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .mapa-trajeto {
-    min-height: 280px;
+    height: 240px;
   }
 }
 
@@ -3444,138 +3430,1471 @@ textarea {
 .ga-c-fc { --c: var(--serie-fc); }
 .ga-c-vel { --c: var(--serie-vel); }
 
-.ga-chips {
+.ga {
+  --ga-gap: 10px;
+}
+
+.ga-cabecalho {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  min-height: 34px;
   margin-bottom: 8px;
 }
 
-.ga-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.ga-posicao {
   padding: 6px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: transparent;
+  background: var(--surface);
   color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
-.ga-chip[aria-pressed='true'] {
+.ga-ativo .ga-posicao {
   color: var(--text-primary);
-  border-color: var(--c);
-  background: color-mix(in srgb, var(--c) 14%, transparent);
+  border-color: var(--primary);
 }
 
-.ga-chip-ponto {
-  width: 10px;
-  height: 10px;
+.ga-paineis {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-gap);
+  cursor: crosshair;
+}
+
+.ga-painel {
+  position: relative;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.ga-painel:first-child {
+  border-top: 0;
+}
+
+.ga-painel-cab {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.ga-painel-nome {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.ga-ponto-leg {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--c);
-  flex: none;
 }
 
-.ga-chip[aria-pressed='false'] .ga-chip-ponto {
-  opacity: 0.35;
+.ga-painel-resumo {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  opacity: 0.85;
 }
 
-.ga-palco {
-  position: relative;
-  width: 100%;
-  min-height: 300px;
+.ga-painel-valor {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 90px;
+  justify-content: flex-end;
 }
 
-.ga-palco svg {
+.ga-valor {
+  font-family: var(--fonte-titulo);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--c);
+}
+
+.ga-painel-valor small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.ga-svg {
   display: block;
+  margin-top: 4px;
   touch-action: pan-y;
+  overflow: visible;
 }
 
 .ga-grade {
   stroke: var(--border);
-  stroke-width: 1;
-  stroke-dasharray: 3 4;
+  stroke-width: 0.5;
+  opacity: 0.6;
+}
+
+.ga-grade-v {
+  stroke: var(--border);
+  stroke-width: 0.5;
+  opacity: 0.3;
+}
+
+.ga-escala {
+  fill: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .ga-rotulo {
   fill: var(--text-secondary);
-  font-size: 11px;
-}
-
-.ga-eixo .ga-rotulo,
-.ga-eixo .ga-unidade {
-  fill: var(--c);
-}
-
-.ga-unidade {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 500;
 }
 
 .ga-linha {
   fill: none;
   stroke: var(--c);
-  stroke-width: 1.75;
+  stroke-width: 1.5;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
 .ga-area {
-  fill: color-mix(in srgb, var(--c) 22%, transparent);
   stroke: none;
 }
 
+.ga-grad-topo {
+  stop-color: var(--c);
+  stop-opacity: 0.32;
+}
+
+.ga-grad-base {
+  stop-color: var(--c);
+  stop-opacity: 0;
+}
+
 .ga-guia {
-  stroke: var(--text-secondary);
-  stroke-width: 1;
-  stroke-dasharray: 4 3;
+  stroke: var(--text-primary);
+  stroke-width: 0.75;
+  opacity: 0.4;
 }
 
 .ga-ponto {
   fill: var(--c);
   stroke: var(--surface);
+  stroke-width: 2.5;
+}
+
+.mapa-cursor span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 35%, transparent), 0 2px 8px rgb(0 0 0 / 0.5);
+}
+
+.ativ-grafico {
+  margin-top: 4px;
+  padding: 24px 24px 16px;
+  background: linear-gradient(160deg, var(--surface-light), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.ativ-grafico h2 {
+  margin-bottom: 14px;
+}
+
+
+/* Seleção de um trecho no gráfico */
+.ga-limpar {
+  margin-left: 10px;
+  padding: 6px 14px;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ga-limpar[hidden] {
+  display: none;
+}
+
+.ga-selecao {
+  fill: var(--primary);
+  fill-opacity: 0.14;
+  stroke: var(--primary);
+  stroke-opacity: 0.6;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.ga-paineis {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ativ-selecao-aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0 -8px;
+  padding: 12px 18px;
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
+  border-radius: 14px;
+  font-size: 0.9rem;
+}
+
+.ativ-selecao-aviso[hidden] {
+  display: none;
+}
+
+.ativ-indicadores-trecho .ativ-recorde {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+}
+
+/* Frequência cardíaca por zona */
+.ativ-zonas {
+  margin-top: 20px;
+}
+
+.ativ-zonas[hidden] {
+  display: none;
+}
+
+.zonas-barras {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.zona-coluna {
+  --c: var(--zona-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.zona-1 { --c: var(--zona-1); }
+.zona-2 { --c: var(--zona-2); }
+.zona-3 { --c: var(--zona-3); }
+.zona-4 { --c: var(--zona-4); }
+.zona-5 { --c: var(--zona-5); }
+
+.zona-tempo {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.zona-trilho {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 180px;
+  background: color-mix(in srgb, var(--c) 6%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.zona-barra {
+  width: 100%;
+  min-height: 0;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, var(--c), color-mix(in srgb, var(--c) 55%, transparent));
+  transition: height 0.25s ease;
+}
+
+.zona-nome {
+  margin-top: 6px;
+  font-family: var(--fonte-titulo);
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--c);
+}
+
+.zona-faixa {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.zona-pct {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .zonas-barras {
+    gap: 8px;
+  }
+
+  .zona-trilho {
+    height: 130px;
+  }
+
+  .zona-faixa {
+    font-size: 0.65rem;
+  }
+}
+
+/* Modal para escolher a atividade de um dia */
+.modal-dia {
+  width: min(460px, calc(100vw - 32px));
+  padding: 24px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
+}
+
+.modal-dia::backdrop {
+  background: rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(3px);
+}
+
+.modal-dia-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-dia-topo h2 {
+  margin: 0 0 6px;
+}
+
+.modal-dia-fechar {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-dia-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.modal-dia-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: linear-gradient(160deg, var(--surface-light), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.modal-dia-item:hover,
+.modal-dia-item:focus-visible {
+  border-color: var(--primary);
+}
+
+/* Registro de peso (Início) */
+.registro-peso-valor {
+  margin: 4px 0 0;
+  font-family: var(--fonte-titulo);
+  font-size: 3rem;
+  line-height: 1.1;
+}
+
+.registro-peso-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.registro-peso-lista li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Progressão */
+.prog-controles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 20px;
+  margin: 20px 0 4px;
+}
+
+.prog-controle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.prog-controle-meta {
+  grid-column: 1 / -1;
+}
+
+.prog-controle select,
+.prog-form select,
+.prog-form input[type='text'],
+.prog-form input[type='number'],
+.prog-form input[type='month'],
+.prog-form input[type='date'] {
+  width: 100%;
+  min-width: 0;
+}
+
+.prog-controle-meta .linha-botoes {
+  flex-wrap: wrap;
+}
+
+.prog-controle-meta select {
+  flex: 1 1 280px;
+}
+
+.prog-rotulo {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prog-segmentos {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+.prog-segmento {
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prog-segmento[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.prog-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prog-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.prog-chip[aria-pressed='true'] {
+  color: var(--text-primary);
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+}
+
+.prog-chip[disabled] {
+  cursor: default;
+}
+
+.prog-chip-ponto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c, var(--primary));
+  flex: none;
+}
+
+.prog-chip[class*='gp-ano-'] {
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 12%, var(--surface));
+}
+
+.prog-cartoes {
+  margin: 16px 0;
+}
+
+.prog-corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.prog-grafico {
+  min-width: 0;
+}
+
+.prog-grafico .prog-chips {
+  margin-bottom: 8px;
+}
+
+.prog-lateral {
+  min-width: 0;
+}
+
+/* a tabela rola dentro do cartão em vez de vazar quando a coluna é estreita */
+.prog-lateral .tabela-rolavel {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.prog-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.prog-tabela th {
+  padding: 8px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.prog-tabela th:first-child,
+.prog-tabela td:first-child {
+  text-align: left;
+}
+
+.prog-tabela td {
+  padding: 12px 8px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.prog-periodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c);
+  font-weight: 600;
+}
+
+.prog-linha-ref td {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.prog-delta-pos {
+  color: var(--success);
+}
+
+.prog-delta-neg {
+  color: var(--danger);
+}
+
+.prog-form {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.prog-form-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.prog-form .campo[hidden] {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .prog-corpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* cores dos períodos comparados (o primeiro é o período em foco) */
+.gp-ano-0 { --c: var(--primary); }
+.gp-ano-1 { --c: var(--serie-vel); }
+.gp-ano-2 { --c: var(--serie-alt); }
+.gp-ano-3 { --c: var(--zona-3); }
+.gp-ano-4 { --c: var(--zona-5); }
+
+.gp-palco {
+  position: relative;
+  width: 100%;
+}
+
+.gp-palco svg {
+  display: block;
+}
+
+.gp-grade {
+  stroke: var(--border);
+  stroke-width: 0.5;
+  opacity: 0.7;
+}
+
+.gp-grade-v {
+  stroke: var(--border);
+  stroke-width: 0.5;
+  opacity: 0.35;
+}
+
+.gp-rotulo {
+  fill: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.gp-linha {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.gp-serie.gp-ano-0 .gp-linha {
+  stroke-width: 2.75;
+}
+
+.gp-ponto {
+  fill: var(--c);
+  stroke: var(--surface);
   stroke-width: 2;
 }
 
-.ga-captura {
+.gp-meta {
+  stroke: var(--text-secondary);
+  stroke-width: 1.25;
+  stroke-dasharray: 6 5;
+}
+
+.gp-meta-rotulo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.gp-projecao {
+  stroke: var(--primary);
+  stroke-width: 1.75;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.gp-projecao-ponto {
+  fill: var(--surface);
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.gp-guia {
+  stroke: var(--text-primary);
+  stroke-width: 0.75;
+  opacity: 0.4;
+}
+
+.gp-captura {
   fill: transparent;
   cursor: crosshair;
 }
 
-.ga-dica {
+.gp-dica {
   position: absolute;
   top: 8px;
   min-width: 190px;
-  padding: 10px 12px;
-  background: var(--surface);
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
-  font-size: 0.85rem;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
+  font-size: 0.82rem;
   pointer-events: none;
   z-index: 2;
 }
 
-.ga-dica[hidden] {
+.gp-dica[hidden] {
   display: none;
 }
 
-.ga-dica-x {
+.gp-dica-x {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
 
-.ga-dica-linha {
+.gp-dica-linha {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
 }
 
-.ga-dica-linha b {
+.gp-dica-linha b {
   margin-left: auto;
   padding-left: 12px;
+}
+
+.gp-dica-ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c);
+  flex: none;
+}
+
+.gp-dica-meta {
+  --c: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+/* Objetivos e badges */
+.medalha {
+  display: inline-flex;
+  flex: none;
+  color: var(--medalha, var(--text-secondary));
+}
+
+.medalha-semana { --medalha: #c8814a; }
+.medalha-mes { --medalha: #9aa7b5; }
+.medalha-ano { --medalha: #e0ad00; }
+
+.medalha-apagada {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.obj-painel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.obj-resumo {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.obj-resumo strong {
+  color: var(--text-primary);
+}
+
+.obj-grupo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.obj-contagem {
+  padding: 1px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-family: var(--fonte-corpo);
+  font-size: 0.75rem;
+  letter-spacing: 0;
+}
+
+.obj-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.obj-cartao {
+  display: flex;
+  flex: 1 1 300px;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 18px;
+  background: linear-gradient(160deg, var(--surface-light), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.obj-cartao:hover,
+.obj-cartao:focus-visible,
+.obj-selecionado {
+  border-color: var(--primary);
+}
+
+.obj-encerrada {
+  opacity: 0.7;
+}
+
+.obj-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.obj-titulo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.obj-estado {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.obj-estado-atingido,
+.obj-estado-adiantado,
+.obj-estado-no-ritmo {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 50%, var(--border));
+}
+
+.obj-estado-atrasado,
+.obj-estado-nao-atingido {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 50%, var(--border));
+}
+
+.obj-valores {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.obj-valores strong {
+  font-family: var(--fonte-titulo);
+  font-size: 1.7rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.obj-pct {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.obj-barra {
+  height: 8px;
+  overflow: hidden;
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.obj-barra span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+.obj-atingido .obj-barra span {
+  background: var(--success);
+}
+
+.obj-detalhe {
+  font-size: 0.8rem;
+}
+
+.obj-historico {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.badge {
+  position: relative;
+  display: flex;
+  flex: 1 1 170px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 260px;
+  padding: 18px 14px 14px;
+  background: linear-gradient(160deg, var(--surface-light), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.badge .medalha {
+  padding: 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--medalha) 16%, transparent);
+}
+
+.badge-nome {
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
+.badge-meta {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.badge-data {
+  font-size: 0.75rem;
+}
+
+.badge-nova {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-contrast);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.prog-recorrente {
+  margin: 0 0 12px;
+}
+
+.prog-recorrente[hidden] {
+  display: none;
+}
+
+/* Espaço entre os blocos da página de Progressão */
+.prog-pagina {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.prog-pagina > .card,
+.prog-pagina > .prog-cartoes {
+  margin: 0;
+}
+
+.prog-pagina .prog-cartoes {
+  margin: 0;
+}
+
+/* Marcador do progresso esperado na barra do objetivo */
+.obj-trilho {
+  position: relative;
+  padding: 5px 0;
+}
+
+.obj-trilho .obj-barra {
+  margin: 0;
+}
+
+.obj-marcador {
+  --c-marcador: var(--serie-vel);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--c-marcador);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+
+.obj-marcador::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--c-marcador);
+}
+
+.obj-marcador-atrasado { --c-marcador: var(--danger); }
+.obj-marcador-adiantado { --c-marcador: var(--success); }
+.obj-marcador-perto { --c-marcador: var(--serie-vel); }
+
+/* Bloco de objetivos da Início: os cartões são os mesmos da Progressão, em até três colunas */
+.bloco-objetivos .obj-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.bloco-objetivos .obj-cartao {
+  flex: none;
+}
+
+.bloco-semana {
+  flex: 1;
+}
+
+/* Na Início cada objetivo ocupa a largura inteira do bloco */
+.bloco-objetivos .obj-lista {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Início: cada objetivo vira uma linha só (nome e status | valores | barra), bem mais baixa que o cartão da Progressão */
+.bloco-objetivos .bloco-topo {
+  margin-bottom: 12px;
+}
+
+.bloco-objetivos .obj-lista {
+  gap: 8px;
+}
+
+.bloco-objetivos .obj-cartao {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 2fr);
+  grid-template-areas:
+    'topo valores barra'
+    'topo valores detalhe';
+  align-items: center;
+  column-gap: 20px;
+  row-gap: 0;
+  padding: 10px 16px;
+  border-radius: 14px;
+}
+
+.bloco-objetivos .obj-topo {
+  grid-area: topo;
+  gap: 10px;
+}
+
+.bloco-objetivos .obj-titulo strong {
+  font-size: 0.9rem;
+}
+
+.bloco-objetivos .obj-titulo .texto-secundario {
+  font-size: 0.75rem;
+}
+
+.bloco-objetivos .obj-valores {
+  grid-area: valores;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.bloco-objetivos .obj-valores strong {
+  font-size: 1.3rem;
+}
+
+.bloco-objetivos .obj-trilho {
+  grid-area: barra;
+  padding: 4px 0 2px;
+}
+
+.bloco-objetivos .obj-barra {
+  height: 6px;
+}
+
+.bloco-objetivos .obj-marcador {
+  top: 1px;
+}
+
+.bloco-objetivos .obj-detalhe {
+  grid-area: detalhe;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.bloco-objetivos .obj-historico {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'topo valores'
+      'barra barra'
+      'detalhe detalhe';
+    row-gap: 4px;
+  }
+}
+
+/* Início, ainda mais compacto: uma linha curta por objetivo (o "faltam" fica no marcador e na tela de Progressão) */
+.bloco-objetivos .obj-lista {
+  gap: 6px;
+}
+
+.bloco-objetivos .obj-cartao {
+  grid-template-areas: 'topo valores barra';
+  padding: 6px 14px;
+  border-radius: 12px;
+}
+
+.bloco-objetivos .obj-detalhe {
+  display: none;
+}
+
+.bloco-objetivos .obj-titulo {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+}
+
+.bloco-objetivos .obj-titulo strong {
+  font-size: 0.85rem;
+}
+
+.bloco-objetivos .obj-titulo .texto-secundario {
+  font-size: 0.7rem;
+}
+
+.bloco-objetivos .obj-valores strong {
+  font-size: 1.1rem;
+}
+
+.bloco-objetivos .obj-valores .texto-secundario,
+.bloco-objetivos .obj-pct {
+  font-size: 0.75rem;
+}
+
+.bloco-objetivos .obj-estado {
+  padding: 1px 8px;
+  font-size: 0.65rem;
+}
+
+.bloco-objetivos .obj-barra {
+  height: 5px;
+}
+
+.bloco-objetivos .bloco-topo {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 760px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-areas:
+      'topo valores'
+      'barra barra';
+  }
+}
+
+/* Início: título do objetivo numa linha só, com ícones no lugar dos nomes dos esportes */
+.bloco-objetivos .obj-titulo-compacto {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.bloco-objetivos .obj-titulo-compacto .obj-quando {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obj-icone-metrica {
+  display: inline-flex;
+  color: var(--text-secondary);
+}
+
+.obj-esportes {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.obj-esporte {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+
+.bloco-objetivos .obj-cartao {
+  grid-template-columns: minmax(0, 1.6fr) auto minmax(0, 2fr);
+}
+
+/* o ícone da métrica fica no mesmo círculo dos esportes, em tom neutro */
+.obj-icone-metrica {
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+/* Início: período como texto simples, com um ponto na cor do período (ano ouro, mês azul, semana laranja) */
+.obj-tag {
+  --c-tag: var(--primary);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.obj-tag::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c-tag);
+}
+
+.obj-tag-ano { --c-tag: #e0ad00; }
+.obj-tag-mes { --c-tag: #5b8bc0; }
+.obj-tag-semana { --c-tag: #d9722f; }
+
+/* colunas com largura própria: as barras dos três objetivos começam no mesmo ponto e nada é cortado */
+.bloco-objetivos .obj-cartao {
+  grid-template-columns: minmax(0, 330px) minmax(0, 180px) minmax(90px, 1fr);
+}
+
+.bloco-objetivos .obj-titulo-compacto {
+  overflow: visible;
+}
+
+.bloco-objetivos .medalha-apagada {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'topo valores'
+      'barra barra';
+    row-gap: 4px;
+  }
+}
+
+/* Início: textos dos objetivos sem negrito e mais leves */
+.bloco-objetivos .obj-tag {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.bloco-objetivos .obj-pct {
+  font-weight: 400;
+}
+
+.bloco-objetivos .obj-estado {
+  font-weight: 500;
+}
+
+.bloco-objetivos .obj-titulo strong {
+  font-weight: 400;
+}
+
+/* Início: o selo de status fica colado ao período e a barra ocupa todo o espaço que sobra */
+.bloco-objetivos .obj-cartao {
+  grid-template-columns: max-content 190px minmax(120px, 1fr);
+  column-gap: 22px;
+}
+
+.bloco-objetivos .obj-titulo {
+  flex: none;
+  width: 200px;
+}
+
+.bloco-objetivos .obj-valores {
+  justify-content: space-between;
+}
+
+@media (max-width: 1100px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.bloco-objetivos .obj-estado {
+  min-width: 82px;
+  text-align: center;
+}
+
+.bloco-objetivos .obj-cartao {
+  grid-template-columns: 306px 190px minmax(120px, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/* Objetivos da Início: o layout responde à largura do próprio bloco (não da janela), em três faixas */
+.bloco-objetivos {
+  container-type: inline-size;
+}
+
+/* larga: uma linha (nome | valores | barra) */
+@container (min-width: 820px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-columns: 306px 190px minmax(120px, 1fr);
+    grid-template-areas: 'topo valores barra';
+    row-gap: 0;
+  }
+
+  .bloco-objetivos .obj-titulo {
+    flex: none;
+    width: 200px;
+  }
+}
+
+/* média: nome e valores em cima, barra embaixo ocupando toda a largura */
+@container (min-width: 520px) and (max-width: 819px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'topo valores'
+      'barra barra';
+    row-gap: 4px;
+  }
+
+  .bloco-objetivos .obj-titulo {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* estreita (celular): nome, valores e barra em três linhas, sem nada sobreposto */
+@container (max-width: 519px) {
+  .bloco-objetivos .obj-cartao {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'topo'
+      'valores'
+      'barra';
+    row-gap: 6px;
+    padding: 10px 14px;
+  }
+
+  .bloco-objetivos .obj-topo {
+    flex-wrap: wrap;
+  }
+
+  .bloco-objetivos .obj-titulo {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .bloco-objetivos .obj-estado {
+    min-width: 0;
+  }
+
+  .bloco-objetivos .obj-valores {
+    justify-content: flex-start;
+  }
+
+  .bloco-objetivos .obj-pct {
+    margin-left: auto;
+  }
+}
+
+/* Link de ação dos blocos da Início ("Ver progressão"): botão discreto com seta, em vez de texto sublinhado */
+.link-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.link-acao .icone {
+  transition: transform 0.15s;
+}
+
+.link-acao:hover,
+.link-acao:focus-visible {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  color: var(--primary);
+}
+
+.link-acao:hover .icone,
+.link-acao:focus-visible .icone {
+  transform: translateX(3px);
 }

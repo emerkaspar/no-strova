@@ -1,4 +1,4 @@
-import { excluirDocumento, gravarDocumento, observarConsulta } from '../core/db.js';
+import { excluirDocumento, gravarDocumento, lerDocumento, observarConsulta } from '../core/db.js';
 
 const COLECAO = 'configsAtleta';
 
@@ -23,4 +23,9 @@ export function salvarConfig(uid, valores) {
 
 export function excluirConfig(id) {
   return excluirDocumento(`${COLECAO}/${id}`);
+}
+
+/** Uma configuração pelo id (a que foi usada no cálculo de uma atividade), ou null. */
+export function lerConfig(id) {
+  return lerDocumento(`${COLECAO}/${id}`);
 }

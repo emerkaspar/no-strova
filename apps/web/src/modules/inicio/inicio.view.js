@@ -2,14 +2,17 @@ import { comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
-import { observarAtividadesDesde, observarUltimasAtividades } from '../../infrastructure/atividadesRepo.js';
+import { observarAtividadesDesde, observarAtividadesParaProgressao, observarUltimasAtividades } from '../../infrastructure/atividadesRepo.js';
+import { observarMetasProgressao } from '../../infrastructure/metasProgressaoRepo.js';
+import { blocoObjetivosInicio } from './objetivosInicio.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarMetasCondicionamento, observarTreinos } from '../../infrastructure/planoRepo.js';
 import { observarMetasPeso, observarPesagens } from '../../infrastructure/pesoRepo.js';
 import { h } from '../../utils/dom.js';
 import { hojeIso } from '../../utils/formatters.js';
-import { blocoAtividades, blocoComparativo, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoSemana, blocoSugestao, tituloDoTreino } from './blocos.js';
+import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
+import { blocoAtividades, blocoComparativo, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoRegistroDePeso, blocoSemana, tituloDoTreino } from './blocos.js';
 import { DIAS_DE_PLANO, rotuloDoDia } from './graficoPrincipal.js';
 import { criarTreinoDoDia } from './treinoDoDia.js';
 
@@ -35,7 +38,9 @@ export function render(raiz, sessao) {
     metasCondicionamento: [],
     pesagens: [],
     metasPeso: [],
-    carregou: { pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false },
+    metasProgressao: [],
+    atividadesAno: [],
+    carregou: { metasProgressao: false, atividadesAno: false, pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false },
   };
   let ativa = true;
 
@@ -96,13 +101,19 @@ export function render(raiz, sessao) {
             })
           : null,
       ),
-      blocoSemana({
+      h(
+        'div',
+        { class: 'inicio-coluna' },
+        // anual, mensal e semanal: só aparecem os objetivos vigentes
+        c.metasProgressao && c.atividadesAno && c.dias ? blocoObjetivosInicio({ metas: dados.metasProgressao, atividades: dados.atividadesAno, dias: dados.dias, hoje }) : null,
+        blocoSemana({
         semana: montarSemana(hoje, { realizado: dados.dias.filter((d) => d.data >= segunda), planejado }),
         atividades: dados.atividades.filter((a) => a.data >= segunda),
         treinos: treinosDaSemana,
         comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
         carregou: c.dias && c.atividades && c.treinos && c.configs && c.calibracao,
       }),
+      ),
       blocoComparativo({
         semana: comparativoSemanal(hoje, dados),
         mes: comparativoMensal(hoje, dados),
@@ -113,11 +124,22 @@ export function render(raiz, sessao) {
     const metaPesoAtiva = dados.metasPeso.find((m) => m.status === 'ativa') ?? null;
     const pesos = dados.pesagens.map((p) => ({ data: p.data, kg: p.pesoKg }));
     const metaPeso = metaPesoAtiva ? { dataAlvo: metaPesoAtiva.dataAlvo, kg: metaPesoAtiva.pesoAlvoKg } : null;
-    grafico.replaceChildren(blocoGrafico({ serie: serieComPlano, carregou: planoPronto, hoje, treinoDoDia, esportesDoDia, pesos, metaPeso }));
+    grafico.replaceChildren(blocoGrafico({
+      serie: serieComPlano,
+      carregou: planoPronto,
+      hoje,
+      treinoDoDia,
+      esportesDoDia,
+      pesos,
+      metaPeso,
+      // clicar num dia com atividade abre a atividade (ou um modal para escolher, se houver mais de uma)
+      aoClicarDia: (data) => abrirAtividadeDoDia(data, dados.atividades),
+      diaClicavel: (data) => dados.atividades.some((a) => a.data === data),
+    }));
     linha.replaceChildren(
       blocoAtividades({ atividades: dados.ultimas, carregou: c.ultimas }),
       blocoPeso({ pesagens: dados.pesagens, meta: metaPesoAtiva, hoje, carregou: c.pesagens && c.metasPeso }),
-      blocoSugestao(),
+      blocoRegistroDePeso({ pesagens: dados.pesagens, hoje, carregou: c.pesagens }),
     );
   }
   desenhar();
@@ -146,6 +168,9 @@ export function render(raiz, sessao) {
     ouvir('configs', 'configs', (ok, erro) => observarConfigs(sessao.uid, ok, erro)),
     ouvir('pesagens', 'pesagens', (ok, erro) => observarPesagens(sessao.uid, ok, erro)),
     ouvir('metasPeso', 'metasPeso', (ok, erro) => observarMetasPeso(sessao.uid, ok, erro)),
+    ouvir('metasProgressao', 'metasProgressao', (ok, erro) => observarMetasProgressao(sessao.uid, ok, erro)),
+    // o objetivo anual precisa das atividades desde 1º de janeiro (e a semana pode começar no ano anterior)
+    ouvir('atividadesAno', 'atividadesAno', (ok, erro) => observarAtividadesParaProgressao(sessao.uid, hoje.slice(0, 4) + '-01-01' < segunda ? hoje.slice(0, 4) + '-01-01' : segunda, ok, erro)),
     ouvir('metasCondicionamento', 'metasCondicionamento', (ok, erro) => observarMetasCondicionamento(sessao.uid, ok, erro)),
     observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
       dados.calibracao = efetiva;

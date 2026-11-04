@@ -214,6 +214,35 @@ service cloud.firestore {
       allow update: if acessoLiberado() && donoDoRegistro() && metaPesoValida();
     }
 
+    // Metas de progressão. Semana e mês são recorrentes (valem de `inicio` até `ate`, ou até o usuário trocar); ano vale um ano.
+    // O dono cria, lê, altera a vigência e apaga; o conteúdo é validado aqui.
+    function metaProgressaoValida() {
+      let m = request.resource.data;
+      return m.keys().hasOnly(['userId', 'periodo', 'inicio', 'ate', 'tipo', 'valorAlvo', 'esportes', 'criadoEm'])
+        && m.keys().hasAll(['userId', 'periodo', 'inicio', 'tipo', 'valorAlvo', 'esportes'])
+        && m.userId == request.auth.uid
+        && m.periodo in ['ano', 'mes', 'semana']
+        && m.inicio is string && m.inicio.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (!('ate' in m) || m.ate == null || (m.ate is string && m.ate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && m.tipo in ['distancia', 'tempo', 'elevacao', 'condicionamento']
+        && m.valorAlvo is number && m.valorAlvo > 0 && m.valorAlvo <= 10000000
+        && m.esportes is list && m.esportes.size() <= 3
+        && m.esportes.hasOnly(['ciclismo', 'corrida', 'outro'])
+        && (!('criadoEm' in m) || m.criadoEm is timestamp);
+    }
+
+    match /metasProgressao/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && metaProgressaoValida();
+      allow update: if acessoLiberado() && donoDoRegistro() && metaProgressaoValida();
+    }
+
+    // Conquistas (badges de objetivos atingidos): o dono lê; só o servidor concede e atualiza (Admin SDK).
+    match /conquistas/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+    }
+
     // Leitura pelo dono; escrita somente via callable/trigger (Admin SDK).
     match /atividades/{id} {
       allow read: if acessoLiberado() && donoDoRegistro();

@@ -19,6 +19,11 @@
   --serie-alt: #4ade80;
   --serie-fc: #f87171;
   --serie-vel: #60a5fa;
+  --zona-1: #7dd3fc;
+  --zona-2: #4ade80;
+  --zona-3: #facc15;
+  --zona-4: #fb923c;
+  --zona-5: #f87171;
   --radius: 20px;
   --fonte-titulo: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --fonte-corpo: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -41,6 +46,11 @@
   --serie-alt: #15803d;
   --serie-fc: #c62828;
   --serie-vel: #1d4ed8;
+  --zona-1: #0284c7;
+  --zona-2: #15803d;
+  --zona-3: #a16207;
+  --zona-4: #c2410c;
+  --zona-5: #b91c1c;
   color-scheme: light;
 }
 
@@ -164,6 +174,8 @@ input[type='text'],
 input[type='email'],
 input[type='password'],
 input[type='date'],
+input[type='number'],
+input[type='month'],
 input[type='search'] {
   width: 100%;
   padding: 10px 12px;

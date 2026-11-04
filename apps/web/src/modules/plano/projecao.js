@@ -12,7 +12,7 @@ import { criarGraficoPrincipal } from '../inicio/graficoPrincipal.js';
  *   treinoDoDia: (data: string) => any, aoClicarDia: (data: string) => void
  * }} p
  */
-export function criarCartaoProjecao({ serie, hoje, meta, avaliacao, metaCondicionamento = null, avaliacaoCondicionamento = null, treinoDoDia, aoClicarDia }) {
+export function criarCartaoProjecao({ serie, hoje, meta, avaliacao, metaCondicionamento = null, avaliacaoCondicionamento = null, treinoDoDia, aoClicarDia, diaClicavel = null }) {
   if (serie.length < 2) {
     return h(
       'section',
@@ -29,5 +29,6 @@ export function criarCartaoProjecao({ serie, hoje, meta, avaliacao, metaCondicio
     meta: meta && avaliacao && avaliacao.estado !== 'sem-dados' ? meta : null,
     metaCondicionamento: metaCondicionamento && avaliacaoCondicionamento && avaliacaoCondicionamento.estado !== 'sem-dados' ? metaCondicionamento : null,
     aoClicarDia,
+    diaClicavel,
   });
 }
