@@ -1,4 +1,5 @@
-import { PAPEIS, PAPEIS_ATRIBUIVEIS, RECURSOS, RECURSOS_PADRAO, ROTULOS_RECURSOS } from '@no-strova/domain';
+import { PAPEIS, PAPEIS_ATRIBUIVEIS, RECURSOS, ROTULOS_RECURSOS } from '@no-strova/domain';
+import { SENHA_MINIMA } from '../../core/constants.js';
 import {
   aprovarUsuario,
   atualizarUsuarioAdmin,
@@ -7,23 +8,26 @@ import {
   excluirUsuarioAdmin,
   listarUsuarios,
 } from '../../core/functions.js';
-import { SENHA_MINIMA } from '../../core/constants.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
-import { formatarDataHora } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
+import { abrirModalRecursos, listaDeRecursos } from './recursos.js';
 import { alternarOrdemUsuarios, estadoUsuarios } from './state.js';
 
 const ROTULO_PAPEL = { [PAPEIS.ADMIN]: 'Administrador', [PAPEIS.ATLETA]: 'Atleta', [PAPEIS.TREINADOR]: 'Treinador' };
+const ABREVIACAO_RECURSO = { [RECURSOS.IA]: 'IA', [RECURSOS.GARMIN]: 'Garmin' };
 
 const COLUNAS = [
-  { campo: 'nome', rotulo: 'Nome' },
-  { campo: 'email', rotulo: 'E-mail' },
+  { campo: 'nome', rotulo: 'Usuário' },
   { campo: 'role', rotulo: 'Papel' },
   { campo: 'situacao', rotulo: 'Situação' },
   { campo: 'criadoEm', rotulo: 'Cadastro' },
 ];
 
 const situacaoDe = (u) => (!u.ativo ? 'Bloqueado' : !u.aprovado ? 'Pendente' : 'Ativo');
+const VARIANTE_SITUACAO = { Ativo: 'selo-ok', Pendente: 'selo-aviso', Bloqueado: 'selo-perigo' };
+const inicialDe = (u) => (u.nome || u.email || '?').trim().charAt(0).toUpperCase();
+const dataCurta = (ms) => new Date(ms).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
 function filtrarEOrdenar(usuarios) {
   const termo = estadoUsuarios.busca.trim().toLowerCase();
@@ -40,21 +44,16 @@ function filtrarEOrdenar(usuarios) {
     });
 }
 
-/** Caixas de seleção dos recursos (IA, Garmin). `ler()` devolve o objeto { ia, garmin } marcado. */
-function caixasDeRecursos(inicial) {
-  const caixas = Object.values(RECURSOS).map((chave) => {
-    const input = h('input', { type: 'checkbox', id: `usr-rec-${chave}`, checked: inicial[chave] === true });
-    return { chave, input, el: h('label', { class: 'ia-sem-limite', for: `usr-rec-${chave}` }, input, ` ${ROTULOS_RECURSOS[chave]}`) };
-  });
-  return {
-    el: h('div', { class: 'campo' }, h('span', { class: 'ia-rotulo' }, 'Funcionalidades liberadas'), ...caixas.map((c) => c.el)),
-    ler: () => Object.fromEntries(caixas.map((c) => [c.chave, c.input.checked])),
-  };
+/** Botão quadrado só com ícone; o rótulo vai em `title` e `aria-label`. `variante`: '', 'perigo' ou 'ok'. */
+function botaoIcone({ nome, rotulo, variante = '', aoClicar }) {
+  const b = h('button', { class: `btn-icone${variante ? ` btn-icone-${variante}` : ''}`, type: 'button', title: rotulo, 'aria-label': rotulo }, icone(nome, 18));
+  b.addEventListener('click', aoClicar);
+  return b;
 }
 
 /**
- * Aba "Usuários" (só admin): lista com busca e ordenação, criação, edição, bloqueio, aprovação e exclusão. As
- * funcionalidades (IA, Garmin) se liberam ou retiram direto na linha. Tudo passa por callables do admin.
+ * Aba "Usuários" (só admin): lista com busca e ordenação, criação, edição, aprovação, bloqueio e exclusão. As
+ * funcionalidades de cada pessoa (IA, Garmin…) abrem num modal com interruptores. Tudo passa por callables do admin.
  * @returns {() => void} limpa a aba ao sair
  */
 export function render(raiz, { uid: meuUid }) {
@@ -95,6 +94,7 @@ export function render(raiz, { uid: meuUid }) {
     }
   }
 
+  /** Formulário de criação (usuario = null) ou de edição de nome e papel. */
   function abrirForm(usuario = null) {
     const edicao = usuario !== null;
     const msg = areaMensagem();
@@ -103,7 +103,6 @@ export function render(raiz, { uid: meuUid }) {
     const senha = campo({
       id: 'usr-senha',
       rotulo: 'Senha temporária',
-      tipo: 'text',
       autocomplete: 'off',
       dica: `Mínimo de ${SENHA_MINIMA} caracteres. Passe para a pessoa; ela deve trocar depois do primeiro acesso.`,
     });
@@ -113,8 +112,7 @@ export function render(raiz, { uid: meuUid }) {
       valor: usuario?.role ?? PAPEIS.ATLETA,
       opcoes: PAPEIS_ATRIBUIVEIS.map((p) => ({ valor: p, rotulo: ROTULO_PAPEL[p] })),
     });
-    const ehAdmin = usuario?.role === PAPEIS.ADMIN;
-    const recursos = caixasDeRecursos(usuario?.recursos ?? RECURSOS_PADRAO);
+    const recursos = edicao ? null : listaDeRecursos(undefined, 'usr-rec');
     const botao = h('button', { class: 'btn', type: 'submit' }, edicao ? 'Salvar' : 'Criar usuário');
 
     const form = h(
@@ -126,11 +124,7 @@ export function render(raiz, { uid: meuUid }) {
           e.preventDefault();
           executarComBotao(botao, msg, async () => {
             if (edicao) {
-              await atualizarUsuarioAdmin({
-                uid: usuario.uid,
-                ...(ehAdmin ? {} : { nome: nome.input.value, role: papel.select.value }),
-                recursos: recursos.ler(),
-              });
+              await atualizarUsuarioAdmin({ uid: usuario.uid, nome: nome.input.value, role: papel.select.value });
             } else {
               await criarUsuarioAdmin({
                 nome: nome.input.value,
@@ -149,79 +143,76 @@ export function render(raiz, { uid: meuUid }) {
       email.raiz,
       edicao ? null : senha.raiz,
       papel.raiz,
-      recursos.el,
+      recursos ? h('div', { class: 'campo' }, h('span', { class: 'ia-rotulo' }, 'Funcionalidades liberadas'), recursos.el) : null,
       msg.el,
-      h(
-        'div',
-        { class: 'linha-botoes' },
-        botao,
-        h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => areaForm.replaceChildren() }, 'Cancelar'),
-      ),
+      h('div', { class: 'linha-botoes' }, botao, h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => areaForm.replaceChildren() }, 'Cancelar')),
     );
-    if (ehAdmin) {
-      nome.input.disabled = true;
-      papel.select.disabled = true;
-    }
     areaForm.replaceChildren(h('section', { class: 'card' }, h('h2', null, edicao ? `Editar ${usuario.nome || usuario.email}` : 'Novo usuário'), form));
     nome.input.focus();
-  }
-
-  /** Marca ou desmarca um recurso na própria linha e salva na hora. */
-  function alternarRecurso(u, chave, input) {
-    const novos = { ...u.recursos, [chave]: input.checked };
-    agir([input], async () => {
-      await atualizarUsuarioAdmin({ uid: u.uid, recursos: novos });
-    }).then(() => {
-      // se a ação falhou, a lista não foi recarregada: volta a caixa ao valor que o servidor tem
-      input.checked = (usuarios.find((x) => x.uid === u.uid)?.recursos ?? u.recursos)[chave];
-    });
   }
 
   function linha(u) {
     const ehEu = u.uid === meuUid;
     const ehAdmin = u.role === PAPEIS.ADMIN;
-    const caixa = (chave) => {
-      const input = h('input', { type: 'checkbox', checked: u.recursos[chave] === true, 'aria-label': `${ROTULOS_RECURSOS[chave]} para ${u.nome || u.email}` });
-      input.addEventListener('change', () => alternarRecurso(u, chave, input));
-      return h('td', null, input);
-    };
-    const botoes = [];
-    const novoBotao = (rotulo, classe, aoClicar) => {
-      const b = h('button', { class: classe, type: 'button' }, rotulo);
-      b.addEventListener('click', aoClicar);
-      botoes.push(b);
+    const acoes = [];
+    const botoes = acoes; // `agir` trava todos os botões da linha enquanto roda
+    const add = (b) => {
+      acoes.push(b);
       return b;
     };
-    const acoes = [novoBotao('Editar', 'btn btn-secundario', () => abrirForm(u))];
+
+    if (!ehAdmin) add(botaoIcone({ nome: 'lapis', rotulo: 'Editar nome e papel', aoClicar: () => abrirForm(u) }));
+    add(botaoIcone({ nome: 'recursos', rotulo: 'Funcionalidades', aoClicar: () => abrirModalRecursos(u, recarregar) }));
     if (!ehAdmin) {
-      if (!u.aprovado && u.ativo) acoes.push(novoBotao('Aprovar', 'btn', () => agir(botoes, () => aprovarUsuario({ uid: u.uid, aprovado: true }))));
+      if (!u.aprovado && u.ativo) {
+        add(botaoIcone({ nome: 'ok', rotulo: 'Aprovar acesso', variante: 'ok', aoClicar: () => agir(botoes, () => aprovarUsuario({ uid: u.uid, aprovado: true })) }));
+      }
       if (u.ativo) {
-        acoes.push(
-          novoBotao('Bloquear', 'btn btn-perigo', () => {
-            if (confirm(`Bloquear o acesso de ${u.nome || u.email}?`)) agir(botoes, () => bloquearUsuario({ uid: u.uid, ativo: false }));
+        add(
+          botaoIcone({
+            nome: 'bloquear',
+            rotulo: 'Bloquear acesso',
+            variante: 'perigo',
+            aoClicar: () => confirm(`Bloquear o acesso de ${u.nome || u.email}?`) && agir(botoes, () => bloquearUsuario({ uid: u.uid, ativo: false })),
           }),
         );
       } else {
-        acoes.push(novoBotao('Liberar', 'btn', () => agir(botoes, () => bloquearUsuario({ uid: u.uid, ativo: true }))));
+        add(botaoIcone({ nome: 'desbloquear', rotulo: 'Liberar acesso', variante: 'ok', aoClicar: () => agir(botoes, () => bloquearUsuario({ uid: u.uid, ativo: true })) }));
       }
-      acoes.push(
-        novoBotao('Excluir', 'btn btn-perigo', () => {
-          if (!confirm(`Excluir ${u.nome || u.email} e TODOS os dados dessa pessoa (atividades, metas, arquivos)? Isso não pode ser desfeito.`)) return;
-          agir(botoes, () => excluirUsuarioAdmin({ uid: u.uid }));
+      add(
+        botaoIcone({
+          nome: 'lixeira',
+          rotulo: 'Excluir usuário',
+          variante: 'perigo',
+          aoClicar: () =>
+            confirm(`Excluir ${u.nome || u.email} e TODOS os dados dessa pessoa (atividades, metas, arquivos)? Isso não pode ser desfeito.`) &&
+            agir(botoes, () => excluirUsuarioAdmin({ uid: u.uid })),
         }),
       );
     }
+
+    const situacao = situacaoDe(u);
+    const chips = Object.values(RECURSOS).map((chave) =>
+      h('span', { class: `chip-recurso${u.recursos[chave] ? ' ligado' : ''}`, title: `${ROTULOS_RECURSOS[chave]}: ${u.recursos[chave] ? 'liberada' : 'desligada'}` }, ABREVIACAO_RECURSO[chave] ?? chave),
+    );
     return h(
       'tr',
       null,
-      h('td', null, (u.nome || '—') + (ehEu ? ' (você)' : '')),
-      h('td', null, u.email),
-      h('td', null, ROTULO_PAPEL[u.role] ?? u.role),
-      h('td', null, situacaoDe(u)),
-      h('td', null, u.criadoEm ? formatarDataHora(u.criadoEm) : '—'),
-      caixa(RECURSOS.IA),
-      caixa(RECURSOS.GARMIN),
-      h('td', null, h('div', { class: 'acoes' }, ...acoes)),
+      h(
+        'td',
+        null,
+        h(
+          'div',
+          { class: 'usr-pessoa' },
+          h('span', { class: 'usr-avatar', 'aria-hidden': 'true' }, inicialDe(u)),
+          h('div', null, h('strong', null, (u.nome || 'Sem nome') + (ehEu ? ' (você)' : '')), h('small', { class: 'texto-secundario' }, u.email)),
+        ),
+      ),
+      h('td', null, h('span', { class: `selo ${ehAdmin ? 'selo-destaque' : 'selo-neutro'}` }, ROTULO_PAPEL[u.role] ?? u.role)),
+      h('td', null, h('span', { class: `selo ${VARIANTE_SITUACAO[situacao]}` }, situacao)),
+      h('td', null, h('div', { class: 'usr-chips' }, ...chips)),
+      h('td', null, u.criadoEm ? dataCurta(u.criadoEm) : '—'),
+      h('td', null, h('div', { class: 'acoes-icones' }, ...acoes)),
     );
   }
 
@@ -249,15 +240,12 @@ export function render(raiz, { uid: meuUid }) {
         ),
       ),
     );
+    const [colUsuario, colPapel, colSituacao, colCadastro] = cabecalho;
     corpoTabela.replaceChildren(
       h(
         'table',
-        { class: 'tabela' },
-        h(
-          'thead',
-          null,
-          h('tr', null, ...cabecalho, h('th', { scope: 'col', title: ROTULOS_RECURSOS[RECURSOS.IA] }, 'IA'), h('th', { scope: 'col', title: ROTULOS_RECURSOS[RECURSOS.GARMIN] }, 'Garmin'), h('th', { scope: 'col' }, 'Ações')),
-        ),
+        { class: 'tabela tabela-usuarios' },
+        h('thead', null, h('tr', null, colUsuario, colPapel, colSituacao, h('th', { scope: 'col' }, 'Funcionalidades'), colCadastro, h('th', { scope: 'col', class: 'col-acoes' }, 'Ações'))),
         h('tbody', null, ...lista.map(linha)),
       ),
     );
@@ -272,7 +260,7 @@ export function render(raiz, { uid: meuUid }) {
         'section',
         { class: 'card' },
         h('h2', null, 'Usuários'),
-        h('p', { class: 'texto-secundario' }, 'Crie, edite, bloqueie ou exclua contas e libere ou retire funcionalidades por usuário. Novos usuários nascem com IA ligada e Garmin desligado.'),
+        h('p', { class: 'texto-secundario' }, 'Crie, edite, bloqueie ou exclua contas. O ícone de controles abre as funcionalidades de cada pessoa. Novos usuários nascem com IA ligada e Garmin desligado.'),
         h('div', { class: 'barra-tabela' }, busca, h('button', { class: 'btn', type: 'button', onClick: () => abrirForm() }, 'Novo usuário')),
         mensagem.el,
         corpoTabela,

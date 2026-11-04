@@ -14,6 +14,7 @@ import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeI
 import { tempoDeEsforco, ritmoTexto } from './esforcos.js';
 import { painelImportar } from './importar.js';
 import { painelManual } from './manual.js';
+import { criarPrevia } from './previa.js';
 import { alternarOrdem, estadoAtividades, EVENTO_IMPORTAR } from './state.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE, ROTULO_ORIGEM_HRSS } from './textos.js';
 
@@ -27,7 +28,10 @@ const COLUNAS = [
   { campo: 'fcMedia', rotulo: 'FC média' },
   { campo: 'hrss', rotulo: 'HRSS' },
   { campo: 'fonteOrdem', rotulo: 'Origem' },
+  { campo: null, rotulo: 'Abrir' },
 ];
+
+const OPCOES_POR_PAGINA = [10, 25, 50, 100];
 
 /** De onde veio a atividade: sincronizada do Garmin (`fonte`), arquivo enviado ou cadastro manual (`origem`). */
 function origemDaAtividade(a) {
@@ -37,7 +41,7 @@ function origemDaAtividade(a) {
 }
 
 function textoBusca(a) {
-  return [formatarData(a.data), a.data, ROTULO_ESPORTE[a.esporte], origemDaAtividade(a).rotulo].join(' ').toLowerCase();
+  return [a.titulo, formatarData(a.data), a.data, ROTULO_ESPORTE[a.esporte], origemDaAtividade(a).rotulo].join(' ').toLowerCase();
 }
 
 /** Velocidade média: km/h no ciclismo (e em "outro"); ritmo em min/km na corrida. */
@@ -109,6 +113,8 @@ export function render(raiz, sessao) {
   const corpo = h('div', { class: 'tabela-wrap' });
   const paineis = h('div');
   const contagem = h('span', { class: 'texto-secundario' });
+  const paginacao = h('nav', { class: 'ativ-paginacao', 'aria-label': 'Paginação das atividades' });
+  const previa = criarPrevia({ textoVelocidade, iconeDoEsporte });
 
   const busca = h('input', {
     type: 'search',
@@ -117,6 +123,7 @@ export function render(raiz, sessao) {
     value: estadoAtividades.busca,
     onInput: (e) => {
       estadoAtividades.busca = e.target.value;
+      estadoAtividades.pagina = 1;
       desenharTabela();
     },
   });
@@ -144,6 +151,7 @@ export function render(raiz, sessao) {
     const anos = anosComAtividades(atividades);
     const escolher = (id) => () => {
       estadoAtividades.periodo = id;
+      estadoAtividades.pagina = 1;
       desenharTudo();
     };
     const seletorAno = h(
@@ -154,6 +162,7 @@ export function render(raiz, sessao) {
         onChange: (e) => {
           if (!e.target.value) return;
           estadoAtividades.periodo = e.target.value;
+          estadoAtividades.pagina = 1;
           desenharTudo();
         },
       },
@@ -176,6 +185,7 @@ export function render(raiz, sessao) {
             estadoAtividades.esporte === valor,
             () => {
               estadoAtividades.esporte = valor;
+              estadoAtividades.pagina = 1;
               desenharTudo();
             },
             ic,
@@ -369,10 +379,10 @@ export function render(raiz, sessao) {
   function linha(a) {
     const origem = ROTULO_ORIGEM_HRSS[a.hrssOrigem];
     const fonte = origemDaAtividade(a);
-    return h(
+    const tr = h(
       'tr',
       null,
-      h('td', null, h('a', { class: 'ativ-data', href: `#/atividades/${a.id}` }, formatarData(a.data))),
+      h('td', null, h('a', { class: 'ativ-data', href: `#/atividades/${a.id}` }, formatarData(a.data)), a.titulo ? h('small', { class: 'ativ-titulo-lista', title: a.titulo }, a.titulo) : null),
       h('td', null, h('span', { class: 'ativ-esporte' }, h('span', { class: 'ativ-esporte-icone' }, iconeDoEsporte(a.esporte)), ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
       h('td', null, formatarDuracao(a.duracaoS)),
       h('td', null, formatarDistancia(a.distanciaM)),
@@ -391,6 +401,47 @@ export function render(raiz, sessao) {
         null,
         h('span', { class: `ativ-origem ativ-origem-${fonte.id}`, title: fonte.rotulo, role: 'img', 'aria-label': fonte.rotulo }, icone(fonte.icone, 16)),
       ),
+      h(
+        'td',
+        { class: 'ativ-col-abrir' },
+        h('a', { class: 'ativ-olho', href: `#/atividades/${a.id}`, title: 'Abrir a atividade', 'aria-label': `Abrir a atividade de ${formatarData(a.data)}` }, icone('olho', 20)),
+      ),
+    );
+    previa.ligar(tr, a);
+    return tr;
+  }
+
+  function desenharPaginacao(total, inicio, naPagina, totalPaginas) {
+    const irPara = (pagina) => () => {
+      estadoAtividades.pagina = pagina;
+      desenharTabela();
+      corpo.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+    const seta = (nome, rotulo, destino, desligada) =>
+      h('button', { type: 'button', class: 'ativ-pag-seta', title: rotulo, 'aria-label': rotulo, disabled: desligada, onClick: irPara(destino) }, icone(nome, 18));
+    const seletor = h(
+      'select',
+      {
+        'aria-label': 'Atividades por página',
+        onChange: (e) => {
+          estadoAtividades.porPagina = Number(e.target.value);
+          estadoAtividades.pagina = 1;
+          desenharTabela();
+        },
+      },
+      ...OPCOES_POR_PAGINA.map((n) => h('option', { value: String(n), selected: n === estadoAtividades.porPagina }, String(n))),
+    );
+    const { pagina } = estadoAtividades;
+    paginacao.replaceChildren(
+      h('label', { class: 'ativ-pag-tamanho' }, 'Atividades por página', seletor),
+      h('span', { class: 'ativ-pag-faixa' }, h('strong', null, `${inicio + 1}–${inicio + naPagina}`), ` de ${total}`),
+      h(
+        'div',
+        { class: 'ativ-pag-nav' },
+        seta('chevronEsq', 'Página anterior', pagina - 1, pagina <= 1),
+        h('span', { class: 'ativ-pag-pagina', 'aria-live': 'polite' }, `Página ${pagina} de ${totalPaginas}`),
+        seta('chevronDir', 'Próxima página', pagina + 1, pagina >= totalPaginas),
+      ),
     );
   }
 
@@ -398,15 +449,25 @@ export function render(raiz, sessao) {
     const base = visiveis();
     const lista = filtrarEOrdenar([...base]);
     contagem.textContent = `${lista.length} de ${base.length} atividade${base.length === 1 ? '' : 's'}`;
+    previa.esconder();
     if (lista.length === 0) {
+      paginacao.replaceChildren();
       corpo.replaceChildren(
         h('p', { class: 'vazio' }, atividades.length === 0 ? 'Nenhuma atividade ainda. Importe um arquivo ou registre uma manualmente.' : 'Nenhuma atividade neste período ou filtro.'),
       );
       return;
     }
+    const { porPagina } = estadoAtividades;
+    const totalPaginas = Math.max(1, Math.ceil(lista.length / porPagina));
+    estadoAtividades.pagina = Math.min(Math.max(1, estadoAtividades.pagina), totalPaginas);
+    const inicio = (estadoAtividades.pagina - 1) * porPagina;
+    const daPagina = lista.slice(inicio, inicio + porPagina);
+    desenharPaginacao(lista.length, inicio, daPagina.length, totalPaginas);
     const { campo, direcao } = estadoAtividades.ordem;
     const cabecalho = COLUNAS.map((c) =>
-      h(
+      !c.campo
+        ? h('th', { scope: 'col', class: 'ativ-col-abrir' }, c.rotulo)
+        : h(
         'th',
         { scope: 'col', 'aria-sort': c.campo === campo ? (direcao === 'asc' ? 'ascending' : 'descending') : 'none' },
         h(
@@ -415,6 +476,7 @@ export function render(raiz, sessao) {
             type: 'button',
             onClick: () => {
               alternarOrdem(c.campo);
+              estadoAtividades.pagina = 1;
               desenharTabela();
             },
           },
@@ -423,7 +485,7 @@ export function render(raiz, sessao) {
       ),
     );
     corpo.replaceChildren(
-      h('table', { class: 'tabela tabela-atividades' }, h('thead', null, h('tr', null, ...cabecalho)), h('tbody', null, ...lista.map(linha))),
+      h('table', { class: 'tabela tabela-atividades' }, h('thead', null, h('tr', null, ...cabecalho)), h('tbody', null, ...daPagina.map(linha))),
     );
   }
 
@@ -475,7 +537,7 @@ export function render(raiz, sessao) {
       filtros,
       resumo,
       recordes,
-      h('section', { class: 'card ativ-tabela-card' }, h('div', { class: 'barra-tabela' }, busca, contagem), mensagem.el, corpo),
+      h('section', { class: 'card ativ-tabela-card' }, h('div', { class: 'barra-tabela' }, busca, contagem), mensagem.el, corpo, paginacao),
     ),
   );
   corpo.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
@@ -517,5 +579,6 @@ export function render(raiz, sessao) {
   return () => {
     window.removeEventListener(EVENTO_IMPORTAR, abrirPainelDeImportacao);
     cancelar.forEach((fn) => fn());
+    previa.destruir();
   };
 }

@@ -5,6 +5,9 @@ export const estadoAtividades = {
   /** Período dos cards e da tabela: '30d', '6m', 'ano', 'ano:2025' ou 'tudo'. */
   periodo: 'tudo',
   ordem: { campo: 'data', direcao: 'desc' },
+  /** Paginação da tabela: página atual (a partir de 1) e quantas atividades por página. */
+  pagina: 1,
+  porPagina: 10,
   /** O botão "Importar arquivo" do cabeçalho pede para abrir o painel de importação. */
   abrirImportar: false,
 };

@@ -1,5 +1,5 @@
 import { calcularHrss, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
-import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo } from '../../core/functions.js';
+import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo, renomearAtividade } from '../../core/functions.js';
 import { lerAtividade, lerSerieDetalhe, lerSerieFc } from '../../infrastructure/atividadesRepo.js';
 import { lerConfig } from '../../infrastructure/configsRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
@@ -7,7 +7,7 @@ import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDataHora, formatarDistancia, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { graficoAtividade } from '../../utils/graficoAtividade.js';
-import { mapaTrajeto } from '../../utils/mapaTrajeto.js';
+import { corDoEsforco, mapaTrajeto } from '../../utils/mapaTrajeto.js';
 import { ritmoTexto, tempoDeEsforco } from './esforcos.js';
 import { ROTULO_ESPORTE, ROTULO_ORIGEM_CALORIAS, ROTULO_ORIGEM_HRSS, TEXTO_ALERTA } from './textos.js';
 
@@ -76,6 +76,135 @@ function montarGrafico(a, detalhe, serieFc, aoPassar, aoSelecionar) {
     });
   }
   return null;
+}
+
+const nomePadrao = (a) => `${ROTULO_ESPORTE[a.esporte] ?? a.esporte} · ${formatarData(a.data)}`;
+const TITULO_MAX = 80;
+
+/** Título da atividade (o nome padrão, "Esporte · data", enquanto não houver um) com edição no próprio lugar. */
+function cabecalhoEditavel(a, id) {
+  const raiz = h('div', { class: 'ativ-titulo' });
+
+  function ver() {
+    const botao = h('button', { class: 'ativ-titulo-editar', type: 'button', title: 'Editar o título', 'aria-label': 'Editar o título da atividade' }, icone('lapis', 18));
+    botao.addEventListener('click', editar);
+    raiz.replaceChildren(
+      h('div', { class: 'ativ-titulo-linha' }, h('h1', null, a.titulo || nomePadrao(a)), botao),
+      a.titulo ? h('p', { class: 'texto-secundario ativ-titulo-padrao' }, nomePadrao(a)) : null,
+    );
+  }
+
+  function editar() {
+    const campo = h('input', { type: 'text', maxLength: TITULO_MAX, value: a.titulo ?? '', placeholder: nomePadrao(a), 'aria-label': 'Título da atividade', class: 'ativ-titulo-campo' });
+    const erro = h('p', { class: 'mensagem mensagem-erro', hidden: true });
+    const salvar = h('button', { class: 'btn', type: 'button' }, 'Salvar');
+    const cancelar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Cancelar');
+    async function gravar() {
+      salvar.disabled = true;
+      erro.hidden = true;
+      try {
+        const r = await renomearAtividade({ atividadeId: id, titulo: campo.value });
+        a.titulo = r.titulo ?? undefined;
+        ver();
+      } catch (err) {
+        erro.textContent = err.message || 'Não foi possível salvar o título.';
+        erro.hidden = false;
+        salvar.disabled = false;
+      }
+    }
+    salvar.addEventListener('click', gravar);
+    cancelar.addEventListener('click', ver);
+    campo.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') gravar();
+      else if (e.key === 'Escape') ver();
+    });
+    raiz.replaceChildren(
+      h('div', { class: 'ativ-titulo-edicao' }, campo, salvar, cancelar),
+      h('p', { class: 'texto-secundario ativ-titulo-padrao' }, 'Deixe em branco para voltar ao nome padrão.'),
+      erro,
+    );
+    campo.focus();
+    campo.select();
+  }
+
+  ver();
+  return raiz;
+}
+
+const ritmoDaLegenda = (kmh) => {
+  const s = Math.round(3600 / kmh);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} /km`;
+};
+
+/** Mapa com a escolha da cor do trajeto: única, ou pelo esforço (velocidade ou FC), com legenda da escala. */
+function montarBlocoDoMapa(a, detalhe, mapa, inicial, aoEscolher) {
+  const opcoes = [
+    detalhe.alt ? { id: 'alt', rotulo: 'Elevação' } : null,
+    detalhe.vel ? { id: 'vel', rotulo: a.esporte === 'corrida' ? 'Ritmo' : 'Velocidade' } : null,
+    detalhe.fc ? { id: 'fc', rotulo: 'Frequência cardíaca' } : null,
+  ].filter(Boolean);
+  const legenda = h('div', { class: 'mapa-legenda', hidden: true });
+  const botoes = new Map();
+  let escalaAtual = null; // { valores, faixa, formatar } da cor escolhida
+  let marcador = null;
+
+  function escolher(id) {
+    const valores = id === 'vel' ? suavizar(detalhe.vel) : id === 'fc' ? suavizar(detalhe.fc) : id === 'alt' ? suavizar(detalhe.alt) : null;
+    const faixa = mapa.colorirPor(valores);
+    const efetivo = faixa ? id : 'padrao';
+    aoEscolher(efetivo);
+    for (const [k, b] of botoes) {
+      b.classList.toggle('ativo', k === efetivo);
+      b.setAttribute('aria-pressed', String(k === efetivo));
+    }
+    legenda.hidden = !faixa;
+    escalaAtual = null;
+    marcador = null;
+    if (!faixa) return;
+    const passos = Array.from({ length: 6 }, (_, i) => corDoEsforco(i / 5));
+    const formatar = id === 'fc' ? (v) => `${Math.round(v)} bpm` : id === 'alt' ? (v) => `${Math.round(v)} m` : a.esporte === 'corrida' ? ritmoDaLegenda : (v) => `${formatarNumero(v, 1)} km/h`;
+    legenda.replaceChildren(
+      h('span', null, id === 'fc' ? 'Mais leve' : id === 'alt' ? 'Mais baixo' : 'Mais lento'),
+      h('strong', null, formatar(faixa.min)),
+      h('div', { class: 'mapa-legenda-trilha' }, h('i', { class: 'mapa-legenda-barra', style: `background: linear-gradient(90deg, ${passos.join(', ')})` }), (marcador = h('span', { class: 'mapa-legenda-marcador', hidden: true }, h('b')))),
+      h('strong', null, formatar(faixa.max)),
+      h('span', null, id === 'fc' ? 'Mais intenso' : id === 'alt' ? 'Mais alto' : 'Mais rápido'),
+    );
+    escalaAtual = { valores, faixa, formatar };
+  }
+
+  /** Mostra na barra da legenda onde a atividade está no ponto `i` da série (cursor sobre o gráfico); null esconde. */
+  function indicar(i) {
+    if (!marcador) return;
+    const v = i === null || i === undefined ? null : escalaAtual?.valores[i];
+    if (!Number.isFinite(v)) {
+      marcador.hidden = true;
+      return;
+    }
+    const { faixa, formatar } = escalaAtual;
+    const t = Math.min(1, Math.max(0, (v - faixa.min) / (faixa.max - faixa.min)));
+    marcador.style.left = `${t * 100}%`;
+    marcador.firstChild.textContent = formatar(v);
+    marcador.hidden = false;
+  }
+
+  const barra =
+    opcoes.length > 1
+      ? h(
+          'div',
+          { class: 'mapa-cores' },
+          h('span', { class: 'mapa-cores-rotulo' }, 'Cor do trajeto'),
+          h('div', { class: 'ativ-grupo', role: 'group', 'aria-label': 'Cor do trajeto no mapa' }, ...opcoes.map((o) => {
+            const b = h('button', { type: 'button', class: 'ativ-chip', 'aria-pressed': 'false', onClick: () => escolher(o.id) }, o.rotulo);
+            botoes.set(o.id, b);
+            return b;
+          })),
+        )
+      : null;
+  escolher(botoes.has(inicial) ? inicial : (botoes.keys().next().value ?? 'padrao'));
+  const bloco = h('div', { class: 'mapa-bloco' }, barra, mapa.el, legenda);
+  bloco.indicar = indicar;
+  return bloco;
 }
 
 /** Melhor 5 km e 10 km: só para atividades que chegam à distância. `calculando` mostra o aviso enquanto o servidor relê o arquivo. */
@@ -147,6 +276,7 @@ function indicadoresDoTrecho(a, detalhe, sel, config) {
 
 export function render(raiz, sessao, { id }) {
   let ativa = true;
+  let corDoMapa = 'alt'; // 'alt' | 'vel' | 'fc' ('padrao' = cor única, quando a atividade não tem nenhum dos dados): mantida ao redesenhar a tela
   let limparVisuais = () => {};
   let configDoHrss; // undefined = ainda não buscada; null = indisponível
   const mensagem = areaMensagem();
@@ -213,6 +343,7 @@ export function render(raiz, sessao, { id }) {
     const hrssTexto = a.hrss === null || a.hrss === undefined ? '—' : formatarNumero(a.hrss, 1);
     const caloriasNota = a.caloriasOrigem ? ROTULO_ORIGEM_CALORIAS[a.caloriasOrigem] : null;
     const mapa = detalhe?.lat && detalhe?.lon ? mapaTrajeto(detalhe.lat, detalhe.lon) : null;
+    const blocoMapa = mapa ? montarBlocoDoMapa(a, detalhe, mapa, corDoMapa, (c) => (corDoMapa = c)) : null;
     let selecaoAtual = null;
     let grafico = null;
     const aviso = h('div', { class: 'ativ-selecao-aviso', hidden: true });
@@ -268,7 +399,10 @@ export function render(raiz, sessao, { id }) {
     }
     if (detalhe?.fc) garantirConfig().then(() => ativa && atualizarZonas());
 
-    grafico = montarGrafico(a, detalhe, serie, (i) => mapa?.destacar(i), detalhe ? aoSelecionar : undefined);
+    grafico = montarGrafico(a, detalhe, serie, (i) => {
+      mapa?.destacar(i);
+      blocoMapa?.indicar(i);
+    }, detalhe ? aoSelecionar : undefined);
     limparVisuais = () => {
       grafico?.destruir();
       mapa?.destruir();
@@ -294,7 +428,7 @@ export function render(raiz, sessao, { id }) {
         'section',
         { class: 'card' },
         h('p', null, h('a', { href: '#/atividades' }, '← Atividades')),
-        h('h1', null, `${ROTULO_ESPORTE[a.esporte] ?? a.esporte} · ${formatarData(a.data)}`),
+        cabecalhoEditavel(a, id),
         h(
           'p',
           { class: 'texto-secundario' },
@@ -303,7 +437,7 @@ export function render(raiz, sessao, { id }) {
         ...(a.alertas ?? []).map((alerta) => h('p', { class: 'mensagem' }, TEXTO_ALERTA[alerta] ?? alerta)),
         aviso,
         indicadores,
-        mapa ? mapa.el : null,
+        blocoMapa,
         carregandoDetalhe && !grafico ? h('p', { class: 'texto-secundario', role: 'status' }, 'Gerando o gráfico e o mapa a partir do arquivo da atividade…') : null,
         grafico ? h('div', { class: 'ativ-grafico' }, h('h2', null, 'Desempenho'), grafico.el) : null,
         zonasEl,

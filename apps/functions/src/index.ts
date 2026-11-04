@@ -5,6 +5,7 @@ export {
   obterUrlArquivo,
   processarArquivoAtividade,
   recalcularHistorico,
+  renomearAtividade,
 } from "./modules/atividades/atividades.functions";
 export { garminConectar, garminDesconectar, garminSincronizar, garminSituacao } from "./modules/garmin/garmin.functions";
 export { reconstruirCalibracao } from "./modules/calibracao/calibracao.functions";

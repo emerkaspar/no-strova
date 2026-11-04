@@ -22,6 +22,12 @@ export const ROTULOS_RECURSOS = Object.freeze({
   [RECURSOS.GARMIN]: 'Sincronização com o Garmin',
 });
 
+/** Texto de apoio de cada recurso, mostrado no modal de funcionalidades. Para um recurso novo: RECURSOS, rótulo, descrição e padrão. */
+export const DESCRICOES_RECURSOS = Object.freeze({
+  [RECURSOS.IA]: 'Sugestão de treinos feita pelo Gemini, sujeita ao limite diário.',
+  [RECURSOS.GARMIN]: 'Traz as atividades direto do Garmin Connect, sem exportar arquivos.',
+});
+
 /** Padrão de um usuário novo (ou sem o campo `recursos`): IA ligada, Garmin desligado. */
 export const RECURSOS_PADRAO = Object.freeze({
   [RECURSOS.IA]: true,
@@ -31,15 +37,16 @@ export const RECURSOS_PADRAO = Object.freeze({
 /**
  * Recursos liberados do usuário: o valor gravado em `recursos`, ou o padrão quando falta.
  * @param {{ recursos?: Record<string, unknown> }|null|undefined} perfil
- * @returns {{ ia: boolean, garmin: boolean }}
+ * @returns {Record<string, boolean>}
  */
 export function recursosDoUsuario(perfil) {
   const gravados = perfil?.recursos && typeof perfil.recursos === 'object' ? perfil.recursos : {};
+  /** @type {Record<string, boolean>} */
   const resultado = {};
   for (const chave of Object.values(RECURSOS)) {
     resultado[chave] = typeof gravados[chave] === 'boolean' ? gravados[chave] : RECURSOS_PADRAO[chave];
   }
-  return /** @type {{ ia: boolean, garmin: boolean }} */ (resultado);
+  return resultado;
 }
 
 /** @param {Perfil|null|undefined} perfil @param {string} recurso um valor de RECURSOS */
@@ -50,7 +57,7 @@ export function temRecurso(perfil, recurso) {
 /**
  * Valida os recursos enviados pelo admin: só chaves conhecidas, valores booleanos. Devolve o objeto completo.
  * @param {unknown} entrada
- * @returns {{ valido: boolean, erro: string|null, valores: { ia: boolean, garmin: boolean }|null }}
+ * @returns {{ valido: boolean, erro: string|null, valores: Record<string, boolean>|null }}
  */
 export function validarRecursos(entrada) {
   if (typeof entrada !== 'object' || entrada === null || Array.isArray(entrada)) {
@@ -61,7 +68,7 @@ export function validarRecursos(entrada) {
   if (Object.keys(bruto).some((k) => !conhecidas.includes(k)) || conhecidas.some((k) => typeof bruto[k] !== 'boolean')) {
     return { valido: false, erro: 'Recursos inválidos.', valores: null };
   }
-  return { valido: true, erro: null, valores: { ia: /** @type {boolean} */ (bruto.ia), garmin: /** @type {boolean} */ (bruto.garmin) } };
+  return { valido: true, erro: null, valores: Object.fromEntries(conhecidas.map((k) => [k, /** @type {boolean} */ (bruto[k])])) };
 }
 
 /** Versão do texto de aceite LGPD (dados de saúde) vigente. Mudar o texto exige subir a versão. */

@@ -16,5 +16,5 @@ export interface UsuarioAdmin extends UsuarioPendente {
   role: string;
   aprovado: boolean;
   ativo: boolean;
-  recursos: { ia: boolean; garmin: boolean };
+  recursos: Record<string, boolean>;
 }

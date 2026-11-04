@@ -322,6 +322,22 @@ export async function excluirAtividade(uid: string, atividadeId: string): Promis
   }
 }
 
+const TITULO_MAX = 80;
+
+/** Define o título da atividade (texto livre, até ${TITULO_MAX} caracteres). Vazio remove o título e volta ao nome padrão. */
+export async function renomearAtividade(uid: string, atividadeId: string, titulo: unknown): Promise<string | null> {
+  if (titulo !== undefined && titulo !== null && typeof titulo !== "string") {
+    throw new HttpsError("invalid-argument", "O título deve ser um texto.");
+  }
+  const limpo = (titulo ?? "").replace(/s+/g, " ").trim();
+  if (limpo.length > TITULO_MAX) {
+    throw new HttpsError("invalid-argument", `O título pode ter no máximo ${TITULO_MAX} caracteres.`);
+  }
+  const { ref } = await atividadeDoDono(uid, atividadeId);
+  await ref.update({ titulo: limpo === "" ? FieldValue.delete() : limpo });
+  return limpo === "" ? null : limpo;
+}
+
 /** URL assinada de curta duração para baixar o arquivo original (o Storage nega leitura direta). */
 export async function urlDoArquivo(uid: string, atividadeId: string): Promise<string> {
   const { snap } = await atividadeDoDono(uid, atividadeId);

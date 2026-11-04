@@ -34,6 +34,13 @@ export const excluirAtividade = onCall({ region: REGIAO }, async (request) => {
   return { ok: true };
 });
 
+export const renomearAtividade = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  const dados = lerObjeto(request.data);
+  const titulo = await servico.renomearAtividade(uid, servico.validarIdAtividade(dados.atividadeId), dados.titulo);
+  return { titulo };
+});
+
 export const obterUrlArquivo = onCall({ region: REGIAO }, async (request) => {
   const { uid } = await exigirAcesso(request);
   const url = await servico.urlDoArquivo(uid, servico.validarIdAtividade(lerObjeto(request.data).atividadeId));
