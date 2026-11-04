@@ -1,0 +1,224 @@
+/* Provas e Plano anual (tela do Plano). Usa só as variáveis de tema; nada de cor fixa além das das zonas. */
+
+.prova-form {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.prova-form-titulo {
+  margin: 0 0 12px;
+}
+
+.provas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prova-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.prova-dados {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.prova-dados strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prova-prioridade {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-family: 'Anton', Impact, sans-serif;
+  font-size: 1.1rem;
+  color: var(--primary-contrast);
+}
+
+.prova-A {
+  background: var(--primary);
+}
+
+.prova-B {
+  background: var(--zona-3);
+}
+
+.prova-C {
+  background: var(--text-secondary);
+}
+
+.anual-seletor {
+  max-width: 480px;
+}
+
+.anual-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.anual-estat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.anual-estat strong {
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.anual-semanas {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.anual-atual td {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.anual-fase {
+  display: inline-block;
+  padding: 1px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.anual-fase-base {
+  color: var(--zona-1);
+}
+
+.anual-fase-construcao {
+  color: var(--zona-3);
+}
+
+.anual-fase-pico {
+  color: var(--zona-5);
+}
+
+.anual-fase-polimento {
+  color: var(--zona-2);
+}
+
+.anual-barra {
+  height: 6px;
+  margin-bottom: 4px;
+  background: var(--surface-light);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.anual-barra span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+.anual-rascunho-semana {
+  margin-top: 16px;
+}
+
+.anual-rascunho-semana h4 {
+  margin: 0 0 6px;
+}
+
+@media (max-width: 767px) {
+  .prova-item {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------- lixeira do calendário e exclusão em massa ---------- */
+.cal-lixeira {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  font-size: 0.9rem;
+  transition: color 0.14s ease, background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+}
+
+/* enquanto um treino é arrastado, a lixeira chama a atenção */
+body.cal-arrastando .cal-lixeira {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+}
+
+.cal-lixeira.cal-lixeira-alvo {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+  transform: scale(1.01);
+}
+
+.cal-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.cal-rodape .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  /* sem arrastar no toque: a lixeira some e a exclusão é pelo botão Excluir do treino */
+  .cal-lixeira {
+    display: none;
+  }
+}
+
+/* ---------- chips dos focos leves e do teste (biblioteca de treinos) ---------- */
+.chip-foco-baixa {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.chip-foco-teste {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  border-style: dashed;
+}

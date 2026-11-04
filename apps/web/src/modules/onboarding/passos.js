@@ -18,6 +18,7 @@ import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.j
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
+import { confirmar } from '../../utils/modal.js';
 
 const ABREV = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const NOMES = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -468,8 +469,8 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir }) {
   // ---------- pronto ----------
   const mensagemFim = areaMensagem();
   const botaoRecalcular = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Recalcular o meu histórico agora');
-  botaoRecalcular.addEventListener('click', () => {
-    if (!confirm('Recalcular o HRSS de todas as atividades com a configuração vigente na data de cada uma? O estresse que você informou manualmente não muda.')) return;
+  botaoRecalcular.addEventListener('click', async () => {
+    if (!(await confirmar({ titulo: 'Recalcular o histórico?', mensagem: 'Recalcular o HRSS de todas as atividades com a configuração vigente na data de cada uma? O estresse que você informou manualmente não muda.', confirmarTexto: 'Recalcular', tipo: 'aviso', icone: 'hrss' }))) return;
     executarComBotao(botaoRecalcular, mensagemFim, async () => {
       const r = await recalcularHistorico();
       mensagemFim.mostrar(`${r.atualizadas} de ${r.total} atividade${r.total === 1 ? '' : 's'} atualizada${r.atualizadas === 1 ? '' : 's'}.`, 'ok');

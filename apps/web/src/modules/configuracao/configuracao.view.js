@@ -10,6 +10,7 @@ import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { criarCartaoGarmin } from './garmin.js';
 import { editar, estadoConfiguracao } from './state.js';
+import { confirmar } from '../../utils/modal.js';
 
 const ROTULO_SEXO = { [SEXOS.MASCULINO]: 'Masculino', [SEXOS.FEMININO]: 'Feminino' };
 
@@ -113,7 +114,7 @@ export function render(raiz, sessao) {
                       class: 'btn btn-perigo',
                       type: 'button',
                       onClick: async () => {
-                        if (!confirm(`Excluir a configuração vigente desde ${formatarData(c.vigenteDesde)}?`)) return;
+                        if (!(await confirmar({ titulo: 'Excluir esta configuração?', mensagem: `A configuração vigente desde ${formatarData(c.vigenteDesde)} será apagada.`, confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
                         mensagemTabela.limpar();
                         try {
                           await excluirConfig(c.id);
@@ -175,12 +176,12 @@ export function render(raiz, sessao) {
             });
             if (!r.valido) throw new Error(r.erros.join(' '));
             const outraComMesmaData = configs.find((c) => c.vigenteDesde === r.valores.vigenteDesde && c.id !== emEdicao?.id);
-            if (outraComMesmaData && !confirm('Já existe uma configuração com essa data. Substituir?')) return;
+            if (outraComMesmaData && !(await confirmar({ titulo: 'Substituir a configuração?', mensagem: 'Já existe uma configuração com essa data.', confirmarTexto: 'Substituir', tipo: 'aviso', icone: 'configuracao' }))) return;
             const vigenciasResultantes = [...configs.filter((c) => c.id !== emEdicao?.id).map((c) => c.vigenteDesde), r.valores.vigenteDesde];
             const semCobertura = atividadesAntesDaPrimeiraVigencia(vigenciasResultantes, datasAtividades);
             if (
               semCobertura > 0 &&
-              !confirm(`${semCobertura === 1 ? '1 atividade é anterior' : `${semCobertura} atividades são anteriores`} a ${formatarData(primeiraVigencia(vigenciasResultantes))} e ficarão sem HRSS, porque não haverá configuração vigente nas datas delas. Salvar assim mesmo?`)
+              !(await confirmar({ titulo: 'Salvar assim mesmo?', mensagem: `${semCobertura === 1 ? '1 atividade é anterior' : `${semCobertura} atividades são anteriores`} a ${formatarData(primeiraVigencia(vigenciasResultantes))} e ficarão sem HRSS, porque não haverá configuração vigente nas datas delas.`, confirmarTexto: 'Salvar', tipo: 'aviso', icone: 'alerta' }))
             ) {
               return;
             }
@@ -205,8 +206,8 @@ export function render(raiz, sessao) {
 
   const mensagemRecalculo = areaMensagem();
   const botaoRecalculo = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Recalcular histórico');
-  botaoRecalculo.addEventListener('click', () => {
-    if (!confirm('Recalcular o HRSS de todas as atividades com a configuração vigente na data de cada uma? O estresse que você informou manualmente não muda.')) return;
+  botaoRecalculo.addEventListener('click', async () => {
+    if (!(await confirmar({ titulo: 'Recalcular o histórico?', mensagem: 'Recalcular o HRSS de todas as atividades com a configuração vigente na data de cada uma? O estresse que você informou manualmente não muda.', confirmarTexto: 'Recalcular', tipo: 'aviso', icone: 'hrss' }))) return;
     executarComBotao(botaoRecalculo, mensagemRecalculo, async () => {
       const r = await recalcularHistorico();
       const base = `${r.atualizadas} de ${r.total} atividade${r.total === 1 ? '' : 's'} atualizada${r.atualizadas === 1 ? '' : 's'}.`;

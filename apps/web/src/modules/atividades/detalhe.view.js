@@ -1,15 +1,17 @@
-import { calcularHrss, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
+import { calcularHrss, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsporte, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
 import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo, renomearAtividade } from '../../core/functions.js';
 import { lerAtividade, lerSerieDetalhe, lerSerieFc } from '../../infrastructure/atividadesRepo.js';
 import { lerConfig } from '../../infrastructure/configsRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
-import { formatarData, formatarDataHora, formatarDistancia, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
+import { formatarData, formatarDataHora, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { graficoAtividade } from '../../utils/graficoAtividade.js';
 import { corDoEsforco, mapaTrajeto } from '../../utils/mapaTrajeto.js';
 import { ritmoTexto, tempoDeEsforco } from './esforcos.js';
 import { ROTULO_ESPORTE, ROTULO_ORIGEM_CALORIAS, ROTULO_ORIGEM_HRSS, TEXTO_ALERTA } from './textos.js';
+import { confirmar } from '../../utils/modal.js';
+import { medalhasDaAtividade } from '../../application/medalhas.js';
 
 /** Indicador no estilo dos recordes: ícone, rótulo, valor grande e nota no rodapé. */
 function indicador(rotulo, valor, nota, nomeIcone = 'atividades') {
@@ -90,7 +92,7 @@ function cabecalhoEditavel(a, id) {
     botao.addEventListener('click', editar);
     raiz.replaceChildren(
       h('div', { class: 'ativ-titulo-linha' }, h('h1', null, a.titulo || nomePadrao(a)), botao),
-      a.titulo ? h('p', { class: 'texto-secundario ativ-titulo-padrao' }, nomePadrao(a)) : null,
+      ...(a.titulo ? [h('p', { class: 'texto-secundario ativ-titulo-padrao' }, nomePadrao(a))] : []),
     );
   }
 
@@ -209,10 +211,8 @@ function montarBlocoDoMapa(a, detalhe, mapa, inicial, aoEscolher) {
 
 /** Melhor 5 km e 10 km: só para atividades que chegam à distância. `calculando` mostra o aviso enquanto o servidor relê o arquivo. */
 function indicadoresDeEsforco(a, calculando) {
-  return [
-    ['Melhor 5 km', 5000, a.melhor5kS],
-    ['Melhor 10 km', 10000, a.melhor10kS],
-  ]
+  return esforcosDoEsporte(a.esporte)
+    .map((e) => [`Melhor ${e.rotulo}`, e.metros, a[e.campo]])
     .filter(([, metros]) => a.distanciaM >= metros)
     .map(([rotulo, metros, tempo]) => {
       if (Number.isFinite(tempo) && tempo > 0) return indicador(rotulo, tempoDeEsforco(tempo), ritmoTexto(a.esporte, tempo, metros), 'duracao');
@@ -292,10 +292,11 @@ export function render(raiz, sessao, { id }) {
         );
         return;
       }
-      const faltaEsforcos = a.origem === 'arquivo' && a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS && a.distanciaM >= 5000;
+      const faltaEsforcos = a.origem === 'arquivo' && a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS && a.distanciaM >= 1000;
       const faltaDetalhe = a.origem === 'arquivo' && !!a.arquivoPath && a.detalheEm !== VERSAO_DO_DETALHE;
+      const faltaZonas = zonasPendentes(a);
       desenhar(a, serie, detalhe, { calculando: faltaEsforcos, carregandoDetalhe: faltaDetalhe });
-      if (faltaEsforcos || faltaDetalhe) {
+      if (faltaEsforcos || faltaDetalhe || faltaZonas) {
         // atividade importada antes desses recursos: o servidor relê o arquivo e a tela é redesenhada com os dados novos
         try {
           await calcularMelhoresEsforcos({ atividadeId: id });
@@ -328,7 +329,7 @@ export function render(raiz, sessao, { id }) {
 
     const excluir = h('button', { class: 'btn btn-perigo', type: 'button' }, 'Excluir atividade');
     excluir.addEventListener('click', async () => {
-      if (!confirm('Excluir esta atividade? O arquivo original também será apagado. Isso não pode ser desfeito.')) return;
+      if (!(await confirmar({ titulo: 'Excluir esta atividade?', mensagem: 'O arquivo original também será apagado. Isso não pode ser desfeito.', confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
       excluir.disabled = true;
       mensagem.limpar();
       try {
@@ -423,6 +424,8 @@ export function render(raiz, sessao, { id }) {
     );
     let indicadores = montarIndicadores();
 
+    // medalhas de recorde: calculadas sobre todas as atividades, então chegam depois do resto da tela
+    const medalhasEl = h('div', { class: 'ativ-medalhas', hidden: true, 'aria-label': 'Recordes pessoais desta atividade' });
     raiz.replaceChildren(
       h(
         'section',
@@ -436,6 +439,7 @@ export function render(raiz, sessao, { id }) {
         ),
         ...(a.alertas ?? []).map((alerta) => h('p', { class: 'mensagem' }, TEXTO_ALERTA[alerta] ?? alerta)),
         aviso,
+        medalhasEl,
         indicadores,
         blocoMapa,
         carregandoDetalhe && !grafico ? h('p', { class: 'texto-secundario', role: 'status' }, 'Gerando o gráfico e o mapa a partir do arquivo da atividade…') : null,
@@ -445,6 +449,24 @@ export function render(raiz, sessao, { id }) {
         h('div', { class: 'linha-botoes' }, a.arquivoPath ? baixar : null, excluir),
       ),
     );
+
+    medalhasDaAtividade(sessao.uid, id, hojeIso())
+      .then((lista) => {
+        if (!ativa || lista.length === 0) return;
+        medalhasEl.hidden = false;
+        medalhasEl.replaceChildren(
+          ...lista.map((m) =>
+            h(
+              'span',
+              { class: `ativ-medalha ativ-medalha-${m.tipo === 'recente' ? 'recente' : m.medalha}` },
+              icone('medalha', 16),
+              h('strong', null, m.rotulo),
+              h('small', null, m.tipo === 'recente' ? textoDaJanela(m.dias) : MEDALHAS[m.medalha].rotulo),
+            ),
+          ),
+        );
+      })
+      .catch(() => {});
   }
 
   carregar();

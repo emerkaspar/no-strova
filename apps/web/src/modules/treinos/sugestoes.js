@@ -8,6 +8,7 @@ import { rotuloDoDia } from '../inicio/graficoPrincipal.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { textoResumo } from './cartaoTreino.js';
 import { estadoTreinos } from './state.js';
+import { confirmar } from '../../utils/modal.js';
 
 const chave = (s) => `${s.data}|${s.modelo.id}`;
 
@@ -74,8 +75,8 @@ export function criarAbaSugestoes({ uid, hoje, esporte, nivel, treinos, configs,
   });
 
   const botaoAdicionar = h('button', { class: 'btn', type: 'button', disabled: marcadas.length === 0 }, marcadas.length > 0 ? `Adicionar ${marcadas.length} ao plano` : 'Adicionar ao plano');
-  botaoAdicionar.addEventListener('click', () => {
-    if (!confirm(`Adicionar ${marcadas.length} treino${marcadas.length === 1 ? '' : 's'} ao plano?`)) return;
+  botaoAdicionar.addEventListener('click', async () => {
+    if (!(await confirmar({ titulo: 'Adicionar ao plano?', mensagem: `${marcadas.length} treino${marcadas.length === 1 ? '' : 's'} ${marcadas.length === 1 ? 'entra' : 'entram'} no seu plano.`, confirmarTexto: 'Adicionar', tipo: 'info', icone: 'plano' }))) return;
     executarComBotao(botaoAdicionar, mensagem, async () => {
       await adicionarVariosAoPlano({ uid, itens: marcadas.map((s) => ({ modelo: s.modelo, data: s.data })), configs });
       estadoTreinos.recusados = [];

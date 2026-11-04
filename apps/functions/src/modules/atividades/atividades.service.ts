@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  atividadePrecisaCompletar,
   type ConfigAtleta,
   configVigenteEm,
   diaNoFuso,
@@ -9,8 +10,10 @@ import {
   reduzirSerieDetalhe,
   reduzirSerieFc,
   resumirAmostras,
+  tempoNasZonasDaAtividade,
   validarAtividadeManual,
   validarConfigAtleta,
+  VERSAO_DAS_ZONAS,
   VERSAO_DO_DETALHE,
   VERSAO_DOS_ESFORCOS,
   ZONAS,
@@ -216,6 +219,7 @@ export async function processarArquivo(
     caloriasInformadas: null,
   });
 
+  const detalhe = reduzirSerieDetalhe(lido.amostras);
   const lote = db.batch();
   lote.create(ref, {
     userId: uid,
@@ -227,6 +231,10 @@ export async function processarArquivo(
     ...melhoresEsforcos(lido.amostras),
     melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
     detalheEm: VERSAO_DO_DETALHE,
+    // tempo em cada zona de FC, pela configuração usada no HRSS (recalculado quando ela muda; ver calcularMelhoresEsforcosDoUsuario)
+    tempoZonasS: tempoNasZonasDaAtividade(detalhe, config),
+    zonasEm: VERSAO_DAS_ZONAS,
+    zonasConfigId: estresse.configIdUsada ?? null,
     zona,
     ...calorias,
     ...estresse,
@@ -240,7 +248,6 @@ export async function processarArquivo(
   if (serie.fc.length > 0) {
     lote.set(ref.collection("series").doc("fc"), { passoS: 5, ...serie });
   }
-  const detalhe = reduzirSerieDetalhe(lido.amostras);
   if (detalhe) lote.set(ref.collection("series").doc("detalhe"), detalhe);
   await lote.commit();
 
@@ -425,9 +432,11 @@ export async function recalcularHistorico(
 }
 
 /**
- * Calcula o melhor 5 km e o melhor 10 km das atividades importadas antes desse recurso, relendo o arquivo original no
- * Storage. Processa até `limite` atividades por chamada (o app chama de novo até `restantes` chegar a zero). Um arquivo
- * que não pode ser lido é marcado como calculado (sem tempos) para não travar a fila.
+ * Completa o que se deriva do arquivo das atividades importadas: os melhores esforços (1, 5, 10, 20, 21 e 40 km), a série
+ * detalhada e o tempo em cada zona de FC. Relê o arquivo original no Storage quando faltam esforços ou série; se só faltam as
+ * zonas (por exemplo, depois de recalcular o histórico com outro LTHR), usa a série já guardada, sem reler o arquivo.
+ * Processa até `limite` atividades por chamada (o app chama de novo até `restantes` chegar a zero). Um arquivo que não pode
+ * ser lido é marcado como calculado (sem tempos) para não travar a fila.
  */
 export async function calcularMelhoresEsforcosDoUsuario(
   uid: string,
@@ -437,29 +446,47 @@ export async function calcularMelhoresEsforcosDoUsuario(
   const snap = await db.collection("atividades").where("userId", "==", uid).limit(5000).get();
   const pendentes = snap.docs.filter((d) => {
     const a = d.data();
-    const temArquivo = a.origem === "arquivo" && typeof a.arquivoPath === "string" && a.arquivoPath.startsWith(`atividades/${uid}/`);
-    return temArquivo && (a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS || a.detalheEm !== VERSAO_DO_DETALHE);
+    const temArquivo = typeof a.arquivoPath === "string" && a.arquivoPath.startsWith(`atividades/${uid}/`);
+    return temArquivo && atividadePrecisaCompletar(a, { versaoDosEsforcos: VERSAO_DOS_ESFORCOS, versaoDoDetalhe: VERSAO_DO_DETALHE });
   });
+  const configs = await carregarConfigs(uid);
   // a atividade que o usuário está vendo vai primeiro
   pendentes.sort((x, y) => Number(y.id === prioritaria) - Number(x.id === prioritaria));
   let processadas = 0;
   for (const doc of pendentes.slice(0, limite)) {
     const a = doc.data();
-    let tempos: { melhor5kS: number | null; melhor10kS: number | null } | null = null;
+    const precisaDoArquivo = a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS || a.detalheEm !== VERSAO_DO_DETALHE;
+    let tempos: ReturnType<typeof melhoresEsforcos> | null = null;
     let detalhe: ReturnType<typeof reduzirSerieDetalhe> = null;
-    try {
-      const [conteudo] = await getStorage().bucket().file(a.arquivoPath as string).download();
-      const lido = await lerArquivo(conteudo, a.extensao as Extensao);
-      tempos = melhoresEsforcos(lido.amostras);
-      detalhe = reduzirSerieDetalhe(lido.amostras);
-    } catch (err) {
-      logger.warn("Não foi possível reler o arquivo de uma atividade", { atividadeId: doc.id, erro: String(err) });
+    if (precisaDoArquivo) {
+      try {
+        const [conteudo] = await getStorage().bucket().file(a.arquivoPath as string).download();
+        const lido = await lerArquivo(conteudo, a.extensao as Extensao);
+        tempos = melhoresEsforcos(lido.amostras);
+        detalhe = reduzirSerieDetalhe(lido.amostras);
+      } catch (err) {
+        logger.warn("Não foi possível reler o arquivo de uma atividade", { atividadeId: doc.id, erro: String(err) });
+      }
+    } else {
+      // só faltam as zonas: a série detalhada já está guardada
+      const guardada = await doc.ref.collection("series").doc("detalhe").get();
+      detalhe = guardada.exists ? (guardada.data() as ReturnType<typeof reduzirSerieDetalhe>) : null;
     }
+    // zonas pela configuração que gerou o HRSS da atividade (a mesma do detalhe); sem ela, sem zonas
+    const configDoHrss = typeof a.configIdUsada === "string" ? (configs.find((c) => c.id === a.configIdUsada) ?? null) : null;
     const lote = db.batch();
-    if (detalhe) lote.set(doc.ref.collection("series").doc("detalhe"), detalhe);
+    if (detalhe && precisaDoArquivo) lote.set(doc.ref.collection("series").doc("detalhe"), detalhe);
     // arquivo ilegível: marca como calculado, sem apagar tempos que já existiam
-    const novosTempos = tempos ?? (a.melhoresEsforcosEm === VERSAO_DOS_ESFORCOS ? {} : { melhor5kS: null, melhor10kS: null });
-    lote.update(doc.ref, { ...novosTempos, melhoresEsforcosEm: VERSAO_DOS_ESFORCOS, detalheEm: VERSAO_DO_DETALHE });
+    const semTempos = { melhor1kS: null, melhor5kS: null, melhor10kS: null, melhor20kS: null, melhor21kS: null, melhor40kS: null };
+    const novosTempos = tempos ?? (a.melhoresEsforcosEm === VERSAO_DOS_ESFORCOS ? {} : semTempos);
+    lote.update(doc.ref, {
+      ...novosTempos,
+      melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
+      detalheEm: VERSAO_DO_DETALHE,
+      tempoZonasS: tempoNasZonasDaAtividade(detalhe, configDoHrss),
+      zonasEm: VERSAO_DAS_ZONAS,
+      zonasConfigId: a.configIdUsada ?? null,
+    });
     await lote.commit();
     processadas += 1;
   }

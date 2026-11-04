@@ -120,7 +120,7 @@ service cloud.firestore {
         && m.userId == request.auth.uid
         && m.nome is string && m.nome.size() >= 3 && m.nome.size() <= 60
         && m.esporte in ['ciclismo', 'corrida']
-        && m.foco in ['vo2max', 'limiar', 'tempo', 'overunder', 'piramide', 'fartlek', 'sprint', 'progressivo', 'subidas']
+        && m.foco in ['vo2max', 'limiar', 'tempo', 'overunder', 'piramide', 'fartlek', 'sprint', 'progressivo', 'subidas', 'recuperacao', 'resistencia', 'teste']
         && m.nivel in ['iniciante', 'intermediario', 'avancado']
         && (!('descricao' in m) || (m.descricao is string && m.descricao.size() <= 500))
         && m.passos is list && m.passos.size() >= 1 && m.passos.size() <= 30
@@ -172,6 +172,31 @@ service cloud.firestore {
       allow read, delete: if acessoLiberado() && donoDoRegistro();
       allow create: if acessoLiberado() && metaCondicionamentoValida();
       allow update: if acessoLiberado() && donoDoRegistro() && metaCondicionamentoValida();
+    }
+
+    // Prova (evento-alvo) com prioridade A/B/C: guia o plano anual. Nenhuma decisão do servidor depende destes campos.
+    // Os opcionais (distância, meta de tempo, local e Forma-alvo) podem ser nulos.
+    function provaValida() {
+      let p = request.resource.data;
+      return p.keys().hasOnly(['userId', 'nome', 'data', 'esporte', 'prioridade', 'distanciaKm', 'metaTempoS', 'local', 'formaAlvo', 'criadoEm'])
+        && p.keys().hasAll(['userId', 'nome', 'data', 'esporte', 'prioridade'])
+        && p.userId == request.auth.uid
+        && p.nome is string && p.nome.size() >= 3 && p.nome.size() <= 60
+        && p.data is string
+        && p.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && p.esporte in ['ciclismo', 'corrida', 'outro']
+        && p.prioridade in ['A', 'B', 'C']
+        && (!('distanciaKm' in p) || p.distanciaKm == null || (p.distanciaKm is number && p.distanciaKm >= 0.1 && p.distanciaKm <= 1000))
+        && (!('metaTempoS' in p) || p.metaTempoS == null || (p.metaTempoS is number && p.metaTempoS >= 60 && p.metaTempoS <= 172800))
+        && (!('local' in p) || p.local == null || (p.local is string && p.local.size() <= 80))
+        && (!('formaAlvo' in p) || p.formaAlvo == null || (p.formaAlvo is number && p.formaAlvo >= -60 && p.formaAlvo <= 60))
+        && (!('criadoEm' in p) || p.criadoEm is timestamp);
+    }
+
+    match /provas/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && provaValida();
+      allow update: if acessoLiberado() && donoDoRegistro() && provaValida();
     }
 
     // Pesagem: uma por dia (o app grava com id uid_yyyymmdd, então regravar substitui). Peso de 20 a 400 kg.

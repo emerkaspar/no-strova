@@ -4,6 +4,7 @@ import { excluirMetaCondicionamento } from '../../infrastructure/planoRepo.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
+import { confirmar } from '../../utils/modal.js';
 
 const ROTULO_ESTADO = Object.freeze({ atinge: 'Chega lá', abaixo: 'Fica abaixo', acima: 'Fica acima' });
 
@@ -76,7 +77,7 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
               class: 'btn btn-secundario',
               type: 'button',
               onClick: async () => {
-                if (!confirm('Remover a meta de Condicionamento?')) return;
+                if (!(await confirmar({ titulo: 'Remover a meta de Condicionamento?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
                 try {
                   await excluirMetaCondicionamento(metaAtiva.id);
                 } catch {

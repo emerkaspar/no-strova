@@ -1,0 +1,177 @@
+import { diasEntre, formatarTempoDaProva, PRIORIDADES_PROVA, provasFuturas } from '@no-strova/domain';
+import { salvarProva } from '../../application/provas.js';
+import { excluirProva } from '../../infrastructure/provasRepo.js';
+import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
+import { h } from '../../utils/dom.js';
+import { formatarData, formatarForma, formatarNumero } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
+import { confirmar } from '../../utils/modal.js';
+
+const ESPORTES = Object.freeze({ ciclismo: 'Ciclismo', corrida: 'Corrida', outro: 'Outro' });
+
+/** "faltam 12 dias", "é amanhã", "é hoje". */
+export function textoDeProximidade(diasAte) {
+  if (diasAte <= 0) return 'é hoje';
+  if (diasAte === 1) return 'é amanhã';
+  if (diasAte < 14) return `faltam ${diasAte} dias`;
+  const semanas = Math.round(diasAte / 7);
+  return `faltam ${semanas} semanas`;
+}
+
+/**
+ * Cartão "Provas": lista as próximas provas (A/B/C) e tem o formulário para criar e editar. É criado uma vez por tela e
+ * redesenhado por `atualizar`, para o formulário não perder o que o usuário digitou quando chegam dados novos.
+ * @param {{ uid: string, hoje: string }} p
+ */
+export function criarCartaoProvas({ uid, hoje }) {
+  let provas = [];
+  let editando = null;
+
+  const nome = campo({ id: 'prova-nome', rotulo: 'Nome da prova', maxlength: '60', autocomplete: 'off', placeholder: 'ex.: Meia Maratona de Porto Alegre' });
+  const data = campo({ id: 'prova-data', rotulo: 'Data', tipo: 'date', min: hoje });
+  const esporte = selecao({ id: 'prova-esporte', rotulo: 'Esporte', valor: 'corrida', opcoes: Object.entries(ESPORTES).map(([valor, rotulo]) => ({ valor, rotulo })) });
+  const prioridade = selecao({
+    id: 'prova-prioridade',
+    rotulo: 'Prioridade',
+    valor: 'A',
+    opcoes: Object.entries(PRIORIDADES_PROVA).map(([valor, p]) => ({ valor, rotulo: p.rotulo })),
+    dica: 'A é o objetivo da temporada: o plano anual chega descansado nela.',
+  });
+  const distancia = campo({ id: 'prova-distancia', rotulo: 'Distância (km, opcional)', inputmode: 'decimal', autocomplete: 'off' });
+  const metaTempo = campo({ id: 'prova-tempo', rotulo: 'Meta de tempo (opcional)', autocomplete: 'off', placeholder: '1:45:00', dica: 'h:mm:ss ou mm:ss' });
+  const local = campo({ id: 'prova-local', rotulo: 'Local (opcional)', maxlength: '80', autocomplete: 'off' });
+  const formaAlvo = campo({ id: 'prova-forma', rotulo: 'Forma-alvo (opcional)', inputmode: 'decimal', autocomplete: 'off', dica: 'Ex.: +10 para chegar descansado. Guia o polimento do plano anual.' });
+  const mensagem = areaMensagem();
+  const botao = h('button', { class: 'btn', type: 'submit' }, 'Salvar prova');
+  const cancelar = h('button', { class: 'btn btn-secundario', type: 'button', hidden: true, onClick: () => iniciarEdicao(null) }, 'Cancelar edição');
+  const titulo = h('h3', { class: 'prova-form-titulo' }, 'Nova prova');
+  const lista = h('div');
+
+  function iniciarEdicao(prova) {
+    editando = prova;
+    mensagem.limpar();
+    titulo.textContent = prova ? 'Editar prova' : 'Nova prova';
+    botao.textContent = prova ? 'Salvar alterações' : 'Salvar prova';
+    cancelar.hidden = !prova;
+    nome.input.value = prova?.nome ?? '';
+    data.input.value = prova?.data ?? '';
+    esporte.select.value = prova?.esporte ?? 'corrida';
+    prioridade.select.value = prova?.prioridade ?? 'A';
+    distancia.input.value = prova?.distanciaKm ? String(prova.distanciaKm).replace('.', ',') : '';
+    metaTempo.input.value = prova?.metaTempoS ? formatarTempoDaProva(prova.metaTempoS) : '';
+    local.input.value = prova?.local ?? '';
+    formaAlvo.input.value = Number.isFinite(prova?.formaAlvo) ? String(prova.formaAlvo).replace('.', ',') : '';
+    if (prova) nome.input.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }
+
+  const form = h(
+    'form',
+    {
+      class: 'prova-form',
+      novalidate: true,
+      onSubmit: (e) => {
+        e.preventDefault();
+        executarComBotao(botao, mensagem, async () => {
+          await salvarProva({
+            uid,
+            id: editando?.id,
+            hoje,
+            entrada: {
+              nome: nome.input.value,
+              data: data.input.value,
+              esporte: esporte.select.value,
+              prioridade: prioridade.select.value,
+              distanciaKm: distancia.input.value,
+              metaTempo: metaTempo.input.value,
+              local: local.input.value,
+              formaAlvo: formaAlvo.input.value,
+            },
+          });
+          iniciarEdicao(null);
+          mensagem.mostrar('Prova salva.', 'ok');
+        });
+      },
+    },
+    titulo,
+    h('div', { class: 'grid' }, nome.raiz, data.raiz, esporte.raiz, prioridade.raiz, distancia.raiz, metaTempo.raiz, local.raiz, formaAlvo.raiz),
+    mensagem.el,
+    h('div', { class: 'linha-botoes' }, botao, cancelar),
+  );
+
+  function desenharLista() {
+    const futuras = provasFuturas(provas, hoje);
+    if (futuras.length === 0) {
+      lista.replaceChildren(h('p', { class: 'texto-secundario' }, 'Nenhuma prova cadastrada. Cadastre a prova-alvo da temporada (prioridade A) para gerar o plano anual.'));
+      return;
+    }
+    lista.replaceChildren(
+      h(
+        'ul',
+        { class: 'provas-lista' },
+        ...futuras.map((p) => {
+          const detalhes = [
+            ESPORTES[p.esporte],
+            p.distanciaKm ? `${formatarNumero(p.distanciaKm, p.distanciaKm % 1 === 0 ? 0 : 1)} km` : null,
+            p.metaTempoS ? `meta ${formatarTempoDaProva(p.metaTempoS)}` : null,
+            p.local,
+            Number.isFinite(p.formaAlvo) ? `Forma-alvo ${formatarForma(p.formaAlvo, 1)}` : null,
+          ].filter(Boolean);
+          return h(
+            'li',
+            { class: 'prova-item' },
+            h('span', { class: `prova-prioridade prova-${p.prioridade}`, title: PRIORIDADES_PROVA[p.prioridade]?.rotulo, 'aria-label': `Prioridade ${p.prioridade}` }, p.prioridade),
+            h(
+              'div',
+              { class: 'prova-dados' },
+              h('strong', null, icone(p.esporte === 'corrida' ? 'corrida' : 'ciclismo', 16), ' ', p.nome),
+              h('span', { class: 'texto-secundario' }, `${formatarData(p.data)} · ${textoDeProximidade(diasEntre(hoje, p.data))}`),
+              h('span', { class: 'texto-secundario' }, detalhes.join(' · ')),
+            ),
+            h(
+              'div',
+              { class: 'linha-botoes' },
+              h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => iniciarEdicao(p) }, 'Editar'),
+              h(
+                'button',
+                {
+                  class: 'btn btn-secundario',
+                  type: 'button',
+                  onClick: async () => {
+                    if (!(await confirmar({ titulo: 'Excluir esta prova?', mensagem: `“${p.nome}” será apagada do seu calendário de provas.`, confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
+                    try {
+                      await excluirProva(p.id);
+                      if (editando?.id === p.id) iniciarEdicao(null);
+                    } catch {
+                      mensagem.mostrar('Não foi possível excluir a prova.');
+                    }
+                  },
+                },
+                'Excluir',
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  desenharLista();
+  const el = h(
+    'section',
+    { class: 'card', id: 'provas' },
+    h('h2', null, 'Provas'),
+    h('p', { class: 'texto-secundario' }, 'Cadastre as suas provas com prioridade A (principal), B (importante) ou C (treino). O plano anual usa a prova A mais próxima.'),
+    lista,
+    form,
+  );
+
+  return {
+    el,
+    atualizar(novas) {
+      provas = novas;
+      // a prova em edição pode ter sido apagada em outro lugar
+      if (editando && !provas.some((p) => p.id === editando.id)) iniciarEdicao(null);
+      desenharLista();
+    },
+  };
+}

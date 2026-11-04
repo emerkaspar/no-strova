@@ -1,11 +1,14 @@
 import { modelosDoCatalogo, modeloPorId } from './catalogoTreinos.js';
 import { somarDias } from './forma.js';
+import { diaDaSemana } from './semana.js';
 import { FOCOS } from './treinosEstruturados.js';
 
 /**
  * Motor de sugestão de treinos intervalados, por regras (sem IA): escolhe modelos do nível e do esporte do atleta,
  * gira o foco, evita repetir o mesmo treino e respeita a carga (no máximo 2 treinos intensos por semana, 48 h entre
- * eles, e menos intensidade quando a Forma está baixa). Funções puras, sem Firebase e sem DOM.
+ * eles, e menos intensidade quando a Forma está baixa). Além dos treinos de qualidade, a semana ganha **dias leves**: um de
+ * recuperação (no dia seguinte a um treino forte) e um de resistência (longe dos dias fortes, de preferência no fim de semana).
+ * Funções puras, sem Firebase e sem DOM.
  */
 export const REGRAS_SUGESTAO = Object.freeze({
   /** Dias à frente (a partir de amanhã) que a sugestão cobre. */
@@ -19,6 +22,9 @@ export const REGRAS_SUGESTAO = Object.freeze({
   /** Não repete o mesmo modelo dentro deste período. */
   diasSemRepetirModelo: 42,
   maximoModerados: 1,
+  /** Dias leves por semana: um de resistência (zona 2) e um de recuperação (zona 1). */
+  maximoResistencia: 1,
+  maximoRecuperacao: 1,
 });
 
 const ehZonaIntensa = (zona) => zona === 'Z4' || zona === 'Z5';
@@ -40,7 +46,7 @@ function intensidadeDoTreino(treino, proprios) {
  * @typedef {object} Sugestao
  * @property {string} data yyyy-mm-dd
  * @property {any} modelo
- * @property {'alta'|'moderada'} intensidade
+ * @property {'alta'|'moderada'|'baixa'} intensidade
  * @property {string} motivo
  */
 
@@ -134,7 +140,8 @@ export function sugerirTreinos({ hoje, esporte, nivel, treinos = [], forma = nul
       }
     }
     // 2) moderado, longe (1 dia) de um intenso, para não empilhar carga
-    if (moderados < R.maximoModerados && longe(dia, intensosColocados, 1)) {
+    // em sobrecarga (Forma abaixo de -30) nem o moderado entra: só recuperação
+    if (moderados < R.maximoModerados && !(forma !== null && forma < R.formaSobrecarga) && longe(dia, intensosColocados, 1)) {
       const modelo = escolher('moderada');
       if (modelo) {
         focosEscolhidos.add(modelo.foco);
@@ -143,6 +150,40 @@ export function sugerirTreinos({ hoje, esporte, nivel, treinos = [], forma = nul
       }
     }
   }
+  // ---- dias leves: recuperação depois de um treino forte e resistência longe deles ----
+  const sorteioDe = (lista, rotulo) => [...lista].sort((a, b) => hashDe(`${semente}:${rotulo}:${a.id}`) - hashDe(`${semente}:${rotulo}:${b.id}`))[0] ?? null;
+  // dia leve pode repetir treino (há poucos por nível): prefere os não usados, mas aceita os usados
+  const modelosDe = (foco) => {
+    const doFoco = todos.filter((m) => m.foco === foco && !excluir.includes(m.id));
+    const novos = doFoco.filter((m) => !usadosRecentes.has(m.id));
+    return novos.length > 0 ? novos : doFoco;
+  };
+  const sobrecarga = forma !== null && forma < R.formaSobrecarga;
+  let diasLivres = livres.filter((d) => !sugestoes.some((s) => s.data === d));
+
+  if (R.maximoRecuperacao > 0) {
+    // no dia seguinte a um treino forte (já no plano ou sugerido); em sobrecarga, no primeiro dia livre
+    const dia = diasLivres.find((d) => intensosColocados.some((i) => diasEntre(i, d) === 1)) ?? (sobrecarga ? diasLivres[0] : undefined);
+    const modelo = dia ? sorteioDe(modelosDe('recuperacao'), 'recuperacao') : null;
+    if (modelo) {
+      sugestoes.push({
+        data: dia, modelo, intensidade: 'baixa',
+        motivo: sobrecarga ? 'A sua Forma está na sobrecarga: um giro leve em zona 1 ajuda a recuperar.' : 'Giro leve em zona 1 no dia seguinte a um treino forte, para recuperar.',
+      });
+      diasLivres = diasLivres.filter((d) => d !== dia);
+    }
+  }
+
+  if (R.maximoResistencia > 0 && !sobrecarga) {
+    // longe dos dias fortes (2 dias de distância), de preferência no fim de semana e mais para o fim da janela
+    const aceitaveis = diasLivres.filter((d) => longe(d, intensosColocados, 2));
+    const pontos = (d) => (diaDaSemana(d) >= 5 ? 100 : 0) + diasEntre(hoje, d);
+    const dia = [...aceitaveis].sort((a, b) => pontos(b) - pontos(a))[0];
+    const modelo = dia ? sorteioDe(modelosDe('resistencia'), 'resistencia') : null;
+    if (modelo) sugestoes.push({ data: dia, modelo, intensidade: 'baixa', motivo: 'Resistência em zona 2 para construir a base, longe dos dias fortes.' });
+  }
+
+  sugestoes.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0));
   return { sugestoes, avisos };
 }
 

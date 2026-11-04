@@ -2,6 +2,7 @@ import { garminConectar, garminDesconectar, garminSincronizar, garminSituacao } 
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
+import { confirmar } from '../../utils/modal.js';
 
 const VALIDADES = [
   { valor: '30', rotulo: '30 dias' },
@@ -166,8 +167,8 @@ export function criarCartaoGarmin() {
       );
     });
     const desconectar = h('button', { class: 'btn btn-perigo', type: 'button' }, 'Desconectar');
-    desconectar.addEventListener('click', () => {
-      if (!confirm('Desconectar o Garmin? A chave guardada será apagada. As atividades já importadas continuam no app.')) return;
+    desconectar.addEventListener('click', async () => {
+      if (!(await confirmar({ titulo: 'Desconectar o Garmin?', mensagem: 'A chave guardada será apagada. As atividades já importadas continuam no app.', confirmarTexto: 'Desconectar', tipo: 'aviso', icone: 'garmin' }))) return;
       executarComBotao(desconectar, mensagem, async () => {
         await garminDesconectar();
         mensagem.limpar();

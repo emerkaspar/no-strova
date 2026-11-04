@@ -7,6 +7,7 @@ import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
+import { confirmar } from '../../utils/modal.js';
 
 const ZONAS_EM_ORDEM = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 
@@ -143,7 +144,7 @@ export function criarCartaoTesteLthr({ uid }) {
         if (!r.valido) throw new Error(r.erros.join(' '));
         const existente = configs.find((c) => c.vigenteDesde === r.valores.vigenteDesde);
         const texto = `Criar a vigência de ${formatarData(r.valores.vigenteDesde)} com LTHR ${r.valores.lthr} bpm${r.valores.fcMax !== base.fcMax ? ` e FC máxima ${r.valores.fcMax} bpm` : ''}?${existente ? ' Já existe uma configuração com essa data; ela será substituída.' : ''}`;
-        if (!confirm(texto)) return;
+        if (!(await confirmar({ titulo: 'Criar nova vigência?', mensagem: texto, confirmarTexto: 'Criar vigência', tipo: 'info', icone: 'configuracao' }))) return;
         await salvarConfig(uid, r.valores);
         mensagem.mostrar(`Vigência de ${formatarData(r.valores.vigenteDesde)} criada com LTHR ${r.valores.lthr} bpm. Use “Recalcular histórico” para aplicar às atividades já importadas.`, 'ok');
       }),

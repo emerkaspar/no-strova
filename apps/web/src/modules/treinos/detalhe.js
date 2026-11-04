@@ -5,6 +5,10 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
 import { baixarArquivo, perfilDoTreino } from '../../utils/perfilTreino.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
+import { confirmar } from '../../utils/modal.js';
+
+/** Descrições padrão dos passos: não repetem na lista (o rótulo do passo já diz). */
+const DESCRICOES_PADRAO = ['Aquecimento progressivo', 'Volta à calma', 'Recuperação', 'Começando bem leve', 'Subindo para a zona 2', 'Solta e respira'];
 
 /**
  * Detalhe de um treino: perfil, passos (com a faixa de FC de cada zona), resumo, "Adicionar ao plano" numa data e
@@ -37,8 +41,9 @@ export function criarDetalheTreino({ uid, modelo, configs, hoje, aoFechar, aoEdi
       const rotulo = p.papel === 'aquecimento' ? 'Aquecimento' : p.papel === 'desaquecimento' ? 'Volta à calma' : p.papel === 'recuperacao' ? 'Recuperação' : 'Principal';
       linhas.push({
         rotulo,
-        texto: `${formatarSegundos(p.duracaoS)} em ${p.zona}${p.descricao && p.papel === 'principal' ? ` (${p.descricao})` : ''}`,
-        fc: [faixaDeFcDaZona(p.zona, config)],
+        // mostra a descrição dos passos que têm uma instrução (esforço principal, aberturas do aquecimento), sem repetir os rótulos padrão
+        texto: `${formatarSegundos(p.duracaoS)} em ${p.zona}${p.descricao && !DESCRICOES_PADRAO.includes(p.descricao) ? ` (${p.descricao})` : ''}${p.alvoAberto ? ' · sem alvo de FC' : ''}`,
+        fc: [p.alvoAberto ? null : faixaDeFcDaZona(p.zona, config)],
         zonas: [p.zona],
       });
     }
@@ -99,7 +104,7 @@ export function criarDetalheTreino({ uid, modelo, configs, hoje, aoFechar, aoEdi
             class: 'btn btn-perigo',
             type: 'button',
             onClick: async () => {
-              if (!confirm(`Excluir o treino "${modelo.nome}"? Os treinos já planejados com ele continuam no plano.`)) return;
+              if (!(await confirmar({ titulo: 'Excluir este treino?', mensagem: `“${modelo.nome}” será apagado. Os treinos já planejados com ele continuam no plano.`, confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
               try {
                 await aoExcluir(modelo);
               } catch {

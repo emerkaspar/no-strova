@@ -22,5 +22,5 @@ export {
   listarUsuarios,
 } from "./modules/auth/auth.functions";
 export { onAtividadeWrite, reconstruirEstresseDiario } from "./modules/estresse/estresse.functions";
-export { decidirRascunho, iaChamadasRestantes, sugerirTreinos } from "./modules/ia/ia.functions";
+export { decidirRascunho, iaChamadasRestantes, sugerirPlanoAnual, sugerirTreinos } from "./modules/ia/ia.functions";
 export { marcarConquistasComoVistas, onMetaProgressaoWrite } from "./modules/objetivos/objetivos.functions";

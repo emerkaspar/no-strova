@@ -1,7 +1,9 @@
-import { anosComAtividades, melhoresEsforcosDasAtividades, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, RECURSOS, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, temRecurso, velocidadeMediaMs } from '@no-strova/domain';
+import { anosComAtividades, atividadePrecisaCompletar, esforcosDoEsporte, medalhasDasAtividades, melhorMedalha, melhoresEsforcosDasAtividades, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, RECURSOS, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, temRecurso, velocidadeMediaMs } from '@no-strova/domain';
 import { montarSerie } from '../../application/forma.js';
 import { obterSessao } from '../../application/sessao.js';
-import { calcularMelhoresEsforcos, garminSituacao } from '../../core/functions.js';
+import { completarAtividades } from '../../application/completarAtividades.js';
+import { guardarAtividadesParaMedalhas } from '../../application/medalhas.js';
+import { garminSituacao } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
@@ -14,12 +16,13 @@ import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeI
 import { tempoDeEsforco, ritmoTexto } from './esforcos.js';
 import { painelImportar } from './importar.js';
 import { painelManual } from './manual.js';
+import { criarCartaoDeMedalhas } from './medalhaCartao.js';
 import { criarPrevia } from './previa.js';
 import { alternarOrdem, estadoAtividades, EVENTO_IMPORTAR } from './state.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE, ROTULO_ORIGEM_HRSS } from './textos.js';
 
 const COLUNAS = [
-  { campo: 'data', rotulo: 'Data' },
+  { campo: 'data', rotulo: 'Data / Nome' },
   { campo: 'esporte', rotulo: 'Esporte' },
   { campo: 'duracaoS', rotulo: 'Duração' },
   { campo: 'distanciaM', rotulo: 'Distância' },
@@ -59,10 +62,8 @@ const metros = (m) => (Number.isFinite(m) && m > 0 ? `${formatarNumero(m, 0)} m`
 
 /** Cards de recorde: rótulo, campo, ícone e como formatar o valor. */
 /** Cartões de melhor 5 km e 10 km de um esporte (um par por esporte mostrado). */
-const cartoesDeEsforco = (esporte) => [
-  { id: `melhor5k-${esporte}`, rotulo: `Melhor 5 km · ${ROTULO_ESPORTE[esporte] ?? esporte}`, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 5000, esporte },
-  { id: `melhor10k-${esporte}`, rotulo: `Melhor 10 km · ${ROTULO_ESPORTE[esporte] ?? esporte}`, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: 10000, esporte },
-];
+const cartoesDeEsforco = (esporte) =>
+  esforcosDoEsporte(esporte).map((e) => ({ id: `${e.id}-${esporte}`, rotulo: `Melhor ${e.rotulo} · ${ROTULO_ESPORTE[esporte] ?? esporte}`, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: e.metros, esporte }));
 
 /** O cálculo do histórico roda sozinho uma vez por abertura do app (o botão continua para tentar de novo). */
 let calculoAutomaticoIniciado = false;
@@ -104,6 +105,7 @@ function filtrarEOrdenar(atividades) {
 
 export function render(raiz, sessao) {
   let atividades = [];
+  let medalhas = new Map();
   let configs = null;
   let serieForma = [];
   const cancelar = [];
@@ -115,6 +117,8 @@ export function render(raiz, sessao) {
   const contagem = h('span', { class: 'texto-secundario' });
   const paginacao = h('nav', { class: 'ativ-paginacao', 'aria-label': 'Paginação das atividades' });
   const previa = criarPrevia({ textoVelocidade, iconeDoEsporte });
+  // a medalha abre o cartão de recordes no lugar da prévia do mapa
+  const medalhaCartao = criarCartaoDeMedalhas({ aoAbrir: () => previa.esconder() });
 
   const busca = h('input', {
     type: 'search',
@@ -219,17 +223,15 @@ export function render(raiz, sessao) {
   /** Botão que calcula o melhor 5 km e 10 km das atividades importadas antes desse recurso (o servidor relê os arquivos). */
   function botaoDeEsforcos(pendentes) {
     const estado = h('span', { class: 'texto-secundario ativ-esforcos-estado' });
-    const botao = h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button' }, `Calcular melhores 5 km e 10 km do histórico (${pendentes} atividade${pendentes === 1 ? '' : 's'})`);
+    const botao = h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button' }, `Calcular melhores esforços e zonas do histórico (${pendentes} atividade${pendentes === 1 ? '' : 's'})`);
     botao.addEventListener('click', async () => {
       botao.disabled = true;
       let feitas = 0;
       try {
-        for (;;) {
-          estado.textContent = ` Calculando… ${feitas} de ${pendentes}`;
-          const r = await calcularMelhoresEsforcos();
-          feitas += r.processadas;
-          if (r.restantes === 0 || r.processadas === 0) break;
-        }
+        estado.textContent = ` Calculando… ${feitas} de ${pendentes}`;
+        feitas = await completarAtividades((n) => {
+          estado.textContent = ` Calculando… ${n} de ${pendentes}`;
+        });
         estado.textContent = ' Pronto.';
       } catch (err) {
         estado.textContent = ` ${err.message || 'Não foi possível calcular agora.'}`;
@@ -247,7 +249,7 @@ export function render(raiz, sessao) {
     const todos = estadoAtividades.periodo === 'tudo';
     // Melhor 5 km e 10 km: tempos só se comparam dentro de um esporte; "Todos" mostra um par por esporte.
     const esportesEsforco = estadoAtividades.esporte ? [estadoAtividades.esporte] : ['corrida', 'ciclismo'];
-    const pendentes = atividades.filter((a) => a.origem === 'arquivo' && a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS).length;
+    const pendentes = atividades.filter((a) => atividadePrecisaCompletar(a, { versaoDosEsforcos: VERSAO_DOS_ESFORCOS, versaoDoDetalhe: VERSAO_DO_DETALHE })).length;
     // O Condicionamento não vem de uma atividade: é o pico da curva diária (vale para todos os esportes).
     // Recordes que não são de uma única atividade (semana, sequência e Condicionamento) entram sem link, com um texto de "quando".
     const calculados = (lista, intervalo) => {
@@ -260,7 +262,7 @@ export function render(raiz, sessao) {
         ...Object.fromEntries(
           esportesEsforco.flatMap((e) => {
             const m = melhoresEsforcosDasAtividades(lista.filter((a) => a.esporte === e));
-            return [[`melhor5k-${e}`, m.melhor5k], [`melhor10k-${e}`, m.melhor10k]];
+            return esforcosDoEsporte(e).map((x) => [`${x.id}-${e}`, m[x.id]]);
           }),
         ),
         semanaPesada: semana ? sem(`sem:${semana.inicio}`, semana.valor, `Semana de ${formatarData(semana.inicio).slice(0, 5)}`) : null,
@@ -376,13 +378,40 @@ export function render(raiz, sessao) {
     );
   }
 
+  /** Selo de medalha ao lado da data (a medalha mais alta da atividade). Ao passar o mouse, abre o cartão com os recordes. */
+  function medalhaDaLinha(a, lista, escopo) {
+    if (!escopo) return null;
+    const texto = `${lista.length} ${lista.length === 1 ? 'recorde pessoal' : 'recordes pessoais'}: ${lista.map((m) => m.rotulo).join(', ')}`;
+    const selo = h('span', { class: `medalha-selo medalha-selo-${escopo}`, tabindex: '0', role: 'button', 'aria-label': texto }, icone('medalha', 20));
+    medalhaCartao.ligar(selo, a, lista);
+    return selo;
+  }
+
   function linha(a) {
     const origem = ROTULO_ORIGEM_HRSS[a.hrssOrigem];
     const fonte = origemDaAtividade(a);
+    const medalhasDaAtividade = medalhas.get(a.id);
+    const escopoDaLinha = melhorMedalha(medalhasDaAtividade);
     const tr = h(
       'tr',
-      null,
-      h('td', null, h('a', { class: 'ativ-data', href: `#/atividades/${a.id}` }, formatarData(a.data)), a.titulo ? h('small', { class: 'ativ-titulo-lista', title: a.titulo }, a.titulo) : null),
+      // só o pódio colore a linha toda; a medalha recente é um selo menor, sem destaque na linha
+      escopoDaLinha && escopoDaLinha !== 'recente' ? { class: `ativ-linha-medalha ativ-linha-medalha-${escopoDaLinha}` } : null,
+      // data pequena em cima e o nome embaixo (o do usuário ou, sem ele, o esporte): duas linhas curtas, que não aumentam a altura da linha
+      h(
+        'td',
+        null,
+        h(
+          'div',
+          { class: 'ativ-celula-nome' },
+          h(
+            'a',
+            { class: 'ativ-data', href: `#/atividades/${a.id}`, title: a.titulo || undefined },
+            h('span', { class: 'ativ-data-dia' }, formatarData(a.data)),
+            h('span', { class: `ativ-nome${a.titulo ? '' : ' ativ-nome-padrao'}` }, a.titulo || (ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
+          ),
+          medalhaDaLinha(a, medalhasDaAtividade, escopoDaLinha),
+        ),
+      ),
       h('td', null, h('span', { class: 'ativ-esporte' }, h('span', { class: 'ativ-esporte-icone' }, iconeDoEsporte(a.esporte)), ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
       h('td', null, formatarDuracao(a.duracaoS)),
       h('td', null, formatarDistancia(a.distanciaM)),
@@ -450,6 +479,7 @@ export function render(raiz, sessao) {
     const lista = filtrarEOrdenar([...base]);
     contagem.textContent = `${lista.length} de ${base.length} atividade${base.length === 1 ? '' : 's'}`;
     previa.esconder();
+    medalhaCartao.esconder();
     if (lista.length === 0) {
       paginacao.replaceChildren();
       corpo.replaceChildren(
@@ -547,6 +577,8 @@ export function render(raiz, sessao) {
       sessao.uid,
       (lista) => {
         atividades = lista;
+        medalhas = medalhasDasAtividades(lista, hoje);
+        guardarAtividadesParaMedalhas(sessao.uid, lista);
         desenharTudo();
         atualizarAviso();
       },
@@ -580,5 +612,6 @@ export function render(raiz, sessao) {
     window.removeEventListener(EVENTO_IMPORTAR, abrirPainelDeImportacao);
     cancelar.forEach((fn) => fn());
     previa.destruir();
+    medalhaCartao.destruir();
   };
 }

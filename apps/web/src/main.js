@@ -11,7 +11,10 @@ import '@fontsource/inter/latin-600.css';
 import '@fontsource/inter/latin-700.css';
 import './styles/base.css';
 import './styles/layout.css';
+import './styles/modal.css';
 import './styles/onboarding.css';
+import './styles/plano-anual.css';
+import './styles/zonas-medalhas.css';
 import { aplicarTemaSalvo } from './utils/tema.js';
 
 aplicarTemaSalvo();

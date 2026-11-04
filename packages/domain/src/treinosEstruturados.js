@@ -3,8 +3,9 @@ import { arredondarHrss, estimarHrssPorZona, ZONAS } from './hrss.js';
 
 /**
  * Treinos estruturados (intervalados): uma lista de passos, cada um com duração e zona de FC.
- *   - bloco: { tipo: 'bloco', papel, duracaoS, zona, descricao? }
- *   - série: { tipo: 'serie', repeticoes, esforco: { duracaoS, zona, descricao? }, recuperacao: { duracaoS, zona, descricao? } }
+ *   - bloco: { tipo: 'bloco', papel, duracaoS, zona, descricao?, alvoAberto? }
+ *   - série: { tipo: 'serie', repeticoes, esforco: { duracaoS, zona, descricao?, alvoAberto? }, recuperacao: { duracaoS, zona, descricao?, alvoAberto? } }
+ *   - `alvoAberto`: o passo não tem alvo de FC no relógio (o teste de LTHR: o aparelho não deve cobrar uma faixa que o teste ainda vai descobrir)
  *     (a recuperação vem entre as repetições, não depois da última)
  * Funções puras, sem Firebase e sem DOM.
  */
@@ -22,6 +23,11 @@ export const FOCOS = Object.freeze({
   sprint: { rotulo: 'Sprints', intensidade: 'alta' },
   progressivo: { rotulo: 'Progressivo', intensidade: 'moderada' },
   subidas: { rotulo: 'Subidas', intensidade: 'alta' },
+  // dias leves: entram nas sugestões da semana (intensidade 'baixa')
+  recuperacao: { rotulo: 'Recuperação', intensidade: 'baixa' },
+  resistencia: { rotulo: 'Resistência', intensidade: 'baixa' },
+  // teste de LTHR: só na biblioteca (nunca é sugerido nem escolhido pela IA)
+  teste: { rotulo: 'Teste de LTHR', intensidade: 'teste' },
 });
 
 export const NIVEIS = Object.freeze({ iniciante: 'Iniciante', intermediario: 'Intermediário', avancado: 'Avançado' });
@@ -55,11 +61,11 @@ export function expandirPassos(passos) {
   for (const p of passos ?? []) {
     if (p.tipo === 'serie') {
       for (let i = 0; i < p.repeticoes; i++) {
-        blocos.push({ papel: 'principal', duracaoS: p.esforco.duracaoS, zona: p.esforco.zona, descricao: p.esforco.descricao ?? null });
-        if (i < p.repeticoes - 1) blocos.push({ papel: 'recuperacao', duracaoS: p.recuperacao.duracaoS, zona: p.recuperacao.zona, descricao: p.recuperacao.descricao ?? null });
+        blocos.push({ papel: 'principal', duracaoS: p.esforco.duracaoS, zona: p.esforco.zona, descricao: p.esforco.descricao ?? null, alvoAberto: p.esforco.alvoAberto === true });
+        if (i < p.repeticoes - 1) blocos.push({ papel: 'recuperacao', duracaoS: p.recuperacao.duracaoS, zona: p.recuperacao.zona, descricao: p.recuperacao.descricao ?? null, alvoAberto: p.recuperacao.alvoAberto === true });
       }
     } else {
-      blocos.push({ papel: p.papel, duracaoS: p.duracaoS, zona: p.zona, descricao: p.descricao ?? null });
+      blocos.push({ papel: p.papel, duracaoS: p.duracaoS, zona: p.zona, descricao: p.descricao ?? null, alvoAberto: p.alvoAberto === true });
     }
   }
   return blocos;
@@ -143,7 +149,7 @@ function validarEtapa(e, rotulo, erros) {
   if (duracaoS === null || duracaoS < L.min || duracaoS > L.max) erros.push(`${rotulo}: a duração deve ser de ${L.min} segundos a ${L.max / 3600} horas.`);
   if (!ZONAS_VALIDAS.includes(e?.zona)) erros.push(`${rotulo}: escolha a zona (Z1 a Z5).`);
   const descricao = typeof e?.descricao === 'string' ? e.descricao.trim().slice(0, 120) : null;
-  return duracaoS === null || !ZONAS_VALIDAS.includes(e?.zona) ? null : { duracaoS, zona: e.zona, ...(descricao ? { descricao } : {}) };
+  return duracaoS === null || !ZONAS_VALIDAS.includes(e?.zona) ? null : { duracaoS, zona: e.zona, ...(descricao ? { descricao } : {}), ...(e.alvoAberto === true ? { alvoAberto: true } : {}) };
 }
 
 /**

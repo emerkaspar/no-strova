@@ -17,6 +17,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
 import { perfilDoTreino } from '../../utils/perfilTreino.js';
 import { OPCOES_ESPORTE, OPCOES_ZONA } from '../atividades/textos.js';
+import { confirmar } from '../../utils/modal.js';
 
 /**
  * Formulário de treino planejado (novo ou existente). O treino pode ser livre (zona e duração) ou vir da biblioteca
@@ -228,8 +229,8 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
     }
 
     const excluir = h('button', { class: 'btn btn-perigo', type: 'button' }, 'Excluir');
-    excluir.addEventListener('click', () => {
-      if (!confirm('Excluir este treino do plano?')) return;
+    excluir.addEventListener('click', async () => {
+      if (!(await confirmar({ titulo: 'Excluir este treino?', mensagem: 'Ele sai do plano e da projeção.', confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
       acao(excluir, () => excluirTreino(treino.id), 'Treino excluído.');
     });
     botoes.append(excluir);

@@ -9,6 +9,7 @@ import {
 } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarNumero } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 
 /** Id do treino sendo arrastado (HTML5 drag and drop). */
@@ -42,6 +43,7 @@ function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
     botao.addEventListener('dragstart', (e) => {
       arrastandoId = t.id;
       botao.classList.add('arrastando');
+      document.body.classList.add('cal-arrastando'); // destaca a lixeira enquanto o treino é arrastado
       try {
         e.dataTransfer.setData('text/plain', t.id); // o Firefox só inicia o arrasto com dados
         e.dataTransfer.effectAllowed = 'move';
@@ -52,7 +54,8 @@ function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
     botao.addEventListener('dragend', () => {
       arrastandoId = null;
       botao.classList.remove('arrastando');
-      document.querySelectorAll('.cal-alvo').forEach((el) => el.classList.remove('cal-alvo'));
+      document.body.classList.remove('cal-arrastando');
+      document.querySelectorAll('.cal-alvo, .cal-lixeira-alvo').forEach((el) => el.classList.remove('cal-alvo', 'cal-lixeira-alvo'));
     });
   }
   return botao;
@@ -70,14 +73,48 @@ function chipAtividade(a) {
 }
 
 /**
- * Calendário do plano (semana ou mês). Treinos "planejados" podem ser arrastados para outro dia.
+ * Calendário do plano (semana ou mês). Treinos "planejados" podem ser arrastados para outro dia ou para a lixeira (que pede
+ * a confirmação da exclusão em `aoExcluir`).
  * @param {{
  *   visao: 'semana'|'mes', ancora: string, hoje: string, configs: any[],
  *   porDia: Map<string, { treinos: any[], atividades: any[] }>,
- *   aoEditar: (treino: any) => void, aoNovo: (data: string) => void, aoMover: (id: string, data: string) => void
+ *   aoEditar: (treino: any) => void, aoNovo: (data: string) => void, aoMover: (id: string, data: string) => void,
+ *   aoExcluir: (id: string) => void
  * }} p
  */
-export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = null, porDia, aoEditar, aoNovo, aoMover }) {
+export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = null, porDia, aoEditar, aoNovo, aoMover, aoExcluir }) {
+  /** Idêntico para semana e mês: o treino arrastado até aqui é excluído (depois de confirmar). */
+  function lixeira() {
+    const el = h(
+      'div',
+      { class: 'cal-lixeira', 'aria-label': 'Lixeira: arraste um treino planejado até aqui para excluir' },
+      icone('lixeira', 22),
+      h('span', null, 'Arraste um treino aqui para excluir'),
+    );
+    el.addEventListener('dragover', (e) => {
+      if (!arrastandoId) return;
+      e.preventDefault();
+      el.classList.add('cal-lixeira-alvo');
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('cal-lixeira-alvo'));
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      el.classList.remove('cal-lixeira-alvo');
+      let id = arrastandoId;
+      if (!id) {
+        try {
+          id = e.dataTransfer?.getData('text/plain');
+        } catch {
+          id = null;
+        }
+      }
+      arrastandoId = null;
+      document.body.classList.remove('cal-arrastando');
+      if (id) aoExcluir(id);
+    });
+    return el;
+  }
+
   function celula(data, indice, { doMes = true, compacta = false } = {}) {
     const dia = porDia.get(data) ?? { treinos: [], atividades: [] };
     const treinos = [...dia.treinos].sort((a, b) => String(a.id).localeCompare(String(b.id)));
@@ -142,16 +179,22 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
     const grade = gradeDoMes(ancora);
     return h(
       'div',
-      { class: 'cal cal-mes', role: 'grid', 'aria-label': 'Calendário do mês' },
-      h('div', { class: 'cal-cabecalho', 'aria-hidden': 'true' }, ...ROTULOS_DIA.map((r) => h('span', null, r))),
-      ...grade.map((semana) => h('div', { class: 'cal-semana-linha', role: 'row' }, ...semana.map((d, i) => celula(d.data, i, { doMes: d.doMes, compacta: true })))),
+      { class: 'cal-bloco' },
+      lixeira(),
+      h(
+        'div',
+        { class: 'cal cal-mes', role: 'grid', 'aria-label': 'Calendário do mês' },
+        h('div', { class: 'cal-cabecalho', 'aria-hidden': 'true' }, ...ROTULOS_DIA.map((r) => h('span', null, r))),
+        ...grade.map((semana) => h('div', { class: 'cal-semana-linha', role: 'row' }, ...semana.map((d, i) => celula(d.data, i, { doMes: d.doMes, compacta: true })))),
+      ),
     );
   }
 
   const inicio = inicioDaSemana(ancora);
   return h(
     'div',
-    { class: 'cal cal-semana', role: 'group', 'aria-label': 'Calendário da semana' },
-    ...Array.from({ length: 7 }, (_, i) => celula(somarDias(inicio, i), i)),
+    { class: 'cal-bloco' },
+    lixeira(),
+    h('div', { class: 'cal cal-semana', role: 'group', 'aria-label': 'Calendário da semana' }, ...Array.from({ length: 7 }, (_, i) => celula(somarDias(inicio, i), i))),
   );
 }

@@ -102,7 +102,7 @@ export function gerarFitDoTreino(treino, { config = null, agora = Date.now() } =
     else if (b.papel === 'desaquecimento') nome = 'Volta a calma';
     else if (b.papel === 'recuperacao') nome = 'Recuperacao';
     else nome = totalEsforcos > 1 ? `Esforco ${++esforco}/${totalEsforcos}` : 'Esforco';
-    const faixa = faixaDeFcDaZona(b.zona, config);
+    const faixa = b.alvoAberto ? null : faixaDeFcDaZona(b.zona, config); // alvo aberto: o teste de LTHR não cobra faixa de FC
     empurrar([
       0x02,
       ...u16(i),

@@ -74,6 +74,7 @@ export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado') {
   return modelosDoCatalogo({})
     .filter((m) => esporte === 'ambos' || m.esporte === esporte)
     .filter((m) => (ORDEM_DE_NIVEL[m.nivel] ?? 0) <= teto)
+    .filter((m) => FOCOS[m.foco]?.intensidade !== 'teste') // o teste de LTHR é só da biblioteca
     .map((m) => ({
       id: m.id,
       nome: m.nome,

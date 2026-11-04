@@ -75,6 +75,20 @@
       ]
     },
     {
+      "collectionGroup": "provas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "treinosPlanejados",
       "queryScope": "COLLECTION",
       "fields": [

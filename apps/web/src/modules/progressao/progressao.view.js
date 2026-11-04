@@ -27,6 +27,8 @@ import { icone } from '../../utils/icones.js';
 import { graficoProgressao } from './graficoProgressao.js';
 import { painelDeObjetivos, prateleiraDeConquistas } from './objetivos.js';
 import { consumirMetaPedida } from './state.js';
+import { confirmar } from '../../utils/modal.js';
+import { criarCartaoZonas } from './zonas.js';
 
 const ANOS_DE_HISTORICO = 5;
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -215,7 +217,7 @@ export function render(raiz, sessao) {
     });
     const botaoEncerrar = meta && ehRecorrente(meta) && !meta.ate ? h('button', { class: 'btn btn-secundario', type: 'button', title: 'Para de valer a partir do próximo período; o histórico e as badges ficam' }, 'Encerrar meta') : null;
     botaoEncerrar?.addEventListener('click', async () => {
-      if (!confirm(`Encerrar esta meta ao fim d${meta.periodo === 'mes' ? 'este mês' : 'esta semana'}? As badges conquistadas continuam com você.`)) return;
+      if (!(await confirmar({ titulo: 'Encerrar esta meta?', mensagem: `Ela deixa de valer ao fim d${meta.periodo === 'mes' ? 'este mês' : 'esta semana'}. As badges conquistadas continuam com você.`, confirmarTexto: 'Encerrar meta', tipo: 'aviso', icone: 'medalha' }))) return;
       mensagem.limpar();
       try {
         await encerrarMetaDeProgressao({ meta, hoje });
@@ -227,7 +229,7 @@ export function render(raiz, sessao) {
       ? h('button', { class: 'btn btn-perigo', type: 'button' }, 'Excluir meta')
       : null;
     botaoExcluir?.addEventListener('click', async () => {
-      if (!confirm('Excluir esta meta?')) return;
+      if (!(await confirmar({ titulo: 'Excluir esta meta?', mensagem: 'Isso não pode ser desfeito.', confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
       mensagem.limpar();
       try {
         await excluirMetaProgressao(meta.id);
@@ -383,6 +385,7 @@ export function render(raiz, sessao) {
             h('div', { class: 'prog-lateral' }, h('h2', null, `${formatarData(ref.inicio).slice(0, 5)} → ${formatarData(hoje <= ref.fim ? hoje : ref.fim).slice(0, 5)}`), tabela),
           )
         : h('section', { class: 'card' }, estadoVazio('Nenhuma atividade encontrada neste período com os filtros escolhidos.')),
+      criarCartaoZonas({ atividades: dados.atividades, hoje }),
       ),
     );
     if (rolarAoDesenhar && raiz.querySelector('.prog-corpo')) {

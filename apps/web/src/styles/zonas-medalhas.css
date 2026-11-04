@@ -1,0 +1,484 @@
+/* Tempo por zona (Progressão) e medalhas de recorde (Atividades). Só variáveis de tema, mais as cores de medalha. */
+
+/* ---------- medalhas ---------- */
+:root {
+  --medalha-ouro: #e8b923;
+  --medalha-prata: #b8c0cc;
+  --medalha-bronze: #cd7f32;
+}
+
+:root[data-tema='claro'] {
+  --medalha-ouro: #b8860b;
+  --medalha-prata: #6b7280;
+  --medalha-bronze: #9a5b1c;
+}
+
+/* tom de cada medalha (o ouro é o tom padrão) */
+.medalha-selo,
+.ativ-linha-medalha,
+.medalha-cartao {
+  --tom: var(--medalha-ouro);
+}
+
+.medalha-selo-prata,
+.ativ-linha-medalha-prata,
+.medalha-cartao-prata {
+  --tom: var(--medalha-prata);
+}
+
+.medalha-selo-bronze,
+.ativ-linha-medalha-bronze,
+.medalha-cartao-bronze {
+  --tom: var(--medalha-bronze);
+}
+
+/* medalha recente (melhor dos últimos 30, 60 ou 90 dias): o laranja da marca, menor e mais discreta que o pódio */
+.medalha-selo-recente,
+.medalha-cartao-recente {
+  --tom: var(--primary);
+}
+
+.medalha-selo.medalha-selo-recente {
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+}
+
+.medalha-selo.medalha-selo-recente .icone {
+  width: 13px;
+  height: 13px;
+}
+
+/* na tabela: selo pequeno e plano ao lado da data (o cartão de recordes é que tem o destaque) */
+.medalha-selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: 8px;
+  vertical-align: middle;
+  color: var(--tom);
+  background: color-mix(in srgb, var(--tom) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tom) 45%, transparent);
+  border-radius: 50%;
+  cursor: help;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.medalha-selo .icone {
+  width: 19px;
+  height: 19px;
+}
+
+.medalha-selo:hover,
+.medalha-selo:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--tom) 26%, transparent);
+  border-color: var(--tom);
+}
+
+/* a linha inteira ganha um tom suave da medalha */
+.ativ-linha-medalha > td {
+  background: color-mix(in srgb, var(--tom) 6%, transparent);
+}
+
+.ativ-linha-medalha > td:first-child {
+  box-shadow: inset 3px 0 0 var(--tom);
+}
+
+.ativ-linha-medalha:hover > td {
+  background: color-mix(in srgb, var(--tom) 11%, transparent);
+}
+
+/* cartão de recordes (aparece ao passar o mouse no selo) */
+.medalha-cartao {
+  position: fixed;
+  z-index: 70;
+  width: 340px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--tom) 55%, var(--border));
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--tom) 25%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.medalha-cartao[hidden] {
+  display: none;
+}
+
+.medalha-cartao.visivel {
+  opacity: 1;
+  transform: none;
+}
+
+.medalha-cartao-topo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tom) 26%, transparent), color-mix(in srgb, var(--tom) 6%, transparent));
+  border-bottom: 1px solid color-mix(in srgb, var(--tom) 30%, var(--border));
+}
+
+.medalha-cartao-topo > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.medalha-cartao-topo strong {
+  font-family: var(--fonte-titulo);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.medalha-cartao-topo span {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.medalha-cartao-topo small {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.medalha-cartao-selo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  color: #1a1304;
+  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--tom) 45%, #fff), var(--tom) 62%, color-mix(in srgb, var(--tom) 70%, #000));
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tom) 35%, transparent), 0 6px 18px color-mix(in srgb, var(--tom) 50%, transparent);
+}
+
+.medalha-cartao-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 16px;
+  list-style: none;
+}
+
+.medalha-cartao-item {
+  --tom-item: var(--medalha-ouro);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--tom-item) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tom-item) 35%, transparent);
+  border-radius: 12px;
+}
+
+.medalha-cartao-item-prata {
+  --tom-item: var(--medalha-prata);
+}
+
+.medalha-cartao-item-bronze {
+  --tom-item: var(--medalha-bronze);
+}
+
+.medalha-cartao-item-recente {
+  --tom-item: var(--primary);
+}
+
+.medalha-cartao-icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--tom-item);
+  background: color-mix(in srgb, var(--tom-item) 16%, transparent);
+  border-radius: 50%;
+}
+
+.medalha-cartao-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.medalha-cartao-texto small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.medalha-cartao-valor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.medalha-cartao-valor b {
+  font-size: 1.05rem;
+}
+
+.medalha-cartao-valor small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 420px) {
+  .medalha-cartao {
+    width: calc(100vw - 28px);
+  }
+}
+
+/* no detalhe: uma etiqueta por recorde */
+.ativ-medalhas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.ativ-medalhas[hidden] {
+  display: none;
+}
+
+.ativ-medalha {
+  --tom: var(--medalha-ouro);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--tom) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tom) 55%, transparent);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.ativ-medalha .icone {
+  color: var(--tom);
+}
+
+.ativ-medalha small {
+  color: var(--text-secondary);
+}
+
+.ativ-medalha-prata {
+  --tom: var(--medalha-prata);
+}
+
+.ativ-medalha-bronze {
+  --tom: var(--medalha-bronze);
+}
+
+.ativ-medalha-recente {
+  --tom: var(--primary);
+}
+
+/* ---------- tempo por zona ---------- */
+.zs-cartao {
+  --zs-1: var(--zona-1);
+  --zs-2: var(--zona-2);
+  --zs-3: var(--zona-3);
+  --zs-4: var(--zona-4);
+  --zs-5: var(--zona-5);
+}
+
+.zs-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 12px 0 16px;
+}
+
+.zs-pendentes {
+  margin: 0 0 12px;
+}
+
+.zs-semanas {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.zs-semana {
+  display: flex;
+  flex: 1 0 34px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 34px;
+}
+
+.zs-pilha {
+  display: flex;
+  flex-direction: column-reverse;
+  width: 100%;
+  height: 170px;
+  background: var(--surface-light);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.zs-seg {
+  display: block;
+  width: 100%;
+}
+
+.zs-z1 { background: var(--zs-1); }
+.zs-z2 { background: var(--zs-2); }
+.zs-z3 { background: var(--zs-3); }
+.zs-z4 { background: var(--zs-4); }
+.zs-z5 { background: var(--zs-5); }
+
+.zs-rotulo,
+.zs-total {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.zs-total {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.zs-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 14px 0;
+  font-size: 0.85rem;
+}
+
+.zs-legenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zs-legenda-item i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.zs-tres {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.zs-faixa {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--zs-2);
+  border-radius: 12px;
+}
+
+.zs-faixa strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.zs-faixa-moderado {
+  border-left-color: var(--zs-3);
+}
+
+.zs-faixa-intenso {
+  border-left-color: var(--zs-5);
+}
+
+.zs-leitura {
+  margin: 0 0 6px;
+  padding: 12px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-secondary);
+  border-radius: 12px;
+}
+
+.zs-leitura-polarizado {
+  border-left-color: var(--success);
+}
+
+.zs-leitura-moderado {
+  border-left-color: var(--zs-3);
+}
+
+.zs-nota {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .zs-pilha {
+    height: 130px;
+  }
+}
+
+/* ---------- coluna "Data / Nome" da lista de atividades ---------- */
+.ativ-celula-nome {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ativ-celula-nome .ativ-data {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.ativ-data-dia {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ativ-nome {
+  max-width: 210px;
+  overflow: hidden;
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* sem título do usuário vale o esporte, mais discreto */
+.ativ-nome-padrao {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ativ-celula-nome .ativ-data:hover .ativ-nome {
+  text-decoration: underline;
+}

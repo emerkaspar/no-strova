@@ -1,10 +1,32 @@
 /**
- * Melhores esforços por distância (5 km e 10 km): o trecho contínuo mais rápido de uma atividade, medido nas amostras
- * do arquivo (distância acumulada ou coordenadas). Funções puras, sem Firebase e sem DOM.
+ * Melhores esforços por distância (1, 5, 10, 20, 21,0975 e 40 km): o trecho contínuo mais rápido de uma atividade, medido
+ * nas amostras do arquivo (distância acumulada ou coordenadas). Funções puras, sem Firebase e sem DOM.
  */
-export const DISTANCIAS_DE_ESFORCO = Object.freeze({ cincoK: 5000, dezK: 10000 });
-/** Versão do cálculo gravada na atividade (`melhoresEsforcosEm`): mude para recalcular o histórico. */
-export const VERSAO_DOS_ESFORCOS = 1;
+export const DISTANCIAS_DE_ESFORCO = Object.freeze({ umK: 1000, cincoK: 5000, dezK: 10000, vinteK: 20000, meia: 21097.5, quarentaK: 40000 });
+/** Versão do cálculo gravada na atividade (`melhoresEsforcosEm`): mude para recalcular o histórico. A 2 acrescentou 1, 20, 21 e 40 km. */
+export const VERSAO_DOS_ESFORCOS = 2;
+
+/**
+ * Esforços que cada esporte mostra: `id` (chave dos cartões e das medalhas), `campo` (onde o tempo fica na atividade), distância
+ * em metros e rótulo. O 5 e o 10 km valem para os dois esportes; 1 km e meia maratona são da corrida; 20 e 40 km, do ciclismo.
+ */
+export const ESFORCOS_POR_ESPORTE = Object.freeze({
+  corrida: Object.freeze([
+    { id: 'melhor1k', campo: 'melhor1kS', metros: DISTANCIAS_DE_ESFORCO.umK, rotulo: '1 km' },
+    { id: 'melhor5k', campo: 'melhor5kS', metros: DISTANCIAS_DE_ESFORCO.cincoK, rotulo: '5 km' },
+    { id: 'melhor10k', campo: 'melhor10kS', metros: DISTANCIAS_DE_ESFORCO.dezK, rotulo: '10 km' },
+    { id: 'melhor21k', campo: 'melhor21kS', metros: DISTANCIAS_DE_ESFORCO.meia, rotulo: 'meia maratona' },
+  ]),
+  ciclismo: Object.freeze([
+    { id: 'melhor5k', campo: 'melhor5kS', metros: DISTANCIAS_DE_ESFORCO.cincoK, rotulo: '5 km' },
+    { id: 'melhor10k', campo: 'melhor10kS', metros: DISTANCIAS_DE_ESFORCO.dezK, rotulo: '10 km' },
+    { id: 'melhor20k', campo: 'melhor20kS', metros: DISTANCIAS_DE_ESFORCO.vinteK, rotulo: '20 km' },
+    { id: 'melhor40k', campo: 'melhor40kS', metros: DISTANCIAS_DE_ESFORCO.quarentaK, rotulo: '40 km' },
+  ]),
+});
+
+/** Esforços do esporte (lista vazia para "outro"). */
+export const esforcosDoEsporte = (esporte) => ESFORCOS_POR_ESPORTE[esporte] ?? [];
 /** Acima de 20 m/s (72 km/h) no trecho, o dado é tratado como falha de GPS e descartado. */
 const VELOCIDADE_MAXIMA_MS = 20;
 
@@ -71,18 +93,23 @@ export function melhorTempoNaDistancia(pontos, metros) {
   return Math.round(melhor);
 }
 
-/** Melhor 5 km e melhor 10 km (segundos) de uma lista de amostras; null onde a atividade não chega à distância. */
+/** Melhores tempos (segundos) de 1, 5, 10, 20, 21,0975 e 40 km de uma lista de amostras; null onde a atividade não chega à distância. */
 export function melhoresEsforcos(amostras) {
   const pontos = distanciaAcumulada(amostras);
+  const d = DISTANCIAS_DE_ESFORCO;
   return {
-    melhor5kS: melhorTempoNaDistancia(pontos, DISTANCIAS_DE_ESFORCO.cincoK),
-    melhor10kS: melhorTempoNaDistancia(pontos, DISTANCIAS_DE_ESFORCO.dezK),
+    melhor1kS: melhorTempoNaDistancia(pontos, d.umK),
+    melhor5kS: melhorTempoNaDistancia(pontos, d.cincoK),
+    melhor10kS: melhorTempoNaDistancia(pontos, d.dezK),
+    melhor20kS: melhorTempoNaDistancia(pontos, d.vinteK),
+    melhor21kS: melhorTempoNaDistancia(pontos, d.meia),
+    melhor40kS: melhorTempoNaDistancia(pontos, d.quarentaK),
   };
 }
 
 /**
  * Melhor tempo de cada distância entre as atividades (o menor, não o maior; no empate fica a mais antiga).
- * @returns {{ melhor5k: { valor: number, atividade: any }|null, melhor10k: { valor: number, atividade: any }|null }}
+ * @returns {Record<'melhor1k'|'melhor5k'|'melhor10k'|'melhor20k'|'melhor21k'|'melhor40k', { valor: number, atividade: any }|null>}
  */
 export function melhoresEsforcosDasAtividades(atividades) {
   const melhorDe = (campo) => {
@@ -94,7 +121,14 @@ export function melhoresEsforcosDasAtividades(atividades) {
     }
     return melhor;
   };
-  return { melhor5k: melhorDe('melhor5kS'), melhor10k: melhorDe('melhor10kS') };
+  return {
+    melhor1k: melhorDe('melhor1kS'),
+    melhor5k: melhorDe('melhor5kS'),
+    melhor10k: melhorDe('melhor10kS'),
+    melhor20k: melhorDe('melhor20kS'),
+    melhor21k: melhorDe('melhor21kS'),
+    melhor40k: melhorDe('melhor40kS'),
+  };
 }
 
 /** Ritmo médio (s por km) de um esforço: tempo ÷ distância. */

@@ -78,6 +78,13 @@ export function excluirTreino(id) {
   return excluirDocumento(`${TREINOS}/${id}`);
 }
 
+/** Exclui vários treinos. O Firestore limita o lote a 500 operações: cada bloco de 400 é tudo ou nada. */
+export async function excluirTreinosEmLote(ids) {
+  for (let i = 0; i < ids.length; i += 400) {
+    await gravarEmLote(ids.slice(i, i + 400).map((id) => ({ tipo: 'delete', caminho: `${TREINOS}/${id}` })));
+  }
+}
+
 /** Metas de forma do usuário (ativa e anteriores). A ordenação fica por conta de quem chama. */
 export function observarMetas(uid, aoDados, aoErro) {
   return observarConsulta(METAS, { onde: [['userId', '==', uid]] }, aoDados, aoErro);

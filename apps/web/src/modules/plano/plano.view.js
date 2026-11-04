@@ -1,4 +1,4 @@
-import { inicioDaSemana, primeiroDoMes, RECURSOS, rotuloDoMes, somarDias, somarMeses, temRecurso } from '@no-strova/domain';
+import { inicioDaSemana, primeiroDoMes, RECURSOS, rotuloDoMes, somarDias, somarMeses, temRecurso, treinosFuturos } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { obterSessao } from '../../application/sessao.js';
 import { modelosProprios } from '../../application/modelos.js';
@@ -8,15 +8,21 @@ import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarModelos } from '../../infrastructure/modelosRepo.js';
-import { moverTreino, observarMetas, observarMetasCondicionamento, observarTreinos, pularTreino, vincularTreino } from '../../infrastructure/planoRepo.js';
+import { excluirTreino, excluirTreinosEmLote, moverTreino, observarMetas, observarMetasCondicionamento, observarTreinos, pularTreino, vincularTreino } from '../../infrastructure/planoRepo.js';
+import { observarProvas } from '../../infrastructure/provasRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, hojeIso } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
+import { confirmar } from '../../utils/modal.js';
+import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { criarCartaoAcompanhamento } from './acompanhamento.js';
 import { desenharCalendario } from './calendario.js';
 import { criarEditor } from './editor.js';
 import { criarCartaoMeta } from './meta.js';
 import { criarCartaoMetaCondicionamento } from './metaCondicionamento.js';
+import { criarCartaoPlanoAnual } from './planoAnual.js';
+import { criarCartaoProvas } from './provas.js';
 import { criarCartaoSugestaoIa } from './sugestaoIa.js';
 import { criarTreinoDoDia } from '../inicio/treinoDoDia.js';
 import { criarCartaoProjecao } from './projecao.js';
@@ -32,8 +38,8 @@ function rotuloDoPeriodo(visao, ancora) {
 export function render(raiz, sessao) {
   const hoje = hojeIso();
   const desde = dataInicialDoHistorico(hoje);
-  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], metasCondicionamento: [], modelos: [], calibracao: null };
-  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false, metasCondicionamento: false, modelos: false, calibracao: false };
+  const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], metasCondicionamento: [], modelos: [], provas: [], calibracao: null, preferencias: null };
+  const carregou = { dias: false, treinos: false, atividades: false, configs: false, metas: false, metasCondicionamento: false, modelos: false, provas: false, calibracao: false };
   let ativa = true;
   const cancelar = [];
 
@@ -46,6 +52,9 @@ export function render(raiz, sessao) {
 
   const ancora = () => estadoPlano.ancora ?? hoje;
   const treinoDoDia = criarTreinoDoDia(dados, hoje);
+  // criados uma vez: guardam o formulário, a prova escolhida e o rascunho aberto quando chegam dados novos
+  const cartaoProvas = criarCartaoProvas({ uid: sessao.uid, hoje });
+  const cartaoPlanoAnual = criarCartaoPlanoAnual({ uid: sessao.uid, hoje });
 
   // ---- edição ----
   function fecharEditor(texto) {
@@ -79,6 +88,57 @@ export function render(raiz, sessao) {
       mensagem.mostrar(err.message || 'Não foi possível concluir a operação.');
       throw err;
     }
+  }
+
+  // ---- exclusão ----
+  const descricaoDoTreino = (t) => `${t.nomeTreino || `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} de ${t.duracaoMin} min`} em ${formatarData(t.data)}`;
+
+  /** Treino arrastado até a lixeira: confirma e exclui. */
+  async function excluirArrastado(id) {
+    const t = dados.treinos.find((x) => x.id === id);
+    if (!t) return;
+    const ok = await confirmar({
+      titulo: 'Excluir este treino?',
+      mensagem: `${descricaoDoTreino(t)} sai do plano e da projeção.`,
+      confirmarTexto: 'Excluir',
+      tipo: 'perigo',
+      icone: 'lixeira',
+    });
+    if (ok) executar(() => excluirTreino(id), 'Treino excluído.').catch(() => {});
+  }
+
+  /** "Excluir todos os treinos futuros": dois modais seguidos, para ninguém apagar o plano sem querer. */
+  async function excluirTodosOsFuturos() {
+    const n = treinosFuturos(dados.treinos, hoje).length;
+    if (n === 0) return;
+    const primeiro = await confirmar({
+      titulo: 'Excluir todos os treinos futuros?',
+      mensagem: `Você tem ${n} ${n === 1 ? 'treino planejado' : 'treinos planejados'} a partir de amanhã.
+
+Se preferir, dá para excluir um a um: arraste o treino até a lixeira do calendário ou abra o treino e clique em Excluir.
+
+Quer apagar todos de uma vez mesmo assim?`,
+      confirmarTexto: 'Continuar',
+      tipo: 'aviso',
+      icone: 'lixeira',
+    });
+    if (!primeiro) return;
+    // o plano pode ter mudado enquanto o primeiro modal estava aberto
+    const futuros = treinosFuturos(dados.treinos, hoje);
+    if (futuros.length === 0) return;
+    const m = futuros.length;
+    const segundo = await confirmar({
+      titulo: 'Última confirmação',
+      mensagem: `${m === 1 ? '1 treino será apagado' : `${m} treinos serão apagados`} do plano e da projeção. Isso não pode ser desfeito.
+
+Os treinos já realizados e o de hoje não são afetados.`,
+      confirmarTexto: m === 1 ? 'Excluir 1 treino' : `Excluir ${m} treinos`,
+      cancelarTexto: 'Voltar',
+      tipo: 'perigo',
+      icone: 'lixeira',
+    });
+    if (!segundo) return;
+    executar(() => excluirTreinosEmLote(futuros.map((t) => t.id)), m === 1 ? 'Treino excluído.' : `${m} treinos excluídos.`).catch(() => {});
   }
 
   // ---- navegação do calendário ----
@@ -125,7 +185,24 @@ export function render(raiz, sessao) {
           'Hoje',
         ),
       ),
-      h('button', { class: 'btn', type: 'button', onClick: () => abrirEditor(null, hoje) }, 'Novo treino'),
+      h(
+        'div',
+        { class: 'linha-botoes' },
+        h(
+          'button',
+          {
+            class: 'btn btn-secundario',
+            type: 'button',
+            onClick: () => {
+              const nome = document.getElementById('prova-nome');
+              nome?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+              nome?.focus({ preventScroll: true });
+            },
+          },
+          'Nova prova',
+        ),
+        h('button', { class: 'btn', type: 'button', onClick: () => abrirEditor(null, hoje) }, 'Novo treino'),
+      ),
     );
   }
 
@@ -141,7 +218,9 @@ export function render(raiz, sessao) {
     }
 
     desenharBarra();
+    const futurosN = pronto ? treinosFuturos(dados.treinos, hoje).length : 0;
     calendario.replaceChildren(
+      ...[
       pronto
         ? desenharCalendario({
             visao: estadoPlano.visao,
@@ -157,8 +236,19 @@ export function render(raiz, sessao) {
               if (!t || t.data === data) return;
               executar(() => moverTreino(id, data), `Treino movido para ${formatarData(data)}.`).catch(() => {});
             },
+            aoExcluir: excluirArrastado,
           })
         : h('p', { class: 'vazio', role: 'status' }, 'Carregando…'),
+      // no mês, o botão que apaga todo o plano futuro (com duas confirmações)
+      pronto && estadoPlano.visao === 'mes'
+        ? h(
+            'div',
+            { class: 'cal-rodape' },
+            h('span', { class: 'texto-secundario' }, futurosN > 0 ? `${futurosN} ${futurosN === 1 ? 'treino planejado' : 'treinos planejados'} a partir de amanhã` : 'Nenhum treino planejado a partir de amanhã'),
+            h('button', { class: 'btn btn-perigo', type: 'button', disabled: futurosN === 0, onClick: excluirTodosOsFuturos }, icone('lixeira', 16), 'Excluir todos os treinos futuros'),
+          )
+        : null,
+      ].filter(Boolean),
     );
 
     if (!pronto) return;
@@ -178,6 +268,17 @@ export function render(raiz, sessao) {
       calibracao: dados.calibracao,
     });
     const condicionamentoAtual = serie.find((d) => d.data === hoje)?.fitness ?? null;
+    cartaoProvas.atualizar(dados.provas);
+    cartaoPlanoAnual.atualizar({
+      provas: dados.provas,
+      dias: dados.dias,
+      treinos: dados.treinos,
+      configs: dados.configs,
+      calibracao: dados.calibracao,
+      modelos: modelosProprios(dados.modelos),
+      preferencias: dados.preferencias,
+      metasForma: dados.metas,
+    });
 
     resto.replaceChildren(
       criarCartaoProjecao({
@@ -195,6 +296,8 @@ export function render(raiz, sessao) {
           abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);
         },
       }),
+      cartaoProvas.el,
+      cartaoPlanoAnual.el,
       criarCartaoMetaCondicionamento({ uid: sessao.uid, hoje, metaAtiva: metaCondAtiva, metasAnteriores: anterioresCond, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
       criarCartaoMeta({ uid: sessao.uid, hoje, metaAtiva, metasAnteriores: anteriores, avaliacao }),
       criarCartaoAcompanhamento({
@@ -226,7 +329,10 @@ export function render(raiz, sessao) {
   );
   desenhar();
 
-  const aoErro = () => mensagem.mostrar('Não foi possível carregar os dados do plano.');
+  const aoErro = (err) => {
+    console.error('Plano: falha ao carregar os dados', err);
+    mensagem.mostrar('Não foi possível carregar os dados do plano.');
+  };
   const ouvir = (chave, assinar) =>
     assinar((lista) => {
       dados[chave] = lista;
@@ -241,8 +347,10 @@ export function render(raiz, sessao) {
     ouvir('metas', (cb) => observarMetas(sessao.uid, cb, aoErro)),
     ouvir('metasCondicionamento', (cb) => observarMetasCondicionamento(sessao.uid, cb, aoErro)),
     ouvir('modelos', (cb) => observarModelos(sessao.uid, cb, aoErro)),
-    observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
+    ouvir('provas', (cb) => observarProvas(sessao.uid, hoje, cb, aoErro)),
+    observarCalibracaoDoUsuario(sessao.uid, ({ efetiva, preferencias }) => {
       dados.calibracao = efetiva;
+      dados.preferencias = preferencias;
       carregou.calibracao = true;
       desenhar();
     }),

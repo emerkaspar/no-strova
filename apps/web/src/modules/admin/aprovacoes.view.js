@@ -3,6 +3,7 @@ import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarDataHora } from '../../utils/formatters.js';
 import { alternarOrdem, estadoAprovacoes } from './state.js';
+import { confirmar } from '../../utils/modal.js';
 
 const COLUNAS = [
   { campo: 'nome', rotulo: 'Nome' },
@@ -62,8 +63,8 @@ export function render(raiz) {
         if (ativa) desenharTabela();
       }),
     );
-    bloquear.addEventListener('click', () => {
-      if (!confirm(`Bloquear o acesso de ${u.nome || u.email}?`)) return;
+    bloquear.addEventListener('click', async () => {
+      if (!(await confirmar({ titulo: 'Bloquear acesso?', mensagem: `${u.nome || u.email} não vai conseguir usar o sistema.`, confirmarTexto: 'Bloquear', tipo: 'perigo', icone: 'bloquear' }))) return;
       agir(botoes, async () => {
         await bloquearUsuario({ uid: u.uid, ativo: false });
         usuarios = usuarios.filter((x) => x.uid !== u.uid);

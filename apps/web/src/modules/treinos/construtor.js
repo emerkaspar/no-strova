@@ -24,9 +24,10 @@ const copia = (x) => JSON.parse(JSON.stringify(x));
 /** Treino inicial do construtor: aquecimento, 5 × 3 min no VO2 e volta à calma. */
 function treinoInicial() {
   return [
-    { tipo: 'bloco', papel: 'aquecimento', duracaoS: 600, zona: 'Z2' },
+    { tipo: 'bloco', papel: 'aquecimento', duracaoS: 300, zona: 'Z1' },
+    { tipo: 'bloco', papel: 'aquecimento', duracaoS: 300, zona: 'Z2' },
     { tipo: 'serie', repeticoes: 5, esforco: { duracaoS: 180, zona: 'Z5' }, recuperacao: { duracaoS: 180, zona: 'Z1' } },
-    { tipo: 'bloco', papel: 'desaquecimento', duracaoS: 600, zona: 'Z1' },
+    { tipo: 'bloco', papel: 'desaquecimento', duracaoS: 480, zona: 'Z1' },
   ];
 }
 

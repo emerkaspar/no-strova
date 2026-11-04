@@ -40,6 +40,7 @@ export const recalcularHistorico = callable('recalcularHistorico');
 export const reconstruirEstresseDiario = callable('reconstruirEstresseDiario');
 export const reconstruirCalibracao = callable('reconstruirCalibracao');
 export const sugerirTreinos = callable('sugerirTreinos');
+export const sugerirPlanoAnual = callable('sugerirPlanoAnual');
 export const calcularMelhoresEsforcos = callable('calcularMelhoresEsforcos');
 export const marcarConquistasComoVistas = callable('marcarConquistasComoVistas');
 export const decidirRascunho = callable('decidirRascunho');

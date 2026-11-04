@@ -13,6 +13,7 @@ import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
 import { abrirModalRecursos, listaDeRecursos } from './recursos.js';
 import { alternarOrdemUsuarios, estadoUsuarios } from './state.js';
+import { confirmar } from '../../utils/modal.js';
 
 const ROTULO_PAPEL = { [PAPEIS.ADMIN]: 'Administrador', [PAPEIS.ATLETA]: 'Atleta', [PAPEIS.TREINADOR]: 'Treinador' };
 const ABREVIACAO_RECURSO = { [RECURSOS.IA]: 'IA', [RECURSOS.GARMIN]: 'Garmin' };
@@ -173,7 +174,9 @@ export function render(raiz, { uid: meuUid }) {
             nome: 'bloquear',
             rotulo: 'Bloquear acesso',
             variante: 'perigo',
-            aoClicar: () => confirm(`Bloquear o acesso de ${u.nome || u.email}?`) && agir(botoes, () => bloquearUsuario({ uid: u.uid, ativo: false })),
+            aoClicar: async () =>
+              (await confirmar({ titulo: 'Bloquear acesso?', mensagem: `${u.nome || u.email} não vai conseguir usar o sistema até ser desbloqueado.`, confirmarTexto: 'Bloquear', tipo: 'perigo', icone: 'bloquear' })) &&
+              agir(botoes, () => bloquearUsuario({ uid: u.uid, ativo: false })),
           }),
         );
       } else {
@@ -184,8 +187,8 @@ export function render(raiz, { uid: meuUid }) {
           nome: 'lixeira',
           rotulo: 'Excluir usuário',
           variante: 'perigo',
-          aoClicar: () =>
-            confirm(`Excluir ${u.nome || u.email} e TODOS os dados dessa pessoa (atividades, metas, arquivos)? Isso não pode ser desfeito.`) &&
+          aoClicar: async () =>
+            (await confirmar({ titulo: 'Excluir usuário?', mensagem: `${u.nome || u.email} e TODOS os dados dessa pessoa (atividades, metas, arquivos) serão apagados. Isso não pode ser desfeito.`, confirmarTexto: 'Excluir tudo', tipo: 'perigo', icone: 'lixeira' })) &&
             agir(botoes, () => excluirUsuarioAdmin({ uid: u.uid })),
         }),
       );

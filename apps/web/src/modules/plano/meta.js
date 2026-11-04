@@ -3,6 +3,7 @@ import { excluirMeta } from '../../infrastructure/planoRepo.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarForma, formatarNumero } from '../../utils/formatters.js';
+import { confirmar } from '../../utils/modal.js';
 
 const ROTULO_ESTADO = Object.freeze({ atinge: 'Chega lá', abaixo: 'Fica abaixo', acima: 'Fica acima' });
 
@@ -57,7 +58,7 @@ export function criarCartaoMeta({ uid, hoje, metaAtiva, metasAnteriores, avaliac
               class: 'btn btn-secundario',
               type: 'button',
               onClick: async () => {
-                if (!confirm('Remover a meta de forma?')) return;
+                if (!(await confirmar({ titulo: 'Remover a meta de Forma?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
                 try {
                   await excluirMeta(metaAtiva.id);
                 } catch {

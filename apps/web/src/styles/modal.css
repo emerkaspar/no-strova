@@ -1,0 +1,105 @@
+/* Modal de confirmação (utils/modal.js). Só variáveis de tema. */
+
+.modal {
+  width: min(440px, calc(100vw - 32px));
+  padding: 28px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.modal[open] {
+  animation: modal-entrada 0.16s ease-out;
+}
+
+@keyframes modal-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal[open] {
+    animation: none;
+  }
+}
+
+.modal-corpo {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.modal-icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--tom);
+  background: color-mix(in srgb, var(--tom) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tom) 40%, transparent);
+  border-radius: 50%;
+}
+
+.modal-info {
+  --tom: var(--primary);
+}
+
+.modal-aviso {
+  --tom: var(--zona-3);
+}
+
+.modal-perigo {
+  --tom: var(--danger);
+}
+
+.modal-titulo {
+  margin: 4px 0 8px;
+  font-size: 1.35rem;
+}
+
+.modal-mensagem {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.modal-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+/* Botão de confirmar de ação destrutiva: cheio, para se destacar do "Cancelar" */
+.btn-perigo-cheio {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn-perigo-cheio:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 480px) {
+  .modal {
+    padding: 22px;
+  }
+
+  .modal-acoes .btn {
+    flex: 1;
+  }
+}

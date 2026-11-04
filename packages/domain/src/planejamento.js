@@ -88,6 +88,16 @@ export function estresseDoTreino(treino, configs, calibracao = null) {
 }
 
 /**
+ * Treinos ainda por fazer a partir de amanhã (status "planejado" e data depois de hoje). É o que o botão "excluir todos os
+ * treinos futuros" apaga: o treino de hoje, os realizados e os pulados ficam.
+ * @param {TreinoPlanejado[]} treinos
+ * @param {string} hoje yyyy-mm-dd
+ */
+export function treinosFuturos(treinos, hoje) {
+  return (treinos ?? []).filter((t) => t.status === STATUS_TREINO.PLANEJADO && t.data > hoje);
+}
+
+/**
  * Valida e normaliza o formulário de treino planejado.
  * @returns {{ valido: boolean, erros: string[], valores: object|null }}
  */
