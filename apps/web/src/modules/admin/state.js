@@ -12,5 +12,19 @@ export function alternarOrdem(campo) {
   };
 }
 
-/** Aba aberta na página de Administração: 'aprovacoes' ou 'sistema'. */
+/** Estado da lista de usuários: busca e ordenação da tabela. */
+export const estadoUsuarios = {
+  busca: '',
+  ordem: { campo: 'nome', direcao: 'asc' },
+};
+
+export function alternarOrdemUsuarios(campo) {
+  const atual = estadoUsuarios.ordem;
+  estadoUsuarios.ordem = {
+    campo,
+    direcao: atual.campo === campo && atual.direcao === 'asc' ? 'desc' : 'asc',
+  };
+}
+
+/** Aba aberta na página de Administração: 'aprovacoes', 'usuarios' ou 'sistema'. */
 export const estadoAdmin = { aba: 'aprovacoes' };

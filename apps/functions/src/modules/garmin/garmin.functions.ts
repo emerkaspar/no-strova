@@ -1,7 +1,8 @@
+import { RECURSOS } from "@no-strova/domain";
 import { defineSecret } from "firebase-functions/params";
 import { onCall } from "firebase-functions/v2/https";
 import { REGIAO } from "../../shared/config";
-import { exigirAcesso, lerObjeto } from "../../shared/guards";
+import { exigirAcesso, exigirRecurso, lerObjeto } from "../../shared/guards";
 import * as servico from "./garmin.service";
 
 /**
@@ -12,12 +13,12 @@ import * as servico from "./garmin.service";
 const GARMIN_CHAVE_CRIPTO = defineSecret("GARMIN_CHAVE_CRIPTO");
 
 export const garminSituacao = onCall({ region: REGIAO }, async (request) => {
-  const { uid } = await exigirAcesso(request);
+  const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);
   return servico.situacao(uid);
 });
 
 export const garminConectar = onCall({ region: REGIAO, secrets: [GARMIN_CHAVE_CRIPTO] }, async (request) => {
-  const { uid } = await exigirAcesso(request);
+  const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);
   const dados = lerObjeto(request.data);
   return servico.conectar(uid, dados.chave, dados.validadeDias, GARMIN_CHAVE_CRIPTO.value());
 });
@@ -32,7 +33,7 @@ export const garminDesconectar = onCall({ region: REGIAO }, async (request) => {
 export const garminSincronizar = onCall(
   { region: REGIAO, memory: "512MiB", timeoutSeconds: 300, secrets: [GARMIN_CHAVE_CRIPTO] },
   async (request) => {
-    const { uid, perfil } = await exigirAcesso(request);
+    const { uid, perfil } = await exigirRecurso(request, RECURSOS.GARMIN);
     const dataNascimento = typeof perfil.dataNascimento === "string" ? perfil.dataNascimento : null;
     return servico.sincronizarLote(uid, dataNascimento, lerObjeto(request.data), GARMIN_CHAVE_CRIPTO.value());
   },

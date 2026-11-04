@@ -1,5 +1,6 @@
-import { inicioDaSemana, primeiroDoMes, rotuloDoMes, somarDias, somarMeses } from '@no-strova/domain';
+import { inicioDaSemana, primeiroDoMes, RECURSOS, rotuloDoMes, somarDias, somarMeses, temRecurso } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
+import { obterSessao } from '../../application/sessao.js';
 import { modelosProprios } from '../../application/modelos.js';
 import { agruparPorDia, dataInicialDoHistorico, montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
@@ -210,7 +211,8 @@ export function render(raiz, sessao) {
     );
   }
 
-  const cartaoIa = criarCartaoSugestaoIa({ uid: sessao.uid, obterConfigs: () => dados.configs });
+  // A IA só aparece para quem o administrador liberou (o servidor confere de novo em cada pedido).
+  const cartaoIa = temRecurso(obterSessao().perfil, RECURSOS.IA) ? criarCartaoSugestaoIa({ uid: sessao.uid, obterConfigs: () => dados.configs }) : null;
 
   raiz.replaceChildren(
     h(

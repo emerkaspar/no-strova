@@ -1,5 +1,6 @@
-import { anosComAtividades, melhoresEsforcosDasAtividades, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, velocidadeMediaMs } from '@no-strova/domain';
+import { anosComAtividades, melhoresEsforcosDasAtividades, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, RECURSOS, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, temRecurso, velocidadeMediaMs } from '@no-strova/domain';
 import { montarSerie } from '../../application/forma.js';
+import { obterSessao } from '../../application/sessao.js';
 import { calcularMelhoresEsforcos, garminSituacao } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
@@ -355,12 +356,15 @@ export function render(raiz, sessao) {
     }
   });
 
-  garminSituacao().then(
-    (situacao) => {
-      botaoGarmin.hidden = !situacao.conectado;
-    },
-    () => {}, // sem estado do Garmin, o botão fica escondido
-  );
+  // Sem o recurso liberado pelo administrador, nem consulta o Garmin: o botão fica escondido.
+  if (temRecurso(obterSessao().perfil, RECURSOS.GARMIN)) {
+    garminSituacao().then(
+      (situacao) => {
+        botaoGarmin.hidden = !situacao.conectado;
+      },
+      () => {}, // sem estado do Garmin, o botão fica escondido
+    );
+  }
 
   function linha(a) {
     const origem = ROTULO_ORIGEM_HRSS[a.hrssOrigem];

@@ -3,10 +3,14 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { REGIAO } from "../../shared/config";
 import { exigirAdmin, exigirLogin, lerObjeto } from "../../shared/guards";
 import {
+  atualizarUsuario,
   completarPerfil,
   criarPerfilInicial,
+  criarUsuario,
   definirAprovacao,
   definirAtivo,
+  excluirUsuario,
+  listarTodosUsuarios,
   listarUsuariosPendentes,
 } from "./auth.service";
 
@@ -58,5 +62,50 @@ export const bloquearUsuario = onCall({ region: REGIAO }, async (request) => {
     throw new HttpsError("failed-precondition", "Você não pode bloquear a própria conta.");
   }
   await definirAtivo(uid, valor);
+  return { ok: true };
+});
+
+function lerUid(data: unknown): { uid: string; dados: Record<string, unknown> } {
+  const dados = lerObjeto(data);
+  const uid = dados.uid;
+  if (typeof uid !== "string" || uid.length === 0 || uid.length > 128) {
+    throw new HttpsError("invalid-argument", "Dados da requisição inválidos.");
+  }
+  return { uid, dados };
+}
+
+export const listarUsuarios = onCall({ region: REGIAO }, async (request) => {
+  await exigirAdmin(request);
+  return { usuarios: await listarTodosUsuarios() };
+});
+
+export const criarUsuarioAdmin = onCall({ region: REGIAO }, async (request) => {
+  await exigirAdmin(request);
+  const dados = lerObjeto(request.data);
+  return {
+    usuario: await criarUsuario({
+      nome: dados.nome,
+      email: dados.email,
+      senha: dados.senha,
+      role: dados.role,
+      recursos: dados.recursos,
+    }),
+  };
+});
+
+export const atualizarUsuarioAdmin = onCall({ region: REGIAO }, async (request) => {
+  await exigirAdmin(request);
+  const { uid, dados } = lerUid(request.data);
+  await atualizarUsuario(uid, { nome: dados.nome, role: dados.role, recursos: dados.recursos });
+  return { ok: true };
+});
+
+export const excluirUsuarioAdmin = onCall({ region: REGIAO, timeoutSeconds: 300, memory: "512MiB" }, async (request) => {
+  const adminUid = await exigirAdmin(request);
+  const { uid } = lerUid(request.data);
+  if (uid === adminUid) {
+    throw new HttpsError("failed-precondition", "Você não pode excluir a própria conta.");
+  }
+  await excluirUsuario(uid);
   return { ok: true };
 });

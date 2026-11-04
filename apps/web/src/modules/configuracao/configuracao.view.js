@@ -1,4 +1,4 @@
-import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, SEXOS, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
+import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, RECURSOS, SEXOS, temRecurso, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { recalcularHistorico } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
@@ -221,7 +221,7 @@ export function render(raiz, sessao) {
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
       cartaoDadosPessoais(sessao),
-      criarCartaoGarmin().raiz,
+      temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoGarmin().raiz : null,
       h(
         'section',
         { class: 'card' },

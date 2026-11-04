@@ -78,7 +78,7 @@ Em **Atividades → Importar arquivo**, escolha arquivos **.fit, .gpx ou .tcx** 
 - Limite de 30 atividades por dia.
 
 ### Sincronizar com o Garmin
-Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin Connect**. Em **Configuração → Garmin Connect**:
+Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin Connect**. Esta função precisa ser liberada pelo administrador para a sua conta (Administração → Usuários); sem isso, o cartão e o botão não aparecem. Em **Configuração → Garmin Connect**:
 
 1. No Garmin Connect, abra as configurações e a página **Personal API Key**, aceite os termos, escolha a validade (30, 90, 180 dias ou 1 ano) e crie a chave. O Garmin mostra a chave **uma única vez**.
 2. Cole a chave no campo **Chave pessoal**, escolha a mesma validade e clique em **Conectar**. A chave é validada e guardada criptografada; o app nunca a mostra de novo.
@@ -121,7 +121,7 @@ A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25,
 Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
 
 ## Sugestões com IA
-Há uma sugestão feita por IA (Gemini). A IA **só sugere**: nada muda no seu plano ou na sua meta até você aceitar, e há um limite diário de sugestões, **definido pelo administrador** em Administração → Sistema (padrão: 5 por usuário por dia; também pode ser "sem limite"). O app mostra quantas restam.
+Há uma sugestão feita por IA (Gemini), disponível para quem o administrador liberou (por padrão, todos). A IA **só sugere**: nada muda no seu plano ou na sua meta até você aceitar, e há um limite diário de sugestões, **definido pelo administrador** em Administração → Sistema (padrão: 5 por usuário por dia; também pode ser "sem limite"). O app mostra quantas restam.
 
 - **Plano → Sugestão de treinos com IA:** informe quantas semanas, as horas por semana, o esporte e, se quiser, uma observação ("viajo na semana 2"). **Você escolhe os dias da semana em que quer treinar** (marque Seg, Ter, Qua…) e, se quiser, **qual deles é o dia do longão**, que recebe o treino mais longo da semana. A IA monta os treinos com os do catálogo, olhando o seu Condicionamento, a Forma e o que já está no plano. Você vê a lista, desmarca o que não quiser e clica em **Aceitar**. Os dias que você escolheu são sempre respeitados: se a IA deixar algum vazio, o app completa com um treino leve, e se um treino passar do aumento de carga de 10% por semana, ele é trocado por um mais leve (com aviso). Treinos que quebrem os outros limites (mais de 2 intensos por semana, menos de 48 h entre eles, passar das horas por semana) são descartados, com um aviso. Se você não tem histórico no app, os dias escolhidos valem do mesmo jeito: comece leve.
 - A IA não substitui médico, nutricionista ou treinador.
@@ -164,7 +164,14 @@ Em **Plano** você organiza os treinos que ainda vai fazer e vê, na hora, como 
 
 ## Para administradores
 
-A página **Administração** (só para você, como dono do sistema) tem duas abas. A aba **Aprovações** lista quem concluiu o cadastro e aguarda liberação. É possível buscar por nome ou e-mail, ordenar clicando no título da coluna, **Aprovar** ou **Bloquear** (com confirmação).
+A página **Administração** (só para você, como dono do sistema) tem três abas. A aba **Aprovações** lista quem concluiu o cadastro e aguarda liberação. É possível buscar por nome ou e-mail, ordenar clicando no título da coluna, **Aprovar** ou **Bloquear** (com confirmação).
+
+A aba **Usuários** lista todas as contas, com busca e ordenação por coluna.
+- **Novo usuário:** informe nome, e-mail, uma **senha temporária** (mínimo de 8 caracteres), o papel (Atleta ou Treinador) e as funcionalidades liberadas. A conta já nasce aprovada; no primeiro acesso a pessoa ainda precisa aceitar o tratamento de dados de saúde.
+- **Editar:** muda nome, papel e funcionalidades. Em administradores, só as funcionalidades.
+- **Aprovar, Bloquear e Liberar:** controlam o acesso (bloquear também encerra as sessões abertas).
+- **Excluir:** apaga a conta e **todos os dados** da pessoa (atividades, metas, pesagens, arquivos e chave do Garmin). Pede confirmação e não pode ser desfeito. Você não pode excluir nem bloquear a si mesmo.
+- **Funcionalidades por usuário (colunas IA e Garmin):** as caixas liberam ou retiram a funcionalidade na hora. Sem a **IA**, a pessoa não vê o cartão de sugestão de treinos nem consegue pedi-la. Sem o **Garmin**, somem o cartão em Configuração e o botão de sincronizar em Atividades. Contas novas nascem com **IA ligada e Garmin desligado**; contas criadas antes desta aba seguem o mesmo padrão até você mudar.
 
 A aba **Sistema** guarda os ajustes do sistema. Hoje tem o **limite das sugestões de IA** por usuário por dia (de 1 a 500, ou sem limite).
 

@@ -8,6 +8,62 @@ export const PAPEIS = Object.freeze({
   TREINADOR: 'treinador',
 });
 
+/** Papéis que o admin pode atribuir pela tela de usuários (admin só é concedido por script). */
+export const PAPEIS_ATRIBUIVEIS = Object.freeze([PAPEIS.ATLETA, PAPEIS.TREINADOR]);
+
+/** Funcionalidades que o admin libera ou retira por usuário (`users/{uid}.recursos`). */
+export const RECURSOS = Object.freeze({
+  IA: 'ia',
+  GARMIN: 'garmin',
+});
+
+export const ROTULOS_RECURSOS = Object.freeze({
+  [RECURSOS.IA]: 'Sugestões com IA',
+  [RECURSOS.GARMIN]: 'Sincronização com o Garmin',
+});
+
+/** Padrão de um usuário novo (ou sem o campo `recursos`): IA ligada, Garmin desligado. */
+export const RECURSOS_PADRAO = Object.freeze({
+  [RECURSOS.IA]: true,
+  [RECURSOS.GARMIN]: false,
+});
+
+/**
+ * Recursos liberados do usuário: o valor gravado em `recursos`, ou o padrão quando falta.
+ * @param {{ recursos?: Record<string, unknown> }|null|undefined} perfil
+ * @returns {{ ia: boolean, garmin: boolean }}
+ */
+export function recursosDoUsuario(perfil) {
+  const gravados = perfil?.recursos && typeof perfil.recursos === 'object' ? perfil.recursos : {};
+  const resultado = {};
+  for (const chave of Object.values(RECURSOS)) {
+    resultado[chave] = typeof gravados[chave] === 'boolean' ? gravados[chave] : RECURSOS_PADRAO[chave];
+  }
+  return /** @type {{ ia: boolean, garmin: boolean }} */ (resultado);
+}
+
+/** @param {Perfil|null|undefined} perfil @param {string} recurso um valor de RECURSOS */
+export function temRecurso(perfil, recurso) {
+  return recursosDoUsuario(perfil)[recurso] === true;
+}
+
+/**
+ * Valida os recursos enviados pelo admin: só chaves conhecidas, valores booleanos. Devolve o objeto completo.
+ * @param {unknown} entrada
+ * @returns {{ valido: boolean, erro: string|null, valores: { ia: boolean, garmin: boolean }|null }}
+ */
+export function validarRecursos(entrada) {
+  if (typeof entrada !== 'object' || entrada === null || Array.isArray(entrada)) {
+    return { valido: false, erro: 'Recursos inválidos.', valores: null };
+  }
+  const conhecidas = Object.values(RECURSOS);
+  const bruto = /** @type {Record<string, unknown>} */ (entrada);
+  if (Object.keys(bruto).some((k) => !conhecidas.includes(k)) || conhecidas.some((k) => typeof bruto[k] !== 'boolean')) {
+    return { valido: false, erro: 'Recursos inválidos.', valores: null };
+  }
+  return { valido: true, erro: null, valores: { ia: /** @type {boolean} */ (bruto.ia), garmin: /** @type {boolean} */ (bruto.garmin) } };
+}
+
 /** Versão do texto de aceite LGPD (dados de saúde) vigente. Mudar o texto exige subir a versão. */
 export const VERSAO_ACEITE_LGPD = '1';
 
@@ -30,6 +86,7 @@ const IDADE_MAXIMA = 110;
  * @property {boolean} [ativo]
  * @property {string|null} [dataNascimento]
  * @property {{ versao?: string }|null} [aceiteLgpd]
+ * @property {{ ia?: boolean, garmin?: boolean }} [recursos] funcionalidades liberadas pelo admin (ver `recursosDoUsuario`)
  */
 
 /**

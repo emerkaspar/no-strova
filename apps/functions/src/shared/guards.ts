@@ -1,4 +1,4 @@
-import { ehAdmin, type Perfil, usuarioPodeAcessar } from "@no-strova/domain";
+import { ehAdmin, type Perfil, RECURSOS, temRecurso, usuarioPodeAcessar } from "@no-strova/domain";
 import { type CallableRequest, HttpsError } from "firebase-functions/v2/https";
 import { db } from "./firebase";
 
@@ -18,6 +18,23 @@ export async function exigirAcesso(request: CallableRequest): Promise<{ uid: str
     throw new HttpsError("permission-denied", "Seu acesso ainda não está liberado.");
   }
   return { uid, perfil: perfil as Perfil };
+}
+
+const NOMES_RECURSOS: Record<string, string> = {
+  [RECURSOS.IA]: "As sugestões com IA",
+  [RECURSOS.GARMIN]: "A sincronização com o Garmin",
+};
+
+/** Como `exigirAcesso`, e ainda confere se o admin liberou o recurso para este usuário (`users/{uid}.recursos`). */
+export async function exigirRecurso(
+  request: CallableRequest,
+  recurso: (typeof RECURSOS)[keyof typeof RECURSOS],
+): Promise<{ uid: string; perfil: Perfil }> {
+  const acesso = await exigirAcesso(request);
+  if (!temRecurso(acesso.perfil, recurso)) {
+    throw new HttpsError("permission-denied", `${NOMES_RECURSOS[recurso]} não está liberada para a sua conta. Fale com o administrador.`);
+  }
+  return acesso;
 }
 
 /** Garante que o chamador é admin aprovado e ativo. A fonte autoritativa é users/{uid} (só Admin SDK escreve). */
