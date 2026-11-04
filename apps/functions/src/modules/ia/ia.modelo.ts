@@ -2,7 +2,7 @@ import { googleAI } from "@genkit-ai/google-genai";
 import { genkit, type z } from "genkit";
 
 /** Modelo Gemini usado nas sugestões (troque aqui para mudar em todas). */
-export const MODELO_GEMINI = "gemini-2.5-flash";
+export const MODELO_GEMINI = "gemini-flash-lite-latest";
 
 /**
  * Chama o Gemini pelo Genkit pedindo saída estruturada. A chave vem do Secret Manager (`GEMINI_API_KEY`) e é

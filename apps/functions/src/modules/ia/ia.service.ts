@@ -67,6 +67,11 @@ export async function chamadasRestantes(uid: string): Promise<number> {
   return Math.max(0, LIMITES_IA.chamadasPorDia - usadas);
 }
 
+/** Erro 402 do Gemini: créditos pré-pagos esgotados ou faturamento desativado. */
+function semCreditoNoGemini(err: unknown): boolean {
+  return /402|prepayment|payment required/i.test(String((err as Error)?.message ?? ""));
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Sugestão de treinos
 // ---------------------------------------------------------------------------------------------------------------
@@ -159,7 +164,8 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
   } catch (err) {
     logger.error("Falha ao chamar o Gemini (treinos)", err);
     await devolverChamada(uid, hoje);
-    throw new HttpsError("unavailable", "Não foi possível gerar a sugestão agora. Tente novamente em instantes (a tentativa não foi descontada).");
+    if (semCreditoNoGemini(err)) throw new HttpsError("failed-precondition", "A conta do Gemini está sem créditos. Adicione créditos ou ative o faturamento no Google AI Studio e tente de novo (a tentativa não foi descontada).");
+    throw new HttpsError("aborted", "Não foi possível gerar a sugestão agora. Tente novamente em instantes (a tentativa não foi descontada).");
   }
 
   const configHoje = configVigenteEm(configs, hoje);

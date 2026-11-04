@@ -28,7 +28,7 @@ export function criarCartaoPlanoDePesoIa({ uid, hoje, obter }) {
   const botao = h('button', { class: 'btn', type: 'submit' }, 'Planejar com IA');
 
   const atualizarRestantes = (n) => {
-    contador.textContent = n === null || n === undefined ? '' : `Restam ${n} sugestão${n === 1 ? '' : 'ões'} de IA hoje (limite de 5 por dia, somando treinos e peso).`;
+    contador.textContent = n === null || n === undefined ? '' : `Restam ${n} sugest${n === 1 ? 'ão' : 'ões'} de IA hoje (limite de 5 por dia, somando treinos e peso).`;
   };
   restantesDaIa().then(atualizarRestantes).catch(() => {});
 

@@ -13,8 +13,10 @@ export const LIMITES_IA = Object.freeze({
   /** Chamadas de IA por usuário por dia (treinos e meta de peso somados). */
   chamadasPorDia: 5,
   semanasMax: 4,
-  /** Aumento máximo da carga semanal sobre a base (média das últimas 4 semanas): 10% por semana. */
+  /** Aumento máximo da carga semanal sobre a base (média das semanas com treino nas últimas 8): 10% por semana. */
   aumentoSemanalMaximo: 0.1,
+  /** Piso da base de carga (HRSS por semana): com histórico pequeno, o limite de 10% ficaria apertado demais. */
+  pisoDaCargaBase: 60,
   /** Perda de peso: padrão sugerido 0,5% do peso por semana, máximo 1%. */
   perdaPadraoSemanalPct: 0.5,
   perdaMaximaSemanalPct: 1,
@@ -79,18 +81,21 @@ export function catalogoParaIa(esporte = 'ambos') {
 }
 
 /**
- * Carga média semanal (soma do estresse) das últimas 4 semanas completas, base do limite de aumento.
+ * Base de carga semanal (soma do estresse): média das semanas **com treino** nas últimas 8 semanas completas, com piso
+ * de 60 quando há histórico. Semanas sem treino (viagem, descanso) não puxam a base para baixo. Zero sem histórico.
  * @param {Array<{ data: string, estresse: number }>} dias
  */
 export function cargaBaseSemanal(dias, hoje) {
   const inicioAtual = inicioDaSemana(hoje);
-  let total = 0;
-  for (let i = 1; i <= 4; i++) {
+  const somas = [];
+  for (let i = 1; i <= 8; i++) {
     const de = somarDias(inicioAtual, -7 * i);
     const ate = somarDias(de, 6);
-    total += dias.filter((d) => d.data >= de && d.data <= ate).reduce((s, d) => s + (Number.isFinite(d.estresse) ? d.estresse : 0), 0);
+    const soma = dias.filter((d) => d.data >= de && d.data <= ate).reduce((s, d) => s + (Number.isFinite(d.estresse) ? d.estresse : 0), 0);
+    if (soma > 0) somas.push(soma);
   }
-  return total / 4;
+  if (somas.length === 0) return 0;
+  return Math.max(LIMITES_IA.pisoDaCargaBase, somas.reduce((a, b) => a + b, 0) / somas.length);
 }
 
 /**
@@ -130,6 +135,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   candidatos.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0));
 
   const itens = [];
+  let descartadosPorCarga = false;
   const intensos = [...intensosAnteriores];
   const porSemana = new Map();
   const cargaPorSemana = {};
@@ -165,6 +171,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
       const limite = cargaBase * (1 + LIMITES_IA.aumentoSemanalMaximo) ** (indiceDaSemana + 1);
       if (semana.carga + estresse > limite) {
         avisos.push(`${rotulo}: a carga da semana passaria de ${Math.round(limite)} (aumento máximo de 10% por semana) e foi descartado.`);
+        descartadosPorCarga = true;
         continue;
       }
     }
@@ -174,6 +181,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
     cargaPorSemana[inicio] = semana.carga + estresse;
     itens.push({ data: c.data, modeloId: c.ref.id, nome: c.ref.nome, esporte: c.ref.esporte, foco: c.ref.foco, intensidade: c.ref.intensidade, duracaoMin: c.ref.duracaoMin, estresse: Math.round(estresse), motivo: c.motivo });
   }
+  if (descartadosPorCarga) avisos.push(`Limite de carga: a sua base recente é de cerca de ${Math.round(cargaBase)} por semana e a carga só pode subir 10% por semana (por isso a sugestão tem menos treinos do que você pediu). Treinar com regularidade eleva a base e libera mais treino nas próximas sugestões.`);
   if (cargaBase <= 0) avisos.push('Sem histórico de treino nas últimas 4 semanas: o limite de aumento de carga não pôde ser aplicado. Comece leve.');
   if (itens.length === 0) avisos.push('Nenhum treino da sugestão passou pelas regras de segurança. Tente de novo ou ajuste dias e horas.');
   return { itens, avisos, cargaPorSemana };
