@@ -10,6 +10,7 @@ export * from './hrss.js';
 export * from './metaCondicionamento.js';
 export * from './lthr.js';
 export * from './planejamento.js';
+export * from './ia.js';
 export * from './peso.js';
 export * from './recordesAtividades.js';
 export * from './frasesDoTreino.js';

@@ -1,16 +1,13 @@
 import {
-  connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
-import { EMULADORES, USAR_EMULADORES } from './constants.js';
 import { app } from './firebase.js';
 
 const auth = getAuth(app);
-if (USAR_EMULADORES) connectAuthEmulator(auth, EMULADORES.auth, { disableWarnings: true });
 
 /** @returns {() => void} função que cancela o listener */
 export function observarSessao(aoMudar) {

@@ -1,9 +1,8 @@
-import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions';
-import { EMULADORES, REGIAO_FUNCTIONS, USAR_EMULADORES } from './constants.js';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { REGIAO_FUNCTIONS } from './constants.js';
 import { app } from './firebase.js';
 
 const functions = getFunctions(app, REGIAO_FUNCTIONS);
-if (USAR_EMULADORES) connectFunctionsEmulator(functions, EMULADORES.functions.host, EMULADORES.functions.port);
 
 const ERROS_GENERICOS = new Set(['functions/internal', 'functions/unavailable', 'functions/unknown']);
 
@@ -35,3 +34,7 @@ export const obterUrlArquivo = callable('obterUrlArquivo');
 export const recalcularHistorico = callable('recalcularHistorico');
 export const reconstruirEstresseDiario = callable('reconstruirEstresseDiario');
 export const reconstruirCalibracao = callable('reconstruirCalibracao');
+export const sugerirTreinos = callable('sugerirTreinos');
+export const sugerirMetaPeso = callable('sugerirMetaPeso');
+export const decidirRascunho = callable('decidirRascunho');
+export const iaChamadasRestantes = callable('iaChamadasRestantes');

@@ -1,9 +1,7 @@
-import { connectStorageEmulator, getStorage, ref, uploadBytesResumable } from 'firebase/storage';
-import { EMULADORES, USAR_EMULADORES } from './constants.js';
+import { getStorage, ref, uploadBytesResumable } from 'firebase/storage';
 import { app } from './firebase.js';
 
 const storage = getStorage(app);
-if (USAR_EMULADORES) connectStorageEmulator(storage, EMULADORES.storage.host, EMULADORES.storage.port);
 
 /**
  * Envia o arquivo original da atividade para atividades/{uid}/{atividadeId}/original.{ext}.

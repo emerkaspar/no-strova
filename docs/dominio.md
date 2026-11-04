@@ -425,6 +425,18 @@ Regras puras em `packages/domain/src/peso.js`; tela em `modules/peso/`; dados em
 
 Implemente pesagens, tendência (média móvel 7 d), metas de peso e a sobreposição opcional de peso no gráfico. Mostre peso/estresse semanal e gasto calórico dos treinos.
 
+## IA com Gemini (Fase 6, implementada)
+
+Regras puras em `packages/domain/src/ia.js`; Functions em `apps/functions/src/modules/ia/`; telas em `modules/plano/sugestaoIa.js` e `modules/peso/sugestaoPesoIa.js`.
+- **Infra:** Genkit com `@genkit-ai/google-genai`, modelo em `MODELO_GEMINI` (`ia.modelo.ts`, hoje `gemini-2.5-flash`), chave no **Secret Manager** (`GEMINI_API_KEY`, `defineSecret`). Região `southamerica-east1`. Saída estruturada (schema zod) validada.
+- **Callables:** `sugerirTreinos`, `sugerirMetaPeso`, `decidirRascunho` e `iaChamadasRestantes`. A IA **nunca grava no plano nem na meta**: o servidor grava só o rascunho em `iaRascunhos` (status `pendente`); o app grava o plano/meta pelos caminhos de sempre (validação e regras) e depois chama `decidirRascunho` (`aceito`/`descartado`).
+- **Cota:** 5 chamadas por usuário por dia, treinos e peso somados (`iaUso/{uid_yyyymmdd}`, transação). Falha do serviço **devolve** a chamada.
+- **Privacidade:** a entrada da IA é um JSON de métricas resumidas (Condicionamento, Fadiga, Forma, carga semanal, meta, peso, treino médio); nunca arquivos brutos, nome, e-mail nem dados de outros usuários. A observação livre do usuário vai como dado, não como instrução.
+- **Sugestão de treinos:** entrada = semanas (1–4), dias por semana (1–7), horas por semana (1–25), esporte e observação (até 300). A IA escolhe **só do catálogo** (id, data, motivo). O código (`validarSugestaoDeTreinos`) **descarta** o que violar: modelo fora do catálogo, data fora do período ou já ocupada, mais dias ou horas que o pedido, mais de 2 treinos intensos por semana, menos de 48 h entre intensos e **aumento de carga acima de 10% por semana** sobre a média das 4 últimas semanas. Cada descarte vira um aviso. Aceitar cria `treinosPlanejados` (com a cópia dos passos).
+- **Plano de peso:** os **números são calculados no código** (`planejarMetaDePeso`) e a IA só **explica** (e dá 3 dicas). Gasto = Mifflin-St Jeor × 1,2 + treino médio; ritmo limitado a **1% do peso por semana** e a **déficit de 20%** do gasto total (se o pedido passa disso, o ritmo cai e a **data é empurrada**); aviso acima de 0,5% por semana; ganho até 0,5% por semana; **recusa IMC abaixo de 18,5**. O treino sugerido converte 40% do déficit em horas, km e kcal pelo seu histórico; o resto é alimentação. Se a IA falhar, o plano sai com texto padrão e a chamada é devolvida.
+- **Aviso fixo:** "Sugestão gerada por IA: revise antes de aceitar. Não substitui orientação de médico, nutricionista ou treinador."
+- **Preparar o ambiente (uma vez por projeto Firebase):** `firebase functions:secrets:set GEMINI_API_KEY --project homolog` (e `production`), com a chave do Google AI Studio; o projeto precisa do plano Blaze. Depois publique as Functions.
+
 ## Fase 6 — IA com Gemini
 
 Configure Genkit com Gemini em callables e a chave em Secret Manager. Implemente (a) sugestão de treinos para as próximas semanas e (b) sugestão de meta de peso (ritmo, tempo, distância, calorias), ambas com saída estruturada validada, como rascunho que o usuário aceita ou descarta, aplicando os limites de segurança do `docs/dominio.md` no código. Limite de chamadas por usuário/dia.

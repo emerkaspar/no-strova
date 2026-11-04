@@ -1,4 +1,4 @@
-import { avaliarMetaPeso, calcularImc, configVigenteEm, progressoDaMetaPeso, resumoDePeso, resumoSemanalDePeso, somarDias } from '@no-strova/domain';
+import { avaliarMetaPeso, calcularImc, classificarImc, faixaDePesoSaudavel, situacaoNaFaixa, configVigenteEm, progressoDaMetaPeso, resumoDePeso, resumoSemanalDePeso, somarDias } from '@no-strova/domain';
 import { salvarMetaDePeso, salvarPesagem } from '../../application/peso.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
@@ -10,8 +10,12 @@ import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { criarGraficoPeso, PERIODOS_DO_PESO } from './graficoPeso.js';
+import { criarCartaoPlanoDePesoIa } from './sugestaoPesoIa.js';
 
 const DIAS_DE_TREINO = 70;
+
+/** Troca os filhos de um cartão ignorando null (replaceChildren escreveria "null" na tela). */
+const montar = (el, ...filhos) => el.replaceChildren(...filhos.filter((f) => f !== null && f !== undefined));
 
 const kg = (v, casas = 1) => `${formatarNumero(v, casas)} kg`;
 const comSinal = (v, casas = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${formatarNumero(Math.abs(v), casas)}`;
@@ -30,13 +34,49 @@ export function textoDaAvaliacaoPeso(a) {
 
 const ROTULO_ESTADO = Object.freeze({ atingida: 'Atingida', 'no-ritmo': 'No ritmo', atrasada: 'Atrasada', adiantada: 'Adiantada' });
 
-function tile(rotulo, valor, nomeIcone, nota = null, classeNota = '') {
+/**
+ * Cartão de indicador (mesmo estilo dos recordes): ícone, rótulo, valor grande e uma nota no rodapé. `gravidade`
+ * (ok, atencao, alerta) colore a faixa lateral e o valor; `classeNota` colore a nota; `extra` entra entre o valor e o rodapé.
+ */
+function cartao({ rotulo, nomeIcone, valor, nota = null, classeNota = '', gravidade = '', extra = null, largo = false }) {
+  return h(
+    'article',
+    { class: `ativ-recorde${largo ? ' ativ-recorde-largo' : ''}${gravidade ? ` peso-${gravidade}-cartao` : ''}` },
+    h('div', { class: 'ativ-recorde-topo' }, h('span', { class: 'ativ-recorde-icone' }, icone(nomeIcone, 18)), h('span', { class: 'ativ-recorde-rotulo' }, rotulo)),
+    h('strong', { class: `ativ-recorde-valor${gravidade ? ` peso-${gravidade}` : ''}` }, valor),
+    extra,
+    nota ? h('div', { class: 'ativ-recorde-rodape' }, h('span', { class: `ativ-recorde-quando ${classeNota}` }, nota)) : null,
+  );
+}
+
+const TEXTO_DA_SITUACAO = Object.freeze({ dentro: 'Dentro da faixa saudável', acima: 'acima do limite superior', abaixo: 'abaixo do limite inferior' });
+
+/**
+ * Barra do peso na faixa saudável: trilho, zona verde da faixa (com os limites embaixo), um trecho na cor da situação
+ * ligando a faixa ao peso (a "distância" que falta) e o marcador do peso. A meta aparece como um traço tracejado.
+ */
+function barraDaFaixa({ faixa, pesoKg, metaKg, situacao }) {
+  const pontos = [faixa.minKg, faixa.maxKg, pesoKg, ...(metaKg ? [metaKg] : [])];
+  const margem = Math.max((faixa.maxKg - faixa.minKg) * 0.25, 2);
+  const de = Math.min(...pontos) - margem;
+  const ate = Math.max(...pontos) + margem;
+  const pct = (v) => ((v - de) / (ate - de)) * 100;
+  const limite = pesoKg > faixa.maxKg ? faixa.maxKg : faixa.minKg;
+  const esquerda = Math.min(pct(pesoKg), pct(limite));
+  const largura = Math.abs(pct(pesoKg) - pct(limite));
+  const rotulo = (valor) => h('span', { class: 'peso-barra-rotulo', style: `left:${pct(valor).toFixed(1)}%` }, formatarNumero(valor, 1));
   return h(
     'div',
-    { class: 'ativ-tile' },
-    h('span', { class: 'ativ-tile-rotulo' }, icone(nomeIcone, 16), rotulo),
-    h('strong', { class: 'ativ-tile-valor' }, valor),
-    nota ? h('span', { class: `ativ-tile-nota ${classeNota}` }, nota) : null,
+    { class: `peso-barra-bloco peso-${situacao.gravidade}-barra`, role: 'img', 'aria-label': `Peso de ${kg(pesoKg)} contra a faixa saudável de ${kg(faixa.minKg)} a ${kg(faixa.maxKg)}` },
+    h(
+      'div',
+      { class: 'peso-barra' },
+      h('span', { class: 'peso-barra-faixa', style: `left:${pct(faixa.minKg).toFixed(1)}%;width:${(pct(faixa.maxKg) - pct(faixa.minKg)).toFixed(1)}%`, title: `Faixa saudável: ${kg(faixa.minKg)} a ${kg(faixa.maxKg)}` }),
+      situacao.estado === 'dentro' ? null : h('span', { class: 'peso-barra-distancia', style: `left:${esquerda.toFixed(1)}%;width:${largura.toFixed(1)}%` }),
+      metaKg ? h('span', { class: 'peso-barra-meta', style: `left:${pct(metaKg).toFixed(1)}%`, title: `Meta: ${kg(metaKg)}` }) : null,
+      h('span', { class: 'peso-barra-marcador', style: `left:${pct(pesoKg).toFixed(1)}%`, title: `Você: ${kg(pesoKg)}` }),
+    ),
+    h('div', { class: 'peso-barra-rotulos' }, rotulo(faixa.minKg), rotulo(faixa.maxKg)),
   );
 }
 
@@ -48,7 +88,7 @@ export function render(raiz, sessao) {
   let periodoId = '90d';
   const cancelar = [];
 
-  const tiles = h('div', { class: 'ativ-resumo' });
+  const tiles = h('div', { class: 'ativ-recordes-grade' });
   const graficoCartao = h('section', { class: 'card peso-grafico-cartao' });
   const metaCartao = h('section', { class: 'card peso-meta' });
   const semanalCartao = h('section', { class: 'card' });
@@ -88,14 +128,28 @@ export function render(raiz, sessao) {
     const meta = metaAtiva();
     const perder = meta && r.atual ? meta.pesoAlvoKg < r.atual.pesoKg : null;
     // verde quando a variação vai na direção da meta; neutro sem meta
-    const classeDaVariacao = (v) => (v === null || v === 0 || perder === null ? '' : (v < 0) === perder ? 'comp-sobe' : 'comp-desce');
+    const gravidadeDaVariacao = (v) => (v === null || v === 0 || perder === null ? '' : (v < 0) === perder ? 'ok' : 'alerta');
     const imc = calcularImc(r.atual?.pesoKg, alturaCm());
-    tiles.replaceChildren(
-      tile('Peso atual', r.atual ? kg(r.atual.pesoKg) : '—', 'peso', r.atual ? `em ${formatarData(r.atual.data)}` : 'Sem pesagens'),
-      tile('Média de 7 dias', r.media7 === null ? '—' : kg(r.media7), 'atividades', 'Suaviza as oscilações do dia'),
-      tile('Tendência semanal', r.semanalKg === null ? '—' : `${comSinal(r.semanalKg)} kg`, r.semanalKg !== null && r.semanalKg > 0 ? 'setaCima' : 'setaBaixo', 'Média de hoje contra a de 7 dias atrás', classeDaVariacao(r.semanalKg)),
-      tile('Em 30 dias', r.variacao30Kg === null ? '—' : `${comSinal(r.variacao30Kg)} kg`, 'plano', 'Contra a pesagem de 30 dias atrás', classeDaVariacao(r.variacao30Kg)),
-      tile('IMC', imc === null ? '—' : formatarNumero(imc, 1), 'configuracao', imc === null ? 'Cadastre a altura na Configuração' : `Altura ${alturaCm()} cm`),
+    const faixa = faixaDePesoSaudavel(alturaCm());
+    const situacao = r.atual ? situacaoNaFaixa(r.atual.pesoKg, faixa, imc) : null;
+    const nomeDoEstado = situacao ? (situacao.estado === 'dentro' ? TEXTO_DA_SITUACAO.dentro : `${formatarNumero(situacao.diferencaKg, 1)} kg ${TEXTO_DA_SITUACAO[situacao.estado]}`) : null;
+    montar(
+      tiles,
+      cartao({ rotulo: 'Peso atual', nomeIcone: 'peso', valor: r.atual ? kg(r.atual.pesoKg) : '—', nota: r.atual ? `em ${formatarData(r.atual.data)}` : 'Sem pesagens' }),
+      cartao({ rotulo: 'Média de 7 dias', nomeIcone: 'atividades', valor: r.media7 === null ? '—' : kg(r.media7), nota: 'Suaviza as oscilações do dia' }),
+      cartao({ rotulo: 'Tendência semanal', nomeIcone: r.semanalKg !== null && r.semanalKg > 0 ? 'setaCima' : 'setaBaixo', valor: r.semanalKg === null ? '—' : `${comSinal(r.semanalKg)} kg`, nota: 'Média de hoje contra a de 7 dias atrás', gravidade: gravidadeDaVariacao(r.semanalKg) }),
+      cartao({ rotulo: 'Em 30 dias', nomeIcone: 'plano', valor: r.variacao30Kg === null ? '—' : `${comSinal(r.variacao30Kg)} kg`, nota: 'Contra a pesagem de 30 dias atrás', gravidade: gravidadeDaVariacao(r.variacao30Kg) }),
+      cartao({ rotulo: 'IMC', nomeIcone: 'configuracao', valor: imc === null ? '—' : formatarNumero(imc, 1), nota: imc === null ? 'Cadastre a altura na Configuração' : `${classificarImc(imc)} · altura ${alturaCm()} cm`, gravidade: imc !== null && situacao ? situacao.gravidade : '' }),
+      cartao({
+        rotulo: 'Faixa saudável',
+        nomeIcone: 'esporte',
+        valor: faixa ? `${formatarNumero(faixa.minKg, 1)} a ${formatarNumero(faixa.maxKg, 1)} kg` : '—',
+        gravidade: situacao?.gravidade ?? '',
+        largo: true,
+        extra: faixa && r.atual && situacao ? barraDaFaixa({ faixa, pesoKg: r.atual.pesoKg, metaKg: meta?.pesoAlvoKg ?? null, situacao }) : null,
+        nota: faixa ? (situacao ? nomeDoEstado : 'Para a sua altura (IMC de 18,5 a 24,9)') : 'Cadastre a altura na Configuração',
+        classeNota: situacao ? `peso-${situacao.gravidade}` : '',
+      }),
     );
   }
 
@@ -120,8 +174,8 @@ export function render(raiz, sessao) {
         ),
       ),
     );
-    const grafico = criarGraficoPeso({ pesagens: dados.pesagens, meta: metaAtiva(), hoje, periodoId });
-    graficoCartao.replaceChildren(
+    const grafico = criarGraficoPeso({ pesagens: dados.pesagens, meta: metaAtiva(), hoje, periodoId, faixa: faixaDePesoSaudavel(alturaCm()) });
+    montar(graficoCartao, 
       h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Evolução do peso'), chips),
       grafico ?? estadoVazio(carregou.pesagens ? 'Registre a primeira pesagem acima para ver o gráfico.' : 'Carregando…'),
       grafico
@@ -131,6 +185,7 @@ export function render(raiz, sessao) {
             h('span', { class: 'peso-leg peso-leg-ponto' }, 'Pesagem'),
             h('span', { class: 'peso-leg peso-leg-media' }, 'Média de 7 dias'),
             metaAtiva() ? h('span', { class: 'peso-leg peso-leg-meta' }, 'Meta') : null,
+            faixaDePesoSaudavel(alturaCm()) ? h('span', { class: 'peso-leg peso-leg-faixa' }, 'Faixa saudável') : null,
           )
         : null,
     );
@@ -185,7 +240,7 @@ export function render(raiz, sessao) {
           avaliacao.dias >= 0 ? h('p', { class: 'texto-secundario' }, avaliacao.dias === 0 ? 'A meta é hoje.' : `Faltam ${avaliacao.dias} dia${avaliacao.dias === 1 ? '' : 's'}.`) : null,
         );
 
-    metaCartao.replaceChildren(
+    montar(metaCartao, 
       h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Meta de peso')),
       resultado,
       form,
@@ -216,7 +271,7 @@ export function render(raiz, sessao) {
   function desenharSemanal() {
     const linhas = resumoSemanalDePeso({ pesagens: dados.pesagens, dias: dados.dias, atividades: dados.atividades }, hoje, 8);
     const temAlgo = linhas.some((l) => l.pesoMedioKg !== null || l.cargaHrss > 0 || l.kcalTreino > 0);
-    semanalCartao.replaceChildren(
+    montar(semanalCartao, 
       h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Peso e treino por semana')),
       temAlgo
         ? h(
@@ -249,7 +304,7 @@ export function render(raiz, sessao) {
   // ---- histórico de pesagens
   function desenharHistorico() {
     const lista = [...dados.pesagens].sort((a, b) => (a.data < b.data ? 1 : -1));
-    historicoCartao.replaceChildren(
+    montar(historicoCartao, 
       h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Histórico de pesagens')),
       lista.length === 0
         ? estadoVazio(carregou.pesagens ? 'Nenhuma pesagem ainda.' : 'Carregando…')
@@ -300,6 +355,8 @@ export function render(raiz, sessao) {
     desenharHistorico();
   }
 
+  const cartaoIa = criarCartaoPlanoDePesoIa({ uid: sessao.uid, hoje, obter: () => ({ metaAtiva: metaAtiva(), pesagens: dados.pesagens, alturaCm: alturaCm() }) });
+
   raiz.replaceChildren(
     h(
       'div',
@@ -310,6 +367,7 @@ export function render(raiz, sessao) {
       tiles,
       graficoCartao,
       metaCartao,
+      cartaoIa,
       semanalCartao,
       historicoCartao,
     ),

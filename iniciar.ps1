@@ -8,23 +8,13 @@
     npm install (se as dependencias estao desatualizadas ou ausentes)
     npm run dev   (app local contra o projeto de homolog)
 
-  Com -Emulador, em vez do homolog real sobe os emuladores do Firebase (Auth, Firestore,
-  Functions e Storage) numa janela separada e o app apontando para eles
-  (npm run dev:emulator). Os dados do emulador somem ao fechar a janela.
-
-.PARAMETER Emulador
-  Usa os emuladores locais em vez do projeto de homolog.
-
 .PARAMETER SemPull
   Nao faz git pull (util com alteracoes locais em andamento).
 
 .EXAMPLE
   ./iniciar.ps1
-  ./iniciar.ps1 -Emulador
 #>
 param(
-    [switch]$Emulador,
-
     [switch]$SemPull
 )
 
@@ -73,30 +63,9 @@ if ($precisaInstalar) {
     if ($LASTEXITCODE -ne 0) { Write-Host "npm install falhou." -ForegroundColor Red; exit 1 }
 }
 
-if ($Emulador) {
-    # Emuladores do Firebase precisam de Java (17 ou superior).
-    $java = Get-Command java -ErrorAction SilentlyContinue
-    if (-not $java) {
-        Write-Host "Java nao encontrado no PATH: os emuladores do Firestore e do Storage precisam dele (JDK 17+)." -ForegroundColor Red
-        exit 1
-    }
-
-    Etapa "build das Functions (os emuladores carregam o codigo compilado)"
-    npm run build -w apps/functions
-    if ($LASTEXITCODE -ne 0) { Write-Host "Build das Functions falhou." -ForegroundColor Red; exit 1 }
-
-    Etapa "subindo os emuladores em outra janela (painel: http://localhost:4000)"
-    Start-Process powershell -ArgumentList @("-NoExit", "-Command", "Set-Location '$PSScriptRoot'; npm run emulators")
-    Write-Host "Aguardando os emuladores iniciarem..." -ForegroundColor DarkGray
-    Start-Sleep -Seconds 12
-
-    Etapa "npm run dev:emulator"
-    npm run dev:emulator
-} else {
-    if (-not (Test-Path ".env.homolog")) {
-        Write-Host "Falta o arquivo .env.homolog (copie de .env.homolog.example e preencha), ou use ./iniciar.ps1 -Emulador." -ForegroundColor Red
-        exit 1
-    }
-    Etapa "npm run dev (app local contra o projeto de homolog)"
-    npm run dev
+if (-not (Test-Path ".env.homolog")) {
+    Write-Host "Falta o arquivo .env.homolog (copie de .env.homolog.example e preencha)." -ForegroundColor Red
+    exit 1
 }
+Etapa "npm run dev (app local contra o projeto de homolog)"
+npm run dev

@@ -15,3 +15,4 @@ export {
   listarPendentes,
 } from "./modules/auth/auth.functions";
 export { onAtividadeWrite, reconstruirEstresseDiario } from "./modules/estresse/estresse.functions";
+export { decidirRascunho, iaChamadasRestantes, sugerirMetaPeso, sugerirTreinos } from "./modules/ia/ia.functions";

@@ -60,7 +60,7 @@ Regras de arquitetura:
   - `deploy:hosting:homolog` / `deploy:hosting:prod`
   - `deploy:functions:homolog` / `deploy:functions:prod`
   - `deploy:rules:*`
-- Scripts de apoio na raiz (usados por mim, não por você): `iniciar.ps1` (ambiente local, com `-Emulador`) e `deploy.ps1` (deploy guiado com testes; `-Plano` só simula). Ver o README.
+- Scripts de apoio na raiz (usados por mim, não por você): `iniciar.ps1` (ambiente local) e `deploy.ps1` (deploy guiado com testes; `-Plano` só simula). Ver o README.
 - O fluxo é: desenvolver, validar em homolog e só então promover para produção.
 - Nunca commitar segredos. Use Secret Manager (`defineSecret`) nas Functions e variáveis `VITE_*` apenas para configuração pública do cliente.
 - O Hosting usa **rewrites** para expor Functions HTTP públicas sob `/api/...`, quando precisar de endpoints sem login.
@@ -114,7 +114,7 @@ Regras de arquitetura:
 ## 7. Qualidade e operação
 
 - Índices compostos declarados em `firebase/indexes/firestore.indexes.json` e versionados.
-- Lógica de `domain/` com testes unitários, sem depender de emulador.
+- Lógica de `domain/` com testes unitários.
 - Toda mudança visível ao usuário atualiza a documentação ou a ajuda do produto na mesma tarefa.
 - Commits e deploys são feitos por mim. Você edita o código e roda os testes, mas **não faz commit nem deploy** sem eu pedir.
 

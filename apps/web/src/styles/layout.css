@@ -3107,3 +3107,278 @@ textarea {
 .peso-inicio-meta .semana-progresso-barra {
   margin-top: 6px;
 }
+
+/* Formulários do Peso: campos alinhados pelo topo (a dica de um campo não desalinha os outros) e botão na altura dos campos. */
+.peso-form {
+  align-items: flex-start;
+}
+
+.peso-form .campo-botao {
+  margin-top: 26px;
+}
+
+.peso-faixa {
+  fill: #4ade80;
+  fill-opacity: 0.1;
+}
+
+.peso-leg-faixa::before {
+  width: 12px;
+  height: 10px;
+  border: 0;
+  border-radius: 2px;
+  background: #4ade80;
+  opacity: 0.35;
+}
+
+/* Cartão com valor mais comprido (ex.: faixa de peso): ocupa duas colunas; no celular, fonte menor. */
+.ativ-tile-largo {
+  grid-column: span 2;
+}
+
+@media (max-width: 767px) {
+  .ativ-tile-largo {
+    grid-column: auto;
+  }
+
+  .ativ-tile-largo .ativ-tile-valor {
+    font-size: 1.15rem;
+  }
+}
+
+/* Peso: cartões coloridos pela situação (verde, amarelo, vermelho) e barra da faixa saudável. */
+.ativ-recorde-largo {
+  flex: 2 1 340px;
+}
+
+.peso-ok {
+  color: var(--success);
+}
+
+.peso-atencao {
+  color: #facc15;
+}
+
+.peso-alerta {
+  color: var(--danger);
+}
+
+.peso-ok-cartao::before {
+  background: var(--success);
+}
+
+.peso-atencao-cartao::before {
+  background: #facc15;
+}
+
+.peso-alerta-cartao::before {
+  background: var(--danger);
+}
+
+.peso-barra-bloco {
+  --cor: var(--success);
+  margin: 14px 0 2px;
+}
+
+.peso-atencao-barra {
+  --cor: #facc15;
+}
+
+.peso-alerta-barra {
+  --cor: var(--danger);
+}
+
+.peso-barra {
+  position: relative;
+  height: 8px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.peso-barra-faixa {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  background: rgba(74, 222, 128, 0.35);
+  border: 1px solid var(--success);
+  border-radius: 6px;
+}
+
+.peso-barra-distancia {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  background: var(--cor);
+  border-radius: 999px;
+  opacity: 0.9;
+}
+
+.peso-barra-marcador {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  background: var(--cor);
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.peso-barra-meta {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 0;
+  border-left: 2px dashed #facc15;
+}
+
+.peso-barra-rotulos {
+  position: relative;
+  height: 18px;
+  margin-top: 8px;
+}
+
+.peso-barra-rotulo {
+  position: absolute;
+  color: var(--success);
+  font-size: 0.72rem;
+  font-weight: 600;
+  transform: translateX(-50%);
+}
+
+/* ===== Sugestões com IA (treinos e peso) ===== */
+.ia-cartao .peso-form {
+  margin-top: 14px;
+}
+
+.ia-restantes {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+
+.ia-resultado {
+  margin-top: 12px;
+}
+
+.ia-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.ia-aviso .icone {
+  flex: none;
+  color: var(--primary);
+}
+
+.ia-resumo {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  background: var(--surface-light);
+  border-left: 3px solid var(--primary);
+  border-radius: 10px;
+}
+
+.ia-avisos {
+  margin: 0 0 12px;
+  padding: 10px 14px 10px 30px;
+  color: #facc15;
+  font-size: 0.85rem;
+  background: rgba(250, 204, 21, 0.08);
+  border-radius: 10px;
+}
+
+.ia-itens {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.ia-item {
+  display: grid;
+  grid-template-columns: auto 5.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.ia-item-data {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+}
+
+.ia-item-treino {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ia-item-motivo {
+  grid-column: 3;
+  font-size: 0.85rem;
+}
+
+.ia-numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.ia-numero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.ia-numero-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ia-numero-rotulo .icone {
+  color: var(--primary);
+}
+
+.ia-dicas {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 767px) {
+  .ia-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ia-item-treino,
+  .ia-item-motivo {
+    grid-column: 2;
+  }
+}

@@ -9,7 +9,7 @@
     (hoje e' o placeholder TROCAR-no-strova-prod, entao o script faz so' homolog).
   - Descobre o que publicar comparando o codigo com as tags git deployed/homolog e
     deployed/prod (marcam o ultimo deploy bem-sucedido de cada ambiente).
-  - Antes de publicar, roda os testes (npm test e, se regras mudaram, npm run test:rules).
+  - Antes de publicar, roda os testes (npm test).
 
 .PARAMETER Message
   Mensagem do commit. Sem ela, o script sugere uma (via IA, se o comando claude existir)
@@ -422,8 +422,6 @@ $arquivosPendentes = $arquivosPendentes | Where-Object { $_ } | Select-Object -U
 $sugestaoOnly = Sugerir-Only $arquivosPendentes
 
 $ambTxt = if ($FazerHomolog -and $FazerProd) { "homolog + prod" } elseif ($FazerProd) { "prod" } else { "homolog" }
-$mudaRegras = $false
-if ($sugestaoOnly) { $mudaRegras = ($sugestaoOnly.Only -match '(^|,)(firestore|storage)(:|,|$)') }
 
 # ---- Simulacao ---------------------------------------------------------------
 if ($Plano) {
@@ -440,7 +438,7 @@ if ($Plano) {
     } else {
         Write-Host "Deploy:      nada para publicar desde o ultimo deploy"
     }
-    Write-Host "Testes:      $(if ($SkipTests) { 'pulados (-SkipTests)' } else { 'npm test' + $(if ($mudaRegras) { ' e npm run test:rules (regras mudaram)' } else { '' }) })"
+    Write-Host "Testes:      $(if ($SkipTests) { 'pulados (-SkipTests)' } else { 'npm test' })"
     $precisaWeb = ($Only -match '(^|,)hosting(,|$)') -or ((-not $Only) -and $sugestaoOnly -and ($sugestaoOnly.Only -match '(^|,)hosting(,|$)'))
     Write-Host "Build web:   $(if ($precisaWeb) { 'npm run build:homolog -w apps/web' } else { 'nao necessario' })"
     if (-not (Test-Path ".env.homolog")) { Write-Host "ATENCAO:     .env.homolog nao existe (o build de homolog sairia sem configuracao)" -ForegroundColor Red }
@@ -549,12 +547,9 @@ if ($FazerProd -and -not (Test-Path ".env.production")) {
     exit 1
 }
 
-# Portao de testes: nada vai ao ar com teste quebrado. Os testes de regras sobem os
-# emuladores (precisam de Java) e so' rodam quando regras do Firestore/Storage mudam.
+# Portao de testes: nada vai ao ar com teste quebrado.
 if (-not $SkipTests) {
     Step "testes (domain, web, functions)" { npm test }
-    $rodarRegras = $mudaRegras -or ($Only -match '(^|,)(firestore|storage)(:|,|$)')
-    if ($rodarRegras) { Step "testes de regras (emuladores)" { npm run test:rules } }
 } else {
     Write-Host "Testes pulados (-SkipTests)." -ForegroundColor Yellow
 }

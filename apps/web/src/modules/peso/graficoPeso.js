@@ -24,10 +24,11 @@ export const PERIODOS_DO_PESO = Object.freeze([
 /**
  * Gráfico de peso (SVG, sem biblioteca): pesagens (pontos), média móvel de 7 dias (linha) e a meta (tracejada até a
  * data-alvo, com um losango).
- * @param {{ pesagens: Array<{ data: string, pesoKg: number }>, meta: { pesoAlvoKg: number, dataAlvo: string }|null, hoje: string, periodoId: string }} p
+ * @param {{ pesagens: Array<{ data: string, pesoKg: number }>, meta: { pesoAlvoKg: number, dataAlvo: string }|null, hoje: string, periodoId: string, faixa?: { minKg: number, maxKg: number }|null }} p
+ *   `faixa`: faixa de peso saudável (IMC normal), desenhada como uma área ao fundo
  * @returns {SVGSVGElement|null} null quando não há pesagens na janela
  */
-export function criarGraficoPeso({ pesagens, meta, hoje, periodoId }) {
+export function criarGraficoPeso({ pesagens, meta, hoje, periodoId, faixa = null }) {
   const ordenadas = [...pesagens].sort((a, b) => (a.data < b.data ? -1 : 1));
   if (ordenadas.length === 0) return null;
   const periodo = PERIODOS_DO_PESO.find((p) => p.id === periodoId) ?? PERIODOS_DO_PESO[1];
@@ -46,6 +47,13 @@ export function criarGraficoPeso({ pesagens, meta, hoje, periodoId }) {
   const y = (kg) => MARGEM.topo + (1 - (kg - minimo) / (maximo - minimo)) * (A - MARGEM.topo - MARGEM.base);
 
   const raiz = svg('svg', { viewBox: `0 0 ${L} ${A}`, class: 'peso-grafico', role: 'img', 'aria-label': 'Gráfico do peso ao longo do tempo' });
+
+  // faixa de peso saudável (só a parte que cabe na escala do gráfico)
+  if (faixa && faixa.maxKg > minimo && faixa.minKg < maximo) {
+    const topo = y(Math.min(maximo, faixa.maxKg));
+    const base = y(Math.max(minimo, faixa.minKg));
+    raiz.append(svg('rect', { x: MARGEM.esquerda, y: topo, width: L - MARGEM.esquerda - MARGEM.direita, height: base - topo, class: 'peso-faixa' }, svg('title', {}, `Faixa de peso saudável: ${formatarNumero(faixa.minKg, 1)} a ${formatarNumero(faixa.maxKg, 1)} kg (IMC 18,5 a 24,9)`)));
+  }
 
   // grade e rótulos do eixo do peso
   const passos = 4;

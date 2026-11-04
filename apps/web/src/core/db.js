@@ -1,6 +1,5 @@
 import {
   collection,
-  connectFirestoreEmulator,
   deleteDoc,
   doc,
   getDoc,
@@ -15,11 +14,9 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { EMULADORES, USAR_EMULADORES } from './constants.js';
 import { app } from './firebase.js';
 
 const db = getFirestore(app);
-if (USAR_EMULADORES) connectFirestoreEmulator(db, EMULADORES.firestore.host, EMULADORES.firestore.port);
 
 /** Lê um documento pelo caminho. Retorna os dados ou null se não existir. */
 export async function lerDocumento(caminho) {

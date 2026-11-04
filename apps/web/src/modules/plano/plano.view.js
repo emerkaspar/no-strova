@@ -15,6 +15,7 @@ import { desenharCalendario } from './calendario.js';
 import { criarEditor } from './editor.js';
 import { criarCartaoMeta } from './meta.js';
 import { criarCartaoMetaCondicionamento } from './metaCondicionamento.js';
+import { criarCartaoSugestaoIa } from './sugestaoIa.js';
 import { criarTreinoDoDia } from '../inicio/treinoDoDia.js';
 import { criarCartaoProjecao } from './projecao.js';
 import { estadoPlano } from './state.js';
@@ -204,12 +205,15 @@ export function render(raiz, sessao) {
     );
   }
 
+  const cartaoIa = criarCartaoSugestaoIa({ uid: sessao.uid, obterConfigs: () => dados.configs });
+
   raiz.replaceChildren(
     h(
       'div',
       { class: 'pilha' },
       h('section', { class: 'card' }, h('h1', null, 'Plano de treino'), h('p', { class: 'texto-secundario' }, 'Planeje os treinos, arraste para outro dia e veja a projeção da Forma. Treinos planejados em dias passados e não feitos não entram na projeção.'), aviso, barra, mensagem.el, calendario),
       editorArea,
+      cartaoIa,
       resto,
     ),
   );

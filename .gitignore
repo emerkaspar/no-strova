@@ -7,11 +7,10 @@ firebase-debug.log*
 firestore-debug.log
 ui-debug.log
 
-# Configuração de ambiente: só os exemplos e o do emulador (sem segredos) vão ao Git
+# Configuração de ambiente: só os exemplos (sem segredos) vão ao Git
 .env
 .env.*
 !.env.*.example
-!.env.emulator
 
 # Credenciais nunca vão ao Git
 *-service-account*.json

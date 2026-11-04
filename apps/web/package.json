@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite --mode homolog",
-    "dev:emulator": "vite --mode emulator",
     "build:homolog": "vite build --mode homolog",
     "build:prod": "vite build --mode production",
     "icones": "node scripts/gerar-icones.mjs",

@@ -1,11 +1,8 @@
 // Promove um usuário JÁ CADASTRADO (existente no Firebase Auth) a administrador.
 // É a forma de criar o primeiro admin, porque nenhuma callable concede o papel admin.
 //
-// Uso (projeto real, com credenciais do Google instaladas via `gcloud auth application-default login`):
+// Uso (com credenciais do Google instaladas via `gcloud auth application-default login`):
 //   GCLOUD_PROJECT=<id-do-projeto> node scripts/promover-admin.mjs email@exemplo.com
-// Uso (emuladores, com `npm run emulators` rodando):
-//   FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
-//   GCLOUD_PROJECT=demo-no-strova node scripts/promover-admin.mjs email@exemplo.com
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';

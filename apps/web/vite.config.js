@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// As variáveis VITE_* vêm de .env.<modo> na raiz do monorepo (homolog, production, emulator).
+// As variáveis VITE_* vêm de .env.<modo> na raiz do monorepo (homolog, production).
 export default defineConfig({
   envDir: '../../',
   build: { outDir: 'dist' },

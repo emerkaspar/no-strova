@@ -28,6 +28,25 @@ export function calcularImc(pesoKg, alturaCm) {
   return arredondar1(pesoKg / (alturaCm / 100) ** 2);
 }
 
+/** Faixa de IMC considerada normal (OMS): de 18,5 a 24,9. */
+export const IMC_FAIXA_NORMAL = Object.freeze({ min: IMC_MINIMO, max: 24.9 });
+
+/** Faixa de peso (kg) que dá IMC normal para a altura; null sem altura. Os extremos são arredondados a 0,1 para dentro da faixa. */
+export function faixaDePesoSaudavel(alturaCm) {
+  if (!(alturaCm > 0)) return null;
+  const m2 = (alturaCm / 100) ** 2;
+  return { minKg: Math.ceil(IMC_FAIXA_NORMAL.min * m2 * 10) / 10, maxKg: Math.floor(IMC_FAIXA_NORMAL.max * m2 * 10) / 10 };
+}
+
+/** Classificação do IMC (faixas da OMS para adultos). */
+export function classificarImc(imc) {
+  if (!Number.isFinite(imc)) return null;
+  if (imc < 18.5) return 'Abaixo do peso';
+  if (imc < 25) return 'Peso normal';
+  if (imc < 30) return 'Sobrepeso';
+  return 'Obesidade';
+}
+
 /**
  * Valida uma pesagem. Uma pesagem por dia: gravar de novo na mesma data substitui a anterior.
  * @returns {{ valido: boolean, erros: string[], valores: { data: string, pesoKg: number }|null }}
@@ -108,7 +127,10 @@ export function validarMetaPeso(entrada, { pesoAtualKg = null, alturaCm = null }
   else if (diasEntre(hoje, data) > 730) erros.push('A data da meta deve ficar nos próximos 2 anos.');
   if (erros.length === 0) {
     const imc = calcularImc(alvo, alturaCm);
-    if (imc !== null && imc < IMC_MINIMO) erros.push(`Com a sua altura, ${arredondar1(alvo)} kg dá IMC ${imc}, abaixo de ${IMC_MINIMO}. Escolha um peso maior.`);
+    if (imc !== null && imc < IMC_MINIMO) {
+      const faixa = faixaDePesoSaudavel(alturaCm);
+      erros.push(`Com a sua altura, ${arredondar1(alvo)} kg dá IMC ${String(imc).replace(".", ",")}, abaixo de 18,5. O menor peso aceito para ${alturaCm} cm é ${faixa.minKg} kg.`);
+    }
     if (pesoAtualKg > 0 && alvo < pesoAtualKg) {
       const semanas = diasEntre(hoje, data) / 7;
       const pctPorSemana = ((pesoAtualKg - alvo) / pesoAtualKg / semanas) * 100;
@@ -187,4 +209,16 @@ export function resumoSemanalDePeso({ pesagens = [], dias = [], atividades = [] 
     });
   }
   return linhas;
+}
+
+/**
+ * Onde o peso está em relação à faixa saudável: `dentro`, `acima` ou `abaixo`, a diferença para o limite mais próximo
+ * (kg, 0 dentro da faixa) e a gravidade: `ok` (dentro), `atencao` (fora, mas perto: IMC de 17 a 30) ou `alerta`
+ * (IMC abaixo de 17 ou de 30 em diante). Null sem peso ou sem faixa.
+ */
+export function situacaoNaFaixa(pesoKg, faixa, imc) {
+  if (!Number.isFinite(pesoKg) || !faixa) return null;
+  if (pesoKg < faixa.minKg) return { estado: 'abaixo', diferencaKg: faixa.minKg - pesoKg, gravidade: Number.isFinite(imc) && imc < 17 ? 'alerta' : 'atencao' };
+  if (pesoKg > faixa.maxKg) return { estado: 'acima', diferencaKg: pesoKg - faixa.maxKg, gravidade: Number.isFinite(imc) && imc >= 30 ? 'alerta' : 'atencao' };
+  return { estado: 'dentro', diferencaKg: 0, gravidade: 'ok' };
 }

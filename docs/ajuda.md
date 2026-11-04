@@ -86,6 +86,13 @@ A faixa em que a Forma está aparece em destaque: **Transição** (acima de +25,
 
 Escolha o período (30 dias, 90 dias, 6 meses, 1 ano ou tudo) e passe o mouse no gráfico para ver cada dia. A opção **Mostrar estresse diário** liga e desliga as barras de HRSS. Os dias sem treino contam como estresse zero. O gráfico só aparece depois que há atividades com HRSS calculado.
 
+## Sugestões com IA
+Há duas sugestões feitas por IA (Gemini). Em ambas a IA **só sugere**: nada muda no seu plano ou na sua meta até você aceitar, e há um limite de **5 sugestões por dia** (as duas somadas). O app mostra quantas restam.
+
+- **Plano → Sugestão de treinos com IA:** informe quantas semanas, quantos dias e horas por semana, o esporte e, se quiser, uma observação ("viajo na semana 2"). A IA monta os treinos com os do catálogo, olhando o seu Condicionamento, a Forma e o que já está no plano. Você vê a lista, desmarca o que não quiser e clica em **Aceitar**. Treinos que quebrem os limites de segurança (mais de 2 intensos por semana, menos de 48 h entre eles, carga subindo mais de 10% por semana) são descartados, com um aviso.
+- **Peso → Plano de peso com IA:** informe o peso desejado e a data. O app calcula o ritmo, o déficit de calorias e quanto treinar por semana, **com limites de segurança** (no máximo 1% do peso por semana e 20% de déficit; se o seu pedido passar disso, a data é empurrada). A IA explica o plano e dá dicas. Clique em **Usar como meta** para criar a meta de peso.
+- A IA não substitui médico, nutricionista ou treinador.
+
 ## Treinos intervalados
 
 Em **Treinos** você encontra uma biblioteca de treinos intervalados para **ciclismo e corrida**, de vários focos (VO2máx, limiar, tempo, over-under, pirâmides, fartlek, sprints, progressivos e subidas) e três níveis. Escolha o **esporte** e o **seu nível** no alto da tela.
@@ -100,7 +107,7 @@ Em **Treinos** você encontra uma biblioteca de treinos intervalados para **cicl
 - **Dica:** em esforços muito curtos (20 a 30 segundos), a frequência cardíaca demora a subir: guie-se pelo esforço descrito no treino, não só pela FC.
 
 ## Peso
-Em **Peso**, registre o seu peso (**uma pesagem por dia**: se registrar de novo na mesma data, ela substitui a anterior). A tela mostra o peso atual, a **média de 7 dias** (que suaviza as oscilações do dia), a **tendência semanal**, a variação em 30 dias e o IMC (precisa da altura na Configuração), além do gráfico da evolução com a meta.
+Em **Peso**, registre o seu peso (**uma pesagem por dia**: se registrar de novo na mesma data, ela substitui a anterior). A tela mostra o peso atual, a **média de 7 dias** (que suaviza as oscilações do dia), a **tendência semanal**, a variação em 30 dias, o IMC com a classificação e a **faixa de peso saudável** para a sua altura, com uma barra que compara o seu peso (e a meta) com a faixa e muda de cor: verde dentro dela, amarelo fora mas perto, vermelho longe (IMC de 18,5 a 24,9), tudo a partir da altura da Configuração, além do gráfico (com a faixa em verde ao fundo) da evolução com a meta.
 
 - **Meta de peso:** informe o peso desejado e a data. O app mostra se, mantendo a tendência atual, você chega lá (**No ritmo**, **Atrasada** ou **Adiantada**) e quantos kg por semana seriam necessários. Perder mais de **1% do peso por semana** gera um aviso, e metas que levem a IMC abaixo de 18,5 não são aceitas. Há uma meta ativa por vez.
 - **Peso e treino por semana:** o peso médio, a carga (HRSS) e o gasto calórico dos treinos de cada uma das últimas 8 semanas.

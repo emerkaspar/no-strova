@@ -1,0 +1,41 @@
+import { defineSecret } from "firebase-functions/params";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { REGIAO } from "../../shared/config";
+import { exigirAcesso, lerObjeto } from "../../shared/guards";
+import { chamadasRestantes, decidirRascunhoDoUsuario, sugerirMetaDePesoDoUsuario, sugerirTreinosDoUsuario } from "./ia.service";
+
+/** Chave da API do Gemini no Secret Manager: `firebase functions:secrets:set GEMINI_API_KEY`. */
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+
+const opcoes = { region: REGIAO, timeoutSeconds: 120, memory: "512MiB" as const, secrets: [GEMINI_API_KEY] };
+
+function chave(): string {
+  const valor = GEMINI_API_KEY.value();
+  if (!valor) throw new HttpsError("failed-precondition", "A IA ainda não está configurada (chave do Gemini ausente).");
+  return valor;
+}
+
+/** Sugere treinos do catálogo para as próximas semanas, como rascunho. Cota: 5 chamadas de IA por dia. */
+export const sugerirTreinos = onCall(opcoes, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  return sugerirTreinosDoUsuario(uid, lerObjeto(request.data), chave());
+});
+
+/** Sugere o plano para uma meta de peso (números calculados no código; a IA só explica), como rascunho. */
+export const sugerirMetaPeso = onCall(opcoes, async (request) => {
+  const { uid, perfil } = await exigirAcesso(request);
+  return sugerirMetaDePesoDoUsuario(uid, perfil as { dataNascimento?: string | null }, lerObjeto(request.data), chave());
+});
+
+/** Marca um rascunho como aceito ou descartado (o app grava o plano ou a meta pelos caminhos já validados). */
+export const decidirRascunho = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  const dados = lerObjeto(request.data);
+  return decidirRascunhoDoUsuario(uid, dados.rascunhoId, dados.decisao);
+});
+
+/** Quantas sugestões de IA ainda restam hoje. */
+export const iaChamadasRestantes = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  return { restantes: await chamadasRestantes(uid) };
+});
