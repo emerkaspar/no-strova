@@ -36,6 +36,7 @@ export const criarAtividadeManual = callable('criarAtividadeManual');
 export const excluirAtividade = callable('excluirAtividade');
 export const renomearAtividade = callable('renomearAtividade');
 export const salvarAtividade = callable('salvarAtividade');
+export const excluirTrajeto = callable('excluirTrajeto');
 export const obterUrlArquivo = callable('obterUrlArquivo');
 export const recalcularHistorico = callable('recalcularHistorico');
 export const reconstruirEstresseDiario = callable('reconstruirEstresseDiario');

@@ -395,6 +395,28 @@ async function resolverTrajeto(uid: string, esporte: string, pedido: unknown): P
   return { id: ref.id, nome: nomeLimpo };
 }
 
+/**
+ * Exclui um trajeto de treino do usuário. As atividades que estavam marcadas com ele ficam sem trajeto
+ * (nada além da marcação é alterado nelas).
+ */
+export async function excluirTrajeto(uid: string, trajetoId: unknown): Promise<{ desvinculadas: number }> {
+  if (typeof trajetoId !== "string" || trajetoId.length < 5 || trajetoId.length > 40 || trajetoId.includes("/")) {
+    throw new HttpsError("invalid-argument", "Trajeto inválido.");
+  }
+  const ref = db.doc(`${TRAJETOS}/${trajetoId}`);
+  const snap = await ref.get();
+  if (!snap.exists || snap.get("userId") !== uid) throw new HttpsError("not-found", "Trajeto não encontrado.");
+
+  const marcadas = await db.collection("atividades").where("userId", "==", uid).where("trajetoId", "==", trajetoId).get();
+  for (let i = 0; i < marcadas.docs.length; i += 400) {
+    const lote = db.batch();
+    for (const doc of marcadas.docs.slice(i, i + 400)) lote.update(doc.ref, { trajetoId: FieldValue.delete() });
+    await lote.commit();
+  }
+  await ref.delete();
+  return { desvinculadas: marcadas.size };
+}
+
 export interface EdicaoSalva {
   titulo: string | null;
   esporte: string;

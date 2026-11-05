@@ -2,6 +2,7 @@ export {
   calcularMelhoresEsforcos,
   criarAtividadeManual,
   excluirAtividade,
+  excluirTrajeto,
   obterUrlArquivo,
   processarArquivoAtividade,
   recalcularHistorico,

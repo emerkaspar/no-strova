@@ -48,6 +48,12 @@ export const salvarAtividade = onCall({ region: REGIAO }, async (request) => {
   return servico.salvarEdicaoDaAtividade(uid, servico.validarIdAtividade(dados.atividadeId), dados);
 });
 
+/** Exclui um trajeto de treino; as atividades marcadas com ele ficam sem trajeto. */
+export const excluirTrajeto = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  return servico.excluirTrajeto(uid, lerObjeto(request.data).trajetoId);
+});
+
 export const obterUrlArquivo = onCall({ region: REGIAO }, async (request) => {
   const { uid } = await exigirAcesso(request);
   const url = await servico.urlDoArquivo(uid, servico.validarIdAtividade(lerObjeto(request.data).atividadeId));

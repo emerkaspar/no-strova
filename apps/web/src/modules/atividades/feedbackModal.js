@@ -1,6 +1,6 @@
 import { avaliarTesteLthr, ETIQUETAS, LIMITES_FEEDBACK, LIMITES_TRAJETO, SENSACOES } from '@no-strova/domain';
 import { obterSessao } from '../../application/sessao.js';
-import { salvarAtividade } from '../../core/functions.js';
+import { excluirTrajeto, salvarAtividade } from '../../core/functions.js';
 import { lerAtividade } from '../../infrastructure/atividadesRepo.js';
 import { lerConfigs } from '../../infrastructure/configsRepo.js';
 import { lerTrajetos } from '../../infrastructure/trajetosRepo.js';
@@ -8,7 +8,8 @@ import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarDuracao } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
-import { abrirModal } from '../../utils/modal.js';
+import { listaSuspensa } from '../../utils/listaSuspensa.js';
+import { abrirModal, confirmar } from '../../utils/modal.js';
 import { analisarAtividadeLthr, montarResultadoLthr } from '../configuracao/resultadoLthr.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE } from './textos.js';
 
@@ -226,34 +227,80 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
     });
 
     let trajetos = [];
-    const seletorTrajeto = h('select', { class: 'fb-marca-select', 'aria-label': 'Trajeto de treino', disabled: true }, h('option', { value: '' }, 'Carregando…'));
+    let trajetosCarregados = false;
+    const listaTrajeto = listaSuspensa({
+      rotulo: 'Trajeto de treino',
+      aoMudar: (valor) => {
+        estado.trajetoId = valor;
+        campoTrajetoNovo.hidden = valor !== NOVO_TRAJETO;
+        atualizarExcluirTrajeto();
+        if (valor === NOVO_TRAJETO) campoTrajetoNovo.focus();
+      },
+    });
+    listaTrajeto.definir([{ valor: '', rotulo: 'Carregando…' }], '');
+    listaTrajeto.desabilitar(true);
     const campoTrajetoNovo = h('input', { type: 'text', class: 'fb-marca-novo', maxLength: LIMITES_TRAJETO.nomeMax, placeholder: 'Nome do trajeto. Ex.: Volta da Lagoa', 'aria-label': 'Nome do novo trajeto', hidden: true });
+    // exclui o trajeto escolhido da lista (as atividades que o usavam ficam sem trajeto)
+    const botaoExcluirTrajeto = h('button', { type: 'button', class: 'fb-marca-excluir', title: 'Excluir este trajeto', 'aria-label': 'Excluir o trajeto escolhido', hidden: true }, icone('lixeira', 18));
+    function atualizarExcluirTrajeto() {
+      botaoExcluirTrajeto.hidden = !trajetosCarregados || estado.trajetoId === '' || estado.trajetoId === NOVO_TRAJETO;
+    }
+    botaoExcluirTrajeto.addEventListener('click', async () => {
+      const escolhido = trajetos.find((t) => t.id === estado.trajetoId);
+      if (!escolhido) return;
+      const confirmado = await confirmar({
+        titulo: 'Excluir o trajeto?',
+        mensagem: `"${escolhido.nome}" sai da sua lista e as atividades marcadas com ele ficam sem trajeto. Isso não pode ser desfeito.`,
+        tipo: 'perigo',
+        icone: 'lixeira',
+        confirmarTexto: 'Excluir trajeto',
+      });
+      if (!confirmado) return;
+      botaoExcluirTrajeto.disabled = true;
+      mensagem.limpar();
+      try {
+        await excluirTrajeto({ trajetoId: escolhido.id });
+        trajetos = trajetos.filter((t) => t.id !== escolhido.id);
+        estado.trajetoId = '';
+        desenharTrajetos();
+      } catch (err) {
+        mensagem.mostrar(err.message || 'Não foi possível excluir o trajeto.');
+      } finally {
+        botaoExcluirTrajeto.disabled = false;
+      }
+    });
     /** A lista mostra só os trajetos do esporte escolhido; trocar o esporte solta um trajeto de outro esporte. */
     function desenharTrajetos() {
+      // sem a lista não dá para saber o que é válido: o trajeto gravado fica como está (nunca é apagado por engano)
+      if (!trajetosCarregados) return;
       const doEsporte = trajetos.filter((t) => t.esporte === campoEsporte.value);
       const valido = estado.trajetoId === NOVO_TRAJETO || doEsporte.some((t) => t.id === estado.trajetoId);
       if (!valido) estado.trajetoId = '';
-      seletorTrajeto.replaceChildren(
-        h('option', { value: '' }, 'Nenhum'),
-        ...doEsporte.map((t) => h('option', { value: t.id }, t.nome)),
-        h('option', { value: NOVO_TRAJETO }, '+ Criar novo trajeto…'),
+      listaTrajeto.definir(
+        [
+          { valor: '', rotulo: 'Nenhum' },
+          ...doEsporte.map((t) => ({ valor: t.id, rotulo: t.nome })),
+          { valor: NOVO_TRAJETO, rotulo: 'Criar novo trajeto', rotuloCurto: 'Novo trajeto', acao: true },
+        ],
+        estado.trajetoId,
       );
-      seletorTrajeto.value = estado.trajetoId;
       campoTrajetoNovo.hidden = estado.trajetoId !== NOVO_TRAJETO;
+      atualizarExcluirTrajeto();
     }
-    seletorTrajeto.addEventListener('change', () => {
-      estado.trajetoId = seletorTrajeto.value;
-      campoTrajetoNovo.hidden = estado.trajetoId !== NOVO_TRAJETO;
-      if (estado.trajetoId === NOVO_TRAJETO) campoTrajetoNovo.focus();
-    });
     campoEsporte.addEventListener('change', desenharTrajetos);
-    lerTrajetos(uid)
-      .catch(() => [])
-      .then((lista) => {
+    const avisoTrajetos = h('small', { class: 'fb-marca-erro', role: 'alert', hidden: true }, 'Não foi possível carregar os seus trajetos agora. O trajeto desta atividade continua como está.');
+    lerTrajetos(uid).then(
+      (lista) => {
         trajetos = lista;
-        seletorTrajeto.disabled = false;
+        trajetosCarregados = true;
+        listaTrajeto.desabilitar(false);
         desenharTrajetos();
-      });
+      },
+      () => {
+        listaTrajeto.definir([{ valor: '', rotulo: a.trajetoId ? 'Trajeto indisponível' : 'Indisponível' }], '');
+        avisoTrajetos.hidden = false;
+      },
+    );
     const cartaoTrajeto = h(
       'div',
       { class: 'fb-marca fb-marca-trajeto' },
@@ -263,8 +310,9 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
         { class: 'fb-marca-texto' },
         h('strong', null, 'Trajeto de treino'),
         h('small', null, 'Dê nome ao percurso para comparar esforços entre treinos no mesmo trajeto.'),
-        seletorTrajeto,
+        h('div', { class: 'fb-marca-linha' }, listaTrajeto.raiz, botaoExcluirTrajeto),
         campoTrajetoNovo,
+        avisoTrajetos,
       ),
     );
 
@@ -346,7 +394,9 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
       if (tituloNovo !== (a.titulo ?? '')) pedido.titulo = tituloNovo;
       if (campoEsporte.value !== a.esporte) pedido.esporte = campoEsporte.value;
       if (avaliacao.elegivel && estado.testeLthr !== (a.testeLthr === true)) pedido.testeLthr = estado.testeLthr;
-      if (estado.trajetoId === NOVO_TRAJETO) {
+      if (!trajetosCarregados) {
+        // lista indisponível: não mexe no trajeto
+      } else if (estado.trajetoId === NOVO_TRAJETO) {
         const nomeTrajeto = campoTrajetoNovo.value.replace(/\s+/g, ' ').trim();
         if (!nomeTrajeto) {
           mensagem.mostrar('Dê um nome ao trajeto novo ou escolha outra opção.');
