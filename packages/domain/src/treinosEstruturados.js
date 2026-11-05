@@ -227,3 +227,9 @@ export function treinoPlanejadoDoModelo(modelo, data) {
     passos: modelo.passos,
   };
 }
+
+/** Faixa de uma zona em % do LTHR (ex.: Z2 = [80, 89]), para quem recebe o treino como percentual (intervals.icu). Null se a zona é desconhecida. */
+export function faixaPercentualDaZona(zona) {
+  const f = FAIXAS_LTHR[zona];
+  return f ? [Math.round(f[0] * 1000) / 10, Math.round(f[1] * 1000) / 10] : null;
+}

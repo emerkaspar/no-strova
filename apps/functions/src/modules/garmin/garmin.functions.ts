@@ -3,7 +3,6 @@ import { defineSecret } from "firebase-functions/params";
 import { onCall } from "firebase-functions/v2/https";
 import { REGIAO } from "../../shared/config";
 import { exigirAcesso, exigirRecurso, lerObjeto } from "../../shared/guards";
-import { enviarPlano, informarCodigo, validarEntrada } from "./garmin.envio.service";
 import * as servico from "./garmin.service";
 
 /**
@@ -39,19 +38,3 @@ export const garminSincronizar = onCall(
     return servico.sincronizarLote(uid, dataNascimento, lerObjeto(request.data), GARMIN_CHAVE_CRIPTO.value());
   },
 );
-
-/**
- * Cria os treinos planejados do período no Garmin Connect e os agenda no calendário. O usuário informa o e-mail e a senha do
- * Garmin a cada envio: a senha é usada só nesta chamada (nunca gravada). Com duas etapas, o app pede o código e o devolve por
- * `garminInformarCodigo` enquanto esta chamada espera. Usa uma biblioteca não oficial, que pode parar de funcionar.
- */
-export const garminEnviarTreinos = onCall({ region: REGIAO, memory: "512MiB", timeoutSeconds: 300 }, async (request) => {
-  const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);
-  return enviarPlano(uid, validarEntrada(lerObjeto(request.data)));
-});
-
-export const garminInformarCodigo = onCall({ region: REGIAO }, async (request) => {
-  const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);
-  await informarCodigo(uid, lerObjeto(request.data).codigo);
-  return { ok: true };
-});

@@ -220,8 +220,6 @@ Os treinos já realizados e o de hoje não são afetados.`,
     }
     exportacaoArea.replaceChildren(
       criarPainelEnviarGarmin({
-        uid: sessao.uid,
-        emailInicial: obterSessao().perfil?.email ?? '',
         hoje,
         obterAncora: ancora,
         aoFechar: () => exportacaoArea.replaceChildren(),

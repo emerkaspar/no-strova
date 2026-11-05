@@ -6,6 +6,7 @@ export * from './catalogoTreinos.js';
 export * from './configAtleta.js';
 export * from './exportarPlano.js';
 export * from './exportarTreino.js';
+export * from './textoIntervals.js';
 export * from './forma.js';
 export * from './hrss.js';
 export * from './metaCondicionamento.js';

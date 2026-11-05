@@ -7,7 +7,8 @@ export {
   recalcularHistorico,
   renomearAtividade,
 } from "./modules/atividades/atividades.functions";
-export { garminConectar, garminDesconectar, garminEnviarTreinos, garminInformarCodigo, garminSincronizar, garminSituacao } from "./modules/garmin/garmin.functions";
+export { garminConectar, garminDesconectar, garminSincronizar, garminSituacao } from "./modules/garmin/garmin.functions";
+export { intervalsConectar, intervalsDesconectar, intervalsEnviarTreinos, intervalsSituacao } from "./modules/intervals/intervals.functions";
 export { reconstruirCalibracao } from "./modules/calibracao/calibracao.functions";
 export { limparArquivosOrfaos } from "./modules/atividades/orfaos.functions";
 export {
