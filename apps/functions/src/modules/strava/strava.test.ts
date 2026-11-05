@@ -80,6 +80,15 @@ describe("ClienteStrava: dados e limite", () => {
     expect(c.pertoDoLimite()).toBe(true);
   });
 
+  it("guarda o corpo da resposta de erro para o log", async () => {
+    const corpo = '{"message":"Authorization Error","errors":[{"field":"activity:read_permission","code":"missing"}]}';
+    const f = vi.fn().mockResolvedValue(resposta(corpo, 401));
+    await expect(new ClienteStrava(f).listarAtividades("t", { depoisS: 1, antesS: 2, pagina: 1, porPagina: 10 })).rejects.toMatchObject({
+      status: 401,
+      detalhe: corpo,
+    });
+  });
+
   it("propaga o status (429, 401) e a falta de resposta", async () => {
     await expect(new ClienteStrava(vi.fn().mockResolvedValue(resposta("x", 429))).buscarSeries("t", "1")).rejects.toMatchObject({ status: 429 });
     await expect(new ClienteStrava(vi.fn().mockRejectedValue(new Error("rede"))).buscarSeries("t", "1")).rejects.toMatchObject({ status: 0 });
@@ -172,7 +181,9 @@ describe("validações e mensagens", () => {
   });
 
   it("traduz 401 em reconexão e 429 em espera", () => {
-    expect(traduzirErro(new StravaErroApi(401, "x")).details).toEqual({ codigo: "conexao-invalida" });
+    const recusado = traduzirErro(new StravaErroApi(401, "x", '{"message":"Authorization Error"}'));
+    expect(recusado.details).toEqual({ codigo: "conexao-invalida" });
+    expect(recusado.message).toContain("erro 401");
     const limite = traduzirErro(new StravaErroApi(429, "x"));
     expect(limite.code).toBe("resource-exhausted");
     expect(limite.message).toContain("15 minutos");

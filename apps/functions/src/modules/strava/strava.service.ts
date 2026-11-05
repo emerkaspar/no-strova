@@ -53,9 +53,11 @@ export function traduzirErro(err: unknown): HttpsError {
   if (err instanceof HttpsError) return err;
   if (err instanceof StravaErroApi) {
     if (err.status === 401 || err.status === 403 || err.status === 400) {
+      // O corpo da resposta diz o motivo exato (permissão faltando, token inválido, app sem acesso…).
+      logger.warn("O Strava recusou a requisição", { status: err.status, detalhe: err.detalhe });
       return new HttpsError(
         "failed-precondition",
-        "O Strava não aceitou a conexão: ela foi revogada ou expirou. Conecte de novo.",
+        `O Strava recusou o acesso (erro ${err.status}): a conexão pode ter sido revogada, faltar a permissão de leitura das atividades ou o Strava pode estar exigindo assinatura. Conecte de novo; se repetir, avise o administrador.`,
         { codigo: "conexao-invalida" },
       );
     }

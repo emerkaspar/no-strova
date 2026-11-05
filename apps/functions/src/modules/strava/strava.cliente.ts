@@ -14,6 +14,8 @@ export class StravaErroApi extends Error {
   constructor(
     readonly status: number,
     mensagem: string,
+    /** Corpo da resposta de erro do Strava (ex.: `{"message":"Authorization Error","errors":[{"field":"activity:read_permission","code":"missing"}]}`). Só vai para o log. */
+    readonly detalhe: string = "",
   ) {
     super(mensagem);
     this.name = "StravaErroApi";
@@ -89,7 +91,10 @@ export class ClienteStrava {
       throw new StravaErroApi(0, "Sem resposta do Strava.");
     }
     this.uso = lerUso(resposta.headers) ?? this.uso;
-    if (!resposta.ok) throw new StravaErroApi(resposta.status, `Strava respondeu ${resposta.status}.`);
+    if (!resposta.ok) {
+      const detalhe = await resposta.text().then((t) => t.slice(0, 400), () => "");
+      throw new StravaErroApi(resposta.status, `Strava respondeu ${resposta.status}.`, detalhe);
+    }
     return resposta;
   }
 
