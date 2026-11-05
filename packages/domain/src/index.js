@@ -5,6 +5,7 @@ export * from './calorias.js';
 export * from './catalogoTreinos.js';
 export * from './configAtleta.js';
 export * from './exportarPlano.js';
+export * from './feedback.js';
 export * from './exportarTreino.js';
 export * from './textoIntervals.js';
 export * from './forma.js';

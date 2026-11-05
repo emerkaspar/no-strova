@@ -57,13 +57,14 @@ export function resumoSincronizacao(total, limitado, vazio) {
  * `aoProgresso` recebe os totais parciais a cada rodada. Lança Error em português (o servidor valida a conexão).
  */
 export async function sincronizarGarmin({ dias, aoProgresso } = {}) {
-  const total = { importadas: 0, jaExistiam: 0, semFc: 0, falhas: 0, problemas: [] };
+  const total = { importadas: 0, novasIds: [], jaExistiam: 0, semFc: 0, falhas: 0, problemas: [] };
   let inicio = 0;
   let limitado = false;
   for (;;) {
     aoProgresso?.(total);
     const r = await garminSincronizar({ dias, inicio });
     for (const k of ['importadas', 'jaExistiam', 'semFc', 'falhas']) total[k] += r[k];
+    total.novasIds.push(...(r.novasIds ?? []));
     total.problemas.push(...(r.problemas ?? []));
     inicio = r.proximo;
     limitado = r.limitado;

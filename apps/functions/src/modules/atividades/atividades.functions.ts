@@ -41,6 +41,13 @@ export const renomearAtividade = onCall({ region: REGIAO }, async (request) => {
   return { titulo };
 });
 
+/** Salva o modal "Como foi?": título, esporte e feedback (sensação, esforço, etiquetas e notas). */
+export const salvarAtividade = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  const dados = lerObjeto(request.data);
+  return servico.salvarEdicaoDaAtividade(uid, servico.validarIdAtividade(dados.atividadeId), dados);
+});
+
 export const obterUrlArquivo = onCall({ region: REGIAO }, async (request) => {
   const { uid } = await exigirAcesso(request);
   const url = await servico.urlDoArquivo(uid, servico.validarIdAtividade(lerObjeto(request.data).atividadeId));

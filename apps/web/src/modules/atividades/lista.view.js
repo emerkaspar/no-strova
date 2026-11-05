@@ -14,6 +14,7 @@ import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { tempoDeEsforco, ritmoTexto } from './esforcos.js';
+import { abrirFeedbackDaAtividade, abrirFeedbackPorId, miniSensacao } from './feedbackModal.js';
 import { painelImportar } from './importar.js';
 import { painelManual } from './manual.js';
 import { criarCartaoDeMedalhas } from './medalhaCartao.js';
@@ -360,6 +361,8 @@ export function render(raiz, sessao) {
       const { total, limitado } = await sincronizarGarmin({ dias: primeira ? 30 : undefined });
       const vazio = primeira ? 'Nos últimos 30 dias, nenhuma atividade foi encontrada.' : 'Desde a última sincronização, nenhuma atividade foi encontrada.';
       mensagemGarmin.mostrar(resumoSincronizacao(total, limitado, vazio), semNovidades(total) ? 'info' : 'ok');
+      // uma única atividade nova: já pergunta como foi (com várias, ficam com o selo "Como foi?" na tabela)
+      if (total.importadas === 1 && total.novasIds.length === 1) abrirFeedbackPorId(total.novasIds[0], { primeiraVez: true }).catch(() => {});
     } catch (err) {
       mensagemGarmin.mostrar(err.message || 'Não foi possível sincronizar com o Garmin.');
     } finally {
@@ -410,6 +413,17 @@ export function render(raiz, sessao) {
             h('span', { class: `ativ-nome${a.titulo ? '' : ' ativ-nome-padrao'}` }, a.titulo || (ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
           ),
           medalhaDaLinha(a, medalhasDaAtividade, escopoDaLinha),
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'ativ-como-foi',
+              title: a.feedback ? 'Ver ou editar como foi' : 'Conte como foi esta atividade',
+              'aria-label': a.feedback ? `Editar como foi a atividade de ${formatarData(a.data)}` : `Contar como foi a atividade de ${formatarData(a.data)}`,
+              onClick: () => abrirFeedbackDaAtividade({ atividade: a }),
+            },
+            miniSensacao(a.feedback) ?? h('span', { class: 'ativ-pendente' }, 'Como foi?'),
+          ),
         ),
       ),
       h('td', null, h('span', { class: 'ativ-esporte' }, h('span', { class: 'ativ-esporte-icone' }, iconeDoEsporte(a.esporte)), ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
@@ -437,6 +451,12 @@ export function render(raiz, sessao) {
       ),
     );
     previa.ligar(tr, a);
+    // clicar na linha abre a atividade; o "Como foi?" (botão ao lado do nome), os links e a medalha têm ação própria
+    tr.classList.add('ativ-linha-clicavel');
+    tr.addEventListener('click', (e) => {
+      if (e.target.closest('a, button, [role="button"]')) return;
+      window.location.hash = `#/atividades/${a.id}`;
+    });
     return tr;
   }
 

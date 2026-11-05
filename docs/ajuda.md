@@ -91,6 +91,18 @@ Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin 
 - Cada sincronização traz até 200 atividades; se chegar ao limite, sincronize de novo.
 - A chave expira na validade que você escolheu (o app avisa quando faltam 7 dias). Aí é só apagar a chave no Garmin Connect, criar outra e conectar de novo. **Desconectar** apaga a chave guardada; as atividades já importadas continuam.
 
+### Como foi? (sensação e esforço)
+Depois de **importar um arquivo**, **registrar uma atividade manualmente** ou **sincronizar o Garmin** pelo botão da tela Atividades e trazer **uma única** atividade nova, abre a janela **Como foi?** para você contar como foi o treino:
+
+- **Sensação:** escolha entre Voando, Leve, Normal, Pesado e Destruído (cada um com seu ícone).
+- **Quão duro foi?** (opcional): esforço percebido de 1 a 10.
+- **O que marcou o treino?** (opcional): etiquetas como calor, sono ruim, perna pesada ou dor (com o local), e **notas** livres.
+- **Nome e esporte:** no topo da janela, o nome da atividade é um campo que você edita na hora (em branco, volta ao nome padrão) e o esporte é uma lista pequena ao lado do resumo. Os dados do arquivo (duração, distância, FC) não mudam.
+
+Você pode **pular** e responder depois: a atividade fica com o selo **Como foi?** na tabela. Na tabela, clique no botão **Como foi?** ao lado do nome (ou no ícone da sensação, se já respondeu) para abrir a janela e editar; clicar na linha abre a atividade; na página da atividade há o cartão **Como foi?** com o botão **Editar**. Quando você importa vários arquivos de uma vez ou a sincronização traz várias atividades, a janela não abre sozinha.
+
+O app usa esses registros dos últimos 14 dias nas **sugestões de treino com IA**: com sensação pesada, esforço alto ou dor repetida, as sugestões ficam mais leves. As notas livres não são enviadas à IA.
+
 ### Registrar manualmente
 Em **Atividades → Registrar manualmente**, informe esporte, data, duração e, no mínimo, **uma** destas: FC média, zona predominante ou HRSS. Distância, subida e calorias são opcionais.
 

@@ -2,9 +2,13 @@ import { extensaoDoArquivo, importarArquivo, reprocessar } from '../../applicati
 import { selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarNumero } from '../../utils/formatters.js';
+import { abrirFeedbackPorId } from './feedbackModal.js';
 import { OPCOES_ESPORTE, OPCOES_ZONA, TEXTO_ALERTA } from './textos.js';
 
-/** Painel de importação de .fit/.gpx/.tcx. Os arquivos são processados um de cada vez. */
+/**
+ * Painel de importação de .fit/.gpx/.tcx. Os arquivos são processados um de cada vez.
+ * Quando é enviado um arquivo só, abre o modal "Como foi?" assim que a atividade é criada.
+ */
 export function painelImportar({ uid }) {
   const esporte = selecao({
     id: 'imp-esporte',
@@ -49,27 +53,35 @@ export function painelImportar({ uid }) {
     };
   }
 
-  async function processar(arquivo) {
+  /** Abre o "Como foi?" da atividade recém-criada (nunca de uma que já existia). */
+  function perguntarComoFoi(resultado) {
+    if (!resultado?.atividadeId || resultado.jaExistia) return;
+    abrirFeedbackPorId(resultado.atividadeId, { primeiraVez: true }).catch(() => {});
+  }
+
+  async function processar(arquivo, unico) {
     const item = itemDeEnvio(arquivo.name);
     if (!extensaoDoArquivo(arquivo.name)) {
       item.erro('Formato não aceito. Use .fit, .gpx ou .tcx.');
       return;
     }
     try {
-      item.ok(await importarArquivo({ uid, arquivo, esporte: esporte.select.value, aoProgresso: item.progresso }));
+      const resultado = await importarArquivo({ uid, arquivo, esporte: esporte.select.value, aoProgresso: item.progresso });
+      item.ok(resultado);
+      if (unico) perguntarComoFoi(resultado);
     } catch (err) {
       if (err.codigo === 'sem-fc') {
         item.semFc(err, async (zona, botao) => {
           botao.disabled = true;
           try {
-            item.ok(
-              await reprocessar({
-                atividadeId: err.atividadeId,
-                extensao: err.extensao,
-                esporte: esporte.select.value,
-                zona,
-              }),
-            );
+            const resultado = await reprocessar({
+              atividadeId: err.atividadeId,
+              extensao: err.extensao,
+              esporte: esporte.select.value,
+              zona,
+            });
+            item.ok(resultado);
+            if (unico) perguntarComoFoi(resultado);
           } catch (e) {
             item.erro(e.message);
           }
@@ -83,7 +95,7 @@ export function painelImportar({ uid }) {
   entrada.addEventListener('change', async () => {
     const arquivos = [...entrada.files];
     entrada.value = '';
-    for (const arquivo of arquivos) await processar(arquivo);
+    for (const arquivo of arquivos) await processar(arquivo, arquivos.length === 1);
   });
 
   return h(

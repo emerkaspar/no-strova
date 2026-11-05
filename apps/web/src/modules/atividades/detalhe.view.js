@@ -11,6 +11,7 @@ import { corDoEsforco, mapaTrajeto } from '../../utils/mapaTrajeto.js';
 import { ritmoTexto, tempoDeEsforco } from './esforcos.js';
 import { ROTULO_ESPORTE, ROTULO_ORIGEM_CALORIAS, ROTULO_ORIGEM_HRSS, TEXTO_ALERTA } from './textos.js';
 import { confirmar } from '../../utils/modal.js';
+import { cartaoComoFoi } from './feedbackModal.js';
 import { medalhasDaAtividade } from '../../application/medalhas.js';
 
 /** Indicador no estilo dos recordes: ícone, rótulo, valor grande e nota no rodapé. */
@@ -438,6 +439,13 @@ export function render(raiz, sessao, { id }) {
           `${a.origem === 'arquivo' ? `Importada de arquivo .${a.extensao}` : 'Registrada manualmente'} · início ${formatarDataHora(a.inicio?.toMillis?.())}`,
         ),
         ...(a.alertas ?? []).map((alerta) => h('p', { class: 'mensagem' }, TEXTO_ALERTA[alerta] ?? alerta)),
+        cartaoComoFoi({ ...a, id }, (r) => {
+          // o servidor devolve o que ficou salvo; a tela se redesenha com isso
+          a.titulo = r.titulo ?? undefined;
+          a.esporte = r.esporte;
+          a.feedback = r.feedback ?? undefined;
+          if (ativa) desenhar(a, serie, detalhe, { calculando, carregandoDetalhe });
+        }),
         aviso,
         medalhasEl,
         indicadores,

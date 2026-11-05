@@ -59,3 +59,54 @@ export function confirmar({ titulo, mensagem = '', tipo = 'info', icone: nomeIco
     (tipo === 'perigo' ? cancelar : ok).focus();
   });
 }
+
+/**
+ * Modal genérico com conteúdo próprio (formulários). Mesmo <dialog> e mesma moldura do `confirmar`.
+ *
+ *   const resultado = await abrirModal({ classe: 'modal-feedback', rotulo: 'Como foi?', conteudo: (fechar) => formulario(fechar) });
+ *
+ * - `conteudo(fechar)` devolve o nó do modal; `fechar(valor)` fecha e resolve a promessa com `valor`.
+ * - Esc fecha e resolve `undefined`. O toque no fundo só fecha se `fecharNoFundo` for true (por padrão não,
+ *   para ninguém perder o que digitou).
+ * - O foco volta para onde estava.
+ *
+ * @param {{ classe?: string, rotulo: string, conteudo: (fechar: (valor?: any) => void) => Node, fecharNoFundo?: boolean }} opcoes
+ * @returns {Promise<any>}
+ */
+export function abrirModal({ classe = '', rotulo, conteudo, fecharNoFundo = false }) {
+  const anterior = document.activeElement;
+
+  return new Promise((resolver) => {
+    const dialogo = h('dialog', { class: `modal ${classe}`.trim(), 'aria-label': rotulo });
+
+    let resolvido = false;
+    function fechar(valor) {
+      if (resolvido) return;
+      resolvido = true;
+      dialogo.classList.add('modal-saindo');
+      const terminar = () => {
+        dialogo.close();
+        dialogo.remove();
+        if (anterior && typeof anterior.focus === 'function') anterior.focus();
+        resolver(valor);
+      };
+      // espera a animação de saída, a menos que o usuário prefira menos movimento
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) terminar();
+      else setTimeout(terminar, 140);
+    }
+
+    dialogo.append(conteudo(fechar));
+    dialogo.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      fechar(undefined);
+    });
+    if (fecharNoFundo) {
+      dialogo.addEventListener('click', (e) => {
+        if (e.target === dialogo) fechar(undefined);
+      });
+    }
+
+    document.body.append(dialogo);
+    dialogo.showModal();
+  });
+}

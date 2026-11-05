@@ -2,6 +2,7 @@ import { registrarAtividadeManual } from '../../application/atividades.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarNumero, hojeIso } from '../../utils/formatters.js';
+import { abrirFeedbackPorId } from './feedbackModal.js';
 import { OPCOES_ESPORTE, OPCOES_ZONA, TEXTO_ALERTA } from './textos.js';
 
 /** Painel de cadastro manual (sem arquivo). */
@@ -46,6 +47,7 @@ export function painelManual() {
           const texto = r.hrss === null ? 'HRSS não calculado' : `HRSS ${formatarNumero(r.hrss, 1)}`;
           const avisos = (r.alertas ?? []).map((a) => TEXTO_ALERTA[a] ?? a).join(' ');
           mensagem.mostrar(`Atividade registrada · ${texto}. ${avisos}`.trim(), 'ok');
+          if (r.atividadeId) abrirFeedbackPorId(r.atividadeId, { primeiraVez: true }).catch(() => {});
         });
       },
     },

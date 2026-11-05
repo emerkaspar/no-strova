@@ -103,3 +103,698 @@
     flex: 1;
   }
 }
+
+/* ------------------------------------------------------------------------------------------------
+   Modal "Como foi?" da atividade (modules/atividades/feedbackModal.js)
+   A cor de destaque (--tom) acompanha a sensação escolhida: do verde (voando) ao vermelho (destruído).
+   ------------------------------------------------------------------------------------------------ */
+
+.modal.modal-saindo[open] {
+  animation: modal-saida 0.14s ease-in forwards;
+}
+
+@keyframes modal-saida {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+.modal-feedback {
+  width: min(640px, calc(100vw - 24px));
+  max-height: min(900px, calc(100dvh - 24px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal-feedback[open] {
+  display: flex;
+}
+
+.fb {
+  --tom: var(--primary);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Cabeçalho: um brilho da cor da sensação por trás do título */
+.fb-topo {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 24px 28px 20px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--tom) 24%, transparent), transparent 62%),
+    var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.fb-esporte {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  color: var(--tom);
+  background: color-mix(in srgb, var(--tom) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--tom) 45%, transparent);
+  border-radius: 18px;
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+}
+
+.fb-topo-texto {
+  min-width: 0;
+  padding-right: 28px;
+}
+
+.fb-kicker {
+  margin: 0 0 2px;
+  color: var(--tom);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+}
+
+.fb-titulo {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.fb-nome-linha {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 0 12px;
+  color: var(--text-secondary);
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: text;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.fb-nome-linha:hover {
+  border-color: var(--text-secondary);
+}
+
+.fb-nome-linha:focus-within {
+  color: var(--tom);
+  border-color: var(--tom);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tom) 22%, transparent);
+}
+
+.fb-nome-lapis {
+  display: inline-flex;
+  flex: none;
+}
+
+.fb-topo .fb-nome {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.fb-topo .fb-nome::placeholder {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.fb-topo .fb-nome:focus-visible {
+  outline: 0;
+}
+
+.fb-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.fb-esporte-seletor {
+  padding: 2px 6px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.fb-fechar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  padding: 6px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.fb-fechar:hover {
+  color: var(--text-primary);
+  background: var(--surface-light);
+}
+
+.fb-corpo {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 28px 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.fb-secao {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.fb-secao-titulo {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  letter-spacing: 0.09em;
+}
+
+.fb-secao-linha {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.fb-secao-linha .fb-secao-titulo {
+  margin: 0;
+}
+
+/* Sensação: cinco cartões com o ícone grande */
+.fb-sensacoes {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.fb-sensacao {
+  --cor: var(--primary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 14px 4px 10px;
+  color: var(--text-secondary);
+  font: inherit;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.fb-sensacao:hover {
+  color: var(--cor);
+  border-color: color-mix(in srgb, var(--cor) 55%, var(--border));
+  transform: translateY(-3px);
+}
+
+.fb-sensacao-icone {
+  display: inline-flex;
+  transition: transform 0.2s ease;
+}
+
+.fb-sensacao-rotulo {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.fb-sensacao.marcado {
+  color: var(--cor);
+  background: color-mix(in srgb, var(--cor) 15%, var(--surface));
+  border-color: var(--cor);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--cor) 28%, transparent), inset 0 0 0 1px var(--cor);
+  transform: translateY(-3px);
+}
+
+.fb-sensacao.marcado .fb-sensacao-icone {
+  animation: fb-pulo 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+  transform: scale(1.12);
+}
+
+@keyframes fb-pulo {
+  0% {
+    transform: scale(0.7) rotate(-14deg);
+  }
+
+  60% {
+    transform: scale(1.3) rotate(8deg);
+  }
+
+  100% {
+    transform: scale(1.12) rotate(0);
+  }
+}
+
+.fb-legenda {
+  min-height: 1.4em;
+  margin: 12px 2px 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.fb-legenda strong {
+  color: var(--tom);
+}
+
+/* Esforço percebido: dez degraus que enchem até o escolhido */
+.fb-esforco {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+}
+
+.fb-esforco-passo {
+  --cor: var(--primary);
+  height: 40px;
+  padding: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.fb-esforco-passo:hover {
+  color: var(--text-primary);
+  border-color: var(--cor);
+}
+
+.fb-esforco-passo:has(~ .marcado) {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--cor) 32%, var(--surface-light));
+  border-color: color-mix(in srgb, var(--cor) 50%, var(--border));
+}
+
+.fb-esforco-passo.marcado {
+  color: #0a0a0a;
+  background: var(--cor);
+  border-color: var(--cor);
+  transform: translateY(-2px) scale(1.06);
+}
+
+.fb-esforco-valor {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.fb-escala {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+/* Etiquetas rápidas */
+.fb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fb-chip {
+  display: inline-flex;
+  gap: 0;
+  align-items: center;
+  padding: 8px 14px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, gap 0.15s ease;
+}
+
+.fb-chip:hover {
+  border-color: var(--text-secondary);
+}
+
+.fb-chip-marca {
+  display: inline-flex;
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: width 0.15s ease, opacity 0.15s ease;
+}
+
+.fb-chip[aria-pressed='true'] {
+  gap: 6px;
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface-light));
+  border-color: var(--primary);
+}
+
+.fb-chip[aria-pressed='true'] .fb-chip-marca {
+  width: 14px;
+  color: var(--primary);
+  opacity: 1;
+}
+
+.fb-dor {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 12px;
+}
+
+.fb-dor[hidden] {
+  display: none;
+}
+
+.fb-dor input {
+  flex: 1;
+}
+
+/* Notas */
+.fb-notas {
+  width: 100%;
+  padding: 12px;
+  color: var(--text-primary);
+  font: inherit;
+  line-height: 1.5;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  resize: vertical;
+}
+
+.fb-notas:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.fb-contador {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+/* Rodapé fixo, sempre visível */
+.fb-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 28px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.fb-rodape-espaco {
+  flex: 1;
+}
+
+.fb-salvar {
+  min-width: 120px;
+  color: #0a0a0a;
+  background: var(--tom);
+  border-color: var(--tom);
+  transition: background 0.3s ease, border-color 0.3s ease, filter 0.15s ease;
+}
+
+.fb-salvar:hover:not(:disabled) {
+  background: var(--tom);
+  border-color: var(--tom);
+  filter: brightness(1.1);
+}
+
+.fb:not(.fb-com-sensacao) .fb-salvar {
+  color: var(--primary-contrast);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.fb-remover {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.fb-remover:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+@media (max-width: 560px) {
+  .modal-feedback {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: auto 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .fb-topo {
+    padding: 20px 18px 16px;
+  }
+
+  .fb-corpo {
+    padding: 4px 18px;
+  }
+
+  .fb-rodape {
+    padding: 14px 18px 18px;
+  }
+
+  .fb-titulo {
+    font-size: 1.6rem;
+  }
+
+  .fb-sensacoes {
+    gap: 5px;
+  }
+
+  .fb-sensacao {
+    padding: 12px 2px 8px;
+    border-radius: 14px;
+  }
+
+  .fb-sensacao-icone svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .fb-sensacao-rotulo {
+    font-size: 0.68rem;
+  }
+
+  .fb-esforco {
+    gap: 3px;
+  }
+
+  .fb-esforco-passo {
+    height: 36px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+  }
+
+  .fb-rodape .btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fb *,
+  .fb-sensacao.marcado .fb-sensacao-icone {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* "Como foi?" na tabela de atividades e na página de detalhe */
+.ativ-linha-clicavel {
+  cursor: pointer;
+}
+
+.ativ-sensacao {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--cor);
+  background: color-mix(in srgb, var(--cor) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cor) 40%, transparent);
+  border-radius: 50%;
+}
+
+.ativ-pendente {
+  flex: none;
+  padding: 2px 9px;
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--primary) 55%, transparent);
+  border-radius: 999px;
+}
+
+.fb-cartao {
+  --tom: var(--primary);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 16px 0;
+  padding: 16px 20px;
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--tom) 16%, transparent), transparent 60%),
+    var(--surface-light);
+  border: 1px solid color-mix(in srgb, var(--tom) 40%, var(--border));
+  border-radius: 20px;
+}
+
+.fb-cartao-vazio {
+  justify-content: space-between;
+  background: var(--surface-light);
+  border: 1px dashed color-mix(in srgb, var(--primary) 55%, var(--border));
+}
+
+.fb-cartao-vazio p {
+  margin: 4px 0 0;
+}
+
+.fb-cartao-icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  color: var(--tom);
+  background: color-mix(in srgb, var(--tom) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--tom) 45%, transparent);
+  border-radius: 18px;
+}
+
+.fb-cartao-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.fb-cartao-texto strong {
+  color: var(--tom);
+  font-size: 1.05rem;
+}
+
+.fb-cartao-rpe {
+  font-size: 0.9rem;
+}
+
+.fb-cartao-etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.fb-cartao-etiqueta {
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.fb-cartao-notas {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.fb-cartao .btn {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+}
+
+@media (max-width: 560px) {
+  .fb-cartao {
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+
+  .fb-cartao .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Botão "Como foi?" da tabela: o selo de sensação ou o convite para responder */
+.ativ-como-foi {
+  display: inline-flex;
+  flex: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ativ-como-foi:hover .ativ-pendente {
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  border-style: solid;
+}
+
+.ativ-como-foi:hover .ativ-sensacao {
+  background: color-mix(in srgb, var(--cor) 26%, transparent);
+}

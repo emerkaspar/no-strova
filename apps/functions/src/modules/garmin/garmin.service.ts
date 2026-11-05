@@ -39,8 +39,12 @@ export interface SituacaoGarmin {
   ultimaSincronizacao: string | null;
 }
 
+const IDS_NOVAS_MAX = 5;
+
 export interface ResultadoLote {
   importadas: number;
+  /** Ids das primeiras atividades criadas (até ${IDS_NOVAS_MAX}); o app abre o "Como foi?" quando entra só uma. */
+  novasIds: string[];
   jaExistiam: number;
   semFc: number;
   falhas: number;
@@ -190,7 +194,7 @@ export async function sincronizarLote(
   const ultima = snap.get("ultimaSincronizacao");
   const dias = diasDaSincronizacao(entrada.dias, ultima instanceof Timestamp ? ultima.toMillis() : null, agora);
 
-  const resultado: ResultadoLote = { importadas: 0, jaExistiam: 0, semFc: 0, falhas: 0, problemas: [], proximo: inicio, terminou: false, limitado: false };
+  const resultado: ResultadoLote = { importadas: 0, novasIds: [], jaExistiam: 0, semFc: 0, falhas: 0, problemas: [], proximo: inicio, terminou: false, limitado: false };
   if (inicio >= LIMITE_POR_SINCRONIZACAO) {
     return { ...resultado, terminou: true, limitado: true };
   }
@@ -254,7 +258,10 @@ export async function sincronizarLote(
       const pedido: PedidoArquivo = { atividadeId, extensao: "fit", esporte: null, zona: null, fonte: FONTE_GARMIN };
       const r = await processarArquivo(uid, dataNascimento, pedido);
       if (r.jaExistia) resultado.jaExistiam += 1;
-      else resultado.importadas += 1;
+      else {
+        resultado.importadas += 1;
+        if (resultado.novasIds.length < IDS_NOVAS_MAX) resultado.novasIds.push(atividadeId);
+      }
     } catch (err) {
       if (err instanceof HttpsError && err.code === "already-exists") {
         resultado.jaExistiam += 1; // a mesma atividade já foi enviada à mão

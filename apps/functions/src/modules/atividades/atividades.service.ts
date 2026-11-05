@@ -13,6 +13,7 @@ import {
   tempoNasZonasDaAtividade,
   validarAtividadeManual,
   validarConfigAtleta,
+  validarFeedback,
   VERSAO_DAS_ZONAS,
   VERSAO_DO_DETALHE,
   VERSAO_DOS_ESFORCOS,
@@ -331,18 +332,71 @@ export async function excluirAtividade(uid: string, atividadeId: string): Promis
 
 const TITULO_MAX = 80;
 
-/** Define o título da atividade (texto livre, até ${TITULO_MAX} caracteres). Vazio remove o título e volta ao nome padrão. */
-export async function renomearAtividade(uid: string, atividadeId: string, titulo: unknown): Promise<string | null> {
+/** Limpa e valida o título (texto livre, até ${TITULO_MAX} caracteres). Vazio significa "sem título". */
+function tituloLimpo(titulo: unknown): string {
   if (titulo !== undefined && titulo !== null && typeof titulo !== "string") {
     throw new HttpsError("invalid-argument", "O título deve ser um texto.");
   }
-  const limpo = (titulo ?? "").replace(/s+/g, " ").trim();
+  const limpo = (titulo ?? "").replace(/\s+/g, " ").trim();
   if (limpo.length > TITULO_MAX) {
     throw new HttpsError("invalid-argument", `O título pode ter no máximo ${TITULO_MAX} caracteres.`);
   }
+  return limpo;
+}
+
+/** Define o título da atividade. Vazio remove o título e volta ao nome padrão. */
+export async function renomearAtividade(uid: string, atividadeId: string, titulo: unknown): Promise<string | null> {
+  const limpo = tituloLimpo(titulo);
   const { ref } = await atividadeDoDono(uid, atividadeId);
   await ref.update({ titulo: limpo === "" ? FieldValue.delete() : limpo });
   return limpo === "" ? null : limpo;
+}
+
+/**
+ * Salva a edição feita no modal "Como foi?": título, esporte e feedback. Cada campo só muda se vier no pedido
+ * (`feedback: null` apaga o registro). Os dados medidos (distância, duração, FC) nunca são alterados aqui.
+ * Trocar o esporte não refaz o HRSS nem o tempo em movimento, que já foram calculados na importação.
+ */
+export async function salvarEdicaoDaAtividade(
+  uid: string,
+  atividadeId: string,
+  dados: Record<string, unknown>,
+): Promise<{ titulo: string | null; esporte: string; feedback: Record<string, unknown> | null }> {
+  const alteracoes: Record<string, unknown> = {};
+
+  if ("titulo" in dados) {
+    const limpo = tituloLimpo(dados.titulo);
+    alteracoes.titulo = limpo === "" ? FieldValue.delete() : limpo;
+  }
+  if ("esporte" in dados) {
+    if (typeof dados.esporte !== "string" || !(ESPORTES_VALIDOS as readonly string[]).includes(dados.esporte)) {
+      throw new HttpsError("invalid-argument", "Esporte inválido.");
+    }
+    alteracoes.esporte = dados.esporte;
+  }
+  let feedback: Record<string, unknown> | null | undefined;
+  if ("feedback" in dados) {
+    if (dados.feedback === null) {
+      feedback = null;
+      alteracoes.feedback = FieldValue.delete();
+    } else {
+      const r = validarFeedback(dados.feedback);
+      if (!r.valido || !r.valores) throw new HttpsError("invalid-argument", r.erros.join(" "));
+      const v = r.valores;
+      feedback = { sensacao: v.sensacao, etiquetas: v.etiquetas, ...(v.rpe !== null ? { rpe: v.rpe } : {}), ...(v.dor !== null ? { dor: v.dor } : {}), ...(v.notas !== null ? { notas: v.notas } : {}) };
+      alteracoes.feedback = { ...feedback, registradoEm: FieldValue.serverTimestamp() };
+    }
+  }
+  if (Object.keys(alteracoes).length === 0) throw new HttpsError("invalid-argument", "Nada para salvar.");
+
+  const { ref } = await atividadeDoDono(uid, atividadeId);
+  await ref.update(alteracoes);
+  const atual = (await ref.get()).data() ?? {};
+  return {
+    titulo: typeof atual.titulo === "string" ? atual.titulo : null,
+    esporte: String(atual.esporte),
+    feedback: feedback === undefined ? (atual.feedback ?? null) : feedback,
+  };
 }
 
 /** URL assinada de curta duração para baixar o arquivo original (o Storage nega leitura direta). */
