@@ -90,3 +90,19 @@ export function configAposTeste({ base, lthr, fcMaxObservada, atualizarFcMax, da
     alturaCm: base.alturaCm,
   });
 }
+
+/**
+ * Se uma atividade pode ser marcada (e analisada) como teste de LTHR: precisa ter vindo de arquivo, com FC,
+ * e durar pelo menos os 30 minutos do protocolo. O mesmo critério vale no cartão de Configuração e no "Como foi?".
+ * @param {{ origem?: string, fcMedia?: number|null, duracaoS?: number|null }} atividade
+ * @returns {{ elegivel: boolean, motivo: string|null }}
+ */
+export function avaliarTesteLthr(atividade) {
+  if (atividade?.origem !== 'arquivo' || !atividade.fcMedia) {
+    return { elegivel: false, motivo: 'Só serve atividade importada de arquivo, com frequência cardíaca.' };
+  }
+  if ((atividade.duracaoS ?? 0) < TESTE_LTHR.janelaS) {
+    return { elegivel: false, motivo: 'O teste precisa de pelo menos 30 minutos de atividade.' };
+  }
+  return { elegivel: true, motivo: null };
+}

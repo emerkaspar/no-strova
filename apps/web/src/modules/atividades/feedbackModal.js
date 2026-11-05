@@ -1,14 +1,20 @@
-import { ETIQUETAS, LIMITES_FEEDBACK, SENSACOES } from '@no-strova/domain';
+import { avaliarTesteLthr, ETIQUETAS, LIMITES_FEEDBACK, LIMITES_TRAJETO, SENSACOES } from '@no-strova/domain';
+import { obterSessao } from '../../application/sessao.js';
 import { salvarAtividade } from '../../core/functions.js';
 import { lerAtividade } from '../../infrastructure/atividadesRepo.js';
+import { lerConfigs } from '../../infrastructure/configsRepo.js';
+import { lerTrajetos } from '../../infrastructure/trajetosRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarDuracao } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { abrirModal } from '../../utils/modal.js';
+import { analisarAtividadeLthr, montarResultadoLthr } from '../configuracao/resultadoLthr.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE } from './textos.js';
 
 const TITULO_MAX = 80;
+/** Valor da lista de trajetos que significa "criar um novo". */
+const NOVO_TRAJETO = '__novo__';
 
 /** Cor de cada nível da escala de sensação (variáveis do tema, valem no escuro e no claro). */
 const TOM_DA_SENSACAO = Object.freeze({ 1: 'var(--success)', 2: 'var(--zona-1)', 3: 'var(--zona-3)', 4: 'var(--zona-4)', 5: 'var(--zona-5)' });
@@ -188,6 +194,105 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
     };
     notas.addEventListener('input', contar);
 
+    // ---------- marcações: teste de LTHR e trajeto de treino ----------
+    const uid = obterSessao().uid;
+    const avaliacao = avaliarTesteLthr(a);
+    estado.testeLthr = avaliacao.elegivel && a.testeLthr === true;
+    estado.trajetoId = a.trajetoId ?? '';
+
+    const caixaLthr = h('input', { type: 'checkbox', class: 'fb-marca-caixa', checked: estado.testeLthr, disabled: !avaliacao.elegivel });
+    const botaoAnalise = h('button', { type: 'button', class: 'fb-marca-link' }, icone('fc', 15), 'Ver a análise do teste');
+    botaoAnalise.addEventListener('click', () => mostrarAnalise(null));
+    const cartaoLthr = h(
+      'label',
+      { class: `fb-marca fb-marca-lthr${avaliacao.elegivel ? '' : ' fb-marca-desligada'}` },
+      h('span', { class: 'fb-marca-icone', 'aria-hidden': 'true' }, icone('fc', 22)),
+      h(
+        'span',
+        { class: 'fb-marca-texto' },
+        h('strong', null, 'Foi um teste de LTHR?'),
+        h('small', null, avaliacao.elegivel ? 'O app analisa a sua FC e sugere o LTHR para criar uma nova vigência.' : avaliacao.motivo),
+      ),
+      h('span', { class: 'fb-marca-chave', 'aria-hidden': 'true' }),
+      caixaLthr,
+    );
+    function atualizarMarcas() {
+      cartaoLthr.classList.toggle('fb-marca-ligada', estado.testeLthr);
+      botaoAnalise.hidden = !(a.testeLthr === true && estado.testeLthr);
+    }
+    caixaLthr.addEventListener('change', () => {
+      estado.testeLthr = caixaLthr.checked;
+      atualizarMarcas();
+    });
+
+    let trajetos = [];
+    const seletorTrajeto = h('select', { class: 'fb-marca-select', 'aria-label': 'Trajeto de treino', disabled: true }, h('option', { value: '' }, 'Carregando…'));
+    const campoTrajetoNovo = h('input', { type: 'text', class: 'fb-marca-novo', maxLength: LIMITES_TRAJETO.nomeMax, placeholder: 'Nome do trajeto. Ex.: Volta da Lagoa', 'aria-label': 'Nome do novo trajeto', hidden: true });
+    /** A lista mostra só os trajetos do esporte escolhido; trocar o esporte solta um trajeto de outro esporte. */
+    function desenharTrajetos() {
+      const doEsporte = trajetos.filter((t) => t.esporte === campoEsporte.value);
+      const valido = estado.trajetoId === NOVO_TRAJETO || doEsporte.some((t) => t.id === estado.trajetoId);
+      if (!valido) estado.trajetoId = '';
+      seletorTrajeto.replaceChildren(
+        h('option', { value: '' }, 'Nenhum'),
+        ...doEsporte.map((t) => h('option', { value: t.id }, t.nome)),
+        h('option', { value: NOVO_TRAJETO }, '+ Criar novo trajeto…'),
+      );
+      seletorTrajeto.value = estado.trajetoId;
+      campoTrajetoNovo.hidden = estado.trajetoId !== NOVO_TRAJETO;
+    }
+    seletorTrajeto.addEventListener('change', () => {
+      estado.trajetoId = seletorTrajeto.value;
+      campoTrajetoNovo.hidden = estado.trajetoId !== NOVO_TRAJETO;
+      if (estado.trajetoId === NOVO_TRAJETO) campoTrajetoNovo.focus();
+    });
+    campoEsporte.addEventListener('change', desenharTrajetos);
+    lerTrajetos(uid)
+      .catch(() => [])
+      .then((lista) => {
+        trajetos = lista;
+        seletorTrajeto.disabled = false;
+        desenharTrajetos();
+      });
+    const cartaoTrajeto = h(
+      'div',
+      { class: 'fb-marca fb-marca-trajeto' },
+      h('span', { class: 'fb-marca-icone', 'aria-hidden': 'true' }, icone('rota', 22)),
+      h(
+        'div',
+        { class: 'fb-marca-texto' },
+        h('strong', null, 'Trajeto de treino'),
+        h('small', null, 'Dê nome ao percurso para comparar esforços entre treinos no mesmo trajeto (a comparação chega em breve).'),
+        seletorTrajeto,
+        campoTrajetoNovo,
+      ),
+    );
+
+    /** Troca o modal pelo resultado do teste de LTHR: análise da FC e botão para criar a nova vigência. */
+    async function mostrarAnalise(salvo) {
+      const msg = areaMensagem();
+      const corpo = h('div', { class: 'fb-corpo' }, h('p', { class: 'texto-secundario', role: 'status' }, 'Analisando a frequência cardíaca…'));
+      raiz.classList.add('fb-analise');
+      raiz.replaceChildren(
+        h(
+          'header',
+          { class: 'fb-topo' },
+          h('span', { class: 'fb-esporte', 'aria-hidden': 'true' }, icone('fc', 26)),
+          h('div', { class: 'fb-topo-texto' }, h('p', { class: 'fb-kicker' }, 'Teste de LTHR'), h('h2', { class: 'fb-titulo' }, 'Resultado'), h('p', { class: 'fb-resumo' }, a.titulo || nomePadrao)),
+          h('button', { type: 'button', class: 'fb-fechar', title: 'Fechar', 'aria-label': 'Fechar', onClick: () => fechar(salvo ?? undefined) }, icone('fechar', 20)),
+        ),
+        corpo,
+        h('footer', { class: 'fb-rodape' }, h('span', { class: 'fb-rodape-espaco' }), h('button', { type: 'button', class: 'btn btn-secundario', onClick: () => fechar(salvo ?? undefined) }, 'Fechar')),
+      );
+      try {
+        const configs = await lerConfigs(uid);
+        const analise = await analisarAtividadeLthr(a, configs);
+        corpo.replaceChildren(...montarResultadoLthr({ uid, atividade: a, analise, configs, mensagem: msg, idCaixa: 'fb-teste-fcmax' }), msg.el);
+      } catch (err) {
+        corpo.replaceChildren(h('p', { class: 'mensagem mensagem-erro' }, err.message || 'Não foi possível analisar esta atividade.'));
+      }
+    }
+
     // ---------- ações ----------
     const salvar = h('button', { type: 'submit', class: 'btn fb-salvar' }, 'Salvar');
     const cancelar = h('button', { type: 'button', class: 'btn btn-secundario', onClick: () => fechar(undefined) }, primeiraVez ? 'Pular por agora' : 'Cancelar');
@@ -221,6 +326,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
         h('section', { class: 'fb-secao' }, h('div', { class: 'fb-secao-linha' }, h('h3', { class: 'fb-secao-titulo' }, 'Quão duro foi?'), legendaEsforco), esforco.raiz, h('div', { class: 'fb-escala' }, h('span', null, 'leve'), h('span', null, 'máximo'))),
         h('section', { class: 'fb-secao' }, h('h3', { class: 'fb-secao-titulo' }, 'O que marcou o treino?'), h('div', { class: 'fb-chips' }, ...chips), blocoDor),
         h('section', { class: 'fb-secao' }, h('div', { class: 'fb-secao-linha' }, h('h3', { class: 'fb-secao-titulo' }, 'Notas'), contador), notas),
+        h('section', { class: 'fb-secao' }, h('h3', { class: 'fb-secao-titulo' }, 'Marcações'), h('div', { class: 'fb-marcas' }, h('div', { class: 'fb-marca-bloco' }, cartaoLthr, botaoAnalise), cartaoTrajeto)),
         mensagem.el,
       ),
       h('footer', { class: 'fb-rodape' }, remover, h('span', { class: 'fb-rodape-espaco' }), cancelar, salvar),
@@ -230,6 +336,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
     atualizarEsforco();
     atualizarDor();
     contar();
+    atualizarMarcas();
 
     raiz.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -238,6 +345,18 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
       const tituloNovo = campoTitulo.value.replace(/\s+/g, ' ').trim();
       if (tituloNovo !== (a.titulo ?? '')) pedido.titulo = tituloNovo;
       if (campoEsporte.value !== a.esporte) pedido.esporte = campoEsporte.value;
+      if (avaliacao.elegivel && estado.testeLthr !== (a.testeLthr === true)) pedido.testeLthr = estado.testeLthr;
+      if (estado.trajetoId === NOVO_TRAJETO) {
+        const nomeTrajeto = campoTrajetoNovo.value.replace(/\s+/g, ' ').trim();
+        if (!nomeTrajeto) {
+          mensagem.mostrar('Dê um nome ao trajeto novo ou escolha outra opção.');
+          campoTrajetoNovo.focus();
+          return;
+        }
+        pedido.trajeto = { nome: nomeTrajeto };
+      } else if (estado.trajetoId !== (a.trajetoId ?? '')) {
+        pedido.trajeto = estado.trajetoId === '' ? null : { id: estado.trajetoId };
+      }
 
       const temOutroDado = estado.rpe !== null || estado.etiquetas.size > 0 || notas.value.trim() !== '';
       if (estado.sensacao === null && temOutroDado) {
@@ -253,7 +372,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
           notas: notas.value,
         };
       }
-      if (!pedido.feedback && !('titulo' in pedido) && !('esporte' in pedido)) {
+      if (!pedido.feedback && !('titulo' in pedido) && !('esporte' in pedido) && !('testeLthr' in pedido) && !('trajeto' in pedido)) {
         fechar(undefined);
         return;
       }
@@ -262,7 +381,10 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
       salvar.disabled = true;
       salvar.textContent = 'Salvando…';
       try {
-        fechar(await salvarAtividade(pedido));
+        const salvo = await salvarAtividade(pedido);
+        // recém-marcado como teste: o resultado da análise aparece aqui mesmo, antes de fechar
+        if (pedido.testeLthr === true) mostrarAnalise(salvo);
+        else fechar(salvo);
       } catch (err) {
         salvar.disabled = false;
         salvar.textContent = textoOriginal;
@@ -296,9 +418,14 @@ export function miniSensacao(feedback) {
  * Cartão "Como foi?" da página de detalhe: mostra o registro (ou convida a fazê-lo) e abre o modal para editar.
  * `aoSalvar(resultado)` recebe o que o servidor devolveu, para a tela se atualizar.
  */
-export function cartaoComoFoi(atividade, aoSalvar) {
+export function cartaoComoFoi(atividade, aoSalvar, { trajetoNome = null } = {}) {
   const f = atividade.feedback ?? null;
   const s = SENSACOES.find((x) => x.valor === f?.sensacao);
+  const marcas = [
+    atividade.testeLthr ? h('span', { class: 'fb-cartao-marca fb-cartao-marca-lthr' }, icone('fc', 14), 'Teste de LTHR') : null,
+    trajetoNome ? h('span', { class: 'fb-cartao-marca' }, icone('rota', 14), trajetoNome) : null,
+  ].filter(Boolean);
+  const blocoMarcas = marcas.length > 0 ? h('div', { class: 'fb-cartao-etiquetas' }, ...marcas) : null;
   const rotuloEtiqueta = (id) => ETIQUETAS.find((e) => e.id === id)?.rotulo ?? id;
 
   const botao = h('button', { type: 'button', class: 'btn btn-secundario' }, icone('lapis', 16), f ? 'Editar' : 'Registrar como foi');
@@ -308,7 +435,7 @@ export function cartaoComoFoi(atividade, aoSalvar) {
   });
 
   if (!s) {
-    return h('div', { class: 'fb-cartao fb-cartao-vazio' }, h('div', null, h('strong', null, 'Como foi essa atividade?'), h('p', { class: 'texto-secundario' }, 'Registre a sensação e o esforço: isso ajuda o app a sugerir treinos melhores.')), botao);
+    return h('div', { class: 'fb-cartao fb-cartao-vazio' }, h('div', null, h('strong', null, 'Como foi essa atividade?'), h('p', { class: 'texto-secundario' }, 'Registre a sensação e o esforço: isso ajuda o app a sugerir treinos melhores.'), blocoMarcas), botao);
   }
   return h(
     'div',
@@ -320,6 +447,7 @@ export function cartaoComoFoi(atividade, aoSalvar) {
       h('strong', null, s.rotulo, f.rpe ? h('span', { class: 'fb-cartao-rpe', style: `color:${corDoEsforco(f.rpe)}` }, ` · esforço ${f.rpe}/10 (${rotuloDoEsforco(f.rpe)})`) : null),
       (f.etiquetas ?? []).length > 0 ? h('div', { class: 'fb-cartao-etiquetas' }, ...f.etiquetas.map((id) => h('span', { class: 'fb-cartao-etiqueta' }, id === 'dor' && f.dor ? `Dor: ${f.dor}` : rotuloEtiqueta(id)))) : null,
       f.notas ? h('p', { class: 'fb-cartao-notas' }, f.notas) : null,
+      blocoMarcas,
     ),
     botao,
   );

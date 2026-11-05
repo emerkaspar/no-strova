@@ -1,13 +1,11 @@
-import { analisarTesteLthr, configAposTeste, configVigenteEm, hrssPorHoraCalibrado, TESTE_LTHR } from '@no-strova/domain';
+import { avaliarTesteLthr, configVigenteEm, hrssPorHoraCalibrado } from '@no-strova/domain';
 import { reconstruirCalibracao } from '../../core/functions.js';
-import { lerSerieFc } from '../../infrastructure/atividadesRepo.js';
 import { salvarPreferencias } from '../../infrastructure/calibracaoRepo.js';
-import { salvarConfig } from '../../infrastructure/configsRepo.js';
 import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
-import { confirmar } from '../../utils/modal.js';
+import { analisarAtividadeLthr, montarResultadoLthr } from './resultadoLthr.js';
 
 const ZONAS_EM_ORDEM = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 
@@ -118,8 +116,13 @@ export function criarCartaoTesteLthr({ uid }) {
   const botaoAnalisar = h('button', { class: 'btn', type: 'button' }, 'Analisar esta atividade');
   const dicaSemOpcoes = h('p', { class: 'vazio-curto' }, 'Importe uma atividade de pelo menos 30 minutos com frequência cardíaca para analisá-la aqui.');
 
-  const candidatas = () => atividades.filter((a) => a.origem === 'arquivo' && a.fcMedia && (a.duracaoS ?? 0) >= TESTE_LTHR.janelaS).slice(0, 40);
-  const rotulo = (a) => `${formatarData(a.data)} · ${ROTULO_ESPORTE[a.esporte] ?? a.esporte} · ${formatarDuracao(a.duracaoS)} · FC média ${a.fcMedia} bpm`;
+  // as atividades marcadas como teste no "Como foi?" vêm primeiro (e a primeira já fica escolhida)
+  const candidatas = () =>
+    atividades
+      .filter((a) => avaliarTesteLthr(a).elegivel)
+      .slice(0, 40)
+      .sort((x, y) => Number(y.testeLthr === true) - Number(x.testeLthr === true));
+  const rotulo = (a) => `${a.testeLthr ? '★ Teste marcado · ' : ''}${formatarData(a.data)} · ${ROTULO_ESPORTE[a.esporte] ?? a.esporte} · ${formatarDuracao(a.duracaoS)} · FC média ${a.fcMedia} bpm`;
 
   function atualizarOpcoes() {
     const atual = select.value;
@@ -131,55 +134,13 @@ export function criarCartaoTesteLthr({ uid }) {
     dicaSemOpcoes.hidden = lista.length > 0;
   }
 
-  function mostrarResultado(atividade, analise) {
-    const base = configVigenteEm(configs, atividade.data) ?? configs[0] ?? null;
-    const maisAlta = base && analise.fcMaxObservada > base.fcMax;
-    const caixaFcMax = h('input', { type: 'checkbox', id: 'teste-fcmax', checked: Boolean(maisAlta) });
-    const botaoAplicar = h('button', { class: 'btn', type: 'button' }, 'Criar nova vigência com este LTHR');
-
-    botaoAplicar.addEventListener('click', () =>
-      executarComBotao(botaoAplicar, mensagem, async () => {
-        if (!base) throw new Error('Cadastre primeiro a sua configuração de FC (sexo, peso, altura e FC de repouso), para o app criar a nova vigência a partir dela.');
-        const r = configAposTeste({ base, lthr: analise.lthr, fcMaxObservada: analise.fcMaxObservada, atualizarFcMax: caixaFcMax.checked, data: atividade.data });
-        if (!r.valido) throw new Error(r.erros.join(' '));
-        const existente = configs.find((c) => c.vigenteDesde === r.valores.vigenteDesde);
-        const texto = `Criar a vigência de ${formatarData(r.valores.vigenteDesde)} com LTHR ${r.valores.lthr} bpm${r.valores.fcMax !== base.fcMax ? ` e FC máxima ${r.valores.fcMax} bpm` : ''}?${existente ? ' Já existe uma configuração com essa data; ela será substituída.' : ''}`;
-        if (!(await confirmar({ titulo: 'Criar nova vigência?', mensagem: texto, confirmarTexto: 'Criar vigência', tipo: 'info', icone: 'configuracao' }))) return;
-        await salvarConfig(uid, r.valores);
-        mensagem.mostrar(`Vigência de ${formatarData(r.valores.vigenteDesde)} criada com LTHR ${r.valores.lthr} bpm. Use “Recalcular histórico” para aplicar às atividades já importadas.`, 'ok');
-      }),
-    );
-
-    // replaceChildren(null) escreveria "null" na tela: os blocos opcionais saem da lista antes
-    resultado.replaceChildren(
-      ...[
-      h(
-        'div',
-        { class: 'teste-numeros' },
-        h('div', { class: 'teste-numero' }, h('span', { class: 'teste-rotulo' }, 'LTHR sugerido'), h('strong', { class: 'teste-lthr' }, `${analise.lthr} bpm`), h('span', { class: 'teste-nota' }, 'média dos últimos 20 min da melhor janela de 30 min')),
-        h('div', { class: 'teste-numero' }, h('span', { class: 'teste-rotulo' }, 'FC média dos 30 min'), h('strong', null, `${analise.mediaJanela} bpm`), h('span', { class: 'teste-nota' }, `de ${formatarDuracao(analise.inicioS)} a ${formatarDuracao(analise.fimS)} da atividade`)),
-        h('div', { class: 'teste-numero' }, h('span', { class: 'teste-rotulo' }, 'FC máxima observada'), h('strong', null, `${analise.fcMaxObservada} bpm`), base ? h('span', { class: 'teste-nota' }, `configurada: ${base.fcMax} bpm`) : null),
-      ),
-      ...analise.avisos.map((a) => h('p', { class: 'mensagem mensagem-aviso' }, a)),
-      maisAlta
-        ? h('label', { class: 'opcao', for: 'teste-fcmax' }, caixaFcMax, ` Atualizar também a FC máxima para ${analise.fcMaxObservada} bpm (a observada passou da configurada)`)
-        : null,
-      h('p', { class: 'texto-secundario' }, `A nova vigência vale a partir de ${formatarData(atividade.data)}, a data do teste.`),
-      botaoAplicar,
-      ].filter(Boolean),
-    );
-  }
-
   botaoAnalisar.addEventListener('click', () =>
     executarComBotao(botaoAnalisar, mensagem, async () => {
       resultado.replaceChildren();
       const atividade = atividades.find((a) => a.id === select.value);
       if (!atividade) throw new Error('Escolha uma atividade.');
-      const serie = await lerSerieFc(atividade.id);
-      if (!serie?.fc?.length) throw new Error('Esta atividade não tem série de frequência cardíaca guardada.');
-      const analise = analisarTesteLthr(serie, configVigenteEm(configs, atividade.data) ?? configs[0] ?? null);
-      if (!analise) throw new Error('Não achei 30 minutos seguidos de FC nesta atividade. O teste precisa de pelo menos 30 minutos de esforço contínuo.');
-      mostrarResultado(atividade, analise);
+      const analise = await analisarAtividadeLthr(atividade, configs);
+      resultado.replaceChildren(...montarResultadoLthr({ uid, atividade, analise, configs, mensagem }));
     }),
   );
 

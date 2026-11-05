@@ -29,3 +29,18 @@ export function excluirConfig(id) {
 export function lerConfig(id) {
   return lerDocumento(`${COLECAO}/${id}`);
 }
+
+/** Configurações do atleta (uma leitura só), da mais recente para a mais antiga. */
+export function lerConfigs(uid) {
+  return new Promise((resolver, rejeitar) => {
+    let cancelar = () => {};
+    cancelar = observarConfigs(
+      uid,
+      (lista) => {
+        cancelar();
+        resolver(lista);
+      },
+      rejeitar,
+    );
+  });
+}

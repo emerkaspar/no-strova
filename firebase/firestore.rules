@@ -280,6 +280,12 @@ service cloud.firestore {
       }
     }
 
+    // Trajetos de treino (nomes que o usuário cria para comparar esforços): o dono lê; só a callable salvarAtividade grava.
+    match /trajetos/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+    }
+
     match /estresseDiario/{id} {
       allow read: if acessoLiberado() && donoDoRegistro();
       allow write: if false;

@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import {
   atividadePrecisaCompletar,
+  avaliarTesteLthr,
   type ConfigAtleta,
   configVigenteEm,
   diaNoFuso,
   ESPORTES_VALIDOS,
+  LIMITES_TRAJETO,
   esporteDoArquivo,
   melhoresEsforcos,
   reduzirSerieDetalhe,
@@ -14,6 +16,7 @@ import {
   validarAtividadeManual,
   validarConfigAtleta,
   validarFeedback,
+  validarNomeDoTrajeto,
   VERSAO_DAS_ZONAS,
   VERSAO_DO_DETALHE,
   VERSAO_DOS_ESFORCOS,
@@ -352,27 +355,75 @@ export async function renomearAtividade(uid: string, atividadeId: string, titulo
   return limpo === "" ? null : limpo;
 }
 
+const TRAJETOS = "trajetos";
+
 /**
- * Salva a edição feita no modal "Como foi?": título, esporte e feedback. Cada campo só muda se vier no pedido
- * (`feedback: null` apaga o registro). Os dados medidos (distância, duração, FC) nunca são alterados aqui.
- * Trocar o esporte não refaz o HRSS nem o tempo em movimento, que já foram calculados na importação.
+ * Resolve o trajeto pedido para o id de um documento de `trajetos`: `{ id }` confere o dono e o esporte; `{ nome }`
+ * reaproveita o trajeto de mesmo nome (sem acento nem caixa) no esporte ou cria um novo.
  */
-export async function salvarEdicaoDaAtividade(
-  uid: string,
-  atividadeId: string,
-  dados: Record<string, unknown>,
-): Promise<{ titulo: string | null; esporte: string; feedback: Record<string, unknown> | null }> {
+async function resolverTrajeto(uid: string, esporte: string, pedido: unknown): Promise<{ id: string; nome: string }> {
+  if (typeof pedido !== "object" || pedido === null || Array.isArray(pedido)) {
+    throw new HttpsError("invalid-argument", "Trajeto inválido.");
+  }
+  const { id, nome } = pedido as { id?: unknown; nome?: unknown };
+
+  if (id !== undefined) {
+    if (typeof id !== "string" || id.length < 5 || id.length > 40 || id.includes("/")) {
+      throw new HttpsError("invalid-argument", "Trajeto inválido.");
+    }
+    const snap = await db.doc(`${TRAJETOS}/${id}`).get();
+    if (!snap.exists || snap.get("userId") !== uid) throw new HttpsError("not-found", "Trajeto não encontrado.");
+    if (snap.get("esporte") !== esporte) {
+      throw new HttpsError("failed-precondition", "Esse trajeto é de outro esporte.");
+    }
+    return { id, nome: String(snap.get("nome")) };
+  }
+
+  const r = validarNomeDoTrajeto(nome);
+  if (!r.valido || !r.valores) throw new HttpsError("invalid-argument", r.erros.join(" "));
+  const { nome: nomeLimpo, chave } = r.valores;
+  const colecao = db.collection(TRAJETOS);
+  const igual = await colecao.where("userId", "==", uid).where("esporte", "==", esporte).where("chave", "==", chave).limit(1).get();
+  if (!igual.empty) return { id: igual.docs[0].id, nome: String(igual.docs[0].get("nome")) };
+
+  const total = (await colecao.where("userId", "==", uid).count().get()).data().count;
+  if (total >= LIMITES_TRAJETO.porUsuario) {
+    throw new HttpsError("failed-precondition", `Você já tem ${LIMITES_TRAJETO.porUsuario} trajetos. Reaproveite um dos existentes.`);
+  }
+  const ref = colecao.doc();
+  await ref.create({ userId: uid, nome: nomeLimpo, chave, esporte, criadoEm: FieldValue.serverTimestamp() });
+  return { id: ref.id, nome: nomeLimpo };
+}
+
+export interface EdicaoSalva {
+  titulo: string | null;
+  esporte: string;
+  feedback: Record<string, unknown> | null;
+  testeLthr: boolean;
+  trajeto: { id: string; nome: string } | null;
+}
+
+/**
+ * Salva a edição feita no modal "Como foi?": título, esporte, feedback, marca de teste de LTHR e trajeto de treino.
+ * Cada campo só muda se vier no pedido (`feedback: null`, `testeLthr: false` e `trajeto: null` removem). Os dados medidos
+ * (distância, duração, FC) nunca são alterados aqui. Trocar o esporte não refaz o HRSS nem o tempo em movimento, que já
+ * foram calculados na importação, mas solta o trajeto se ele era de outro esporte.
+ */
+export async function salvarEdicaoDaAtividade(uid: string, atividadeId: string, dados: Record<string, unknown>): Promise<EdicaoSalva> {
+  const { ref, snap } = await atividadeDoDono(uid, atividadeId);
   const alteracoes: Record<string, unknown> = {};
 
   if ("titulo" in dados) {
     const limpo = tituloLimpo(dados.titulo);
     alteracoes.titulo = limpo === "" ? FieldValue.delete() : limpo;
   }
+  let esporte = String(snap.get("esporte"));
   if ("esporte" in dados) {
     if (typeof dados.esporte !== "string" || !(ESPORTES_VALIDOS as readonly string[]).includes(dados.esporte)) {
       throw new HttpsError("invalid-argument", "Esporte inválido.");
     }
-    alteracoes.esporte = dados.esporte;
+    esporte = dados.esporte;
+    alteracoes.esporte = esporte;
   }
   let feedback: Record<string, unknown> | null | undefined;
   if ("feedback" in dados) {
@@ -387,15 +438,50 @@ export async function salvarEdicaoDaAtividade(
       alteracoes.feedback = { ...feedback, registradoEm: FieldValue.serverTimestamp() };
     }
   }
+  if ("testeLthr" in dados) {
+    if (typeof dados.testeLthr !== "boolean") throw new HttpsError("invalid-argument", "Marcação de teste inválida.");
+    if (dados.testeLthr) {
+      const avaliacao = avaliarTesteLthr({ origem: snap.get("origem"), fcMedia: snap.get("fcMedia"), duracaoS: snap.get("duracaoS") });
+      if (!avaliacao.elegivel) throw new HttpsError("failed-precondition", avaliacao.motivo ?? "Esta atividade não serve como teste de LTHR.");
+      alteracoes.testeLthr = true;
+    } else {
+      alteracoes.testeLthr = FieldValue.delete();
+    }
+  }
+
+  let trajeto: { id: string; nome: string } | null | undefined;
+  if ("trajeto" in dados) {
+    if (dados.trajeto === null) {
+      trajeto = null;
+      alteracoes.trajetoId = FieldValue.delete();
+    } else {
+      trajeto = await resolverTrajeto(uid, esporte, dados.trajeto);
+      alteracoes.trajetoId = trajeto.id;
+    }
+  } else if ("esporte" in dados && typeof snap.get("trajetoId") === "string") {
+    // o trajeto é de um esporte só: se a atividade mudou de esporte, a ligação sai
+    const atual = await db.doc(`${TRAJETOS}/${snap.get("trajetoId")}`).get();
+    if (!atual.exists || atual.get("esporte") !== esporte) {
+      trajeto = null;
+      alteracoes.trajetoId = FieldValue.delete();
+    }
+  }
   if (Object.keys(alteracoes).length === 0) throw new HttpsError("invalid-argument", "Nada para salvar.");
 
-  const { ref } = await atividadeDoDono(uid, atividadeId);
   await ref.update(alteracoes);
   const atual = (await ref.get()).data() ?? {};
+  let trajetoFinal: { id: string; nome: string } | null = null;
+  if (trajeto !== undefined) trajetoFinal = trajeto;
+  else if (typeof atual.trajetoId === "string") {
+    const doc = await db.doc(`${TRAJETOS}/${atual.trajetoId}`).get();
+    trajetoFinal = doc.exists ? { id: doc.id, nome: String(doc.get("nome")) } : null;
+  }
   return {
     titulo: typeof atual.titulo === "string" ? atual.titulo : null,
     esporte: String(atual.esporte),
     feedback: feedback === undefined ? (atual.feedback ?? null) : feedback,
+    testeLthr: atual.testeLthr === true,
+    trajeto: trajetoFinal,
   };
 }
 

@@ -2,6 +2,7 @@ import { calcularHrss, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsport
 import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo, renomearAtividade } from '../../core/functions.js';
 import { lerAtividade, lerSerieDetalhe, lerSerieFc } from '../../infrastructure/atividadesRepo.js';
 import { lerConfig } from '../../infrastructure/configsRepo.js';
+import { lerTrajeto } from '../../infrastructure/trajetosRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
@@ -279,6 +280,7 @@ export function render(raiz, sessao, { id }) {
   let ativa = true;
   let corDoMapa = 'alt'; // 'alt' | 'vel' | 'fc' ('padrao' = cor única, quando a atividade não tem nenhum dos dados): mantida ao redesenhar a tela
   let limparVisuais = () => {};
+  let nomeDoTrajeto = null; // nome do trajeto de treino da atividade (lido uma vez; o modal atualiza)
   let configDoHrss; // undefined = ainda não buscada; null = indisponível
   const mensagem = areaMensagem();
   raiz.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
@@ -286,6 +288,8 @@ export function render(raiz, sessao, { id }) {
   async function carregar() {
     try {
       const [a, serie, detalhe] = await Promise.all([lerAtividade(id), lerSerieFc(id), lerSerieDetalhe(id)]);
+      if (!ativa) return;
+      if (a?.trajetoId) nomeDoTrajeto = (await lerTrajeto(a.trajetoId).catch(() => null))?.nome ?? null;
       if (!ativa) return;
       if (!a || a.userId !== sessao.uid) {
         raiz.replaceChildren(
@@ -444,8 +448,11 @@ export function render(raiz, sessao, { id }) {
           a.titulo = r.titulo ?? undefined;
           a.esporte = r.esporte;
           a.feedback = r.feedback ?? undefined;
+          a.testeLthr = r.testeLthr || undefined;
+          a.trajetoId = r.trajeto?.id ?? undefined;
+          nomeDoTrajeto = r.trajeto?.nome ?? null;
           if (ativa) desenhar(a, serie, detalhe, { calculando, carregandoDetalhe });
-        }),
+        }, { trajetoNome: nomeDoTrajeto }),
         aviso,
         medalhasEl,
         indicadores,
