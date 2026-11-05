@@ -185,6 +185,7 @@ function Get-FunctionsDependentes($arquivo) {
 # Nomes das functions exportadas por um arquivo *.functions.ts (e re-exportadas em index.ts).
 function Get-NomesFunctions($arquivo, $indexTs) {
     $nomes = @()
+    if (-not (Test-Path $arquivo -PathType Leaf)) { return $nomes }
     $conteudo = Get-Content $arquivo -Raw
     foreach ($m in [regex]::Matches($conteudo, '(?m)^export const (\w+)\s*=\s*(?:on[A-Z]\w*|functionsV1)\b')) {
         $nome = $m.Groups[1].Value
@@ -235,7 +236,12 @@ function Sugerir-Only($arquivos) {
             foreach ($t in @('hosting', 'functions', 'firestore', 'storage')) { if (-not $alvos.Contains($t)) { $alvos.Add($t) } }
             $motivos.Add('firebase.json mudou (deploy completo)')
         }
-        elseif ($f -like 'apps/functions/src/*.functions.ts' -and (Test-Path $f)) {
+        elseif ($f -like 'apps/functions/src/*.functions.ts' -and -not (Test-Path $f)) {
+            # arquivo de functions apagado: so' o deploy completo de functions oferece apagar as antigas no Firebase
+            $functionsCompleto = $true
+            if (-not $motivos.Contains('function removida (o deploy de functions oferece apagar a antiga)')) { $motivos.Add('function removida (o deploy de functions oferece apagar a antiga)') }
+        }
+        elseif ($f -like 'apps/functions/src/*.functions.ts') {
             $nomes = Get-NomesFunctions $f $indexTs
             # exports nao reconhecidos (alias, wrapper...): nao arrisca, publica todas
             if ($nomes.Count -eq 0) { $functionsCompleto = $true }

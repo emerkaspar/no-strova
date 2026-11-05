@@ -49,7 +49,3 @@ export const garminSituacao = callable('garminSituacao');
 export const garminConectar = callable('garminConectar');
 export const garminDesconectar = callable('garminDesconectar');
 export const garminSincronizar = callable('garminSincronizar');
-export const stravaSituacao = callable('stravaSituacao');
-export const stravaConectar = callable('stravaConectar');
-export const stravaDesconectar = callable('stravaDesconectar');
-export const stravaSincronizar = callable('stravaSincronizar');

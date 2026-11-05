@@ -155,7 +155,7 @@ function lerNome(nome: unknown): string {
 
 /**
  * Cria a conta no Auth e o perfil já aprovado. O aceite LGPD fica por conta da pessoa: no primeiro acesso ela cai
- * na tela de completar o cadastro. Recursos nascem como o admin escolheu (padrão: IA ligada, Garmin e Strava desligados).
+ * na tela de completar o cadastro. Recursos nascem como o admin escolheu (padrão: IA ligada, Garmin desligado).
  */
 export async function criarUsuario(entrada: EntradaNovoUsuario): Promise<UsuarioAdmin> {
   const nome = lerNome(entrada.nome);

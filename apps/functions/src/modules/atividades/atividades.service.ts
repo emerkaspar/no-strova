@@ -25,16 +25,13 @@ import { HttpsError } from "firebase-functions/v2/https";
 import { db } from "../../shared/firebase";
 import { ALERTAS, type ResultadoProcessamento } from "./atividades.types";
 import { calcularCalorias, calcularEstresse } from "./estresse";
-import { type ArquivoLido, ArquivoInvalidoError, type Extensao, lerArquivo } from "./parsers";
+import { ArquivoInvalidoError, type Extensao, lerArquivo } from "./parsers";
 
 export const TAMANHO_MAXIMO_BYTES = 15 * 1024 * 1024;
 /** Limite de atividades criadas por usuário por dia (arquivo + manual), contra abuso. */
 export const LIMITE_CADASTROS_POR_DIA = 30;
-/** Valor do campo `fonte` das atividades trazidas pela sincronização com o Garmin ou com o Strava. */
+/** Valor do campo `fonte` das atividades trazidas pela sincronização com o Garmin. */
 export const FONTE_GARMIN = "garmin";
-export const FONTE_STRAVA = "strava";
-export type FonteSincronizacao = typeof FONTE_GARMIN | typeof FONTE_STRAVA;
-const FONTES_SINCRONIZADAS: readonly string[] = [FONTE_GARMIN, FONTE_STRAVA];
 const ID_ATIVIDADE = /^[A-Za-z0-9_-]{8,40}$/;
 const ZONAS_VALIDAS = Object.keys(ZONAS);
 
@@ -69,14 +66,14 @@ async function exigirCotaDiaria(uid: string): Promise<void> {
     .count()
     .get();
   if (agregado.data().count < LIMITE_CADASTROS_POR_DIA) return;
-  // Atividades sincronizadas (Garmin ou Strava) têm limite próprio e não consomem a cota de quem cadastra à mão.
+  // Atividades sincronizadas do Garmin têm limite próprio e não consomem a cota de quem cadastra à mão.
   const doDia = await db
     .collection("atividades")
     .where("userId", "==", uid)
     .where("criadoEm", ">=", inicioDoDia)
     .select("fonte")
     .get();
-  if (doDia.docs.filter((d) => !FONTES_SINCRONIZADAS.includes(d.get("fonte"))).length >= LIMITE_CADASTROS_POR_DIA) {
+  if (doDia.docs.filter((d) => d.get("fonte") !== FONTE_GARMIN).length >= LIMITE_CADASTROS_POR_DIA) {
     throw new HttpsError(
       "resource-exhausted",
       `Limite de ${LIMITE_CADASTROS_POR_DIA} atividades por dia atingido. Tente novamente amanhã.`,
@@ -106,7 +103,7 @@ export interface PedidoArquivo {
   esporte: string | null;
   zona: string | null;
   /** Origem externa do arquivo (sincronização); ela tem limite próprio e não consome a cota diária. */
-  fonte?: FonteSincronizacao;
+  fonte?: typeof FONTE_GARMIN;
 }
 
 export function lerPedidoArquivo(dados: Record<string, unknown>, extensao: Extensao): PedidoArquivo {
@@ -171,103 +168,27 @@ export async function processarArquivo(
     throw err;
   }
 
-  try {
-    return await gravarAtividade(uid, dataNascimento, {
-      atividadeId: pedido.atividadeId,
-      lido,
-      esporte: pedido.esporte,
-      zona: pedido.zona,
-      hashArquivo,
-      arquivoPath: arquivo.name,
-      extensao: pedido.extensao,
-      fonte: pedido.fonte,
-    });
-  } catch (err) {
-    // Atividade sem dados ou duplicada: o arquivo não serve para mais nada. Os demais erros (como `sem-fc`) o mantêm.
-    if (err instanceof HttpsError && (err.code === "invalid-argument" || err.code === "already-exists")) {
-      await arquivo.delete({ ignoreNotFound: true });
-    }
-    throw err;
-  }
-}
-
-export interface DadosParaGravar {
-  atividadeId: string;
-  lido: ArquivoLido;
-  /** Esporte escolhido pelo usuário; sem ele vale o do arquivo. */
-  esporte: string | null;
-  zona: string | null;
-  /** Hash do arquivo, para rejeitar o mesmo arquivo enviado duas vezes; `null` quando não há arquivo. */
-  hashArquivo: string | null;
-  arquivoPath: string | null;
-  extensao: Extensao | null;
-  fonte?: FonteSincronizacao;
-}
-
-/** Margem para tratar duas atividades de fontes diferentes como a mesma: início em ±2 min e duração em ±5%. */
-const MARGEM_INICIO_MS = 2 * 60 * 1000;
-const MARGEM_DURACAO = 0.05;
-
-/** Já existe uma atividade do usuário no mesmo horário e com quase a mesma duração (vinda de outra fonte)? */
-async function existeAtividadeParecida(uid: string, inicioMs: number, duracaoS: number): Promise<boolean> {
-  try {
-    const snap = await db
-      .collection("atividades")
-      .where("userId", "==", uid)
-      .where("inicio", ">=", Timestamp.fromMillis(inicioMs - MARGEM_INICIO_MS))
-      .where("inicio", "<=", Timestamp.fromMillis(inicioMs + MARGEM_INICIO_MS))
-      .select("duracaoS")
-      .get();
-    return snap.docs.some((d) => {
-      const outra = d.get("duracaoS");
-      return typeof outra === "number" && Math.abs(outra - duracaoS) <= duracaoS * MARGEM_DURACAO;
-    });
-  } catch (err) {
-    // Sem o índice (userId, inicio) a consulta falha; a sincronização segue só com a checagem exata.
-    logger.warn("Não foi possível checar atividades parecidas (índice userId + inicio publicado?)", err);
-    return false;
-  }
-}
-
-/**
- * Valida, deduplica, calcula o resumo, o HRSS e as calorias, e grava a atividade com as séries. Vale para
- * qualquer origem já lida (arquivo no Storage ou séries do Strava). Lança `HttpsError`:
- * `invalid-argument` (sem dados), `already-exists` (duplicada) e `failed-precondition` com `codigo: "sem-fc"`.
- */
-export async function gravarAtividade(
-  uid: string,
-  dataNascimento: string | null,
-  entrada: DadosParaGravar,
-): Promise<ResultadoProcessamento> {
-  const { atividadeId, lido, hashArquivo, arquivoPath, extensao, fonte } = entrada;
-  const ref = db.doc(`atividades/${atividadeId}`);
-  const esporte = entrada.esporte ?? esporteDoArquivo(lido.esporteArquivo);
+  const esporte = pedido.esporte ?? esporteDoArquivo(lido.esporteArquivo);
   const resumo = resumirAmostras(lido.amostras, esporte);
   if (!resumo) {
-    throw new HttpsError("invalid-argument", "O arquivo não tem dados suficientes para formar uma atividade.");
+    return rejeitar("invalid-argument", "O arquivo não tem dados suficientes para formar uma atividade.");
   }
 
   const colecao = db.collection("atividades");
   const inicio = Timestamp.fromMillis(lido.inicioMs);
-  const duplicadaPorHash = hashArquivo
-    ? await colecao.where("userId", "==", uid).where("hashArquivo", "==", hashArquivo).limit(1).get()
-    : null;
+  const duplicadaPorHash = await colecao.where("userId", "==", uid).where("hashArquivo", "==", hashArquivo).limit(1).get();
   const duplicadaPorInicio = await colecao
     .where("userId", "==", uid)
     .where("inicio", "==", inicio)
     .where("duracaoS", "==", resumo.duracaoS)
     .limit(1)
     .get();
-  if (
-    (duplicadaPorHash && !duplicadaPorHash.empty) ||
-    !duplicadaPorInicio.empty ||
-    (fonte && (await existeAtividadeParecida(uid, lido.inicioMs, resumo.duracaoS)))
-  ) {
-    throw new HttpsError("already-exists", "Esta atividade já foi importada (mesmo arquivo ou mesmo início e duração).");
+  if (!duplicadaPorHash.empty || !duplicadaPorInicio.empty) {
+    return rejeitar("already-exists", "Esta atividade já foi importada (mesmo arquivo ou mesmo início e duração).");
   }
 
   const data = diaNoFuso(lido.inicioMs);
-  const zona = entrada.zona;
+  const zona = pedido.zona;
   if (resumo.fcMedia === null && zona === null) {
     // O arquivo é mantido: o cliente reenvia o pedido com a zona predominante.
     throw new HttpsError(
@@ -317,10 +238,10 @@ export async function gravarAtividade(
     zona,
     ...calorias,
     ...estresse,
-    arquivoPath,
-    extensao,
+    arquivoPath: arquivo.name,
+    extensao: pedido.extensao,
     hashArquivo,
-    ...(fonte ? { fonte } : {}),
+    ...(pedido.fonte ? { fonte: pedido.fonte } : {}),
     criadoEm: FieldValue.serverTimestamp(),
   });
   const serie = reduzirSerieFc(lido.amostras);
@@ -330,7 +251,7 @@ export async function gravarAtividade(
   if (detalhe) lote.set(ref.collection("series").doc("detalhe"), detalhe);
   await lote.commit();
 
-  return { atividadeId, hrss: estresse.hrss, alertas: estresse.alertas, jaExistia: false };
+  return { atividadeId: pedido.atividadeId, hrss: estresse.hrss, alertas: estresse.alertas, jaExistia: false };
 }
 
 export async function criarManual(

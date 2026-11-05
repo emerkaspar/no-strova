@@ -3200,8 +3200,7 @@ textarea {
   color: var(--text-secondary);
 }
 
-.ativ-origem-garmin,
-.ativ-origem-strava {
+.ativ-origem-garmin {
   background: color-mix(in srgb, var(--primary) 14%, transparent);
   color: var(--primary);
 }
@@ -5466,19 +5465,6 @@ textarea {
 
 .btn-garmin[hidden] {
   display: none;
-}
-
-/* O mesmo botão quando a fonte conectada é o Strava (laranja do Strava, #fc4c02) */
-.btn-garmin.btn-strava {
-  border-color: #fc4c02;
-  background: #fc4c02;
-  box-shadow: 0 4px 14px rgba(252, 76, 2, 0.35);
-}
-
-.btn-garmin.btn-strava:hover:not(:disabled),
-.btn-garmin.btn-strava:focus-visible {
-  background: #d94100;
-  border-color: #d94100;
 }
 
 /* Aviso em faixa (utils/avisoDispensavel.js): ícone, texto e botão de fechar; a cor do tipo vem de --aviso */
