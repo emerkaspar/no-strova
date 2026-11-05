@@ -4,6 +4,10 @@ import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.j
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarForma, formatarNumero } from '../../utils/formatters.js';
 import { confirmar } from '../../utils/modal.js';
+import { ligarFormRecolhivel } from './formRecolhivel.js';
+
+// fora do cartão: ele é refeito a cada atualização de dados
+const estadoDoFormulario = { aberto: false };
 
 const ROTULO_ESTADO = Object.freeze({ atinge: 'Chega lá', abaixo: 'Fica abaixo', acima: 'Fica acima' });
 
@@ -27,50 +31,53 @@ export function criarCartaoMeta({ uid, hoje, metaAtiva, metasAnteriores, avaliac
   const forma = campo({ id: 'meta-forma', rotulo: 'Forma desejada', inputmode: 'decimal', value: metaAtiva?.formaAlvo ?? '', dica: 'Ex.: +10 para chegar descansado; −15 para chegar treinando forte.' });
   const dataAlvo = campo({ id: 'meta-data', rotulo: 'Na data', tipo: 'date', value: metaAtiva?.dataAlvo ?? '', min: hoje });
   const mensagem = areaMensagem();
+  const aviso = areaMensagem(); // visível com o formulário fechado (ex.: erro ao remover)
   const botao = h('button', { class: 'btn', type: 'submit' }, metaAtiva ? 'Trocar a meta' : 'Definir meta');
 
   const form = h(
     'form',
     {
+      class: 'prog-form',
+      hidden: true,
       novalidate: true,
       onSubmit: (e) => {
         e.preventDefault();
-        executarComBotao(botao, mensagem, () =>
-          salvarMetaDeForma({
+        executarComBotao(botao, mensagem, async () => {
+          await salvarMetaDeForma({
             uid,
             hoje,
             entrada: { formaAlvo: forma.input.value, dataAlvo: dataAlvo.input.value },
             metasAtivas: metaAtiva ? [metaAtiva] : [],
-          }),
-        );
+          });
+          definirAberto(false);
+        });
       },
     },
     h('div', { class: 'grid' }, forma.raiz, dataAlvo.raiz),
     mensagem.el,
-    h(
-      'div',
-      { class: 'linha-botoes' },
-      botao,
-      metaAtiva
-        ? h(
-            'button',
-            {
-              class: 'btn btn-secundario',
-              type: 'button',
-              onClick: async () => {
-                if (!(await confirmar({ titulo: 'Remover a meta de Forma?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
-                try {
-                  await excluirMeta(metaAtiva.id);
-                } catch {
-                  mensagem.mostrar('Não foi possível remover a meta.');
-                }
-              },
-            },
-            'Remover meta',
-          )
-        : null,
-    ),
+    h('div', { class: 'linha-botoes' }, botao, h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => definirAberto(false) }, 'Cancelar')),
   );
+
+  const botaoAbrir = h('button', { type: 'button' });
+  const definirAberto = ligarFormRecolhivel({ estado: estadoDoFormulario, botao: botaoAbrir, form, rotulo: metaAtiva ? 'Trocar meta' : '+ Definir meta', classeFechado: metaAtiva ? 'btn btn-secundario' : 'btn' });
+  const botaoRemover = metaAtiva
+    ? h(
+        'button',
+        {
+          class: 'btn btn-secundario',
+          type: 'button',
+          onClick: async () => {
+            if (!(await confirmar({ titulo: 'Remover a meta de Forma?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
+            try {
+              await excluirMeta(metaAtiva.id);
+            } catch {
+              aviso.mostrar('Não foi possível remover a meta.');
+            }
+          },
+        },
+        'Remover meta',
+      )
+    : null;
 
   const resultado = !metaAtiva
     ? h('p', { class: 'texto-secundario' }, 'Opcional, complementa a meta de Condicionamento. Defina “chegar com Forma X na data Y” (por exemplo, descansado no dia de uma prova) e o app mostra se o plano atual chega lá.')
@@ -93,5 +100,5 @@ export function criarCartaoMeta({ uid, hoje, metaAtiva, metasAnteriores, avaliac
       )
     : null;
 
-  return h('section', { class: 'card' }, h('h2', null, 'Meta de forma'), resultado, form, anteriores);
+  return h('section', { class: 'card' }, h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Meta de forma'), h('div', { class: 'linha-botoes' }, botaoRemover, botaoAbrir)), resultado, aviso.el, form, anteriores);
 }

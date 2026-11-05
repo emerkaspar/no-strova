@@ -50,29 +50,111 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
   const botao = h('button', { class: 'btn', type: 'submit' }, existente ? 'Salvar alterações' : 'Adicionar treino');
 
   // ---- treino da biblioteca ----
-  const biblioteca = h('select', { id: 'tr-modelo', name: 'tr-modelo' });
   const painelEstrutura = h('div');
   const ORDEM_NIVEL = Object.keys(NIVEIS);
+  const ORDEM_FOCO = Object.keys(FOCOS);
   const todosOsModelos = () => [...modelos(), ...modelosDoCatalogo({})];
 
-  /** Opções da lista: "treino livre", o treino atual (se não está na lista), os próprios e o catálogo por foco. */
-  function reconstruirOpcoes() {
+  // Seletor da biblioteca: busca, filtro por foco e lista com perfil, nível, duração, zona e HRSS de cada treino
+  let filtroFoco = 'todos'; // 'todos' | 'proprio' | id do foco
+  let textoBusca = '';
+  let faixaHrss = 'todas'; // 'todas' | id de NIVEIS_DE_ESFORCO
+  const FAIXAS_HRSS = [
+    { id: 'leve', rotulo: 'Leve · até 45', min: 0, max: 45 },
+    { id: 'moderado', rotulo: 'Moderado · 45–80', min: 45, max: 80 },
+    { id: 'forte', rotulo: 'Forte · 80–120', min: 80, max: 120 },
+    { id: 'brutal', rotulo: 'Pesado · 120+', min: 120, max: Infinity },
+  ];
+  const busca = h('input', { type: 'search', id: 'tr-busca', name: 'tr-busca', class: 'biblioteca-busca', placeholder: 'Buscar treino pelo nome…', autocomplete: 'off', 'aria-label': 'Buscar treino da biblioteca' });
+  busca.addEventListener('input', () => {
+    textoBusca = busca.value.trim().toLocaleLowerCase('pt-BR');
+    desenharLista();
+  });
+  const filtros = h('div', { class: 'biblioteca-filtros', role: 'group', 'aria-label': 'Filtrar por foco' });
+  const filtrosHrss = h('div', { class: 'biblioteca-filtros', role: 'group', 'aria-label': 'Filtrar por HRSS' });
+  const lista = h('div', { class: 'biblioteca-lista', role: 'listbox', 'aria-label': 'Treino da biblioteca' });
+
+  const selecionadoId = (ids) => (estrutura ? (ids.has(estrutura.modeloId) ? estrutura.modeloId : '__atual') : '');
+
+  function linhaDaBiblioteca({ id, nome, subtitulo, passos, config, selecionado }) {
+    const resumo = passos ? resumirTreino(passos) : null;
+    const hrss = passos ? estimarEstresseEstruturado({ passos, config }) : null;
+    const metrica = (valor, rotulo, destaque = false) => h('div', { class: `biblioteca-metrica${destaque ? ' destaque' : ''}` }, h('strong', null, valor), h('span', null, rotulo));
+    return h(
+      'button',
+      { type: 'button', class: `biblioteca-linha${selecionado ? ' selecionado' : ''}`, role: 'option', 'aria-selected': String(selecionado), 'data-id': id, onClick: () => escolherTreino(id) },
+      h('div', { class: 'biblioteca-perfil' }, passos ? perfilDoTreino(passos, { altura: 40 }) : h('span', { class: 'biblioteca-livre-icone', 'aria-hidden': 'true' }, '✎')),
+      h('div', { class: 'biblioteca-texto' }, h('strong', { class: 'biblioteca-nome' }, nome), h('span', { class: 'biblioteca-sub' }, subtitulo)),
+      resumo
+        ? h(
+            'div',
+            { class: 'biblioteca-metricas' },
+            metrica(formatarSegundos(resumo.duracaoS), 'duração'),
+            metrica(resumo.zona, 'zona'),
+            metrica(hrss === null ? '—' : `~${formatarNumero(hrss, 0)}`, 'HRSS', true),
+          )
+        : null,
+    );
+  }
+
+  /** Redesenha filtros e lista: "treino livre", o treino atual (se não está na lista), os próprios e o catálogo por foco. */
+  function desenharLista() {
     const esp = esporte.select.value;
+    const config = configVigenteEm(configs(), data.input.value || treino?.data || dataInicial);
     const doEsporte = todosOsModelos().filter((m) => m.esporte === esp);
     const ids = new Set(doEsporte.map((m) => m.id));
-    const rotulo = (m) => `${m.nome} · ${NIVEIS[m.nivel] ?? m.nivel} · ${formatarSegundos(duracaoTotalS(m.passos))}`;
-    const ordenar = (lista) => [...lista].sort((a, b) => ORDEM_NIVEL.indexOf(a.nivel) - ORDEM_NIVEL.indexOf(b.nivel) || a.nome.localeCompare(b.nome, 'pt-BR'));
-    const grupo = (titulo, lista) => (lista.length === 0 ? null : h('optgroup', { label: titulo }, ...ordenar(lista).map((m) => h('option', { value: m.id }, rotulo(m)))));
     const atualForaDaLista = estrutura && !ids.has(estrutura.modeloId);
-    biblioteca.replaceChildren(
-      ...[
-        h('option', { value: '' }, 'Treino livre (informo a zona e a duração)'),
-        atualForaDaLista ? h('option', { value: '__atual' }, `${estrutura.nomeTreino} (atual)`) : null,
-        grupo('Meus treinos', doEsporte.filter((m) => m.origem === 'proprio')),
-        ...Object.entries(FOCOS).map(([foco, f]) => grupo(f.rotulo, doEsporte.filter((m) => m.origem !== 'proprio' && m.foco === foco))),
-      ].filter(Boolean),
+    const selecionado = selecionadoId(ids);
+
+    const focosPresentes = ORDEM_FOCO.filter((f) => doEsporte.some((m) => m.origem !== 'proprio' && m.foco === f));
+    const temProprios = doEsporte.some((m) => m.origem === 'proprio');
+    if (filtroFoco !== 'todos' && !(filtroFoco === 'proprio' ? temProprios : focosPresentes.includes(filtroFoco))) filtroFoco = 'todos';
+    const chip = (valor, rotulo) =>
+      h('button', { type: 'button', class: `biblioteca-chip${filtroFoco === valor ? ' ativo' : ''}`, 'aria-pressed': String(filtroFoco === valor), onClick: () => { filtroFoco = valor; desenharLista(); } }, rotulo);
+    filtros.replaceChildren(
+      chip('todos', 'Todos'),
+      ...(temProprios ? [chip('proprio', 'Meus treinos')] : []),
+      ...focosPresentes.map((f) => chip(f, FOCOS[f].rotulo)),
     );
-    biblioteca.value = estrutura ? (atualForaDaLista ? '__atual' : estrutura.modeloId) : '';
+
+    const chipHrss = (valor, rotulo) =>
+      h('button', { type: 'button', class: `biblioteca-chip${faixaHrss === valor ? ' ativo' : ''}`, 'aria-pressed': String(faixaHrss === valor), onClick: () => { faixaHrss = valor; desenharLista(); } }, rotulo);
+    if (!config) faixaHrss = 'todas';
+    filtrosHrss.hidden = !config;
+    filtrosHrss.replaceChildren(h('span', { class: 'biblioteca-filtro-rotulo' }, 'HRSS'), chipHrss('todas', 'Todos'), ...FAIXAS_HRSS.map((f) => chipHrss(f.id, f.rotulo)));
+    const faixa = FAIXAS_HRSS.find((f) => f.id === faixaHrss);
+    const dentroDaFaixa = (m) => {
+      if (!faixa) return true;
+      const valor = estimarEstresseEstruturado({ passos: m.passos, config });
+      return valor !== null && valor >= faixa.min && valor < faixa.max;
+    };
+
+    const casa = (m) =>
+      dentroDaFaixa(m) &&
+      (filtroFoco === 'todos' || (filtroFoco === 'proprio' ? m.origem === 'proprio' : m.origem !== 'proprio' && m.foco === filtroFoco)) &&
+      (!textoBusca || `${m.nome} ${m.especificacao ?? ''}`.toLocaleLowerCase('pt-BR').includes(textoBusca));
+    const ordenar = (itens) => [...itens].sort((a, b) => ORDEM_NIVEL.indexOf(a.nivel) - ORDEM_NIVEL.indexOf(b.nivel) || duracaoTotalS(a.passos) - duracaoTotalS(b.passos) || a.nome.localeCompare(b.nome, 'pt-BR'));
+    const linha = (m) =>
+      linhaDaBiblioteca({
+        id: m.id,
+        nome: m.nome,
+        subtitulo: [m.origem === 'proprio' ? 'Seu treino' : FOCOS[m.foco]?.rotulo ?? m.foco, NIVEIS[m.nivel] ?? m.nivel].join(' · '),
+        passos: m.passos,
+        config,
+        selecionado: selecionado === m.id,
+      });
+    const grupo = (titulo, itens) => (itens.length === 0 ? [] : [h('p', { class: 'biblioteca-grupo' }, titulo), ...ordenar(itens).map(linha)]);
+
+    const filtrados = doEsporte.filter(casa);
+    const rolagem = lista.scrollTop;
+    lista.replaceChildren(
+      linhaDaBiblioteca({ id: '', nome: 'Treino livre', subtitulo: 'Eu informo a zona e a duração', passos: null, config, selecionado: selecionado === '' }),
+      ...(atualForaDaLista ? [linhaDaBiblioteca({ id: '__atual', nome: `${estrutura.nomeTreino} (atual)`, subtitulo: 'Treino já salvo neste dia', passos: estrutura.passos, config, selecionado: selecionado === '__atual' })] : []),
+      ...grupo('Meus treinos', filtrados.filter((m) => m.origem === 'proprio')),
+      ...ORDEM_FOCO.flatMap((f) => grupo(FOCOS[f].rotulo, filtrados.filter((m) => m.origem !== 'proprio' && m.foco === f))),
+      ...(filtrados.length === 0 ? [h('p', { class: 'biblioteca-vazio texto-secundario' }, 'Nenhum treino encontrado com esse filtro.')] : []),
+    );
+    lista.scrollTop = rolagem;
   }
 
   function escolherTreino(valor) {
@@ -113,7 +195,7 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
           ]
         : []),
     );
-    reconstruirOpcoes();
+    desenharLista();
     atualizarEstimativa();
   }
 
@@ -150,11 +232,11 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
     el.addEventListener('input', atualizarEstimativa);
     el.addEventListener('change', atualizarEstimativa);
   }
-  // sem estrutura, trocar o esporte refaz a lista da biblioteca (que é por esporte)
+  // sem estrutura, trocar o esporte refaz a lista da biblioteca (que é por esporte); a data muda a config de FC, logo o HRSS
   esporte.select.addEventListener('change', () => {
-    if (!estrutura) reconstruirOpcoes();
+    if (!estrutura) desenharLista();
   });
-  biblioteca.addEventListener('change', () => escolherTreino(biblioteca.value));
+  data.input.addEventListener('change', desenharLista);
   aplicarEstrutura();
 
   const entrada = () => ({
@@ -182,9 +264,9 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
     h(
       'div',
       { class: 'campo' },
-      h('label', { for: 'tr-modelo' }, 'Treino da biblioteca'),
-      biblioteca,
-      h('small', { class: 'dica' }, 'Escolha um intervalado pronto (ou um dos seus) ou deixe "Treino livre" para informar a zona e a duração.'),
+      h('label', { for: 'tr-busca' }, 'Treino da biblioteca'),
+      h('div', { class: 'biblioteca' }, busca, filtros, filtrosHrss, lista),
+      h('small', { class: 'dica' }, 'Escolha um intervalado pronto (ou um dos seus) ou deixe "Treino livre" para informar a zona e a duração. O HRSS é estimado pela sua configuração de FC.'),
     ),
     painelEstrutura,
     h('div', { class: 'grid' }, data.raiz, esporte.raiz, duracao.raiz, zona.raiz, estresse.raiz),

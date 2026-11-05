@@ -52,6 +52,16 @@ export function render(raiz, sessao) {
   const cancelar = [];
   const corpoTabela = h('div', { class: 'tabela-wrap' });
   const areaForm = h('div');
+  // O formulário só aparece ao adicionar ou editar uma vigência (ou quando ainda não há nenhuma).
+  let formAberto = false;
+  const botaoNovaVigencia = h('button', { class: 'btn', type: 'button' });
+  botaoNovaVigencia.addEventListener('click', () => {
+    formAberto = !formAberto;
+    editar(null);
+    mensagemForm.limpar();
+    desenharForm();
+    if (formAberto) areaForm.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+  });
   const mensagemTabela = areaMensagem();
   // Fica fora do formulário para sobreviver ao redesenho depois de salvar.
   const mensagemForm = areaMensagem();
@@ -107,7 +117,7 @@ export function render(raiz, sessao) {
                 h(
                   'div',
                   { class: 'acoes' },
-                  h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(c.id); mensagemForm.limpar(); desenharForm(); areaForm.scrollIntoView?.({ behavior: 'smooth' }); } }, 'Editar'),
+                  h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(c.id); formAberto = true; mensagemForm.limpar(); desenharForm(); areaForm.scrollIntoView?.({ behavior: 'smooth' }); } }, 'Editar'),
                   h(
                     'button',
                     {
@@ -138,6 +148,15 @@ export function render(raiz, sessao) {
     const emEdicao = configs.find((c) => c.id === estadoConfiguracao.editandoId) ?? null;
     if (!emEdicao) editar(null);
     idDesenhado = emEdicao?.id ?? null;
+    const aberto = formAberto || Boolean(emEdicao) || configs.length === 0;
+    const criando = aberto && !emEdicao && configs.length > 0;
+    botaoNovaVigencia.hidden = configs.length === 0;
+    botaoNovaVigencia.textContent = criando ? 'Fechar' : '+ Nova vigência';
+    botaoNovaVigencia.className = criando ? 'btn btn-secundario' : 'btn';
+    if (!aberto) {
+      areaForm.replaceChildren(mensagemForm.el);
+      return;
+    }
     // Para uma nova vigência, parte dos valores da mais recente.
     const base = emEdicao ?? configs[0] ?? {};
 
@@ -161,6 +180,7 @@ export function render(raiz, sessao) {
     const form = h(
       'form',
       {
+        class: 'prog-form',
         novalidate: true,
         onSubmit: (e) => {
           e.preventDefault();
@@ -188,6 +208,8 @@ export function render(raiz, sessao) {
             await salvarConfig(sessao.uid, r.valores);
             if (emEdicao && emEdicao.vigenteDesde !== r.valores.vigenteDesde) await excluirConfig(emEdicao.id);
             editar(null);
+            formAberto = false;
+            desenharForm();
             mensagem.mostrar('Configuração salva. Use “Recalcular histórico” para aplicar às atividades já importadas.', 'ok');
           });
         },
@@ -198,10 +220,11 @@ export function render(raiz, sessao) {
         'div',
         { class: 'linha-botoes' },
         botao,
-        emEdicao ? h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(null); mensagemForm.limpar(); desenharForm(); } }, 'Cancelar edição') : null,
+        configs.length > 0 ? h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(null); formAberto = false; mensagemForm.limpar(); desenharForm(); } }, 'Cancelar') : null,
       ),
     );
-    areaForm.replaceChildren(h('h3', null, emEdicao ? `Editando a vigência de ${formatarData(emEdicao.vigenteDesde)}` : 'Nova vigência'), form);
+    form.prepend(h('h3', null, emEdicao ? `Editando a vigência de ${formatarData(emEdicao.vigenteDesde)}` : 'Nova vigência'));
+    areaForm.replaceChildren(form);
   }
 
   const mensagemRecalculo = areaMensagem();
@@ -226,7 +249,7 @@ export function render(raiz, sessao) {
       h(
         'section',
         { class: 'card' },
-        h('h2', null, 'Configuração do atleta'),
+        h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Configuração do atleta'), botaoNovaVigencia),
         h('p', { class: 'texto-secundario' }, 'FC máxima, FC de repouso, LTHR, sexo, peso e altura, cada conjunto com a data em que passa a valer. É a base do cálculo do HRSS. Atividades anteriores à primeira vigência ficam sem HRSS.'),
         mensagemTabela.el,
         corpoTabela,

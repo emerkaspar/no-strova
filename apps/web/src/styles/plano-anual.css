@@ -1,13 +1,26 @@
 /* Provas e Plano anual (tela do Plano). Usa só as variáveis de tema; nada de cor fixa além das das zonas. */
 
 .prova-form {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
+  margin: 16px 0 0;
+  padding: 24px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.prova-form[hidden] {
+  display: none;
 }
 
 .prova-form-titulo {
-  margin: 0 0 12px;
+  margin: 0 0 16px;
+}
+
+.prova-form .linha-botoes {
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .provas-lista {

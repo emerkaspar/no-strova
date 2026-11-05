@@ -17,7 +17,7 @@ import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
-import { criarCartaoAcompanhamento } from './acompanhamento.js';
+import { contarPendencias, criarCartaoAcompanhamento } from './acompanhamento.js';
 import { desenharCalendario } from './calendario.js';
 import { criarEditor } from './editor.js';
 import { criarPainelEnviarGarmin } from './enviarGarmin.js';
@@ -37,7 +37,15 @@ function rotuloDoPeriodo(visao, ancora) {
   return `${formatarData(inicio)} a ${formatarData(somarDias(inicio, 6))}`;
 }
 
-export function render(raiz, sessao) {
+const ABAS = [
+  { id: 'calendario', rotulo: 'Calendário' },
+  { id: 'projecao', rotulo: 'Projeção' },
+  { id: 'provas', rotulo: 'Provas' },
+  { id: 'acompanhamento', rotulo: 'Acompanhamento' },
+];
+
+export function render(raiz, sessao, params = {}) {
+  let aba = ABAS.some((a) => a.id === params.aba) ? params.aba : 'calendario';
   const hoje = hojeIso();
   const desde = dataInicialDoHistorico(hoje);
   const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], metasCondicionamento: [], modelos: [], provas: [], calibracao: null, preferencias: null };
@@ -51,7 +59,8 @@ export function render(raiz, sessao) {
   const calendario = h('div');
   const editorArea = h('div');
   const exportacaoArea = h('div');
-  const resto = h('div', { class: 'pilha' });
+  const abas = h('div', { class: 'treinos-abas', role: 'tablist', 'aria-label': 'Seções do plano' });
+  const paineis = Object.fromEntries(ABAS.map((a) => [a.id, h('div', { class: 'pilha plano-painel', id: `plano-painel-${a.id}`, role: 'tabpanel', 'aria-labelledby': `plano-aba-${a.id}` })]));
 
   const ancora = () => estadoPlano.ancora ?? hoje;
   const treinoDoDia = criarTreinoDoDia(dados, hoje);
@@ -197,9 +206,8 @@ Os treinos já realizados e o de hoje não são afetados.`,
             class: 'btn btn-secundario',
             type: 'button',
             onClick: () => {
-              const nome = document.getElementById('prova-nome');
-              nome?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-              nome?.focus({ preventScroll: true });
+              irParaAba('provas');
+              cartaoProvas.abrirNova();
             },
           },
           'Nova prova',
@@ -237,6 +245,29 @@ Os treinos já realizados e o de hoje não são afetados.`,
     }
   }
 
+  // ---- abas: a aba aberta fica na URL (#/plano, #/plano/projecao, …) sem recarregar a tela ----
+  function irParaAba(id) {
+    if (id === aba) return;
+    aba = id;
+    window.history.pushState(null, '', id === 'calendario' ? '#/plano' : `#/plano/${id}`);
+    desenhar();
+  }
+
+  function desenharAbas(pronto) {
+    const pendencias = pronto ? contarPendencias({ treinos: dados.treinos, atividades: dados.atividades, hoje }) : 0;
+    abas.replaceChildren(
+      ...ABAS.map((a) =>
+        h(
+          'button',
+          { class: 'treinos-aba', type: 'button', role: 'tab', id: `plano-aba-${a.id}`, 'aria-selected': String(aba === a.id), 'aria-controls': `plano-painel-${a.id}`, onClick: () => irParaAba(a.id) },
+          a.rotulo,
+          a.id === 'acompanhamento' && pendencias > 0 ? h('span', { class: 'aba-contagem', title: `${pendencias} pendentes` }, String(pendencias)) : null,
+        ),
+      ),
+    );
+    for (const a of ABAS) paineis[a.id].hidden = aba !== a.id;
+  }
+
   // ---- desenho ----
   function desenhar() {
     if (!ativa) return;
@@ -248,6 +279,16 @@ Os treinos já realizados e o de hoje não são afetados.`,
       aviso.replaceChildren('Cadastre a sua configuração de FC para o app estimar o estresse dos treinos. ', h('a', { href: '#/configuracao' }, 'Ir para Configuração'));
     }
 
+    desenharAbas(pronto);
+    // só a aba aberta é desenhada; as outras são refeitas quando abertas
+    if (aba === 'calendario') desenharAbaCalendario(pronto);
+    else if (!pronto) paineis[aba].replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
+    else if (aba === 'projecao') desenharAbaProjecao();
+    else if (aba === 'provas') desenharAbaProvas();
+    else desenharAbaAcompanhamento();
+  }
+
+  function desenharAbaCalendario(pronto) {
     desenharBarra();
     const semanasAnual = pronto ? semanasDoPlanoAnual() : [];
     const metaDaSemana = (inicio) => {
@@ -290,8 +331,9 @@ Os treinos já realizados e o de hoje não são afetados.`,
         : null,
       ].filter(Boolean),
     );
+  }
 
-    if (!pronto) return;
+  function desenharAbaProjecao() {
     const metasAtivas = dados.metas.filter((m) => m.ativa);
     const metaAtiva = metasAtivas.sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null;
     const anteriores = dados.metas.filter((m) => !m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? 1 : -1)).slice(0, 5);
@@ -308,6 +350,29 @@ Os treinos já realizados e o de hoje não são afetados.`,
       calibracao: dados.calibracao,
     });
     const condicionamentoAtual = serie.find((d) => d.data === hoje)?.fitness ?? null;
+    paineis.projecao.replaceChildren(
+      criarCartaoProjecao({
+        serie,
+        hoje,
+        meta: metaAtiva,
+        avaliacao,
+        metaCondicionamento: metaCondAtiva,
+        avaliacaoCondicionamento,
+        treinoDoDia,
+        // clicar num dia com atividade abre a atividade (modal para escolher, se houver mais de uma); nos demais, o treino planejado
+        // dele ou um novo treino naquela data (o editor fica na aba Calendário)
+        aoClicarDia: (data) => {
+          if (abrirAtividadeDoDia(data, dados.atividades)) return;
+          irParaAba('calendario');
+          abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);
+        },
+      }),
+      criarCartaoMetaCondicionamento({ uid: sessao.uid, hoje, metaAtiva: metaCondAtiva, metasAnteriores: anterioresCond, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
+      criarCartaoMeta({ uid: sessao.uid, hoje, metaAtiva, metasAnteriores: anteriores, avaliacao }),
+    );
+  }
+
+  function desenharAbaProvas() {
     cartaoProvas.atualizar(dados.provas);
     cartaoPlanoAnual.atualizar({
       provas: dados.provas,
@@ -319,27 +384,11 @@ Os treinos já realizados e o de hoje não são afetados.`,
       preferencias: dados.preferencias,
       metasForma: dados.metas,
     });
+    paineis.provas.replaceChildren(cartaoProvas.el, cartaoPlanoAnual.el);
+  }
 
-    resto.replaceChildren(
-      criarCartaoProjecao({
-        serie,
-        hoje,
-        meta: metaAtiva,
-        avaliacao,
-        metaCondicionamento: metaCondAtiva,
-        avaliacaoCondicionamento,
-        treinoDoDia,
-        // clicar num dia com atividade abre a atividade (modal para escolher, se houver mais de uma); nos demais, o treino planejado
-        // dele ou um novo treino naquela data
-        aoClicarDia: (data) => {
-          if (abrirAtividadeDoDia(data, dados.atividades)) return;
-          abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);
-        },
-      }),
-      cartaoProvas.el,
-      cartaoPlanoAnual.el,
-      criarCartaoMetaCondicionamento({ uid: sessao.uid, hoje, metaAtiva: metaCondAtiva, metasAnteriores: anterioresCond, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
-      criarCartaoMeta({ uid: sessao.uid, hoje, metaAtiva, metasAnteriores: anteriores, avaliacao }),
+  function desenharAbaAcompanhamento() {
+    paineis.acompanhamento.replaceChildren(
       criarCartaoAcompanhamento({
         treinos: dados.treinos,
         atividades: dados.atividades,
@@ -357,14 +406,37 @@ Os treinos já realizados e o de hoje não são afetados.`,
   // A IA só aparece para quem o administrador liberou (o servidor confere de novo em cada pedido).
   const cartaoIa = temRecurso(obterSessao().perfil, RECURSOS.IA) ? criarCartaoSugestaoIa({ uid: sessao.uid, obterConfigs: () => dados.configs }) : null;
 
+  // O calendário, o editor e a IA ficam sempre montados na aba Calendário (o editor e a exportação guardam o que foi digitado).
+  paineis.calendario.replaceChildren(
+    ...[
+      h(
+        'section',
+        { class: 'card' },
+        h('h2', null, 'Calendário de treinos'),
+        h('p', { class: 'texto-secundario' }, 'Arraste um treino para outro dia. Treinos planejados em dias passados e não feitos não entram na projeção.'),
+        barra,
+        exportacaoArea,
+        calendario,
+      ),
+      editorArea,
+      cartaoIa,
+    ].filter(Boolean),
+  );
+
   raiz.replaceChildren(
     h(
       'div',
       { class: 'pilha' },
-      h('section', { class: 'card' }, h('h1', null, 'Plano de treino'), h('p', { class: 'texto-secundario' }, 'Planeje os treinos, arraste para outro dia e veja a projeção da Forma. Treinos planejados em dias passados e não feitos não entram na projeção.'), aviso, barra, exportacaoArea, mensagem.el, calendario),
-      editorArea,
-      cartaoIa,
-      resto,
+      h(
+        'section',
+        { class: 'card' },
+        h('h1', null, 'Plano de treino'),
+        h('p', { class: 'texto-secundario' }, 'Planeje os treinos, veja a projeção da Forma, acompanhe as provas e metas e confira o que foi feito.'),
+        aviso,
+        abas,
+        mensagem.el,
+      ),
+      ...ABAS.map((a) => paineis[a.id]),
     ),
   );
   desenhar();

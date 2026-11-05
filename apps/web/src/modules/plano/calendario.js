@@ -10,6 +10,7 @@ import {
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarNumero } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
+import { perfilDoTreino } from '../../utils/perfilTreino.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 
 /** Id do treino sendo arrastado (HTML5 drag and drop). */
@@ -21,6 +22,13 @@ function estadoDoTreino(t, hoje) {
   if (t.status === 'realizado') return 'feito';
   if (t.status === 'pulado') return 'pulado';
   return treinoNaoRealizado(t, hoje) ? 'atrasado' : 'planejado';
+}
+
+/** Passos para o perfil do chip: os do treino estruturado ou, no treino livre, um bloco único na zona e duração. */
+function passosDoChip(t) {
+  if (t.passos?.length) return t.passos;
+  const duracaoS = Math.max(60, Math.round((Number(t.duracaoMin) || 1) * 60));
+  return [{ tipo: 'bloco', papel: 'principal', zona: t.zona ?? 'Z2', duracaoS, descricao: null }];
 }
 
 function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
@@ -37,6 +45,7 @@ function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
       onClick: () => aoEditar(t),
     },
     h('span', { class: 'chip-titulo' }, titulo),
+    h('span', { class: 'chip-perfil' }, perfilDoTreino(passosDoChip(t), { altura: 24 })),
     h('span', { class: 'chip-sub' }, `~${formatarNumero(estresseDoTreino(t, configs, calibracao), 0)} · ${ROTULO_ESTADO[estado]}`),
   );
   if (t.status === 'planejado') {

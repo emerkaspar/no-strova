@@ -199,18 +199,8 @@ export function render(raiz, sessao) {
         )
       : h('span', { class: 'texto-secundario' }, 'Considera todos os esportes');
 
-    const opcoesMeta = [...dados.metas].sort((a, b) => (a.inicio < b.inicio ? 1 : -1));
-    const seletorMeta = h(
-      'select',
-      { id: 'prog-meta', 'aria-label': 'Metas salvas' },
-      h('option', { value: '' }, opcoesMeta.length ? 'Sem meta' : 'Nenhuma meta criada'),
-      opcoesMeta.map((m) => h('option', { value: m.id, selected: m.id === estado.metaId }, rotuloDaMeta(m))),
-    );
-    seletorMeta.addEventListener('change', () => {
-      aplicarMeta(dados.metas.find((m) => m.id === seletorMeta.value) ?? null);
-      desenhar();
-    });
-    const botaoNova = h('button', { class: 'btn btn-secundario', type: 'button' }, estado.formAberto ? 'Fechar' : 'Nova meta');
+    // "Nova meta" fica no cabeçalho de Objetivos; a meta escolhida (ao clicar num objetivo) aparece junto da análise.
+    const botaoNova = h('button', { class: estado.formAberto ? 'btn btn-secundario' : 'btn', type: 'button', 'aria-expanded': String(estado.formAberto) }, estado.formAberto ? 'Fechar' : '+ Nova meta');
     botaoNova.addEventListener('click', () => {
       estado.formAberto = !estado.formAberto;
       desenhar();
@@ -239,13 +229,26 @@ export function render(raiz, sessao) {
       }
     });
 
+    const botaoLimpar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Ver sem meta');
+    botaoLimpar.addEventListener('click', () => {
+      aplicarMeta(null);
+      desenhar();
+    });
+    const faixaMeta = meta
+      ? h(
+          'div',
+          { class: 'prog-meta-faixa' },
+          h('div', { class: 'prog-meta-nome' }, h('span', { class: 'prog-rotulo' }, 'Comparando com o objetivo'), h('strong', null, rotuloDaMeta(meta))),
+          h('div', { class: 'linha-botoes' }, botaoEncerrar, botaoExcluir, botaoLimpar),
+        )
+      : null;
+
     const controles = h(
       'div',
       { class: 'prog-controles' },
       h('div', { class: 'prog-controle' }, h('span', { class: 'prog-rotulo' }, 'Período'), segmentos),
       h('div', { class: 'prog-controle' }, h('label', { class: 'prog-rotulo', for: 'prog-tipo' }, 'Tipo de progresso'), seletorTipo),
       h('div', { class: 'prog-controle' }, h('span', { class: 'prog-rotulo' }, 'Esportes'), chipsEsporte),
-      h('div', { class: 'prog-controle prog-controle-meta' }, h('label', { class: 'prog-rotulo', for: 'prog-meta' }, 'Metas'), h('div', { class: 'linha-botoes' }, seletorMeta, botaoNova, botaoEncerrar, botaoExcluir)),
     );
 
     // ---- cartões de resumo
@@ -350,18 +353,15 @@ export function render(raiz, sessao) {
         'div',
         { class: 'prog-pagina' },
       h(
-        'section',
-        { class: 'card' },
-        h('h1', null, 'Progressão'),
-        h('p', { class: 'texto-secundario' }, 'Acompanhe o acumulado do ano, do mês ou da semana, compare com os períodos anteriores e crie metas de distância, tempo, elevação ou Condicionamento.'),
-        controles,
-        estado.formAberto ? formularioDeMeta() : null,
-        mensagem.el,
+        'header',
+        { class: 'ativ-cabecalho' },
+        h('div', null, h('h1', null, 'Progressão'), h('p', { class: 'texto-secundario' }, 'Acompanhe seus objetivos e compare o acumulado do ano, do mês ou da semana com os períodos anteriores.')),
       ),
       h(
         'section',
         { class: 'card' },
-        h('h2', null, 'Objetivos'),
+        h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Objetivos'), botaoNova),
+        estado.formAberto ? formularioDeMeta() : null,
         painelDeObjetivos({
           metas: dados.metas,
           atividades: dados.atividades,
@@ -371,11 +371,11 @@ export function render(raiz, sessao) {
           aoSelecionar: (m) => {
             aplicarMeta(m);
             desenhar();
-            raiz.querySelector('.prog-corpo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            raiz.querySelector('.prog-analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           },
         }),
       ),
-      h('section', { class: 'card' }, h('h2', null, 'Conquistas'), prateleiraDeConquistas(dados.conquistas)),
+      h('section', { class: 'card prog-analise' }, h('h2', null, 'Análise por período'), controles, faixaMeta, mensagem.el),
       h('div', { class: 'ativ-recordes-grade ativ-indicadores prog-cartoes' }, cartoes),
       temDados || !cfg.acumulado
         ? h(
@@ -385,6 +385,7 @@ export function render(raiz, sessao) {
             h('div', { class: 'prog-lateral' }, h('h2', null, `${formatarData(ref.inicio).slice(0, 5)} → ${formatarData(hoje <= ref.fim ? hoje : ref.fim).slice(0, 5)}`), tabela),
           )
         : h('section', { class: 'card' }, estadoVazio('Nenhuma atividade encontrada neste período com os filtros escolhidos.')),
+      h('section', { class: 'card' }, h('h2', null, 'Conquistas'), prateleiraDeConquistas(dados.conquistas)),
       criarCartaoZonas({ atividades: dados.atividades, hoje }),
       ),
     );

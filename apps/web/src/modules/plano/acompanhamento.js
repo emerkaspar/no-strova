@@ -6,6 +6,13 @@ import { vinculosIgnorados } from './state.js';
 
 const descricao = (t) => (t.nomeTreino ? `${t.nomeTreino} · ${t.duracaoMin}min` : `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`);
 
+/** Quantos itens esperam uma ação: treinos com atividade para vincular e treinos que ficaram para trás. */
+export function contarPendencias({ treinos, atividades, hoje }) {
+  const sugestoes = sugerirVinculos(treinos, atividades).filter((s) => !vinculosIgnorados.has(`${s.treinoId}:${s.atividadeId}`));
+  const comSugestao = new Set(sugestoes.map((s) => s.treinoId));
+  return sugestoes.length + treinos.filter((t) => treinoNaoRealizado(t, hoje) && !comSugestao.has(t.id)).length;
+}
+
 /**
  * Cartão de acompanhamento: sugestões de vínculo com a atividade feita, treinos que ficaram para trás e o
  * comparativo planejado × realizado dos treinos já vinculados.

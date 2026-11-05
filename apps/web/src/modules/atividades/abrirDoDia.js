@@ -2,7 +2,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from './textos.js';
 
-const horaDoInicio = (a) => {
+export const horaDoInicio =(a) => {
   const ms = a.inicio?.toMillis?.();
   return Number.isFinite(ms) ? new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : null;
 };

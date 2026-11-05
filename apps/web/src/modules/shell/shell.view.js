@@ -30,6 +30,8 @@ const MENU = [
 function resolverRota(hash, admin) {
   const detalhe = /^#\/atividades\/([A-Za-z0-9_-]{8,40})$/.exec(hash);
   if (detalhe) return { menu: '#/atividades', render: renderDetalhe, params: { id: detalhe[1] } };
+  const plano = /^#\/plano\/(projecao|provas|acompanhamento)$/.exec(hash);
+  if (plano) return { menu: '#/plano', render: renderPlano, params: { aba: plano[1] } };
   switch (hash) {
     case '#/forma':
       return { menu: '#/inicio', render: renderForma, params: {} };

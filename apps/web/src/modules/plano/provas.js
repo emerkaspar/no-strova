@@ -26,6 +26,7 @@ export function textoDeProximidade(diasAte) {
 export function criarCartaoProvas({ uid, hoje }) {
   let provas = [];
   let editando = null;
+  let aberto = false;
 
   const nome = campo({ id: 'prova-nome', rotulo: 'Nome da prova', maxlength: '60', autocomplete: 'off', placeholder: 'ex.: Meia Maratona de Porto Alegre' });
   const data = campo({ id: 'prova-data', rotulo: 'Data', tipo: 'date', min: hoje });
@@ -43,16 +44,35 @@ export function criarCartaoProvas({ uid, hoje }) {
   const formaAlvo = campo({ id: 'prova-forma', rotulo: 'Forma-alvo (opcional)', inputmode: 'decimal', autocomplete: 'off', dica: 'Ex.: +10 para chegar descansado. Guia o polimento do plano anual.' });
   const mensagem = areaMensagem();
   const botao = h('button', { class: 'btn', type: 'submit' }, 'Salvar prova');
-  const cancelar = h('button', { class: 'btn btn-secundario', type: 'button', hidden: true, onClick: () => iniciarEdicao(null) }, 'Cancelar edição');
+  const cancelar = h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => definirAberto(false) }, 'Cancelar');
+  const botaoNova = h('button', { class: 'btn', type: 'button', onClick: () => (aberto && !editando ? definirAberto(false) : abrirNova()) });
+  // avisos que precisam aparecer com o formulário fechado (prova salva, erro ao excluir)
+  const aviso = areaMensagem();
   const titulo = h('h3', { class: 'prova-form-titulo' }, 'Nova prova');
   const lista = h('div');
 
-  function iniciarEdicao(prova) {
+  function definirAberto(valor) {
+    aberto = valor;
+    form.hidden = !aberto;
+    botaoNova.textContent = aberto && !editando ? 'Fechar' : '+ Nova prova';
+    botaoNova.className = aberto && !editando ? 'btn btn-secundario' : 'btn';
+    botaoNova.setAttribute('aria-expanded', String(aberto && !editando));
+    if (!aberto) iniciarEdicao(null, { manterFechado: true });
+  }
+
+  function abrirNova() {
+    iniciarEdicao(null);
+    definirAberto(true);
+    nome.input.focus?.({ preventScroll: true });
+    nome.input.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }
+
+  function iniciarEdicao(prova, { manterFechado = false } = {}) {
     editando = prova;
     mensagem.limpar();
+    aviso.limpar();
     titulo.textContent = prova ? 'Editar prova' : 'Nova prova';
     botao.textContent = prova ? 'Salvar alterações' : 'Salvar prova';
-    cancelar.hidden = !prova;
     nome.input.value = prova?.nome ?? '';
     data.input.value = prova?.data ?? '';
     esporte.select.value = prova?.esporte ?? 'corrida';
@@ -61,6 +81,7 @@ export function criarCartaoProvas({ uid, hoje }) {
     metaTempo.input.value = prova?.metaTempoS ? formatarTempoDaProva(prova.metaTempoS) : '';
     local.input.value = prova?.local ?? '';
     formaAlvo.input.value = Number.isFinite(prova?.formaAlvo) ? String(prova.formaAlvo).replace('.', ',') : '';
+    if (!manterFechado) definirAberto(Boolean(prova) || aberto);
     if (prova) nome.input.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }
 
@@ -68,6 +89,7 @@ export function criarCartaoProvas({ uid, hoje }) {
     'form',
     {
       class: 'prova-form',
+      hidden: true,
       novalidate: true,
       onSubmit: (e) => {
         e.preventDefault();
@@ -87,8 +109,8 @@ export function criarCartaoProvas({ uid, hoje }) {
               formaAlvo: formaAlvo.input.value,
             },
           });
-          iniciarEdicao(null);
-          mensagem.mostrar('Prova salva.', 'ok');
+          definirAberto(false);
+          aviso.mostrar('Prova salva.', 'ok');
         });
       },
     },
@@ -140,9 +162,9 @@ export function criarCartaoProvas({ uid, hoje }) {
                     if (!(await confirmar({ titulo: 'Excluir esta prova?', mensagem: `“${p.nome}” será apagada do seu calendário de provas.`, confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
                     try {
                       await excluirProva(p.id);
-                      if (editando?.id === p.id) iniciarEdicao(null);
+                      if (editando?.id === p.id) definirAberto(false);
                     } catch {
-                      mensagem.mostrar('Não foi possível excluir a prova.');
+                      aviso.mostrar('Não foi possível excluir a prova.');
                     }
                   },
                 },
@@ -159,18 +181,22 @@ export function criarCartaoProvas({ uid, hoje }) {
   const el = h(
     'section',
     { class: 'card', id: 'provas' },
-    h('h2', null, 'Provas'),
+    h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Provas'), botaoNova),
     h('p', { class: 'texto-secundario' }, 'Cadastre as suas provas com prioridade A (principal), B (importante) ou C (treino). O plano anual usa a prova A mais próxima.'),
-    lista,
+    aviso.el,
     form,
+    lista,
   );
+  definirAberto(false);
 
   return {
     el,
+    /** Abre o formulário de uma nova prova e leva o foco ao nome (usado pelo botão "Nova prova" do Plano). */
+    abrirNova,
     atualizar(novas) {
       provas = novas;
       // a prova em edição pode ter sido apagada em outro lugar
-      if (editando && !provas.some((p) => p.id === editando.id)) iniciarEdicao(null);
+      if (editando && !provas.some((p) => p.id === editando.id)) definirAberto(false);
       desenharLista();
     },
   };

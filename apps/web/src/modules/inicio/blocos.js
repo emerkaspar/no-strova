@@ -9,6 +9,10 @@ import { criarDicaZonas } from './dicaZonas.js';
 import { criarGraficoPrincipal } from './graficoPrincipal.js';
 import { cartaoMetaCondicionamento, cartaoProximoTreino, cartaoSequencia, progressoDaCarga, resumoDaSemana } from './semanaExtras.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
+import { criarControlePopover, ligarPopoverDoDia } from './semanaPopover.js';
+
+/** Um único cartão de detalhe é reaproveitado por todas as colunas (e sobrevive aos re-renders do bloco). */
+const controlePopoverDaSemana = criarControlePopover();
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const SEM_HRSS = 'Disponível quando houver atividades com HRSS calculado.';
@@ -172,7 +176,7 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
       d.realizado > 0 ? h('span', { class: 'barra-real', style: `height:${Math.max(6, (d.realizado / maximo) * 100)}%` }) : null,
       descanso ? h('span', { class: 'barra-descanso' }) : null,
     );
-    return h(
+    const coluna = h(
       'li',
       { class: `dia${d.hoje ? ' dia-hoje' : ''}${descanso ? ' dia-descanso' : ''}`, 'aria-current': d.hoje ? 'date' : null },
       barras,
@@ -180,6 +184,17 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
       h('p', { class: 'dia-titulo' }, titulo ?? (d.planejado > 0 ? 'Treino planejado' : d.futuro ? 'Livre' : 'Descanso')),
       h('p', { class: 'dia-valor' }, valor),
     );
+    ligarPopoverDoDia(
+      coluna,
+      {
+        dia: d,
+        atividades: [...(porDia.get(d.data) ?? [])].sort((a, b) => (a.inicio?.toMillis?.() ?? 0) - (b.inicio?.toMillis?.() ?? 0)),
+        treinos: planoPorDia.get(d.data) ?? [],
+        totalRealizado: totais.realizado,
+      },
+      controlePopoverDaSemana,
+    );
+    return coluna;
   });
 
   // abaixo das barras: resumo da semana e progresso da carga

@@ -109,7 +109,7 @@ export function render(raiz, sessao) {
         blocoSemana({
         semana: montarSemana(hoje, { realizado: dados.dias.filter((d) => d.data >= segunda), planejado }),
         atividades: dados.atividades.filter((a) => a.data >= segunda),
-        treinos: treinosDaSemana,
+        treinos: treinosDaSemana.map((t, i) => ({ ...t, estresseProjetado: planejado[i].estresse })),
         comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
         carregou: c.dias && c.atividades && c.treinos && c.configs && c.calibracao,
       }),

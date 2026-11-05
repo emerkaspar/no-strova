@@ -5,8 +5,12 @@ import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.j
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
 import { confirmar } from '../../utils/modal.js';
+import { ligarFormRecolhivel } from './formRecolhivel.js';
 
 const ROTULO_ESTADO = Object.freeze({ atinge: 'Chega lá', abaixo: 'Fica abaixo', acima: 'Fica acima' });
+
+// fora do cartão: ele é refeito a cada atualização de dados
+const estadoDoFormulario = { aberto: false };
 
 const comSinal = (valor, casas = 1) => `${valor > 0 ? '+' : valor < 0 ? '−' : ''}${formatarNumero(Math.abs(valor), casas)}`;
 
@@ -45,51 +49,54 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
   });
   const dataAlvo = campo({ id: 'metacond-data', rotulo: 'Na data', tipo: 'date', value: metaAtiva?.dataAlvo ?? '', min: hoje });
   const mensagem = areaMensagem();
+  const aviso = areaMensagem(); // visível com o formulário fechado (ex.: erro ao remover)
   const botao = h('button', { class: 'btn', type: 'submit' }, metaAtiva ? 'Trocar a meta' : 'Definir meta');
 
   const form = h(
     'form',
     {
+      class: 'prog-form',
+      hidden: true,
       novalidate: true,
       onSubmit: (e) => {
         e.preventDefault();
-        executarComBotao(botao, mensagem, () =>
-          salvarMetaDeCondicionamento({
+        executarComBotao(botao, mensagem, async () => {
+          await salvarMetaDeCondicionamento({
             uid,
             hoje,
             entrada: { condicionamentoAlvo: alvo.input.value, dataAlvo: dataAlvo.input.value },
             metasAtivas: metaAtiva ? [metaAtiva] : [],
             condicionamentoAtual,
-          }),
-        );
+          });
+          definirAberto(false);
+        });
       },
     },
     h('div', { class: 'grid' }, alvo.raiz, dataAlvo.raiz),
     mensagem.el,
-    h(
-      'div',
-      { class: 'linha-botoes' },
-      botao,
-      metaAtiva
-        ? h(
-            'button',
-            {
-              class: 'btn btn-secundario',
-              type: 'button',
-              onClick: async () => {
-                if (!(await confirmar({ titulo: 'Remover a meta de Condicionamento?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
-                try {
-                  await excluirMetaCondicionamento(metaAtiva.id);
-                } catch {
-                  mensagem.mostrar('Não foi possível remover a meta.');
-                }
-              },
-            },
-            'Remover meta',
-          )
-        : null,
-    ),
+    h('div', { class: 'linha-botoes' }, botao, h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => definirAberto(false) }, 'Cancelar')),
   );
+
+  const botaoAbrir = h('button', { type: 'button' });
+  const definirAberto = ligarFormRecolhivel({ estado: estadoDoFormulario, botao: botaoAbrir, form, rotulo: metaAtiva ? 'Trocar meta' : '+ Definir meta', classeFechado: metaAtiva ? 'btn btn-secundario' : 'btn' });
+  const botaoRemover = metaAtiva
+    ? h(
+        'button',
+        {
+          class: 'btn btn-secundario',
+          type: 'button',
+          onClick: async () => {
+            if (!(await confirmar({ titulo: 'Remover a meta de Condicionamento?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
+            try {
+              await excluirMetaCondicionamento(metaAtiva.id);
+            } catch {
+              aviso.mostrar('Não foi possível remover a meta.');
+            }
+          },
+        },
+        'Remover meta',
+      )
+    : null;
 
   const progresso = metaAtiva
     ? progressoDaMetaCondicionamento({ condicionamentoAtual, condicionamentoAlvo: metaAtiva.condicionamentoAlvo })
@@ -132,5 +139,5 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
       )
     : null;
 
-  return h('section', { class: 'card', id: 'meta-condicionamento' }, h('h2', null, 'Meta de Condicionamento'), resultado, form, anteriores);
+  return h('section', { class: 'card', id: 'meta-condicionamento' }, h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Meta de Condicionamento'), h('div', { class: 'linha-botoes' }, botaoRemover, botaoAbrir)), resultado, aviso.el, form, anteriores);
 }
