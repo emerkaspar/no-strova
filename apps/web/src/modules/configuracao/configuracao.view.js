@@ -1,4 +1,4 @@
-import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, RECURSOS, SEXOS, temRecurso, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
+import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, SEXOS, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { recalcularHistorico } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
@@ -8,7 +8,7 @@ import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/comp
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
-import { criarCartaoGarmin } from './garmin.js';
+import { criarCartaoFonte } from './fonteAtividades.js';
 import { editar, estadoConfiguracao } from './state.js';
 import { confirmar } from '../../utils/modal.js';
 
@@ -222,7 +222,7 @@ export function render(raiz, sessao) {
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
       cartaoDadosPessoais(sessao),
-      temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoGarmin().raiz : null,
+      criarCartaoFonte(sessao).raiz,
       h(
         'section',
         { class: 'card' },

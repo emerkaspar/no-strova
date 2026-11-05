@@ -21,6 +21,7 @@ import {
   obterToken,
   type Requisitor,
 } from "./garmin.cliente";
+import { exigirOutraFonteDesconectada } from "../sincronizacao/fonte";
 import { criptografar, descriptografar } from "./garmin.cripto";
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -104,6 +105,7 @@ export async function conectar(
 ): Promise<SituacaoGarmin> {
   const chave = validarChave(chaveBruta);
   const validade = validarValidade(validadeBruta);
+  await exigirOutraFonteDesconectada(uid, "garmin");
   try {
     await obterToken(chave, requisitor); // valida a chave antes de guardar
   } catch (err) {
@@ -152,7 +154,7 @@ export function diasDaSincronizacao(escolhido: unknown, ultimaMs: number | null,
   return Math.min(Math.max(dias, 1), PERIODOS_DIAS[PERIODOS_DIAS.length - 1]);
 }
 
-function posicao(valor: unknown): number {
+export function posicao(valor: unknown): number {
   if (valor === undefined || valor === null) return 0;
   if (typeof valor !== "number" || !Number.isInteger(valor) || valor < 0) {
     throw new HttpsError("invalid-argument", "Posição inválida.");

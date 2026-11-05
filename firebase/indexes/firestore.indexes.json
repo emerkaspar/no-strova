@@ -47,6 +47,20 @@
       ]
     },
     {
+      "collectionGroup": "atividades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "inicio",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "estresseDiario",
       "queryScope": "COLLECTION",
       "fields": [

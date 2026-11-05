@@ -1,4 +1,6 @@
 import { registerSW } from 'virtual:pwa-register';
+// Lê a volta do Strava (?code=…) na carga da página e já aponta a rota para Configuração, antes de qualquer tela.
+import './core/stravaOauth.js';
 import { aoMudarSessao, iniciarSessao } from './application/sessao.js';
 import { render as renderAuth } from './modules/auth/auth.view.js';
 import { render as renderCompletar } from './modules/auth/completar.view.js';

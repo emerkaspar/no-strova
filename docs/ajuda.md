@@ -77,8 +77,10 @@ Em **Atividades → Importar arquivo**, escolha arquivos **.fit, .gpx ou .tcx** 
 - Se o arquivo **não tem frequência cardíaca**, o app pede a **zona predominante** do treino (Z1 a Z5) e estima o estresse por ela.
 - Limite de 30 atividades por dia.
 
-### Sincronizar com o Garmin
-Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin Connect**. Esta função precisa ser liberada pelo administrador para a sua conta (Administração → Usuários); sem isso, o cartão e o botão não aparecem. Em **Configuração → Garmin Connect**:
+### Sincronizar com o Garmin ou com o Strava
+Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin Connect** ou do **Strava**. **Use uma fonte só**: quem tem Garmin costuma mandar tudo ao Strava, e as duas juntas duplicariam as atividades. Em **Configuração → Sincronização de atividades** você escolhe uma; com uma conectada, só ela aparece, e o app não deixa conectar a outra (para trocar, **Desconecte** a atual). Cada fonte precisa ser liberada pelo administrador para a sua conta (Administração → Usuários); sem isso, o cartão e o botão não aparecem.
+
+**Garmin Connect.** Em **Configuração → Garmin Connect**:
 
 1. No Garmin Connect, abra as configurações e a página **Personal API Key**, aceite os termos, escolha a validade (30, 90, 180 dias ou 1 ano) e crie a chave. O Garmin mostra a chave **uma única vez**.
 2. Cole a chave no campo **Chave pessoal**, escolha a mesma validade e clique em **Conectar**. A chave é validada e guardada criptografada; o app nunca a mostra de novo.
@@ -90,6 +92,18 @@ Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin 
 - Atividade **sem frequência cardíaca** não é importada pela sincronização; o resumo avisa quantas ficaram de fora. Para essas, envie o arquivo em **Importar arquivo** e informe a zona.
 - Cada sincronização traz até 200 atividades; se chegar ao limite, sincronize de novo.
 - A chave expira na validade que você escolheu (o app avisa quando faltam 7 dias). Aí é só apagar a chave no Garmin Connect, criar outra e conectar de novo. **Desconectar** apaga a chave guardada; as atividades já importadas continuam.
+
+**Strava.** Em **Configuração → Strava**:
+
+1. Clique em **Conectar ao Strava**. Você vai para o site do Strava, entra na sua conta e permite que o No Strova **leia** as suas atividades (inclusive as privadas). O app nunca publica nem altera nada no Strava.
+2. Na volta, o app abre a Configuração já conectado. Escolha o período (30, 60, 90 dias ou 6 meses) e clique em **Sincronizar agora**. Nas vezes seguintes, dá para trazer só o que é novo.
+
+- O botão de atalho em **Atividades** funciona igual, na cor do Strava (laranja).
+- O Strava **não entrega o arquivo original**: o app monta a atividade com os dados de tempo, frequência cardíaca, altitude, distância e percurso. Por isso essas atividades não têm **Baixar arquivo original**.
+- Atividade **sem frequência cardíaca** ou **criada à mão no Strava** não é importada, e o resumo diz quais ficaram de fora e por quê. Esportes que não são corrida nem ciclismo entram como **outro**.
+- Cada sincronização traz até **100** atividades. O Strava limita o número de consultas por alguns minutos para todos os usuários do app juntos: se aparecer o aviso de limite, o que já foi importado fica e é só tentar de novo em cerca de 15 minutos.
+- Se você já trouxe atividades pelo Garmin e troca para o Strava, as que começam no mesmo horário (±2 min) e têm quase a mesma duração (±5%) não são duplicadas.
+- **Desconectar** encerra o acesso do No Strova no Strava e apaga a conexão guardada; as atividades já importadas continuam.
 
 ### Registrar manualmente
 Em **Atividades → Registrar manualmente**, informe esporte, data, duração e, no mínimo, **uma** destas: FC média, zona predominante ou HRSS. Distância, subida e calorias são opcionais.
@@ -172,7 +186,7 @@ A aba **Usuários** lista todas as contas, com busca e ordenação por coluna.
 - **Editar:** muda nome, papel e funcionalidades. Em administradores, só as funcionalidades.
 - **Aprovar, Bloquear e Liberar:** controlam o acesso (bloquear também encerra as sessões abertas).
 - **Excluir:** apaga a conta e **todos os dados** da pessoa (atividades, metas, pesagens, arquivos e chave do Garmin). Pede confirmação e não pode ser desfeito. Você não pode excluir nem bloquear a si mesmo.
-- **Funcionalidades por usuário (colunas IA e Garmin):** as caixas liberam ou retiram a funcionalidade na hora. Sem a **IA**, a pessoa não vê o cartão de sugestão de treinos nem consegue pedi-la. Sem o **Garmin**, somem o cartão em Configuração e o botão de sincronizar em Atividades. Contas novas nascem com **IA ligada e Garmin desligado**; contas criadas antes desta aba seguem o mesmo padrão até você mudar.
+- **Funcionalidades por usuário (colunas IA, Garmin e Strava):** as caixas liberam ou retiram a funcionalidade na hora. Sem a **IA**, a pessoa não vê o cartão de sugestão de treinos nem consegue pedi-la. Sem o **Garmin** e sem o **Strava**, somem o cartão em Configuração e o botão de sincronizar em Atividades; liberando as duas, a pessoa escolhe uma (nunca usa as duas ao mesmo tempo). Contas novas nascem com **IA ligada, Garmin e Strava desligados**; contas criadas antes desta aba seguem o mesmo padrão até você mudar. **Atenção ao Strava:** o app dele só aceita 10 pessoas conectadas até o Strava analisar o app.
 
 A aba **Sistema** guarda os ajustes do sistema. Hoje tem o **limite das sugestões de IA** por usuário por dia (de 1 a 500, ou sem limite).
 

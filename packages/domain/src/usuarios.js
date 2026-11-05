@@ -15,23 +15,27 @@ export const PAPEIS_ATRIBUIVEIS = Object.freeze([PAPEIS.ATLETA, PAPEIS.TREINADOR
 export const RECURSOS = Object.freeze({
   IA: 'ia',
   GARMIN: 'garmin',
+  STRAVA: 'strava',
 });
 
 export const ROTULOS_RECURSOS = Object.freeze({
   [RECURSOS.IA]: 'Sugestões com IA',
   [RECURSOS.GARMIN]: 'Sincronização com o Garmin',
+  [RECURSOS.STRAVA]: 'Sincronização com o Strava',
 });
 
 /** Texto de apoio de cada recurso, mostrado no modal de funcionalidades. Para um recurso novo: RECURSOS, rótulo, descrição e padrão. */
 export const DESCRICOES_RECURSOS = Object.freeze({
   [RECURSOS.IA]: 'Sugestão de treinos feita pelo Gemini, sujeita ao limite diário.',
   [RECURSOS.GARMIN]: 'Traz as atividades direto do Garmin Connect, sem exportar arquivos.',
+  [RECURSOS.STRAVA]: 'Traz as atividades direto do Strava (o usuário escolhe Garmin ou Strava, nunca os dois).',
 });
 
-/** Padrão de um usuário novo (ou sem o campo `recursos`): IA ligada, Garmin desligado. */
+/** Padrão de um usuário novo (ou sem o campo `recursos`): IA ligada, Garmin e Strava desligados. */
 export const RECURSOS_PADRAO = Object.freeze({
   [RECURSOS.IA]: true,
   [RECURSOS.GARMIN]: false,
+  [RECURSOS.STRAVA]: false,
 });
 
 /**
@@ -93,7 +97,7 @@ const IDADE_MAXIMA = 110;
  * @property {boolean} [ativo]
  * @property {string|null} [dataNascimento]
  * @property {{ versao?: string }|null} [aceiteLgpd]
- * @property {{ ia?: boolean, garmin?: boolean }} [recursos] funcionalidades liberadas pelo admin (ver `recursosDoUsuario`)
+ * @property {{ ia?: boolean, garmin?: boolean, strava?: boolean }} [recursos] funcionalidades liberadas pelo admin (ver `recursosDoUsuario`)
  */
 
 /**

@@ -16,7 +16,7 @@ import { alternarOrdemUsuarios, estadoUsuarios } from './state.js';
 import { confirmar } from '../../utils/modal.js';
 
 const ROTULO_PAPEL = { [PAPEIS.ADMIN]: 'Administrador', [PAPEIS.ATLETA]: 'Atleta', [PAPEIS.TREINADOR]: 'Treinador' };
-const ABREVIACAO_RECURSO = { [RECURSOS.IA]: 'IA', [RECURSOS.GARMIN]: 'Garmin' };
+const ABREVIACAO_RECURSO = { [RECURSOS.IA]: 'IA', [RECURSOS.GARMIN]: 'Garmin', [RECURSOS.STRAVA]: 'Strava' };
 
 const COLUNAS = [
   { campo: 'nome', rotulo: 'Usuário' },
@@ -263,7 +263,7 @@ export function render(raiz, { uid: meuUid }) {
         'section',
         { class: 'card' },
         h('h2', null, 'Usuários'),
-        h('p', { class: 'texto-secundario' }, 'Crie, edite, bloqueie ou exclua contas. O ícone de controles abre as funcionalidades de cada pessoa. Novos usuários nascem com IA ligada e Garmin desligado.'),
+        h('p', { class: 'texto-secundario' }, 'Crie, edite, bloqueie ou exclua contas. O ícone de controles abre as funcionalidades de cada pessoa. Novos usuários nascem com IA ligada e Garmin e Strava desligados.'),
         h('div', { class: 'barra-tabela' }, busca, h('button', { class: 'btn', type: 'button', onClick: () => abrirForm() }, 'Novo usuário')),
         mensagem.el,
         corpoTabela,

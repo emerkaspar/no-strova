@@ -3,13 +3,13 @@ import { montarSerie } from '../../application/forma.js';
 import { obterSessao } from '../../application/sessao.js';
 import { completarAtividades } from '../../application/completarAtividades.js';
 import { guardarAtividadesParaMedalhas } from '../../application/medalhas.js';
-import { garminSituacao } from '../../core/functions.js';
+import { garminSituacao, stravaSituacao } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { avisoDispensavel } from '../../utils/avisoDispensavel.js';
 import { areaMensagem } from '../../utils/componentes.js';
-import { resumoSincronizacao, semNovidades, sincronizarGarmin } from '../configuracao/garmin.js';
+import { LIMITE_POR_FONTE, resumoSincronizacao, semNovidades, sincronizarAtividades } from '../configuracao/sincronizacao.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
@@ -36,9 +36,10 @@ const COLUNAS = [
 
 const OPCOES_POR_PAGINA = [10, 25, 50, 100];
 
-/** De onde veio a atividade: sincronizada do Garmin (`fonte`), arquivo enviado ou cadastro manual (`origem`). */
+/** De onde veio a atividade: sincronizada do Garmin ou do Strava (`fonte`), arquivo enviado ou cadastro manual (`origem`). */
 function origemDaAtividade(a) {
   if (a.fonte === 'garmin') return { id: 'garmin', rotulo: 'Garmin Connect', icone: 'garmin' };
+  if (a.fonte === 'strava') return { id: 'strava', rotulo: 'Strava', icone: 'garmin' };
   if (a.origem === 'manual') return { id: 'manual', rotulo: 'Cadastro manual', icone: 'lapis' };
   return { id: 'arquivo', rotulo: 'Arquivo importado', icone: 'arquivo' };
 }
@@ -336,47 +337,66 @@ export function render(raiz, sessao) {
   window.addEventListener(EVENTO_IMPORTAR, abrirPainelDeImportacao);
   const abrirManual = () => painelManual();
 
-  /** Sincroniza com o Garmin sem sair da tela. Só aparece para quem conectou o Garmin em Configuração. A lista se atualiza sozinha (onSnapshot). */
+  /**
+   * Sincroniza sem sair da tela, com a fonte que o usuário conectou em Configuração (Garmin ou Strava; é uma só).
+   * Só aparece para quem tem uma fonte conectada. A lista se atualiza sozinha (onSnapshot).
+   */
+  const FONTES = [
+    { fonte: 'garmin', recurso: RECURSOS.GARMIN, nome: 'Garmin Connect', situacao: garminSituacao },
+    { fonte: 'strava', recurso: RECURSOS.STRAVA, nome: 'Strava', situacao: stravaSituacao },
+  ];
+  let fonteAtiva = null;
   const botaoGarmin = h('button', {
     class: 'btn-garmin',
     type: 'button',
     hidden: true,
-    title: 'Sincronizar com o Garmin Connect',
-    'aria-label': 'Sincronizar com o Garmin Connect',
+    title: 'Sincronizar atividades',
+    'aria-label': 'Sincronizar atividades',
   }, icone('garmin', 22));
+  function usarFonte(f) {
+    fonteAtiva = f;
+    botaoGarmin.hidden = !f;
+    botaoGarmin.classList.toggle('btn-strava', f?.fonte === 'strava');
+    const texto = f ? `Sincronizar com o ${f.nome}` : 'Sincronizar atividades';
+    botaoGarmin.title = texto;
+    botaoGarmin.setAttribute('aria-label', texto);
+  }
   botaoGarmin.addEventListener('click', async () => {
+    const f = fonteAtiva;
+    if (!f) return;
     botaoGarmin.disabled = true;
     botaoGarmin.classList.add('carregando');
     mensagemGarmin.limpar();
     try {
-      const situacao = await garminSituacao();
+      const situacao = await f.situacao();
       if (!situacao.conectado) {
-        botaoGarmin.hidden = true;
-        mensagemGarmin.mostrar('O Garmin não está mais conectado. Conecte de novo em Configuração.');
+        usarFonte(null);
+        mensagemGarmin.mostrar(`O ${f.nome} não está mais conectado. Conecte de novo em Configuração.`);
         return;
       }
-      mensagemGarmin.mostrar('Sincronizando com o Garmin…', 'carregando');
+      mensagemGarmin.mostrar(`Sincronizando com o ${f.nome}…`, 'carregando');
       const primeira = !situacao.ultimaSincronizacao;
-      const { total, limitado } = await sincronizarGarmin({ dias: primeira ? 30 : undefined });
+      const { total, limitado } = await sincronizarAtividades({ fonte: f.fonte, dias: primeira ? 30 : undefined });
       const vazio = primeira ? 'Nos últimos 30 dias, nenhuma atividade foi encontrada.' : 'Desde a última sincronização, nenhuma atividade foi encontrada.';
-      mensagemGarmin.mostrar(resumoSincronizacao(total, limitado, vazio), semNovidades(total) ? 'info' : 'ok');
+      mensagemGarmin.mostrar(resumoSincronizacao(total, limitado, vazio, LIMITE_POR_FONTE[f.fonte]), semNovidades(total) ? 'info' : 'ok');
     } catch (err) {
-      mensagemGarmin.mostrar(err.message || 'Não foi possível sincronizar com o Garmin.');
+      mensagemGarmin.mostrar(err.message || `Não foi possível sincronizar com o ${f.nome}.`);
     } finally {
       botaoGarmin.disabled = false;
       botaoGarmin.classList.remove('carregando');
     }
   });
 
-  // Sem o recurso liberado pelo administrador, nem consulta o Garmin: o botão fica escondido.
-  if (temRecurso(obterSessao().perfil, RECURSOS.GARMIN)) {
-    garminSituacao().then(
-      (situacao) => {
-        botaoGarmin.hidden = !situacao.conectado;
-      },
-      () => {}, // sem estado do Garmin, o botão fica escondido
-    );
-  }
+  // Só consulta as fontes que o administrador liberou; sem estado, o botão fica escondido.
+  const perfilDaSessao = obterSessao().perfil;
+  Promise.all(
+    FONTES.filter((f) => temRecurso(perfilDaSessao, f.recurso)).map((f) =>
+      f.situacao().then(
+        (situacao) => (situacao.conectado ? f : null),
+        () => null,
+      ),
+    ),
+  ).then((conectadas) => usarFonte(conectadas.find(Boolean) ?? null));
 
   /** Selo de medalha ao lado da data (a medalha mais alta da atividade). Ao passar o mouse, abre o cartão com os recordes. */
   function medalhaDaLinha(a, lista, escopo) {

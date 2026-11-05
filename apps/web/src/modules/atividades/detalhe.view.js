@@ -435,7 +435,7 @@ export function render(raiz, sessao, { id }) {
         h(
           'p',
           { class: 'texto-secundario' },
-          `${a.origem === 'arquivo' ? `Importada de arquivo .${a.extensao}` : 'Registrada manualmente'} · início ${formatarDataHora(a.inicio?.toMillis?.())}`,
+          `${a.fonte === 'strava' ? 'Sincronizada do Strava' : a.origem === 'arquivo' ? `Importada de arquivo .${a.extensao}` : 'Registrada manualmente'} · início ${formatarDataHora(a.inicio?.toMillis?.())}`,
         ),
         ...(a.alertas ?? []).map((alerta) => h('p', { class: 'mensagem' }, TEXTO_ALERTA[alerta] ?? alerta)),
         aviso,

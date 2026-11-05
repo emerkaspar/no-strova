@@ -99,6 +99,31 @@ function iconeDoEsporte(esporte, x, y, tamanho) {
   return grupo;
 }
 
+/** Ícones dos selos de destaque do gráfico (grade de 24 × 24). */
+const ICONES_DESTAQUE = {
+  trofeu: [['path', { d: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v3M9 20h6M10 16h4v4' }]],
+  // bateria quase vazia
+  cansaco: [['rect', { x: 2, y: 7.5, width: 17, height: 9, rx: 2.2 }], ['path', { d: 'M21.5 10.5v3M5.5 10.5v3' }]],
+  // degraus crescentes: as zonas
+  zonas: [['path', { d: 'M4.5 20v-5M9.5 20v-9M14.5 20V7M19.5 20V3' }]],
+};
+
+/** Selo redondo com um ícone (troféu, cansaço ou zonas) centrado em (x, y). */
+function seloDestaque(tipo, x, y) {
+  const grupo = svg('g', { class: `cg-selo cg-selo-${tipo}` }, svg('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 8.5, class: 'cg-selo-fundo' }));
+  const icone = svg('g', { class: 'cg-selo-icone', transform: `translate(${(x - 5.5).toFixed(1)} ${(y - 5.5).toFixed(1)}) scale(${(11 / 24).toFixed(3)})` });
+  for (const [nome, atributos] of ICONES_DESTAQUE[tipo]) icone.append(svg(nome, atributos));
+  grupo.append(icone);
+  return grupo;
+}
+
+/** Selo de destaque como <svg> próprio, para a linha do tooltip. */
+function seloSolto(tipo) {
+  const el = svg('svg', { viewBox: '0 0 24 24', width: 14, height: 14, class: `cg-selo cg-selo-${tipo} cg-selo-icone cg-selo-solto`, 'aria-hidden': 'true' });
+  for (const [nome, atributos] of ICONES_DESTAQUE[tipo]) el.append(svg(nome, atributos));
+  return el;
+}
+
 /** Ícone do esporte como <svg> próprio (para a coluna lateral e o tooltip). */
 function iconeSolto(esporte, tamanho) {
   const el = svg('svg', { viewBox: '0 0 24 24', width: tamanho, height: tamanho, class: `cg-icone cg-icone-solto cg-esporte-${esporte}`, 'aria-hidden': 'true' });
@@ -417,6 +442,31 @@ export function criarGraficoPrincipal({
     });
     raizSvg.append(svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: yForma(0), y2: yForma(0), class: 'cg-zero' }));
 
+    // destaques do período: troféu no pico do condicionamento, cansaço no pico da fadiga e zonas na maior barra de Forma
+    const destaques = [];
+    if (!plano) {
+      // só o que já passou: os dias projetados não entram na escolha
+      const indiceDoMaior = (valor) => dias.reduce((melhor, d, i) => (!d.projetado && valor(d) > valor(dias[melhor]) ? i : melhor), 0);
+      const iCond = indiceDoMaior((d) => d.fitness);
+      const iFadiga = indiceDoMaior((d) => d.fadiga);
+      const iForma = indiceDoMaior((d) => Math.abs(d.forma));
+      const limiteCond = (y) => Math.min(yCond(0) - 9, Math.max(PAINEL.cond.topo + 9, y));
+      // o selo fica do lado de fora da linha mais alta do dia, para não cobrir a outra linha
+      const lado = (d, campo, outro) => (d[campo] >= d[outro] ? -1 : 1);
+      const yFormaMaior = yForma(dias[iForma].forma);
+      const ySeloForma = Math.min(PAINEL.forma.topo + PAINEL.forma.alto - 9, Math.max(PAINEL.forma.topo + FAIXA_ATIVIDADES + 9, dias[iForma].forma < 0 ? yFormaMaior + 11 : yFormaMaior - 11));
+      destaques.push(
+        { indice: iCond, tipo: 'trofeu', texto: 'Maior condicionamento do período', sentido: 'Seu melhor nível de preparo físico até aqui: quanto mais alto, mais treino você acumulou.' },
+        { indice: iFadiga, tipo: 'cansaco', texto: 'Maior fadiga do período', sentido: 'O momento de maior cansaço acumulado pelos treinos recentes. Pede descanso para o corpo absorver o treino.' },
+        { indice: iForma, tipo: 'zonas', texto: 'Maior barra de Forma do período', sentido: 'O dia em que a Forma (condicionamento menos fadiga) mais se afastou do zero: indica a zona mais extrema do período.' },
+      );
+      raizSvg.append(
+        seloDestaque('trofeu', px(iCond), limiteCond(yCond(dias[iCond].fitness) + lado(dias[iCond], 'fitness', 'fadiga') * 12)),
+        seloDestaque('cansaco', px(iFadiga), limiteCond(yCond(dias[iFadiga].fadiga) + lado(dias[iFadiga], 'fadiga', 'fitness') * 12)),
+        seloDestaque('zonas', px(iForma), ySeloForma),
+      );
+    }
+
     // meta de forma: faixa de tolerância (±3), linha do alvo desde hoje e o losango na data da meta
     if (metaNaJanela) {
       const iMeta = indiceDe(metaNaJanela.dataAlvo);
@@ -617,6 +667,7 @@ export function criarGraficoPrincipal({
         linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`),
         linhaMetaCond,
         linhaMeta,
+        ...destaques.filter((s) => s.indice === i).map((s) => h('div', { class: 'cg-dica-destaque' }, seloSolto(s.tipo), h('div', null, h('span', null, s.texto), h('p', null, s.sentido)))),
         kg !== null ? linhaDica('Peso', `${formatarNumero(kg, 1)} kg`, 'cg-dica-peso') : kgMeta !== null ? linhaDica('Meta', `${formatarNumero(kgMeta, 1)} kg`, 'cg-dica-peso') : null,
       ].filter(Boolean));
       dica.hidden = false;

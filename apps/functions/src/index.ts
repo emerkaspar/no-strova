@@ -8,6 +8,7 @@ export {
   renomearAtividade,
 } from "./modules/atividades/atividades.functions";
 export { garminConectar, garminDesconectar, garminSincronizar, garminSituacao } from "./modules/garmin/garmin.functions";
+export { stravaConectar, stravaDesconectar, stravaSincronizar, stravaSituacao } from "./modules/strava/strava.functions";
 export { reconstruirCalibracao } from "./modules/calibracao/calibracao.functions";
 export { limparArquivosOrfaos } from "./modules/atividades/orfaos.functions";
 export {

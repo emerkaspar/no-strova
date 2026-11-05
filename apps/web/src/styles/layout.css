@@ -2125,6 +2125,74 @@ textarea {
   stroke-linecap: round;
 }
 
+.cg-selo {
+  --cg-selo: #d99a00;
+}
+
+.cg-selo-cansaco {
+  --cg-selo: #e5484d;
+}
+
+.cg-selo-zonas {
+  --cg-selo: #2fb35f;
+}
+
+.cg-selo {
+  pointer-events: none;
+}
+
+.cg-selo-solto {
+  flex: none;
+}
+
+.cg-dica-destaque {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  color: var(--cg-selo);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cg-dica-destaque {
+  align-items: flex-start;
+}
+
+.cg-dica-destaque .cg-selo-solto {
+  margin-top: 2px;
+}
+
+.cg-dica-destaque p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.cg-dica-destaque + .cg-dica-destaque {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 2px;
+}
+
+.cg-selo-fundo {
+  fill: var(--surface-light);
+  stroke: var(--cg-selo);
+  stroke-width: 1.4;
+}
+
+.cg-selo-icone {
+  fill: none;
+  stroke: var(--cg-selo);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .cg-esporte-ciclismo {
   --cg-esporte: var(--cg-esporte-ciclismo);
 }
@@ -3132,7 +3200,8 @@ textarea {
   color: var(--text-secondary);
 }
 
-.ativ-origem-garmin {
+.ativ-origem-garmin,
+.ativ-origem-strava {
   background: color-mix(in srgb, var(--primary) 14%, transparent);
   color: var(--primary);
 }
@@ -5397,6 +5466,19 @@ textarea {
 
 .btn-garmin[hidden] {
   display: none;
+}
+
+/* O mesmo botão quando a fonte conectada é o Strava (laranja do Strava, #fc4c02) */
+.btn-garmin.btn-strava {
+  border-color: #fc4c02;
+  background: #fc4c02;
+  box-shadow: 0 4px 14px rgba(252, 76, 2, 0.35);
+}
+
+.btn-garmin.btn-strava:hover:not(:disabled),
+.btn-garmin.btn-strava:focus-visible {
+  background: #d94100;
+  border-color: #d94100;
 }
 
 /* Aviso em faixa (utils/avisoDispensavel.js): ícone, texto e botão de fechar; a cor do tipo vem de --aviso */
