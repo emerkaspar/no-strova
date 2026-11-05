@@ -5,6 +5,7 @@ import {
   estimarEstresseEstruturado,
   FOCOS,
   formatarSegundos,
+  gerarFitDoTreino,
   modelosDoCatalogo,
   NIVEIS,
   resumirTreino,
@@ -15,7 +16,7 @@ import { desvincularTreino, excluirTreino, pularTreino } from '../../infrastruct
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
-import { perfilDoTreino } from '../../utils/perfilTreino.js';
+import { baixarArquivo, perfilDoTreino } from '../../utils/perfilTreino.js';
 import { OPCOES_ESPORTE, OPCOES_ZONA } from '../atividades/textos.js';
 import { confirmar } from '../../utils/modal.js';
 
@@ -205,7 +206,43 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
     }
   }
 
-  const botoes = h('div', { class: 'linha-botoes' }, botao, h('button', { class: 'btn btn-secundario', type: 'button', onClick: aoCancelar }, 'Cancelar'));
+  /** Baixa o treino do formulário como arquivo .fit para o relógio. O treino livre vira um passo único na zona e duração. */
+  function exportarFit() {
+    mensagem.limpar();
+    try {
+      const dataTreino = data.input.value || treino?.data || dataInicial;
+      const config = configVigenteEm(configs(), dataTreino);
+      let modelo;
+      if (estrutura) {
+        modelo = { nome: estrutura.nomeTreino, esporte: esporte.select.value, passos: estrutura.passos };
+      } else {
+        const minutos = Number(String(duracao.input.value).replace(',', '.'));
+        if (!Number.isFinite(minutos) || minutos <= 0) throw new Error('Informe a duração do treino para gerar o arquivo.');
+        const nomeEsporte = OPCOES_ESPORTE.find((o) => o.valor === esporte.select.value)?.rotulo ?? 'Treino';
+        modelo = {
+          nome: `${nomeEsporte} ${zona.select.value} ${Math.round(minutos)}min`,
+          esporte: esporte.select.value,
+          passos: [{ tipo: 'bloco', papel: 'principal', zona: zona.select.value, duracaoS: Math.round(minutos * 60), descricao: null }],
+        };
+      }
+      const { bytes, nomeArquivo } = gerarFitDoTreino(modelo, { config });
+      baixarArquivo(bytes, nomeArquivo, 'application/vnd.ant.fit');
+      mensagem.mostrar(
+        `Arquivo ${nomeArquivo} gerado${config ? ', com a faixa de FC de cada zona' : ' sem faixa de FC (cadastre a configuração de FC para incluir)'}. Copie para a pasta de treinos do aparelho (Garmin: NewFiles) ou importe no Garmin Connect.`,
+        'ok',
+      );
+    } catch (err) {
+      mensagem.mostrar(err.message || 'Não foi possível gerar o arquivo.');
+    }
+  }
+
+  const botoes = h(
+    'div',
+    { class: 'linha-botoes' },
+    botao,
+    h('button', { class: 'btn btn-secundario', type: 'button', onClick: exportarFit }, 'Salvar treino (.fit)'),
+    h('button', { class: 'btn btn-secundario', type: 'button', onClick: aoCancelar }, 'Cancelar'),
+  );
 
   if (existente) {
     const duplicar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Duplicar para a próxima semana');

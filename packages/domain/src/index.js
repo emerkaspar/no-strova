@@ -4,6 +4,7 @@ export * from './calendario.js';
 export * from './calorias.js';
 export * from './catalogoTreinos.js';
 export * from './configAtleta.js';
+export * from './exportarPlano.js';
 export * from './exportarTreino.js';
 export * from './forma.js';
 export * from './hrss.js';

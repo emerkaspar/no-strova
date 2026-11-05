@@ -333,6 +333,12 @@ service cloud.firestore {
     }
 
     // iaUso e vinculosTreinador: sem acesso direto (somente Admin SDK).
+    // Andamento e registro dos envios de treino ao Garmin: o dono só lê; quem escreve é a Function (Admin SDK).
+    // O código de duas etapas fica em users/{uid}/segredos/garminCodigo (sem regra, negado ao cliente).
+    match /users/{uid}/garminEnvio/{id} {
+      allow read: if acessoLiberado() && request.auth.uid == uid;
+    }
+
     // users/{uid}/segredos/garmin (chave pessoal do Garmin, cifrada): sem regra, logo negado ao cliente. A regra de
     // /users/{uid} não vale para subcoleções. Não crie um `match` curinga em users/{uid}/{document=**}.
   }

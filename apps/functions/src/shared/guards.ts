@@ -22,7 +22,7 @@ export async function exigirAcesso(request: CallableRequest): Promise<{ uid: str
 
 const NOMES_RECURSOS: Record<string, string> = {
   [RECURSOS.IA]: "As sugestões com IA",
-  [RECURSOS.GARMIN]: "A sincronização com o Garmin",
+  [RECURSOS.GARMIN]: "A integração com o Garmin",
 };
 
 /** Como `exigirAcesso`, e ainda confere se o admin liberou o recurso para este usuário (`users/{uid}.recursos`). */

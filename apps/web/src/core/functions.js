@@ -49,3 +49,5 @@ export const garminSituacao = callable('garminSituacao');
 export const garminConectar = callable('garminConectar');
 export const garminDesconectar = callable('garminDesconectar');
 export const garminSincronizar = callable('garminSincronizar');
+export const garminEnviarTreinos = callable('garminEnviarTreinos');
+export const garminInformarCodigo = callable('garminInformarCodigo');

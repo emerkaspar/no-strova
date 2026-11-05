@@ -13,6 +13,6 @@ await build({
   target: 'node22',
   format: 'cjs',
   sourcemap: true,
-  external: ['firebase-admin', 'firebase-admin/*', 'firebase-functions', 'firebase-functions/*', 'genkit', 'genkit/*', '@genkit-ai/*'],
+  external: ['@flow-js/garmin-connect', 'firebase-admin', 'firebase-admin/*', 'firebase-functions', 'firebase-functions/*', 'genkit', 'genkit/*', '@genkit-ai/*'],
   logLevel: 'info',
 });

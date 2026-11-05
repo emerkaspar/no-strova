@@ -20,6 +20,7 @@ import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { criarCartaoAcompanhamento } from './acompanhamento.js';
 import { desenharCalendario } from './calendario.js';
 import { criarEditor } from './editor.js';
+import { criarPainelEnviarGarmin } from './enviarGarmin.js';
 import { criarCartaoMeta } from './meta.js';
 import { criarCartaoMetaCondicionamento } from './metaCondicionamento.js';
 import { criarCartaoPlanoAnual } from './planoAnual.js';
@@ -49,6 +50,7 @@ export function render(raiz, sessao) {
   const barra = h('div', { class: 'plano-barra' });
   const calendario = h('div');
   const editorArea = h('div');
+  const exportacaoArea = h('div');
   const resto = h('div', { class: 'pilha' });
 
   const ancora = () => estadoPlano.ancora ?? hoje;
@@ -202,8 +204,28 @@ Os treinos já realizados e o de hoje não são afetados.`,
           },
           'Nova prova',
         ),
+        temRecurso(obterSessao().perfil, RECURSOS.GARMIN)
+          ? h('button', { class: 'btn btn-secundario', type: 'button', onClick: alternarExportacao }, 'Enviar para o Garmin')
+          : null,
         h('button', { class: 'btn', type: 'button', onClick: () => abrirEditor(null, hoje) }, 'Novo treino'),
       ),
+    );
+  }
+
+  // ---- exportação para o Garmin ----
+  function alternarExportacao() {
+    if (exportacaoArea.hasChildNodes()) {
+      exportacaoArea.replaceChildren();
+      return;
+    }
+    exportacaoArea.replaceChildren(
+      criarPainelEnviarGarmin({
+        uid: sessao.uid,
+        emailInicial: obterSessao().perfil?.email ?? '',
+        hoje,
+        obterAncora: ancora,
+        aoFechar: () => exportacaoArea.replaceChildren(),
+      }),
     );
   }
 
@@ -341,7 +363,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
     h(
       'div',
       { class: 'pilha' },
-      h('section', { class: 'card' }, h('h1', null, 'Plano de treino'), h('p', { class: 'texto-secundario' }, 'Planeje os treinos, arraste para outro dia e veja a projeção da Forma. Treinos planejados em dias passados e não feitos não entram na projeção.'), aviso, barra, mensagem.el, calendario),
+      h('section', { class: 'card' }, h('h1', null, 'Plano de treino'), h('p', { class: 'texto-secundario' }, 'Planeje os treinos, arraste para outro dia e veja a projeção da Forma. Treinos planejados em dias passados e não feitos não entram na projeção.'), aviso, barra, exportacaoArea, mensagem.el, calendario),
       editorArea,
       cartaoIa,
       resto,

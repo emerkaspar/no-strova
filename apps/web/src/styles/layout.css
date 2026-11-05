@@ -1839,7 +1839,7 @@ textarea {
 
 .cg-fitness {
   stroke: var(--cg-fitness);
-  stroke-width: 4;
+  stroke-width: 3;
 }
 
 .cg-fadiga {
@@ -2981,6 +2981,17 @@ textarea {
 
 .construtor-previa {
   margin: 8px 0 16px;
+}
+
+.exportar-garmin {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
 .treino-estrutura {
