@@ -262,7 +262,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
         'div',
         { class: 'fb-marca-texto' },
         h('strong', null, 'Trajeto de treino'),
-        h('small', null, 'Dê nome ao percurso para comparar esforços entre treinos no mesmo trajeto (a comparação chega em breve).'),
+        h('small', null, 'Dê nome ao percurso para comparar esforços entre treinos no mesmo trajeto.'),
         seletorTrajeto,
         campoTrajetoNovo,
       ),
