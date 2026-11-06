@@ -23,7 +23,8 @@ import { abrirFeedbackDaAtividade, abrirFeedbackPorId, dadosDaSensacao, dadosDoE
 import { painelImportar } from './importar.js';
 import { painelManual } from './manual.js';
 import { criarCartaoDeMedalhas } from './medalhaCartao.js';
-import { criarMiniaturas, criarPrevia } from './previa.js';
+import { criarPopoversDosDados, guiaDoDado } from './popoverDosDados.js';
+import { criarMiniaturas } from './previa.js';
 import { estadoAtividades, EVENTO_IMPORTAR } from './state.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE, ROTULO_ORIGEM_HRSS } from './textos.js';
 
@@ -156,11 +157,11 @@ export function render(raiz, sessao) {
   const paineis = h('div');
   const contagem = h('span', { class: 'texto-secundario' });
   const paginacao = h('nav', { class: 'ativ-paginacao', 'aria-label': 'Paginação das atividades' });
-  const previa = criarPrevia({ textoVelocidade, iconeDoEsporte });
+  const popovers = criarPopoversDosDados();
   const miniaturas = criarMiniaturas({ iconeDoEsporte });
   const faixaDeBadges = criarFaixaDeBadges();
   // a medalha abre o cartão de recordes no lugar da prévia do mapa
-  const medalhaCartao = criarCartaoDeMedalhas({ aoAbrir: () => previa.esconder(), podioDe: (esporte, metrica) => podioDaMetrica(atividades, esporte, metrica) });
+  const medalhaCartao = criarCartaoDeMedalhas({ aoAbrir: () => popovers.fechar(), podioDe: (esporte, metrica) => podioDaMetrica(atividades, esporte, metrica) });
 
   const busca = h('input', {
     type: 'search',
@@ -554,7 +555,7 @@ export function render(raiz, sessao) {
       // só o pódio marca a linha (faixa lateral de 3px); a medalha recente é só o badge
       { class: `ativ-linha ativ-linha-clicavel${escopoDaLinha && escopoDaLinha !== 'recente' ? ` ativ-linha-medalha ativ-linha-medalha-${escopoDaLinha}` : ''}` },
       // a origem (Garmin, arquivo ou cadastro manual) é uma "orelha" no canto superior direito do card
-      h('span', { class: `ativ-orelha ativ-orelha-${fonte.id}`, title: fonte.rotulo, role: 'img', 'aria-label': fonte.rotulo }, icone(fonte.icone, 14)),
+      h('span', { class: `ativ-orelha ativ-orelha-${fonte.id}`, role: 'img', 'aria-label': fonte.rotulo }, icone(fonte.icone, 14)),
       h(
         'div',
         { class: 'ativ-cartao' },
@@ -569,7 +570,7 @@ export function render(raiz, sessao) {
             h(
               'div',
               { class: 'ativ-ident-topo' },
-              h('span', { class: 'ativ-esporte-mini', title: rotuloEsporte, role: 'img', 'aria-label': rotuloEsporte }, iconeDoEsporte(a.esporte)),
+              h('span', { class: 'ativ-esporte-mini', role: 'img', 'aria-label': rotuloEsporte }, iconeDoEsporte(a.esporte)),
               h('span', { class: 'ativ-data-dia' }, icone('calendario', 14), dataCurtaDaAtividade(a.data)),
             ),
             h('a', { class: `ativ-titulo${a.titulo ? '' : ' ativ-titulo-padrao'}`, href: `#/atividades/${a.id}`, title: titulo }, titulo),
@@ -596,10 +597,14 @@ export function render(raiz, sessao) {
         ),
       ),
     );
-    previa.ligar(li, a);
+    // popover explicativo de cada dado do card (os clicáveis, como os badges e o botão, e a medalha têm ação ou popover próprio)
+    const IDS_DAS_METRICAS = ['distancia', 'duracao', 'velocidade', 'elevacao', 'fc', 'potencia', 'clima', 'hrss'];
+    li.querySelectorAll('.ativ-metricas > .ativ-metrica').forEach((el, i) => popovers.ligar(el, guiaDoDado(IDS_DAS_METRICAS[i], a, { condicao: condicaoDoClima(a.climaCodigo) })));
+    popovers.ligar(li.querySelector('.ativ-mini'), guiaDoDado('miniatura', a));
+    if (fonte.id !== 'manual') popovers.ligar(li.querySelector('.ativ-orelha'), guiaDoDado('origem', a, { fonte }));
     // clicar na linha abre a atividade; os badges (como o "Como foi?"), os links e a medalha têm ação própria
     li.addEventListener('click', (e) => {
-      if (e.target.closest('a, button, [role="button"]')) return;
+      if (e.target.closest('a, button, [role="button"], [data-guia]')) return;
       window.location.hash = `#/atividades/${a.id}`;
     });
     return li;
@@ -637,7 +642,7 @@ export function render(raiz, sessao) {
     const base = visiveis().filter((a) => !estadoAtividades.soRecordes || medalhas.get(a.id)?.length > 0);
     const lista = filtrarEOrdenar([...base]);
     contagem.textContent = `${lista.length} de ${base.length} atividade${base.length === 1 ? '' : 's'}`;
-    previa.esconder();
+    popovers.fechar();
     medalhaCartao.esconder();
     faixaDeBadges.esconder();
     miniaturas.reiniciar();
@@ -778,7 +783,7 @@ export function render(raiz, sessao) {
   return () => {
     window.removeEventListener(EVENTO_IMPORTAR, abrirPainelDeImportacao);
     cancelar.forEach((fn) => fn());
-    previa.destruir();
+    popovers.fechar();
     medalhaCartao.destruir();
     faixaDeBadges.destruir();
     miniaturas.reiniciar();

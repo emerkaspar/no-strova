@@ -6945,6 +6945,23 @@ button.ativ-badge:hover {
   font-size: 0.85rem;
 }
 
+/* dados com popover explicativo: passe o mouse, foque pelo teclado ou toque */
+[data-guia] {
+  cursor: help;
+}
+
+[data-guia]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.ativ-metrica[data-guia] .ativ-metrica-rotulo {
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, var(--text-secondary) 60%, transparent);
+  text-underline-offset: 4px;
+}
+
 .ativ-badge-valor {
   font-size: 0.68rem;
   font-weight: 800;
@@ -7229,202 +7246,6 @@ button.ativ-badge:hover {
   cursor: not-allowed;
 }
 
-/* Prévia flutuante ao passar o mouse na linha */
-.previa {
-  position: fixed;
-  z-index: 60;
-  width: 380px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--surface);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(6px) scale(0.98);
-  transition: opacity 0.16s ease, transform 0.16s ease;
-}
-
-.previa[hidden] {
-  display: none;
-}
-
-.previa.visivel {
-  opacity: 1;
-  transform: none;
-}
-
-.previa-topo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 18px 12px;
-}
-
-.previa-topo > div {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.previa-topo > div span {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
-.previa-esporte {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--primary) 16%, transparent);
-  color: var(--primary);
-}
-
-.previa-hrss {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--surface-light);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.previa-quadro {
-  margin: 0 1px;
-  background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--primary) 10%, var(--surface-light)), var(--surface-light));
-}
-
-.previa.carregando .previa-quadro {
-  min-height: 150px;
-  animation: previa-pulso 1.2s ease-in-out infinite;
-}
-
-@keyframes previa-pulso {
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.previa-trajeto {
-  display: block;
-  width: 100%;
-  height: 150px;
-}
-
-.previa-trajeto-sombra,
-.previa-trajeto-linha {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.previa-trajeto-sombra {
-  stroke: rgba(0, 0, 0, 0.35);
-  stroke-width: 7;
-}
-
-.previa-trajeto-linha {
-  stroke-width: 3.5;
-}
-
-.previa-ponto {
-  stroke: var(--surface);
-  stroke-width: 2;
-}
-
-.previa-ponto-inicio {
-  fill: var(--success);
-}
-
-.previa-ponto-fim {
-  fill: var(--danger);
-}
-
-.previa-vazio {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 150px;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
-.previa-perfil-wrap {
-  line-height: 0;
-}
-
-.previa-perfil {
-  display: block;
-  width: 100%;
-  height: 52px;
-}
-
-.previa-perfil-linha {
-  fill: none;
-  stroke-width: 1.8;
-  vector-effect: non-scaling-stroke;
-}
-
-.previa-perfil-alt .previa-perfil-linha {
-  stroke: var(--serie-alt);
-}
-
-.previa-perfil-alt .previa-perfil-area {
-  fill: color-mix(in srgb, var(--serie-alt) 22%, transparent);
-}
-
-.previa-perfil-fc .previa-perfil-linha {
-  stroke: var(--serie-fc);
-}
-
-.previa-perfil-fc .previa-perfil-area {
-  fill: color-mix(in srgb, var(--serie-fc) 22%, transparent);
-}
-
-.previa-dados {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px 12px;
-  padding: 16px 18px;
-}
-
-.previa-dado {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.previa-dado span {
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.previa-dado strong {
-  font-size: 0.95rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.previa-rodape {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-top: 1px solid var(--border);
-  color: var(--primary);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
 @media (max-width: 767px) {
   .ativ-tabela-card .barra-tabela,
   .ativ-legenda,
@@ -7439,13 +7260,8 @@ button.ativ-badge:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .previa,
   .ativ-linha {
     transition: none;
-  }
-
-  .previa.carregando .previa-quadro {
-    animation: none;
   }
 }
 

@@ -28,7 +28,7 @@ function valorDaMedalha(m, esporte) {
  * e continua aberto enquanto o ponteiro está nele. Clicar em um recorde do pódio abre o **ranking** dele (as três melhores
  * atividades, com link); clicar de novo recolhe. Esc ou um clique fora fecham; no toque, tocar na medalha alterna o cartão.
  * @param {{ aoAbrir?: () => void, podioDe?: (esporte: string, metrica: string) => Array<{ posicao: number, medalha: string, atividade: object, valor: number }> }} [opcoes]
- *   `aoAbrir`: chamado antes de abrir (a lista esconde a prévia do mapa); `podioDe`: o pódio de uma métrica (ver `podioDaMetrica`)
+ *   `aoAbrir`: chamado antes de abrir (a lista fecha o popover de um dado aberto); `podioDe`: o pódio de uma métrica (ver `podioDaMetrica`)
  * @returns {{ ligar: (medalha: HTMLElement, atividade: object, medalhas: object[]) => void, esconder: () => void, destruir: () => void }}
  */
 export function criarCartaoDeMedalhas({ aoAbrir = () => {}, podioDe = () => [] } = {}) {
@@ -191,7 +191,7 @@ export function criarCartaoDeMedalhas({ aoAbrir = () => {}, podioDe = () => [] }
         medalha.addEventListener('mouseenter', () => {
           clearTimeout(temporizador);
           if (aberto === medalha) return;
-          aoAbrir(); // a prévia do mapa da linha não deve abrir por cima
+          aoAbrir(); // o popover de um dado do card não deve ficar aberto por baixo
           temporizador = setTimeout(() => mostrar(medalha, atividade, medalhas), ATRASO_MS);
         });
         medalha.addEventListener('mouseleave', agendarFechamento);
