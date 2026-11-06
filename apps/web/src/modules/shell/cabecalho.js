@@ -2,7 +2,7 @@ import { sair } from '../../application/sessao.js';
 import { h } from '../../utils/dom.js';
 import { dataCurta, horaNoFuso, saudacaoDaHora } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
-import { logo } from '../../utils/marca.js';
+import { logosCabecalho } from '../../utils/marca.js';
 import { fraseAleatoria, LIMITE_FRASE, textoExibido } from '../../utils/frases.js';
 import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { pedirImportacao } from '../atividades/state.js';
@@ -79,7 +79,7 @@ export function criarCabecalho(sessao, itens) {
   // --- saudação e data (fuso de São Paulo) ---
   const saudacao = `${saudacaoDaHora(horaNoFuso())}, ${primeiroNome(sessao)}`;
   const frase = criarFrase();
-  const logoLink = h('a', { href: '#/inicio', class: 'topo-logo', 'aria-label': 'NÃO STROVA — Início' }, logo());
+  const logoLink = h('a', { href: '#/inicio', class: 'topo-logo', 'aria-label': 'NÃO STROVA — Início' }, ...logosCabecalho());
   const faixa = h('span', { class: 'topo-faixa', 'aria-hidden': 'true' });
   const titulo = h('div', { class: 'topo-titulo' }, h('p', { class: 'topo-data' }, dataCurta()), h('p', { class: 'topo-saudacao' }, saudacao));
 

@@ -13,6 +13,19 @@ export function logo({ grande = false } = {}) {
   return h('img', { src: '/icons/icon-512.png', alt: NOME_APP, class: 'logo', width: 56, height: 56 });
 }
 
+/**
+ * Logo horizontal sem slogan do cabeçalho (public/logo/naostrova-logo-*-sem-slogan.svg). Devolve as duas
+ * versões (texto branco para o tema escuro, texto preto para o claro); o CSS mostra a do tema ativo.
+ */
+export function logosCabecalho() {
+  const img = (src, tema) =>
+    h('img', { src, alt: tema === 'escuro' ? NOME_APP : '', class: `logo logo-cabecalho logo-${tema}`, width: 176, height: 72 });
+  return [
+    img('/logo/naostrova-logo-escuro-sem-slogan.svg', 'escuro'),
+    img('/logo/naostrova-logo-claro-sem-slogan.svg', 'claro'),
+  ];
+}
+
 /** Logo completo com slogan (public/logo/naostrova-logo-laranja.svg), para a tela de login sobre fundo laranja. */
 export function logoCompleto() {
   return h('img', {

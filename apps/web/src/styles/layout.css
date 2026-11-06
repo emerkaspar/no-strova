@@ -46,6 +46,11 @@
   border-radius: 18%; /* acompanha os cantos do PNG (proporcionais), para o contorno não ficar serrilhado */
 }
 
+/* Logo horizontal sem slogan: sem fundo próprio, então sem cantos arredondados. */
+.topo-logo .logo-cabecalho {
+  border-radius: 0;
+}
+
 /* Barra laranja fina entre o logo e o texto; a saudação usa Inter (não a Anton do logo). */
 .topo-faixa {
   grid-column: 2;
@@ -1256,6 +1261,10 @@
   .topo-logo .logo {
     height: 56px;
     border-radius: 8px;
+  }
+
+  .topo-logo .logo-cabecalho {
+    border-radius: 0;
   }
 
   .topo-faixa {
