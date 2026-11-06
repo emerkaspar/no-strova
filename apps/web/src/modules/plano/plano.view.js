@@ -247,7 +247,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
   function semanasDoPlanoAnual() {
     try {
       const prova = provaDoPlano(dados.provas, hoje);
-      return prova ? montarPlanoAnual({ hoje, prova, dias: dados.dias }).semanas : [];
+      return prova ? montarPlanoAnual({ hoje, prova, dias: dados.dias, preferencias: dados.preferencias }).semanas : [];
     } catch {
       return [];
     }

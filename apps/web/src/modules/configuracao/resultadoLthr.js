@@ -5,6 +5,7 @@ import { executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDuracao } from '../../utils/formatters.js';
 import { confirmar } from '../../utils/modal.js';
+import { avisoDeLthrNoIntervals } from './avisoLthrIntervals.js';
 
 /**
  * Análise de uma atividade como teste de LTHR (protocolo de 30 minutos): lê a série de FC guardada e acha a melhor janela.
@@ -43,7 +44,7 @@ export function montarResultadoLthr({ uid, atividade, analise, configs, mensagem
       const texto = `Criar a vigência de ${formatarData(r.valores.vigenteDesde)} com LTHR ${r.valores.lthr} bpm${r.valores.fcMax !== base.fcMax ? ` e FC máxima ${r.valores.fcMax} bpm` : ''}?${existente ? ' Já existe uma configuração com essa data; ela será substituída.' : ''}`;
       if (!(await confirmar({ titulo: 'Criar nova vigência?', mensagem: texto, confirmarTexto: 'Criar vigência', tipo: 'info', icone: 'configuracao' }))) return;
       await salvarConfig(uid, r.valores);
-      mensagem.mostrar(`Vigência de ${formatarData(r.valores.vigenteDesde)} criada com LTHR ${r.valores.lthr} bpm. Use “Recalcular histórico” para aplicar às atividades já importadas.`, 'ok');
+      mensagem.mostrar(`Vigência de ${formatarData(r.valores.vigenteDesde)} criada com LTHR ${r.valores.lthr} bpm. Use “Recalcular histórico” para aplicar às atividades já importadas.${avisoDeLthrNoIntervals(base.lthr, r.valores.lthr)}`, 'ok');
     }),
   );
 

@@ -3,6 +3,7 @@ import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { recalcularHistorico } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { excluirConfig, observarConfigs, salvarConfig } from '../../infrastructure/configsRepo.js';
+import { avisoDeLthrNoIntervals } from './avisoLthrIntervals.js';
 import { atualizarDadosPessoais } from '../../infrastructure/perfilRepo.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -206,12 +207,13 @@ export function render(raiz, sessao) {
             ) {
               return;
             }
+            const lthrAntes = emEdicao?.lthr ?? configs[0]?.lthr ?? null;
             await salvarConfig(sessao.uid, r.valores);
             if (emEdicao && emEdicao.vigenteDesde !== r.valores.vigenteDesde) await excluirConfig(emEdicao.id);
             editar(null);
             formAberto = false;
             desenharForm();
-            mensagem.mostrar('Configuração salva. Use “Recalcular histórico” para aplicar às atividades já importadas.', 'ok');
+            mensagem.mostrar(`Configuração salva. Use “Recalcular histórico” para aplicar às atividades já importadas.${avisoDeLthrNoIntervals(lthrAntes, r.valores.lthr)}`, 'ok');
           });
         },
       },

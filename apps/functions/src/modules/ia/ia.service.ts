@@ -166,7 +166,8 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
   const serie = calcularSerieForma(dias, { ate: hoje });
   const hojeForma = serie[serie.length - 1] ?? null;
   // sensação ruim ou dor recorrente nos últimos dias baixam o teto de carga (o sistema descarta o que passar dele)
-  const cargaBase = cargaBaseSemanal(dias, hoje) * (fatorDeCargaPorFeedback(feedback) ?? 1);
+  // o piso da carga base vem do nível do perfil e das horas por semana que o usuário informou neste pedido
+  const cargaBase = cargaBaseSemanal(dias, hoje, { nivel, horasSemana: entrada.horasPorSemana }) * (fatorDeCargaPorFeedback(feedback) ?? 1);
   const metaCond = metaSnap.docs.map((d) => d.data()).find((m) => m.ativa === true) ?? null;
 
   const planejados = treinosSnap.docs.map((d) => d.data()).filter((t) => t.status === "planejado" || t.status === "realizado");
@@ -279,7 +280,7 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   const serie = calcularSerieForma(dias, { ate: hoje });
   const estado = serie[serie.length - 1] ?? null;
   const fatorFeedback = fatorDeCargaPorFeedback(feedback) ?? 1;
-  const cargaBase = cargaBaseSemanal(dias, hoje) * fatorFeedback;
+  const cargaBase = cargaBaseSemanal(dias, hoje, { nivel, horasSemana: pref.horasSemana }) * fatorFeedback;
 
   const configHoje = configVigenteEm(configs, hoje);
   if (!configHoje) throw new HttpsError("failed-precondition", "Cadastre a sua configuração de FC (Configuração) para o app estimar o estresse dos treinos.");
@@ -428,8 +429,9 @@ export async function sugerirPlanoAnualDoUsuario(uid: string, bruto: Record<stri
   if (!configEm(somarDias(hoje, 1))) throw new HttpsError("failed-precondition", "Cadastre a sua configuração de FC (Configuração) para o app estimar o estresse dos treinos.");
 
   const dias = estresseSnap.docs.map((d) => ({ data: d.data().data as string, estresse: Number(d.data().estresse) || 0 }));
-  const cargaBase = cargaBaseSemanal(dias, hoje);
-  const plano = gerarPlanoAnual({ hoje, prova, dias, cargaBase });
+  const perfil = { nivel, horasSemana: pref.horasSemana };
+  const cargaBase = cargaBaseSemanal(dias, hoje, perfil);
+  const plano = gerarPlanoAnual({ hoje, prova, dias, cargaBase, perfil });
   if (plano.semanas.length === 0) throw new HttpsError("failed-precondition", "Não há preparação para este evento.");
 
   const treinos = treinosSnap.docs.map((d) => ({ id: d.id, ...d.data() }));

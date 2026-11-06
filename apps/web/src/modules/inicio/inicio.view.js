@@ -42,6 +42,7 @@ export function render(raiz, sessao) {
     treinos: [],
     configs: [],
     calibracao: null,
+    preferencias: null,
     metasCondicionamento: [],
     provas: [],
     pesagens: [],
@@ -120,7 +121,7 @@ export function render(raiz, sessao) {
         treinos: treinosDaSemana.map((t, i) => ({ ...t, estresseProjetado: planejado[i].estresse })),
         comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
         carregou: c.dias && c.atividades && c.treinos && c.configs && c.calibracao,
-        meta: metaDaSemanaDoPlanoAnual({ provas: dados.provas, dias: dados.dias, hoje, inicioDaSemana: segunda }),
+        meta: metaDaSemanaDoPlanoAnual({ provas: dados.provas, dias: dados.dias, hoje, inicioDaSemana: segunda, preferencias: dados.preferencias }),
         comIa: temRecurso(obterSessao().perfil, RECURSOS.IA),
         aoExcluir: async (t) => {
           const ok = await confirmar({
@@ -202,7 +203,8 @@ export function render(raiz, sessao) {
     ouvir('atividadesAno', 'atividadesAno', (ok, erro) => observarAtividadesParaProgressao(sessao.uid, hoje.slice(0, 4) + '-01-01' < segunda ? hoje.slice(0, 4) + '-01-01' : segunda, ok, erro)),
     ouvir('provas', 'provas', (ok, erro) => observarProvas(sessao.uid, hoje, ok, erro)),
     ouvir('metasCondicionamento', 'metasCondicionamento', (ok, erro) => observarMetasCondicionamento(sessao.uid, ok, erro)),
-    observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
+    observarCalibracaoDoUsuario(sessao.uid, ({ efetiva, preferencias }) => {
+      dados.preferencias = preferencias;
       dados.calibracao = efetiva;
       dados.carregou.calibracao = true;
       desenhar();

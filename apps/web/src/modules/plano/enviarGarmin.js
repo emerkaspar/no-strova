@@ -1,5 +1,5 @@
 import { inicioDaSemana, primeiroDoMes, somarDias, somarMeses } from '@no-strova/domain';
-import { intervalsConectar, intervalsDesconectar, intervalsEnviarTreinos, intervalsSituacao } from '../../core/functions.js';
+import { intervalsAtualizarLthr, intervalsConectar, intervalsDesconectar, intervalsEnviarTreinos, intervalsLthr, intervalsSituacao } from '../../core/functions.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
@@ -24,6 +24,14 @@ function intervaloDe(periodo, { hoje, ancora }) {
     return { de: inicio, ate: somarDias(somarMeses(inicio, 1), -1) };
   }
   return { de: hoje, ate: somarDias(hoje, 6) };
+}
+
+const ROTULO_ESPORTE_LTHR = { ciclismo: 'Ciclismo', corrida: 'Corrida' };
+
+/** Esportes em que o LTHR do intervals.icu existe e é diferente do No Strova. */
+export function esportesComLthrDiferente(s) {
+  if (!Number.isFinite(s?.nostrova)) return [];
+  return Object.keys(ROTULO_ESPORTE_LTHR).filter((e) => Number.isFinite(s[e]) && s[e] !== s.nostrova);
 }
 
 const plural = (n, singular, pluralTexto) => `${n} ${n === 1 ? singular : pluralTexto}`;
@@ -94,6 +102,47 @@ export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar }) {
     const periodo = selecao({ id: 'int-periodo', rotulo: 'Período', opcoes: PERIODOS, valor: 'proximos7' });
     const botao = h('button', { class: 'btn', type: 'submit' }, 'Enviar para o Garmin');
     const resultado = h('div', { 'aria-live': 'polite' });
+    // conferência do LTHR: só leitura; falhas aqui não atrapalham o envio
+    const lthrArea = h('div', { 'aria-live': 'polite' });
+
+    function desenharLthr(s) {
+      const diferentes = esportesComLthrDiferente(s);
+      if (!Number.isFinite(s?.nostrova) || !(Number.isFinite(s.ciclismo) || Number.isFinite(s.corrida))) {
+        lthrArea.replaceChildren();
+        return;
+      }
+      if (diferentes.length === 0) {
+        lthrArea.replaceChildren(h('p', { class: 'texto-secundario' }, `LTHR igual nos dois: ${s.nostrova} bpm.`));
+        return;
+      }
+      const msg = areaMensagem();
+      const botaoAtualizar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Atualizar no intervals.icu');
+      const detalhe = diferentes.map((e) => `${ROTULO_ESPORTE_LTHR[e]}: ${s[e]} bpm`).join(' · ');
+      botaoAtualizar.addEventListener('click', () =>
+        executarComBotao(botaoAtualizar, msg, async () => {
+          const ok = await confirmar({
+            titulo: 'Atualizar o LTHR no intervals.icu?',
+            mensagem: [
+              ...diferentes.map((e) => `${ROTULO_ESPORTE_LTHR[e]}: ${s[e]} → ${s.nostrova} bpm`),
+              '',
+              'As zonas de FC que você ajustou no intervals.icu não são recalculadas. Os treinos enviados usam % do LTHR, então já refletem o novo valor.',
+            ].join('\n'),
+            confirmarTexto: 'Atualizar',
+            tipo: 'info',
+            icone: 'configuracao',
+          });
+          if (!ok) return;
+          desenharLthr(await intervalsAtualizarLthr({ esportes: diferentes }));
+        }),
+      );
+      lthrArea.replaceChildren(
+        h('p', { class: 'mensagem mensagem-aviso' }, `O LTHR do intervals.icu (${detalhe}) é diferente do No Strova (${s.nostrova} bpm). As faixas de FC dos treinos só batem se forem iguais.`),
+        h('div', { class: 'linha-botoes' }, botaoAtualizar),
+        msg.el,
+      );
+    }
+
+    intervalsLthr().then(desenharLthr).catch(() => {});
 
     async function desconectar() {
       const ok = await confirmar({
@@ -125,13 +174,16 @@ export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar }) {
             mensagem,
             async () => {
               const r = await intervalsEnviarTreinos({ de, ate });
+              // replaceChildren() escreve "null" na tela se receber null: os itens opcionais saem pelo filter
               resultado.replaceChildren(
-                h('p', { class: `mensagem ${r.falhas > 0 ? 'mensagem-aviso' : 'mensagem-ok'}` }, resumirEnvio(r)),
-                r.problemas.length > 0 ? h('ul', null, ...r.problemas.map((p) => h('li', null, `${formatarData(p.data)} · ${p.nome}: ${p.motivo}`))) : null,
-                r.lthr ? h('p', { class: 'texto-secundario' }, `As faixas de FC vão em % do LTHR. Confira no intervals.icu (Settings, na configuração do esporte) se o LTHR é ${r.lthr} bpm, o mesmo do No Strova.`) : null,
-                r.enviados + r.atualizados > 0
-                  ? h('p', null, h('strong', null, 'Agora abra o app Garmin Connect no celular e sincronize o relógio.'), ' O intervals.icu envia ao Garmin os treinos da próxima semana; os mais distantes sobem quando chegarem a esse prazo.')
-                  : null,
+                ...[
+                  h('p', { class: `mensagem ${r.falhas > 0 ? 'mensagem-aviso' : 'mensagem-ok'}` }, resumirEnvio(r)),
+                  r.problemas.length > 0 ? h('ul', null, ...r.problemas.map((p) => h('li', null, `${formatarData(p.data)} · ${p.nome}: ${p.motivo}`))) : null,
+                  r.lthr ? h('p', { class: 'texto-secundario' }, `As faixas de FC vão em % do LTHR. Confira no intervals.icu (Settings, na configuração do esporte) se o LTHR é ${r.lthr} bpm, o mesmo do No Strova.`) : null,
+                  r.enviados + r.atualizados > 0
+                    ? h('p', null, h('strong', null, 'Agora abra o app Garmin Connect no celular e sincronize o relógio.'), ' O intervals.icu envia ao Garmin os treinos da próxima semana; os mais distantes sobem quando chegarem a esse prazo.')
+                    : null,
+                ].filter(Boolean),
               );
             },
             'Enviando…',
@@ -148,6 +200,7 @@ export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar }) {
         `Conectado ao intervals.icu${situacao.atleta ? ` como ${situacao.atleta}` : ''}. `,
         h('button', { class: 'btn-link', type: 'button', onClick: desconectar }, 'Desconectar'),
       ),
+      lthrArea,
       form,
       resultado,
     );

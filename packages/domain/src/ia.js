@@ -15,9 +15,30 @@ export const LIMITES_IA = Object.freeze({
   semanasMax: 4,
   /** Aumento máximo da carga semanal sobre a base (média das semanas com treino nas últimas 8): 10% por semana. */
   aumentoSemanalMaximo: 0.1,
-  /** Piso da base de carga (HRSS por semana): com histórico pequeno, o limite de 10% ficaria apertado demais. */
-  pisoDaCargaBase: 100,
 });
+
+/**
+ * Piso da base de carga (HRSS por semana): com histórico pequeno, a média das últimas semanas deixaria a carga leve demais
+ * (e o limite de 10% apertado). O piso é o maior entre o do nível do atleta e as horas por semana do perfil × `hrssPorHora`,
+ * limitado a `teto`. É só o ponto de partida: a carga sobe 8% por semana. Os valores ficam abaixo das referências comuns de
+ * treinamento (~50 de TSS por hora), por prudência, já que o HRSS (por FC) tende a ser menor que o TSS (por potência).
+ */
+export const PISO_DA_CARGA_BASE = Object.freeze({
+  porNivel: Object.freeze({ iniciante: 100, intermediario: 160, avancado: 220 }),
+  hrssPorHora: 35,
+  teto: 400,
+});
+
+/**
+ * Piso da base de carga de um atleta: nível (sem nível vale intermediário) e, se houver, as horas por semana do perfil.
+ * @param {{ nivel?: string|null, horasSemana?: number|null }} [perfil]
+ */
+export function pisoDaCargaBase({ nivel, horasSemana } = {}) {
+  const P = PISO_DA_CARGA_BASE;
+  const doNivel = P.porNivel[nivel] ?? P.porNivel.intermediario;
+  const dasHoras = Number.isFinite(horasSemana) && horasSemana > 0 ? horasSemana * P.hrssPorHora : 0;
+  return Math.round(Math.min(P.teto, Math.max(doNivel, dasHoras)));
+}
 
 export const AVISO_IA = 'Sugestão gerada por IA: revise antes de aceitar. Não substitui orientação de médico, nutricionista ou treinador.';
 
@@ -87,11 +108,14 @@ export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado') {
 }
 
 /**
- * Base de carga semanal (soma do estresse): média das semanas **com treino** nas últimas 8 semanas completas, com piso
- * de 100 quando há histórico. Semanas sem treino (viagem, descanso) não puxam a base para baixo. Zero sem histórico.
+ * Base de carga semanal (soma do estresse): média das semanas **com treino** nas últimas 8 semanas completas, com o piso do
+ * atleta (`pisoDaCargaBase`: nível e horas por semana) quando há histórico. Semanas sem treino (viagem, descanso) não puxam
+ * a base para baixo. Zero sem histórico.
  * @param {Array<{ data: string, estresse: number }>} dias
+ * @param {string} hoje
+ * @param {{ nivel?: string|null, horasSemana?: number|null }} [perfil]
  */
-export function cargaBaseSemanal(dias, hoje) {
+export function cargaBaseSemanal(dias, hoje, perfil = {}) {
   const inicioAtual = inicioDaSemana(hoje);
   const somas = [];
   for (let i = 1; i <= 8; i++) {
@@ -101,7 +125,7 @@ export function cargaBaseSemanal(dias, hoje) {
     if (soma > 0) somas.push(soma);
   }
   if (somas.length === 0) return 0;
-  return Math.max(LIMITES_IA.pisoDaCargaBase, somas.reduce((a, b) => a + b, 0) / somas.length);
+  return Math.max(pisoDaCargaBase(perfil), somas.reduce((a, b) => a + b, 0) / somas.length);
 }
 
 /**

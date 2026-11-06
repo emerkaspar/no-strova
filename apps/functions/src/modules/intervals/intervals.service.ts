@@ -5,7 +5,7 @@ import { HttpsError } from "firebase-functions/v2/https";
 import { db } from "../../shared/firebase";
 import { carregarConfigs } from "../atividades/atividades.service";
 import { criptografar, descriptografar } from "../garmin/garmin.cripto";
-import { atualizarEvento, criarEvento, IntervalsErroApi, obterAtleta, type Requisitor } from "./intervals.cliente";
+import { atualizarEvento, atualizarLthr, criarEvento, type EsporteIntervals, IntervalsErroApi, obterAtleta, obterLthr, type Requisitor } from "./intervals.cliente";
 import { enviarTreinos, motivoDaFalha, type RegistroEnvio, type ResultadoEnvio, type TreinoPlano } from "./intervals.envio";
 
 /** Máximo de dias do período e de treinos por envio. */
@@ -16,6 +16,15 @@ export interface SituacaoIntervals {
   conectado: boolean;
   atleta: string | null;
 }
+
+/** LTHR do No Strova e o de cada esporte no intervals.icu (null: sem LTHR configurado lá). */
+export interface SituacaoLthr {
+  nostrova: number | null;
+  ciclismo: number | null;
+  corrida: number | null;
+}
+
+const ESPORTES_LTHR: Record<string, EsporteIntervals> = { ciclismo: "Ride", corrida: "Run" };
 
 export interface RespostaEnvio extends ResultadoEnvio {
   /** Treinos do período que não puderam ser enviados (sem passos nem duração). */
@@ -85,6 +94,59 @@ export async function situacao(uid: string): Promise<SituacaoIntervals> {
 
 export async function desconectar(uid: string): Promise<void> {
   await docChave(uid).delete();
+}
+
+async function chaveDoUsuario(uid: string, segredo: string): Promise<string> {
+  const cifrada = (await docChave(uid).get()).get("chaveCifrada");
+  if (typeof cifrada !== "string") throw new HttpsError("failed-precondition", "Conecte o intervals.icu primeiro.");
+  return descriptografar(cifrada, segredo);
+}
+
+async function lthrDoNoStrova(uid: string): Promise<number | null> {
+  return configVigenteEm(await carregarConfigs(uid), diaNoFuso(Date.now()))?.lthr ?? null;
+}
+
+/** Só leitura: o LTHR do No Strova e o do intervals.icu (ciclismo e corrida), para o app avisar quando forem diferentes. */
+export async function situacaoDoLthr(uid: string, segredo: string, requisitor?: Requisitor): Promise<SituacaoLthr> {
+  const chave = await chaveDoUsuario(uid, segredo);
+  const nostrova = await lthrDoNoStrova(uid);
+  try {
+    const [ciclismo, corrida] = await Promise.all([obterLthr(chave, "Ride", requisitor), obterLthr(chave, "Run", requisitor)]);
+    return { nostrova, ciclismo, corrida };
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+}
+
+export function validarEsportesDoLthr(valor: unknown): string[] {
+  const lista = Array.isArray(valor) ? [...new Set(valor)] : [];
+  if (lista.length === 0 || lista.some((e) => typeof e !== "string" || !ESPORTES_LTHR[e])) {
+    throw new HttpsError("invalid-argument", "Escolha o esporte (ciclismo ou corrida) que deve ter o LTHR atualizado.");
+  }
+  return lista as string[];
+}
+
+/**
+ * Grava no intervals.icu o LTHR atual do No Strova, nos esportes escolhidos. Só roda por pedido explícito do usuário (botão com
+ * confirmação). Confere a resposta do intervals.icu: se ele não confirmar o valor, avisa em vez de dizer que deu certo.
+ */
+export async function atualizarLthrNoIntervals(uid: string, esportes: string[], segredo: string, requisitor?: Requisitor): Promise<SituacaoLthr> {
+  const chave = await chaveDoUsuario(uid, segredo);
+  const lthr = await lthrDoNoStrova(uid);
+  if (lthr === null) throw new HttpsError("failed-precondition", "Cadastre o LTHR na sua configuração de FC (Configuração) antes de atualizar o intervals.icu.");
+  try {
+    for (const esporte of esportes) {
+      const confirmado = await atualizarLthr(chave, ESPORTES_LTHR[esporte], lthr, requisitor);
+      if (confirmado !== lthr) throw new HttpsError("unavailable", "O intervals.icu não confirmou a alteração do LTHR. Altere manualmente em Settings, na configuração do esporte.");
+    }
+  } catch (erro) {
+    if (erro instanceof HttpsError) throw erro;
+    if (erro instanceof IntervalsErroApi && erro.status === 403) {
+      throw new HttpsError("permission-denied", "A chave de API não tem permissão para alterar as configurações do intervals.icu. Altere o LTHR manualmente em Settings, na configuração do esporte.");
+    }
+    throw traduzirErro(erro);
+  }
+  return situacaoDoLthr(uid, segredo, requisitor);
 }
 
 /** Envia ao intervals.icu os treinos planejados do período (que o intervals.icu repassa ao Garmin Connect). */

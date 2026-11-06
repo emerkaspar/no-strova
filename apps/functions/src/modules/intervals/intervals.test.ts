@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { atualizarEvento, criarEvento, IntervalsErroApi, obterAtleta, type Requisitor } from "./intervals.cliente";
+import { atualizarEvento, atualizarLthr, criarEvento, IntervalsErroApi, obterAtleta, obterLthr, type Requisitor } from "./intervals.cliente";
 import { type ClienteIntervals, enviarTreinos, eventoDoTreino, motivoDaFalha, nomeDoEvento, type RegistroEnvio, type TreinoPlano } from "./intervals.envio";
-import { validarChave, validarPeriodo } from "./intervals.service";
+import { validarChave, validarEsportesDoLthr, validarPeriodo } from "./intervals.service";
 
 const treino = (extra: Partial<TreinoPlano> = {}): TreinoPlano => ({
   id: "t1",
@@ -124,9 +124,39 @@ describe("cliente HTTP", () => {
     expect(requisitor.mock.calls[0][1].method).toBe("PUT");
   });
 
+  it("lê o LTHR do esporte por GET", async () => {
+    const requisitor = vi.fn<Requisitor>(async () => resposta(200, { lthr: 152, max_hr: 180 }));
+    expect(await obterLthr("k", "Ride", requisitor)).toBe(152);
+    expect(requisitor.mock.calls[0][0]).toBe("https://intervals.icu/api/v1/athlete/0/sport-settings/Ride");
+    expect(requisitor.mock.calls[0][1].method).toBe("GET");
+  });
+
+  it("esporte sem configuração (404) ou sem LTHR vira null", async () => {
+    expect(await obterLthr("k", "Run", vi.fn<Requisitor>(async () => resposta(404)))).toBeNull();
+    expect(await obterLthr("k", "Run", vi.fn<Requisitor>(async () => resposta(200, { ftp: 250 })))).toBeNull();
+  });
+
+  it("grava o LTHR por PUT sem recalcular as zonas e devolve o valor confirmado", async () => {
+    const requisitor = vi.fn<Requisitor>(async () => resposta(200, { lthr: 153 }));
+    expect(await atualizarLthr("k", "Ride", 153, requisitor)).toBe(153);
+    const [url, init] = requisitor.mock.calls[0];
+    expect(url).toBe("https://intervals.icu/api/v1/athlete/0/sport-settings/Ride?recalcHrZones=false");
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body!)).toEqual({ lthr: 153 });
+  });
+
   it("status de erro vira IntervalsErroApi com o código", async () => {
     const requisitor = vi.fn<Requisitor>(async () => resposta(401));
     await expect(obterAtleta("k", requisitor)).rejects.toMatchObject({ status: 401 });
+  });
+});
+
+describe("validações do LTHR", () => {
+  it("aceita ciclismo e corrida, sem repetir, e recusa o resto", () => {
+    expect(validarEsportesDoLthr(["ciclismo", "corrida", "ciclismo"])).toEqual(["ciclismo", "corrida"]);
+    expect(() => validarEsportesDoLthr([])).toThrow();
+    expect(() => validarEsportesDoLthr(["natacao"])).toThrow();
+    expect(() => validarEsportesDoLthr("ciclismo")).toThrow();
   });
 });
 

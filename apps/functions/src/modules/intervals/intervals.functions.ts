@@ -24,6 +24,18 @@ export const intervalsDesconectar = onCall({ region: REGIAO }, async (request) =
   return { ok: true };
 });
 
+/** Só leitura: compara o LTHR do No Strova com o do intervals.icu. */
+export const intervalsLthr = onCall({ region: REGIAO, secrets: [GARMIN_CHAVE_CRIPTO] }, async (request) => {
+  const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);
+  return servico.situacaoDoLthr(uid, GARMIN_CHAVE_CRIPTO.value());
+});
+
+/** Grava o LTHR do No Strova no intervals.icu (só por pedido do usuário, nos esportes escolhidos). */
+export const intervalsAtualizarLthr = onCall({ region: REGIAO, secrets: [GARMIN_CHAVE_CRIPTO] }, async (request) => {
+  const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);
+  return servico.atualizarLthrNoIntervals(uid, servico.validarEsportesDoLthr(lerObjeto(request.data).esportes), GARMIN_CHAVE_CRIPTO.value());
+});
+
 /**
  * Envia os treinos planejados do período ao intervals.icu, que os repassa ao calendário do Garmin Connect (a próxima semana).
  * Usa a chave de API que o usuário guardou ao conectar.

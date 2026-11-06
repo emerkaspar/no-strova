@@ -93,7 +93,7 @@ export function criarCartaoPlanoAnual({ uid, hoje, aoAceitar = () => {} }) {
       return;
     }
     const prova = provaEscolhida();
-    const plano = montarPlanoAnual({ hoje, prova, dias: ctx.dias });
+    const plano = montarPlanoAnual({ hoje, prova, dias: ctx.dias, preferencias: ctx.preferencias });
     const r = plano.resumo;
 
     const seletorProva =

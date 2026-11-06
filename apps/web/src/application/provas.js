@@ -29,10 +29,12 @@ export async function salvarProva({ uid, id, entrada, hoje }) {
 
 /**
  * Plano anual até a prova: semanas, fases e carga-alvo, partindo da carga média recente do atleta.
- * @param {{ hoje: string, prova: any, dias: Array<{ data: string, estresse: number }> }} p `dias`: estresse diário realizado
+ * @param {{ hoje: string, prova: any, dias: Array<{ data: string, estresse: number }>, preferencias?: any }} p `dias`: estresse diário
+ *   realizado; `preferencias`: o nível e as horas por semana do perfil definem o piso da carga de partida (histórico pequeno)
  */
-export function montarPlanoAnual({ hoje, prova, dias }) {
-  return gerarPlanoAnual({ hoje, prova, dias, cargaBase: cargaBaseSemanal(dias, hoje) });
+export function montarPlanoAnual({ hoje, prova, dias, preferencias = null }) {
+  const perfil = { nivel: preferencias?.nivelTreinos, horasSemana: preferencias?.horasSemana };
+  return gerarPlanoAnual({ hoje, prova, dias, cargaBase: cargaBaseSemanal(dias, hoje, perfil), perfil });
 }
 
 /**
@@ -101,12 +103,12 @@ export function definirMetaDeFormaDaProva({ uid, prova, hoje, metasAtivas }) {
  * Meta de carga da semana que começa em `inicioDaSemana`, vinda do plano anual da prova mais próxima (ou null se a semana não
  * está no plano). Retorna { cargaAlvo, fase, detalhe }.
  */
-export function metaDaSemanaDoPlanoAnual({ provas, dias, hoje, inicioDaSemana }) {
+export function metaDaSemanaDoPlanoAnual({ provas, dias, hoje, inicioDaSemana, preferencias = null }) {
   try {
     const prova = provaDoPlano(provas, hoje);
     if (!prova) return null;
     const fim = somarDias(inicioDaSemana, 6);
-    const s = montarPlanoAnual({ hoje, prova, dias }).semanas.find((x) => x.inicio <= fim && x.fim >= inicioDaSemana);
+    const s = montarPlanoAnual({ hoje, prova, dias, preferencias }).semanas.find((x) => x.inicio <= fim && x.fim >= inicioDaSemana);
     if (!s) return null;
     const extras = [s.recuperacao ? 'recuperação' : null, s.semanaDaProva ? 'semana do evento' : null].filter(Boolean);
     return { cargaAlvo: s.cargaAlvo, fase: FASES[s.fase]?.rotulo ?? s.fase, detalhe: extras.join(' · ') };

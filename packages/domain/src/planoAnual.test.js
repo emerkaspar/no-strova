@@ -91,10 +91,14 @@ describe('gerarPlanoAnual', () => {
     expect(Math.abs(alto.resumo.formaNaProva - 30)).toBeLessThanOrEqual(Math.abs(baixo.resumo.formaNaProva - 30));
   });
 
-  it('sem histórico usa a carga mínima e avisa', () => {
-    const p = gerarPlanoAnual({ hoje: HOJE, prova, dias: [], cargaBase: 0 });
+  it('sem histórico usa a carga mínima do nível e avisa', () => {
+    const p = gerarPlanoAnual({ hoje: HOJE, prova, dias: [], cargaBase: 0, perfil: { nivel: 'iniciante' } });
     expect(p.avisos.some((a) => a.includes('Sem histórico'))).toBe(true);
     expect(p.resumo.cargaBase).toBe(100);
+  });
+
+  it('sem histórico e sem nível no perfil vale o piso do intermediário', () => {
+    expect(gerarPlanoAnual({ hoje: HOJE, prova, dias: [], cargaBase: 0 }).resumo.cargaBase).toBe(160);
   });
 
   it('prova distante: cobre só as últimas 52 semanas', () => {

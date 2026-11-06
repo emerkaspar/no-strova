@@ -69,6 +69,31 @@ export async function criarEvento(chave: string, evento: EventoIntervals, requis
   throw new IntervalsErroApi(0, "O intervals.icu não devolveu o código do treino criado.");
 }
 
+/** Esportes cujo LTHR o app confere e atualiza: o tipo de atividade das configurações de esporte do intervals.icu. */
+export type EsporteIntervals = "Ride" | "Run";
+
+const numeroOuNulo = (valor: unknown): number | null => (typeof valor === "number" && Number.isFinite(valor) ? valor : null);
+
+/** LTHR configurado no intervals.icu para o esporte, ou null (sem configuração para o esporte ou sem LTHR). */
+export async function obterLthr(chave: string, esporte: EsporteIntervals, requisitor: Requisitor = requisitorPadrao): Promise<number | null> {
+  try {
+    const dados = (await chamar(chave, "GET", `/athlete/0/sport-settings/${esporte}`, undefined, requisitor)) as { lthr?: unknown } | null;
+    return numeroOuNulo(dados?.lthr);
+  } catch (erro) {
+    if (erro instanceof IntervalsErroApi && erro.status === 404) return null;
+    throw erro;
+  }
+}
+
+/**
+ * Grava o LTHR do esporte no intervals.icu e devolve o valor que ele confirmou. `recalcHrZones=false`: não recalcula as zonas de
+ * FC, para preservar as que o usuário ajustou lá (os treinos vão em % do LTHR e não dependem das zonas).
+ */
+export async function atualizarLthr(chave: string, esporte: EsporteIntervals, lthr: number, requisitor: Requisitor = requisitorPadrao): Promise<number | null> {
+  const dados = (await chamar(chave, "PUT", `/athlete/0/sport-settings/${esporte}?recalcHrZones=false`, { lthr }, requisitor)) as { lthr?: unknown } | null;
+  return numeroOuNulo(dados?.lthr);
+}
+
 export async function atualizarEvento(chave: string, eventoId: string, evento: EventoIntervals, requisitor: Requisitor = requisitorPadrao): Promise<void> {
   await chamar(chave, "PUT", `/athlete/0/events/${encodeURIComponent(eventoId)}`, evento, requisitor);
 }

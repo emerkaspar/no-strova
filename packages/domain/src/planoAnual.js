@@ -1,6 +1,6 @@
 import { modeloPorId, modelosDoCatalogo } from './catalogoTreinos.js';
 import { calcularSerieForma, diasEntre, somarDias } from './forma.js';
-import { LIMITES_IA } from './ia.js';
+import { pisoDaCargaBase } from './ia.js';
 import { estimarEstresseTreino, estresseDoTreino } from './planejamento.js';
 import { diaDaSemana, inicioDaSemana } from './semana.js';
 import { MINIMO_DA_RODAGEM_MIN, MINIMO_DO_LONGAO_MIN, modeloDoTreinoDeBase, treinosDeBaseDisponiveis } from './treinosDeBase.js';
@@ -114,18 +114,20 @@ export function projetarNaProva({ dias, semanas, hoje, dataProva }) {
  *   hoje: string,
  *   prova: { data: string, prioridade: 'A'|'B'|'C', formaAlvo?: number|null },
  *   dias: Array<{ data: string, estresse: number }>,
- *   cargaBase: number
- * }} p `dias`: o estresse diário realizado; `cargaBase`: a carga semanal de partida (ver cargaBaseSemanal)
+ *   cargaBase: number,
+ *   perfil?: { nivel?: string|null, horasSemana?: number|null }
+ * }} p `dias`: o estresse diário realizado; `cargaBase`: a carga semanal de partida (ver cargaBaseSemanal); `perfil`: nível e horas
+ *   por semana, que definem a carga de partida quando não há histórico
  * @returns {{ semanas: any[], resumo: object, avisos: string[] }}
  */
-export function gerarPlanoAnual({ hoje, prova, dias = [], cargaBase }) {
+export function gerarPlanoAnual({ hoje, prova, dias = [], cargaBase, perfil = {} }) {
   const R = REGRAS_PLANO_ANUAL;
   const avisos = [];
   if (!prova || prova.data < hoje) return { semanas: [], resumo: null, avisos: ['O evento já passou ou não foi informado.'] };
 
   let base = cargaBase;
   if (!(base > 0)) {
-    base = LIMITES_IA.pisoDaCargaBase;
+    base = pisoDaCargaBase(perfil);
     avisos.push(`Sem histórico recente de treino: o plano parte de ${base} de carga por semana. Ajuste conforme a sua realidade.`);
   }
 
