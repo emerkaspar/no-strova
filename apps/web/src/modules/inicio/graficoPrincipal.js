@@ -14,9 +14,11 @@ const LARGURA = L - MARGEM.esquerda - MARGEM.direita;
 function layoutDoModo(plano) {
   const faixa = plano ? 0 : 22;
   // o Plano não tem a coluna de peso nem os ícones, então os painéis ficam mais altos e o gráfico acompanha a coluna lateral
-  const cond = { topo: 20, alto: plano ? 200 : 170 };
-  const forma = { topo: cond.topo + cond.alto + 28, alto: (plano ? 150 : 120) + faixa };
-  const terceiro = { topo: forma.topo + forma.alto + 28, alto: plano ? 80 : 90 };
+  // (e os painéis ganham mais respiro entre si, para o título de cada um não encostar no gráfico de cima)
+  const respiro = plano ? 44 : 28;
+  const cond = { topo: plano ? 24 : 20, alto: plano ? 200 : 170 };
+  const forma = { topo: cond.topo + cond.alto + respiro, alto: (plano ? 150 : 120) + faixa };
+  const terceiro = { topo: forma.topo + forma.alto + respiro, alto: plano ? 80 : 90 };
   const fim = terceiro.topo + terceiro.alto;
   return {
     FAIXA_ATIVIDADES: faixa,
@@ -209,7 +211,7 @@ export function criarGraficoPrincipal({
 }) {
   const plano = modo === 'plano';
   const periodos = plano ? PERIODOS_PLANO : PERIODOS;
-  const raiz = h('section', { class: 'card bloco-grafico cg' });
+  const raiz = h('section', { class: `card bloco-grafico cg${plano ? ' cg-plano' : ''}` });
   const periodo = () => periodos.find((p) => p.id === periodoPorModo[modo]) ?? periodos[1];
 
   function desenhar() {
@@ -314,6 +316,8 @@ export function criarGraficoPrincipal({
     // fundo dos dias futuros, atravessando os três painéis
     if (temFuturo) {
       raizSvg.append(svg('rect', { x: px(indiceHoje), y: PAINEL.cond.topo, width: px(n - 1) - px(indiceHoje), height: FIM - PAINEL.cond.topo, class: 'cg-futuro' }));
+      // no Plano, o trecho projetado é nomeado no canto da própria área sombreada (o realizado fica à esquerda de "Hoje")
+      if (plano) raizSvg.append(svg('text', { x: L - MARGEM.direita, y: PAINEL.cond.topo - 8, 'text-anchor': 'end', class: 'cg-futuro-rotulo' }, 'PROJEÇÃO'));
     }
 
     // painel 1: grade 0–100 (ou mais, se a fadiga passar)
@@ -569,12 +573,14 @@ export function criarGraficoPrincipal({
       });
       const total = ESCALA_REGUA.max - ESCALA_REGUA.min;
       const pct = (v) => ((ESCALA_REGUA.max - v) / total) * 100;
+      // o nome da zona do dia selecionado ganha destaque (data-faixa liga o nome à zona)
+      const nomes = segmentos.map(({ f, sup, inf }) => h('span', { class: 'cg-regua-nome', 'data-faixa': f.id, style: `top:${pct((sup + inf) / 2)}%` }, f.rotulo));
       const regua = h(
         'div',
         { class: 'cg-regua' },
         h('div', { class: 'cg-regua-barra' }, ...segmentos.map(({ f, sup, inf }) => h('span', { class: `cg-regua-seg cg-zona-${f.id}`, style: `flex:${sup - inf}` }))),
         marcador,
-        ...segmentos.map(({ f, sup, inf }) => h('span', { class: 'cg-regua-nome', style: `top:${pct((sup + inf) / 2)}%` }, f.rotulo)),
+        ...nomes,
         ...LIMITES_REGUA.map((v) => h('span', { class: 'cg-regua-limite', style: `top:${pct(v)}%` }, v > 0 ? `+${v}` : `−${Math.abs(v)}`)),
       );
       const cartaoRegua = h('div', { class: 'cg-cartao' }, h('h3', { class: 'cg-subtitulo' }, 'Régua de zonas'), regua);
@@ -601,10 +607,14 @@ export function criarGraficoPrincipal({
       );
 
       return {
-        raiz: h('div', { class: 'cg-lateral' }, cartaoDia, cartaoRegua, legenda),
+        // no Plano a legenda sai da coluna lateral e fica logo abaixo do gráfico, junto das séries que ela explica
+        raiz: h('div', { class: 'cg-lateral' }, cartaoDia, cartaoRegua, plano ? null : legenda),
+        legenda,
         mostrar(d) {
           const faixa = FAIXAS_FORMA.find((f) => f.id === d.faixa);
           rotuloDia.textContent = `${statusDoDia(d.data, hoje)} · ${rotuloDoDia(d.data)}`;
+          numero.className = `cg-dia-forma cg-zona-${d.faixa}`;
+          nomes.forEach((nome) => nome.classList.toggle('cg-regua-nome-ativo', nome.dataset.faixa === d.faixa));
           numero.textContent = sinalDaForma(d.forma).replace('−', '-'); // a Anton não tem o sinal de menos
           numero.setAttribute('aria-label', `Forma ${sinalDaForma(d.forma)}`);
           chip.textContent = faixa?.rotulo ?? '';
@@ -701,7 +711,7 @@ export function criarGraficoPrincipal({
       if (e.pointerType !== 'touch') limpar(); // no toque, a seleção fica até o próximo toque
     });
 
-    return h('div', { class: 'cg-corpo' }, h('div', { class: 'cg-principal' }, area), lateral.raiz);
+    return h('div', { class: 'cg-corpo' }, h('div', { class: 'cg-principal' }, area, plano ? lateral.legenda : null), lateral.raiz);
   }
 
   desenhar();

@@ -38,7 +38,7 @@ describe('validarProva', () => {
 
   it('recusa nome curto, data passada, prioridade e esporte inválidos', () => {
     expect(validarProva({ ...base, nome: 'ab' }, HOJE).valido).toBe(false);
-    expect(validarProva({ ...base, data: '2026-11-03' }, HOJE).erros).toContain('A data da prova não pode estar no passado.');
+    expect(validarProva({ ...base, data: '2026-11-03' }, HOJE).erros).toContain('A data do evento não pode estar no passado.');
     expect(validarProva({ ...base, prioridade: 'D' }, HOJE).valido).toBe(false);
     expect(validarProva({ ...base, esporte: 'natacao' }, HOJE).valido).toBe(false);
   });

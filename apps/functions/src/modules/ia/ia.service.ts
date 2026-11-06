@@ -400,14 +400,14 @@ const schemaPlanoAnual = z.object({
  */
 export async function sugerirPlanoAnualDoUsuario(uid: string, bruto: Record<string, unknown>, apiKey: string): Promise<RascunhoDeTreinos & { saida: { porSemana: unknown[] } }> {
   const provaId = bruto.provaId;
-  if (typeof provaId !== "string" || provaId.length < 5 || provaId.length > 40) throw new HttpsError("invalid-argument", "Escolha uma prova.");
+  if (typeof provaId !== "string" || provaId.length < 5 || provaId.length > 40) throw new HttpsError("invalid-argument", "Escolha um evento.");
   const observacao = typeof bruto.observacao === "string" ? bruto.observacao.trim().slice(0, LIMITES_IA_PLANO_ANUAL.observacaoMax) : "";
   const hoje = diaNoFuso(Date.now());
 
   const provaSnap = await db.doc(`provas/${provaId}`).get();
   const dadosProva = provaSnap.data();
-  if (!provaSnap.exists || dadosProva?.userId !== uid) throw new HttpsError("not-found", "Prova não encontrada.");
-  if (typeof dadosProva.data !== "string" || dadosProva.data < hoje) throw new HttpsError("failed-precondition", "A prova já passou.");
+  if (!provaSnap.exists || dadosProva?.userId !== uid) throw new HttpsError("not-found", "Evento não encontrado.");
+  if (typeof dadosProva.data !== "string" || dadosProva.data < hoje) throw new HttpsError("failed-precondition", "O evento já passou.");
   const prova = { data: dadosProva.data as string, prioridade: dadosProva.prioridade as "A" | "B" | "C", formaAlvo: typeof dadosProva.formaAlvo === "number" ? dadosProva.formaAlvo : null };
 
   const [configs, estresseSnap, treinosSnap, prefSnap, feedback] = await Promise.all([
@@ -421,7 +421,7 @@ export async function sugerirPlanoAnualDoUsuario(uid: string, bruto: Record<stri
   const nivel: string = pref.nivelTreinos === "iniciante" || pref.nivelTreinos === "avancado" ? pref.nivelTreinos : "intermediario";
   const esporteProva = dadosProva.esporte === "outro" ? pref.esportePrincipal : dadosProva.esporte;
   if (esporteProva !== "ciclismo" && esporteProva !== "corrida") {
-    throw new HttpsError("failed-precondition", "O rascunho de treinos existe para ciclismo e corrida. Para uma prova em outro esporte, defina o esporte principal no perfil de treino.");
+    throw new HttpsError("failed-precondition", "O rascunho de treinos existe para ciclismo e corrida. Para um evento em outro esporte, defina o esporte principal no perfil de treino.");
   }
   const esporte: "ciclismo" | "corrida" = esporteProva;
   const configEm = (data: string) => configVigenteEm(configs, data);
@@ -430,7 +430,7 @@ export async function sugerirPlanoAnualDoUsuario(uid: string, bruto: Record<stri
   const dias = estresseSnap.docs.map((d) => ({ data: d.data().data as string, estresse: Number(d.data().estresse) || 0 }));
   const cargaBase = cargaBaseSemanal(dias, hoje);
   const plano = gerarPlanoAnual({ hoje, prova, dias, cargaBase });
-  if (plano.semanas.length === 0) throw new HttpsError("failed-precondition", "Não há plano anual para esta prova.");
+  if (plano.semanas.length === 0) throw new HttpsError("failed-precondition", "Não há preparação para este evento.");
 
   const treinos = treinosSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const ctxSemanas = {
@@ -475,10 +475,10 @@ export async function sugerirPlanoAnualDoUsuario(uid: string, bruto: Record<stri
   };
 
   const prompt =
-    `Monte o rascunho de treinos das próximas ${semanas.length} semanas do plano anual do atleta, para a prova "${contexto.prova.nome}" (prioridade ${prova.prioridade}).\n` +
+    `Monte o rascunho de treinos das próximas ${semanas.length} semanas da preparação do atleta para o evento, para o evento "${contexto.prova.nome}" (prioridade ${prova.prioridade}).\n` +
     `O sistema já calculou, para cada semana, a fase e a carga-alvo (soma do estresse HRSS). Você escolhe os treinos de cada dia livre.\n` +
     `Regras que o sistema vai conferir (o que as violar será descartado):\n` +
-    `- Use SOMENTE os dias de "diasLivres" de cada semana, no máximo um treino por dia. Pode deixar um dia livre vazio se a carga da semana não comporta mais treino. Não use a semana da prova (o sistema cuida da soltura da véspera).\n` +
+    `- Use SOMENTE os dias de "diasLivres" de cada semana, no máximo um treino por dia. Pode deixar um dia livre vazio se a carga da semana não comporta mais treino. Não use a semana do evento (o sistema cuida da soltura da véspera).\n` +
     `- Carga: a soma do estresse dos treinos da semana, mais "jaFeitoOuPlanejado", deve ficar perto de "cargaAlvo" e no máximo 25% acima. Treino de 'catalogo' tem o estresse no campo "estresse". Treino de 'base' tem "estresseNaReferencia" para "minutosDaReferencia" minutos: o estresse cresce de forma aproximadamente proporcional à duração.\n` +
     `- Fases: 'base' = rodagens, treinos moderados e longão; 'construcao' e 'pico' = no máximo 1 ou 2 treinos fortes (intensidade "alta") por semana, com 48 h entre eles, mais um moderado; 'polimento' = só treinos leves e curtos, sem treino forte nem moderado. Semana de recuperação = só treinos leves (intensidade "baixa", ou base com "recuperacao": true, ou o longao-raiz).\n` +
     `- Longão: só no "diaDoLongao" da semana, com 120 minutos ou mais (treino de base 'longao-*' ou de catalogo com 'Longão' no nome). Se a carga da semana não comporta 2 horas, não coloque longão: use uma rodagem.\n` +

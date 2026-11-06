@@ -15,9 +15,10 @@ export function wizardAberto() {
 /**
  * Abre o wizard de perfil em tela cheia. No primeiro acesso (`primeiraVez`) começa pelas boas-vindas; pelo menu da conta
  * começa em "Você", já preenchido com o que está salvo. Cada passo grava ao continuar, então sair não perde o que já foi feito.
- * @param {{ sessao: any, primeiraVez?: boolean, aoFechar?: () => void }} p
+ * Com `passoInicial` (id de um passo, ex.: 'semana'), abre direto nele.
+ * @param {{ sessao: any, primeiraVez?: boolean, passoInicial?: string|null, aoFechar?: () => void }} p
  */
-export function abrirWizard({ sessao, primeiraVez = false, aoFechar = () => {} }) {
+export function abrirWizard({ sessao, primeiraVez = false, passoInicial = null, aoFechar = () => {} }) {
   if (aberto) return;
   aberto = true;
 
@@ -84,13 +85,19 @@ export function abrirWizard({ sessao, primeiraVez = false, aoFechar = () => {} }
       const i = passos.findIndex((p) => p.id === id);
       if (i >= 0) mostrar(i);
     };
+    // Perfil já preenchido aberto pelo menu: mostra o resumo e só entra nos passos pelo "Editar".
+    const revisao = !primeiraVez && situacaoDoPerfilDeTreino({ preferencias: dados.preferencias, configs: dados.configs }) === 'ok';
     const concluir = async () => {
+      if (revisao) {
+        fechar();
+        return;
+      }
       await concluirOnboarding(sessao.uid);
       concluido = true;
       fechar();
       window.location.hash = '#/inicio';
     };
-    passos = criarPassos({ uid: sessao.uid, sessao, dados, estado, irPara: irParaId, concluir });
+    passos = criarPassos({ uid: sessao.uid, sessao, dados, estado, irPara: irParaId, concluir, revisao });
     if (!primeiraVez) passos = passos.filter((p) => p.id !== 'inicio');
 
     // O progresso conta os passos de dados (as boas-vindas ficam de fora).
@@ -99,13 +106,17 @@ export function abrirWizard({ sessao, primeiraVez = false, aoFechar = () => {} }
       ...passosDeDados.map((p) => h('li', { class: 'wz-etapa', 'aria-label': p.rotulo }, h('span', { class: 'wz-etapa-barra' }), h('span', { class: 'wz-etapa-nome' }, p.rotulo))),
     );
 
+    const iResumo = passos.length - 1;
+
     function mostrar(i) {
       const direcao = i >= anterior ? 'vai' : 'volta';
       anterior = i;
       indice = i;
       const passo = passos[i];
       const pos = passosDeDados.indexOf(passo);
-      textoPasso.textContent = pos < 0 ? 'Boas-vindas' : `Passo ${pos + 1} de ${passosDeDados.length}`;
+      const noResumo = revisao && i === iResumo;
+      progresso.hidden = noResumo;
+      textoPasso.textContent = noResumo ? 'Perfil de treino' : revisao ? 'Editando' : pos < 0 ? 'Boas-vindas' : `Passo ${pos + 1} de ${passosDeDados.length}`;
       [...progresso.children].forEach((li, n) => {
         li.classList.toggle('feito', n < pos);
         li.classList.toggle('atual', n === pos);
@@ -114,8 +125,12 @@ export function abrirWizard({ sessao, primeiraVez = false, aoFechar = () => {} }
       });
 
       const mensagem = areaMensagem();
-      const botaoVoltar = h('button', { class: 'btn btn-secundario wz-voltar', type: 'button', hidden: i === 0, onClick: () => mostrar(i - 1) }, 'Voltar');
-      const botaoContinuar = h('button', { class: 'btn wz-continuar', type: 'submit' }, passo.textoContinuar ?? 'Continuar');
+      const botaoVoltar = h(
+        'button',
+        { class: 'btn btn-secundario wz-voltar', type: 'button', hidden: revisao ? noResumo : i === 0, onClick: () => mostrar(revisao ? iResumo : i - 1) },
+        revisao ? 'Cancelar' : 'Voltar',
+      );
+      const botaoContinuar = h('button', { class: 'btn wz-continuar', type: 'submit' }, passo.textoContinuar ?? (revisao ? 'Salvar' : 'Continuar'));
       const titulo = h('h1', { id: 'wz-titulo', class: 'wz-titulo', tabindex: '-1' }, passo.titulo);
       const form = h(
         'form',
@@ -129,7 +144,7 @@ export function abrirWizard({ sessao, primeiraVez = false, aoFechar = () => {} }
               mensagem,
               async () => {
                 await passo.continuar?.();
-                if (passo.id !== 'pronto') mostrar(i + 1);
+                if (passo.id !== 'pronto') mostrar(revisao ? iResumo : i + 1);
               },
               'Salvando...',
             );
@@ -146,6 +161,7 @@ export function abrirWizard({ sessao, primeiraVez = false, aoFechar = () => {} }
       (passo.foco ?? titulo).focus({ preventScroll: true });
     }
 
-    mostrar(indice);
+    mostrar(revisao ? iResumo : indice);
+    if (passoInicial) irParaId(passoInicial);
   }
 }

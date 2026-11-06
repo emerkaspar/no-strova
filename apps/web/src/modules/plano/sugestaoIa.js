@@ -1,22 +1,27 @@
-import { AVISO_IA, modeloPorId } from '@no-strova/domain';
+import { AVISO_IA, LIMITES_IA_PLANO_ANUAL, modeloPorId, provaDoPlano, provasFuturas } from '@no-strova/domain';
 import { lerPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { aceitarTreinosDaIa, descartarRascunho, pedirTreinosDaIa, restantesDaIa } from '../../application/ia.js';
+import { pedirRascunhoAnualDaIa } from '../../application/provas.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { seletor } from '../../utils/listaSuspensa.js';
 import { formatarData } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
+import { desenharRascunhoAnual } from './rascunhoAnual.js';
 
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const rotuloDaData = (iso) => `${DIAS[new Date(`${iso}T12:00:00Z`).getUTCDay()]} ${formatarData(iso).slice(0, 5)}`;
 
 /**
- * Cartão "Sugestão de treinos com IA": o usuário informa semanas, dias e horas; a IA escolhe treinos do catálogo (o
- * servidor confere os limites de segurança) e o resultado é um rascunho que ele revisa, marca e aceita ou descarta.
- * @param {{ uid: string, obterConfigs: () => any[], aoAceitar?: () => void }} p
- *   O cartão é criado uma vez (guarda o formulário e o rascunho aberto); `obterConfigs` lê as configurações atuais.
+ * Painel único de IA do plano: o usuário escolhe o horizonte — "próximas semanas" (dias, longão e horas; a IA escolhe treinos
+ * do catálogo) ou "até a prova" (a IA monta as primeiras semanas rumo ao evento escolhido) — e o resultado é um rascunho que ele
+ * revisa, marca e aceita ou descarta. O servidor confere os limites de segurança; as duas formas consomem a mesma cota diária.
+ * @param {{ uid: string, hoje: string, obterContexto: () => { configs: any[], calibracao: any, provas: any[] }, aoAceitar?: () => void }} p
+ *   O painel é criado uma vez (guarda o formulário e o rascunho aberto); `atualizar()` relê as provas.
  */
-export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} }) {
+export function criarPainelIa({ uid, hoje, obterContexto, aoAceitar = () => {} }) {
+  let horizonte = 'semanas'; // 'semanas' | 'prova'
+
   const semanas = selecao({ id: 'ia-semanas', rotulo: 'Semanas', valor: '2', opcoes: [1, 2, 3, 4].map((n) => ({ valor: String(n), rotulo: `${n} semana${n === 1 ? '' : 's'}` })) });
   const ABREV = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   const NOMES = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -83,16 +88,51 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
       if (p.esportePrincipal) esporte.select.value = p.esportePrincipal;
     })
     .catch(() => {});
-  const observacao = campo({ id: 'ia-obs', rotulo: 'Observação (opcional)', maxlength: '300', placeholder: 'ex.: viajo na semana 2; joelho sensível', autocomplete: 'off' });
+
+  // ---- horizonte "até o evento" ----
+  const provaSel = seletor({ id: 'ia-prova', rotulo: 'Evento' });
+  const provaCampo = h('div', { class: 'campo' }, h('label', { for: 'ia-prova' }, 'Evento'), provaSel);
+  const semProva = h('p', { class: 'texto-secundario' }, 'Cadastre um evento futuro (seção Eventos) para a IA montar o plano até ele.');
+  let chaveProvas = null;
+  function atualizarProvas() {
+    const futuras = provasFuturas(obterContexto().provas, hoje);
+    const chave = futuras.map((p) => p.id).join(',');
+    if (chave === chaveProvas) return;
+    chaveProvas = chave;
+    const atual = futuras.some((p) => p.id === provaSel.value) ? provaSel.value : (provaDoPlano(futuras, hoje)?.id ?? '');
+    provaSel.definirOpcoes(futuras.map((p) => ({ valor: p.id, rotulo: `${p.prioridade} · ${p.nome} · ${formatarData(p.data)}` })), atual);
+    desenharHorizonte();
+  }
+
+  const observacao = campo({ id: 'ia-obs', rotulo: 'Observação (opcional)', maxlength: String(LIMITES_IA_PLANO_ANUAL.observacaoMax), placeholder: 'ex.: viajo na semana 2; joelho sensível', autocomplete: 'off' });
   const mensagem = areaMensagem();
   const contador = h('p', { class: 'texto-secundario ia-restantes' });
   const resultado = h('div', { class: 'ia-resultado' });
   const botao = h('button', { class: 'btn', type: 'submit' }, 'Sugerir treinos');
 
   function atualizarRestantes(n) {
-    contador.textContent = n === undefined ? '' : n === null ? 'Sem limite de sugestões de IA por dia.' : `Restam ${n} sugest${n === 1 ? 'ão' : 'ões'} de IA hoje (limite definido pelo administrador, somando treinos e peso).`;
+    contador.textContent = n === undefined ? '' : n === null ? 'Sem limite de sugestões de IA por dia.' : `Restam ${n} sugest${n === 1 ? 'ão' : 'ões'} de IA hoje (limite definido pelo administrador; cada pedido, de qualquer tipo, conta uma).`;
   }
   restantesDaIa().then(atualizarRestantes).catch(() => {});
+
+  const camposSemanas = [semanas.raiz, horas.raiz, esporte.raiz, diasCampo, longaoCampo];
+  const camposProva = [provaCampo];
+  const grupoSemanas = h('div', { class: 'ia-grupo' }, ...camposSemanas);
+  const grupoProva = h('div', { class: 'ia-grupo' }, ...camposProva);
+  const botoesHorizonte = h('div', { class: 'linha-botoes', role: 'group', 'aria-label': 'Até quando a IA deve planejar' });
+
+  function desenharHorizonte() {
+    const futuras = chaveProvas !== '' && chaveProvas !== null;
+    const botaoHorizonte = (id, rotulo) =>
+      h('button', { class: 'btn btn-secundario', type: 'button', 'aria-pressed': String(horizonte === id), onClick: () => { horizonte = id; desenharHorizonte(); } }, rotulo);
+    botoesHorizonte.replaceChildren(botaoHorizonte('semanas', 'Próximas semanas'), botaoHorizonte('prova', 'Até o evento'));
+    grupoSemanas.hidden = horizonte !== 'semanas';
+    grupoProva.hidden = horizonte !== 'prova';
+    provaCampo.hidden = !futuras;
+    semProva.hidden = horizonte !== 'prova' || futuras;
+    botao.textContent = horizonte === 'prova' ? 'Montar plano até o evento' : 'Sugerir treinos';
+    botao.disabled = horizonte === 'prova' && !futuras;
+  }
 
   function mostrarRascunho({ rascunhoId, saida, restantes }) {
     atualizarRestantes(restantes);
@@ -110,7 +150,7 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
     botaoAceitar.addEventListener('click', () =>
       executarComBotao(botaoAceitar, msgDecisao, async () => {
         const escolhidos = itens.filter((_, i) => marcados.has(i)).map((it) => ({ modelo: modeloPorId(it.modeloId), data: it.data }));
-        await aceitarTreinosDaIa({ uid, rascunhoId, itens: escolhidos, configs: obterConfigs() });
+        await aceitarTreinosDaIa({ uid, rascunhoId, itens: escolhidos, configs: obterContexto().configs });
         resultado.replaceChildren(h('p', { class: 'mensagem mensagem-ok', role: 'status' }, `${escolhidos.length} treino${escolhidos.length === 1 ? '' : 's'} adicionado${escolhidos.length === 1 ? '' : 's'} ao plano.`));
         aoAceitar();
       }),
@@ -156,6 +196,31 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
     );
   }
 
+  /** Rascunho "até o evento": mesmo formato do rascunho por regras, com os treinos agrupados por semana. */
+  function mostrarRascunhoDaProva(resposta, prova) {
+    const { saida } = resposta;
+    atualizarRestantes(resposta.restantes);
+    resultado.replaceChildren(
+      desenharRascunhoAnual({
+        rascunho: {
+          itens: saida.itens,
+          avisos: saida.avisos,
+          porSemana: saida.porSemana,
+          marcados: new Set(saida.itens.map((_, i) => i)),
+          ia: { rascunhoId: resposta.rascunhoId, resumo: saida.resumo, aviso: saida.aviso },
+        },
+        prova,
+        uid,
+        obterContexto,
+        aoDescartar: () => resultado.replaceChildren(h('p', { class: 'texto-secundario' }, 'Sugestão descartada. Nada foi alterado no plano.')),
+        aoAceitar: (n) => {
+          resultado.replaceChildren(h('p', { class: 'mensagem mensagem-ok', role: 'status' }, `${n} treino${n === 1 ? '' : 's'} adicionado${n === 1 ? '' : 's'} ao plano.`));
+          aoAceitar();
+        },
+      }),
+    );
+  }
+
   const form = h(
     'form',
     {
@@ -166,8 +231,15 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
         executarComBotao(botao, mensagem, async () => {
           resultado.replaceChildren(h('p', { class: 'texto-secundario', role: 'status' }, 'A IA está montando o plano… pode levar alguns segundos.'));
           try {
-            const r = await pedirTreinosDaIa({ semanas: semanas.select.value, diasDaSemana: [...escolhidos], diaLongao: longaoSelecionado.valor === '' ? null : Number(longaoSelecionado.valor), horasPorSemana: horas.input.value, esporte: esporte.select.value, observacao: observacao.input.value });
-            mostrarRascunho(r);
+            if (horizonte === 'prova') {
+              const prova = provasFuturas(obterContexto().provas, hoje).find((p) => p.id === provaSel.value);
+              if (!prova) throw new Error('Escolha um evento futuro.');
+              const resposta = await pedirRascunhoAnualDaIa({ provaId: prova.id, observacao: observacao.input.value.trim() });
+              mostrarRascunhoDaProva(resposta, prova);
+            } else {
+              const r = await pedirTreinosDaIa({ semanas: semanas.select.value, diasDaSemana: [...escolhidos], diaLongao: longaoSelecionado.valor === '' ? null : Number(longaoSelecionado.valor), horasPorSemana: horas.input.value, esporte: esporte.select.value, observacao: observacao.input.value });
+              mostrarRascunho(r);
+            }
           } catch (err) {
             resultado.replaceChildren();
             throw err;
@@ -175,23 +247,26 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
         });
       },
     },
-    semanas.raiz,
-    horas.raiz,
-    esporte.raiz,
-    diasCampo,
-    longaoCampo,
+    botoesHorizonte,
+    grupoSemanas,
+    grupoProva,
+    semProva,
     observacao.raiz,
     h('div', { class: 'campo campo-botao' }, botao),
   );
 
-  return h(
+  const el = h(
     'section',
-    { class: 'card ia-cartao' },
+    { class: 'card ia-cartao', id: 'plano-ia', hidden: true },
     h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Sugestão de treinos com IA')),
-    h('p', { class: 'texto-secundario' }, 'Escolha os dias em que quer treinar (e o dia do longão): a IA monta as próximas semanas com treinos do catálogo, olhando o seu Condicionamento, a Forma e o que já está no plano. Você revisa e escolhe o que entra.'),
+    h('p', { class: 'texto-secundario' }, 'Escolha até quando planejar: as próximas semanas (você informa os dias e o longão) ou até o evento. A IA monta os treinos olhando o seu Condicionamento, a Forma e o que já está no plano; você revisa e escolhe o que entra.'),
     form,
     mensagem.el,
     contador,
     resultado,
   );
+  atualizarProvas();
+  desenharHorizonte();
+
+  return { el, atualizar: atualizarProvas };
 }

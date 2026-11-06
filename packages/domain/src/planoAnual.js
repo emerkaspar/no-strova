@@ -15,7 +15,7 @@ export const FASES = Object.freeze({
   base: { rotulo: 'Base', descricao: 'Volume leve e constância para construir a base.' },
   construcao: { rotulo: 'Construção', descricao: 'A carga sobe e entram os treinos de qualidade.' },
   pico: { rotulo: 'Pico', descricao: 'Carga no ponto mais alto, com treinos específicos.' },
-  polimento: { rotulo: 'Polimento', descricao: 'A carga cai para chegar descansado na prova.' },
+  polimento: { rotulo: 'Polimento', descricao: 'A carga cai para chegar descansado no evento.' },
 });
 
 export const REGRAS_PLANO_ANUAL = Object.freeze({
@@ -121,7 +121,7 @@ export function projetarNaProva({ dias, semanas, hoje, dataProva }) {
 export function gerarPlanoAnual({ hoje, prova, dias = [], cargaBase }) {
   const R = REGRAS_PLANO_ANUAL;
   const avisos = [];
-  if (!prova || prova.data < hoje) return { semanas: [], resumo: null, avisos: ['A prova já passou ou não foi informada.'] };
+  if (!prova || prova.data < hoje) return { semanas: [], resumo: null, avisos: ['O evento já passou ou não foi informado.'] };
 
   let base = cargaBase;
   if (!(base > 0)) {
@@ -136,7 +136,7 @@ export function gerarPlanoAnual({ hoje, prova, dias = [], cargaBase }) {
   if (totalSemanas > R.maximoSemanas) {
     totalSemanas = R.maximoSemanas;
     inicioDoPlano = somarDias(semanaProva, -7 * (R.maximoSemanas - 1));
-    avisos.push(`A prova está a mais de ${R.maximoSemanas} semanas: o plano cobre só as últimas ${R.maximoSemanas} antes dela.`);
+    avisos.push(`O evento está a mais de ${R.maximoSemanas} semanas: o plano cobre só as últimas ${R.maximoSemanas} antes dele.`);
   }
   if (totalSemanas < 3) avisos.push('Faltam poucas semanas: o plano é só de polimento e manutenção.');
 
@@ -222,8 +222,8 @@ export function itemDeAtivacao({ vespera, esporte, config, calibracao = null }) 
   const duracao = MINIMO_DA_RODAGEM_MIN[esporte] ?? 30;
   const estresse = estimarEstresseTreino({ zona: 'Z1', duracaoMin: duracao, config, esporte, calibracao }) ?? 0;
   return {
-    data: vespera, tipo: 'ativacao', estresse, motivo: 'Soltura leve na véspera da prova.',
-    entrada: { esporte, data: vespera, duracaoMin: duracao, zona: 'Z1', observacoes: 'Plano anual: soltura leve antes da prova.' },
+    data: vespera, tipo: 'ativacao', estresse, motivo: 'Soltura leve na véspera do evento.',
+    entrada: { esporte, data: vespera, duracaoMin: duracao, zona: 'Z1', observacoes: 'Preparação: soltura leve antes do evento.' },
   };
 }
 
@@ -281,7 +281,7 @@ export function gerarRascunhoDoPlano({
   const avisos = [];
   const itens = [];
   const porSemana = [];
-  if (!plano?.semanas?.length) return { itens, avisos: ['Não há plano anual para montar o rascunho.'], porSemana };
+  if (!plano?.semanas?.length) return { itens, avisos: ['Não há preparação para o evento para montar o rascunho.'], porSemana };
   if (esporte !== 'ciclismo' && esporte !== 'corrida') return { itens, avisos: ['O rascunho de treinos existe para ciclismo e corrida.'], porSemana };
 
   const configHoje = configEm(somarDias(hoje, 1));

@@ -106,7 +106,7 @@ describe('validarRascunhoAnualDaIa: dias', () => {
     expect(r.itens.some((i) => i.data === '2026-11-14' && i.tipo === 'ativacao')).toBe(true);
     expect(r.itens.some((i) => i.data === '2026-11-14' && i.tipo !== 'ativacao')).toBe(false);
     expect(r.itens.every((i) => i.data < prova.data)).toBe(true);
-    expect(temAviso(r, 'na semana da prova só vale a soltura')).toBe(true);
+    expect(temAviso(r, 'na semana do evento só vale a soltura')).toBe(true);
   });
 });
 

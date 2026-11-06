@@ -18,7 +18,7 @@ import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { abrirSugestaoDeTreinoDoDia } from './sugestaoTreinoDia.js';
-import { contarPendencias, criarCartaoAcompanhamento } from './acompanhamento.js';
+import { criarFaixaPendencias } from './acompanhamento.js';
 import { desenharCalendario } from './calendario.js';
 import { criarEditor } from './editor.js';
 import { criarPainelEnviarGarmin } from './enviarGarmin.js';
@@ -26,7 +26,7 @@ import { criarCartaoMeta } from './meta.js';
 import { criarCartaoMetaCondicionamento } from './metaCondicionamento.js';
 import { criarCartaoPlanoAnual } from './planoAnual.js';
 import { criarCartaoProvas } from './provas.js';
-import { criarCartaoSugestaoIa } from './sugestaoIa.js';
+import { criarPainelIa } from './sugestaoIa.js';
 import { criarTreinoDoDia } from '../inicio/treinoDoDia.js';
 import { criarCartaoProjecao } from './projecao.js';
 import { estadoPlano } from './state.js';
@@ -38,15 +38,19 @@ function rotuloDoPeriodo(visao, ancora) {
   return `${formatarData(inicio)} a ${formatarData(somarDias(inicio, 6))}`;
 }
 
-const ABAS = [
-  { id: 'projecao', rotulo: 'Projeção' },
+/** Seções da página, na ordem em que aparecem; a barra de âncoras no topo leva a elas. */
+const SECOES = [
   { id: 'calendario', rotulo: 'Calendário' },
-  { id: 'provas', rotulo: 'Provas' },
-  { id: 'acompanhamento', rotulo: 'Acompanhamento' },
+  { id: 'projecao', rotulo: 'Projeção' },
+  { id: 'provas', rotulo: 'Eventos' },
 ];
+/** Rotas antigas (#/plano/acompanhamento) rolam até a seção que herdou o conteúdo. */
+const ALVO_DA_ROTA = Object.freeze({ calendario: 'plano-calendario', projecao: 'plano-projecao', provas: 'plano-provas', acompanhamento: 'plano-pendencias' });
+
+const carregando = () => h('p', { class: 'vazio', role: 'status' }, 'Carregando…');
 
 export function render(raiz, sessao, params = {}) {
-  let aba = ABAS.some((a) => a.id === params.aba) ? params.aba : 'calendario';
+  let secaoInicial = ALVO_DA_ROTA[params.secao] ? params.secao : null; // rola até ela quando os dados chegarem
   const hoje = hojeIso();
   const desde = dataInicialDoHistorico(hoje);
   const dados = { dias: [], treinos: [], atividades: [], configs: [], metas: [], metasCondicionamento: [], modelos: [], provas: [], calibracao: null, preferencias: null };
@@ -60,8 +64,14 @@ export function render(raiz, sessao, params = {}) {
   const calendario = h('div');
   const editorArea = h('div');
   const exportacaoArea = h('div');
-  const abas = h('div', { class: 'treinos-abas', role: 'tablist', 'aria-label': 'Seções do plano' });
-  const paineis = Object.fromEntries(ABAS.map((a) => [a.id, h('div', { class: 'pilha plano-painel', id: `plano-painel-${a.id}`, role: 'tabpanel', 'aria-labelledby': `plano-aba-${a.id}` })]));
+  const ancoras = h('nav', { class: 'plano-ancoras', 'aria-label': 'Seções do plano' });
+  const secPendencias = h('div');
+  const secCalendario = h('div', { class: 'pilha plano-secao', id: 'plano-calendario' });
+  const secProjecao = h('div', { class: 'pilha plano-secao', id: 'plano-projecao' });
+  const secProvas = h('div', { class: 'pilha plano-secao', id: 'plano-provas' });
+  const secaoPorId = { calendario: secCalendario, projecao: secProjecao, provas: secProvas };
+  let secaoVisivel = 'calendario';
+  let observador = null;
 
   const ancora = () => estadoPlano.ancora ?? hoje;
   const treinoDoDia = criarTreinoDoDia(dados, hoje);
@@ -206,12 +216,9 @@ Os treinos já realizados e o de hoje não são afetados.`,
           {
             class: 'btn btn-secundario',
             type: 'button',
-            onClick: () => {
-              irParaAba('provas');
-              cartaoProvas.abrirNova();
-            },
+            onClick: () => cartaoProvas.abrirNova(), // o formulário fica na seção Provas e a rola até o campo
           },
-          'Nova prova',
+          'Novo evento',
         ),
         temRecurso(obterSessao().perfil, RECURSOS.GARMIN)
           ? h('button', { class: 'btn btn-secundario', type: 'button', onClick: alternarExportacao }, 'Enviar para o Garmin')
@@ -246,27 +253,48 @@ Os treinos já realizados e o de hoje não são afetados.`,
     }
   }
 
-  // ---- abas: a aba aberta fica na URL (#/plano, #/plano/projecao, …) sem recarregar a tela ----
-  function irParaAba(id) {
-    if (id === aba) return;
-    aba = id;
-    window.history.pushState(null, '', id === 'calendario' ? '#/plano' : `#/plano/${id}`);
-    desenhar();
+  // ---- âncoras: a barra fixa leva às seções e destaca a que está na tela; a URL acompanha, sem recarregar ----
+  function rolarPara(id, comportamento = 'smooth') {
+    const alvo = document.getElementById(ALVO_DA_ROTA[id]) ?? secaoPorId[id];
+    alvo?.scrollIntoView?.({ behavior: comportamento, block: 'start' });
   }
 
-  function desenharAbas(pronto) {
-    const pendencias = pronto ? contarPendencias({ treinos: dados.treinos, atividades: dados.atividades, hoje }) : 0;
-    abas.replaceChildren(
-      ...ABAS.map((a) =>
-        h(
-          'button',
-          { class: 'treinos-aba', type: 'button', role: 'tab', id: `plano-aba-${a.id}`, 'aria-selected': String(aba === a.id), 'aria-controls': `plano-painel-${a.id}`, onClick: () => irParaAba(a.id) },
-          a.rotulo,
-          a.id === 'acompanhamento' && pendencias > 0 ? h('span', { class: 'aba-contagem', title: `${pendencias} pendentes` }, String(pendencias)) : null,
-        ),
+  function irParaSecao(id) {
+    window.history.replaceState(null, '', id === 'calendario' ? '#/plano' : `#/plano/${id}`);
+    rolarPara(id);
+  }
+
+  function desenharAncoras() {
+    ancoras.replaceChildren(
+      ...SECOES.map((s) =>
+        h('button', { class: 'plano-ancora', type: 'button', 'aria-current': secaoVisivel === s.id ? 'true' : null, onClick: () => irParaSecao(s.id) }, s.rotulo),
       ),
     );
-    for (const a of ABAS) paineis[a.id].hidden = aba !== a.id;
+  }
+
+  /** Destaca na barra a seção que ocupa a parte de cima da tela. */
+  function observarSecoes() {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const visiveis = new Set();
+    observador = new IntersectionObserver(
+      (entradas) => {
+        for (const e of entradas) {
+          if (e.isIntersecting) visiveis.add(e.target.dataset.secao);
+          else visiveis.delete(e.target.dataset.secao);
+        }
+        const atual = SECOES.find((s) => visiveis.has(s.id))?.id;
+        if (atual && atual !== secaoVisivel) {
+          secaoVisivel = atual;
+          desenharAncoras();
+        }
+      },
+      // só conta a faixa de cima da tela (abaixo da barra fixa)
+      { rootMargin: '-80px 0px -60% 0px' },
+    );
+    for (const s of SECOES) {
+      secaoPorId[s.id].dataset.secao = s.id;
+      observador.observe(secaoPorId[s.id]);
+    }
   }
 
   // ---- desenho ----
@@ -280,23 +308,44 @@ Os treinos já realizados e o de hoje não são afetados.`,
       aviso.replaceChildren('Cadastre a sua configuração de FC para o app estimar o estresse dos treinos. ', h('a', { href: '#/configuracao' }, 'Ir para Configuração'));
     }
 
-    desenharAbas(pronto);
-    // só a aba aberta é desenhada; as outras são refeitas quando abertas
-    if (aba === 'calendario') desenharAbaCalendario(pronto);
-    else if (!pronto) paineis[aba].replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
-    else if (aba === 'projecao') desenharAbaProjecao();
-    else if (aba === 'provas') desenharAbaProvas();
-    else desenharAbaAcompanhamento();
+    desenharPendencias(pronto);
+    desenharSecaoCalendario(pronto);
+    desenharSecaoProjecao(pronto);
+    desenharSecaoProvas(pronto);
+    painelIa?.atualizar();
+
+    // rota antiga (#/plano/provas, /acompanhamento…): só rola quando os dados chegaram, para a página já ter a altura final
+    if (pronto && secaoInicial) {
+      const id = secaoInicial;
+      secaoInicial = null;
+      requestAnimationFrame(() => rolarPara(id, 'auto'));
+    }
   }
 
-  function desenharAbaCalendario(pronto) {
+  /** Faixa fina no topo: só existe quando há treino para vincular ou atrasado. */
+  function desenharPendencias(pronto) {
+    const faixa = pronto
+      ? criarFaixaPendencias({
+          treinos: dados.treinos,
+          atividades: dados.atividades,
+          hoje,
+          aoVincular: (treinoId, atividadeId) => executar(() => vincularTreino(treinoId, atividadeId), 'Treino vinculado à atividade.'),
+          aoPular: (treinoId) => executar(() => pularTreino(treinoId), 'Treino marcado como pulado.'),
+          aoReagendar: (treinoId, data) => executar(() => moverTreino(treinoId, data), 'Treino reagendado para hoje.'),
+          aoIgnorar: desenhar,
+        })
+      : null;
+    secPendencias.replaceChildren(...(faixa ? [faixa] : []));
+  }
+
+  function desenharSecaoCalendario(pronto) {
     desenharBarra();
     const semanasAnual = pronto ? semanasDoPlanoAnual() : [];
     const metaDaSemana = (inicio) => {
       const fim = somarDias(inicio, 6);
       const s = semanasAnual.find((x) => x.inicio <= fim && x.fim >= inicio);
       if (!s) return null;
-      const extras = [s.recuperacao ? 'recuperação' : null, s.semanaDaProva ? 'semana da prova' : null].filter(Boolean);
+      const extras = [s.recuperacao ? 'recuperação' : null, s.semanaDaProva ? 'semana do evento' : null].filter(Boolean);
       return { cargaAlvo: s.cargaAlvo, fase: FASES[s.fase]?.rotulo ?? s.fase, detalhe: extras.join(' · ') };
     };
     const futurosN = pronto ? treinosFuturos(dados.treinos, hoje).length : 0;
@@ -339,7 +388,11 @@ Os treinos já realizados e o de hoje não são afetados.`,
     );
   }
 
-  function desenharAbaProjecao() {
+  function desenharSecaoProjecao(pronto) {
+    if (!pronto) {
+      secProjecao.replaceChildren(carregando());
+      return;
+    }
     const metasAtivas = dados.metas.filter((m) => m.ativa);
     const metaAtiva = metasAtivas.sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null;
     const anteriores = dados.metas.filter((m) => !m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? 1 : -1)).slice(0, 5);
@@ -356,7 +409,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
       calibracao: dados.calibracao,
     });
     const condicionamentoAtual = serie.find((d) => d.data === hoje)?.fitness ?? null;
-    paineis.projecao.replaceChildren(
+    secProjecao.replaceChildren(
       criarCartaoProjecao({
         serie,
         hoje,
@@ -366,19 +419,28 @@ Os treinos já realizados e o de hoje não são afetados.`,
         avaliacaoCondicionamento,
         treinoDoDia,
         // clicar num dia com atividade abre a atividade (modal para escolher, se houver mais de uma); nos demais, o treino planejado
-        // dele ou um novo treino naquela data (o editor fica na aba Calendário)
+        // dele ou um novo treino naquela data (o editor fica na seção do Calendário e a tela rola até ele)
         aoClicarDia: (data) => {
           if (abrirAtividadeDoDia(data, dados.atividades)) return;
-          irParaAba('calendario');
           abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);
         },
       }),
-      criarCartaoMetaCondicionamento({ uid: sessao.uid, hoje, metaAtiva: metaCondAtiva, metasAnteriores: anterioresCond, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
-      criarCartaoMeta({ uid: sessao.uid, hoje, metaAtiva, metasAnteriores: anteriores, avaliacao }),
+      // as duas metas num único bloco, em largura total, logo abaixo do gráfico (uma por linha, separadas por um filete)
+      h(
+        'section',
+        { class: 'card plano-metas', 'aria-label': 'Metas' },
+        h('h2', { class: 'plano-metas-titulo' }, 'Metas'),
+        criarCartaoMetaCondicionamento({ uid: sessao.uid, hoje, metaAtiva: metaCondAtiva, metasAnteriores: anterioresCond, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
+        criarCartaoMeta({ uid: sessao.uid, hoje, metaAtiva, metasAnteriores: anteriores, avaliacao }),
+      ),
     );
   }
 
-  function desenharAbaProvas() {
+  function desenharSecaoProvas(pronto) {
+    if (!pronto) {
+      secProvas.replaceChildren(carregando());
+      return;
+    }
     cartaoProvas.atualizar(dados.provas);
     cartaoPlanoAnual.atualizar({
       provas: dados.provas,
@@ -390,42 +452,36 @@ Os treinos já realizados e o de hoje não são afetados.`,
       preferencias: dados.preferencias,
       metasForma: dados.metas,
     });
-    paineis.provas.replaceChildren(cartaoProvas.el, cartaoPlanoAnual.el);
-  }
-
-  function desenharAbaAcompanhamento() {
-    paineis.acompanhamento.replaceChildren(
-      criarCartaoAcompanhamento({
-        treinos: dados.treinos,
-        atividades: dados.atividades,
-        configs: dados.configs,
-        calibracao: dados.calibracao,
-        hoje,
-        aoVincular: (treinoId, atividadeId) => executar(() => vincularTreino(treinoId, atividadeId), 'Treino vinculado à atividade.'),
-        aoPular: (treinoId) => executar(() => pularTreino(treinoId), 'Treino marcado como pulado.'),
-        aoReagendar: (treinoId, data) => executar(() => moverTreino(treinoId, data), 'Treino reagendado para hoje.'),
-        aoIgnorar: desenhar,
-      }),
-    );
+    secProvas.replaceChildren(cartaoProvas.el, cartaoPlanoAnual.el);
   }
 
   // A IA só aparece para quem o administrador liberou (o servidor confere de novo em cada pedido).
-  const cartaoIa = temRecurso(obterSessao().perfil, RECURSOS.IA) ? criarCartaoSugestaoIa({ uid: sessao.uid, obterConfigs: () => dados.configs }) : null;
+  const comIa = temRecurso(obterSessao().perfil, RECURSOS.IA);
+  const painelIa = comIa ? criarPainelIa({ uid: sessao.uid, hoje, obterContexto: () => ({ configs: dados.configs, calibracao: dados.calibracao, provas: dados.provas }) }) : null;
+  const botaoIa = comIa
+    ? h('button', { class: 'btn btn-secundario', type: 'button', 'aria-expanded': 'false', 'aria-controls': 'plano-ia' }, icone('esporte', 16), 'Sugerir com IA')
+    : null;
+  botaoIa?.addEventListener('click', () => {
+    painelIa.el.hidden = !painelIa.el.hidden;
+    botaoIa.setAttribute('aria-expanded', String(!painelIa.el.hidden));
+    if (!painelIa.el.hidden) painelIa.el.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+  });
 
-  // O calendário, o editor e a IA ficam sempre montados na aba Calendário (o editor e a exportação guardam o que foi digitado).
-  paineis.calendario.replaceChildren(
+  // O calendário, o editor e o painel de IA ficam sempre montados (o editor e a exportação guardam o que foi digitado).
+  secCalendario.replaceChildren(
     ...[
       h(
         'section',
         { class: 'card' },
-        h('h2', null, 'Calendário de treinos'),
+        h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Calendário de treinos'), botaoIa),
         h('p', { class: 'texto-secundario' }, 'Arraste um treino para outro dia. Treinos planejados em dias passados e não feitos não entram na projeção.'),
+        mensagem.el,
         barra,
         exportacaoArea,
+        painelIa?.el,
         calendario,
       ),
       editorArea,
-      cartaoIa,
     ].filter(Boolean),
   );
 
@@ -437,14 +493,18 @@ Os treinos já realizados e o de hoje não são afetados.`,
         'section',
         { class: 'card' },
         h('h1', null, 'Plano de treino'),
-        h('p', { class: 'texto-secundario' }, 'Planeje os treinos, veja a projeção da Forma, acompanhe as provas e metas e confira o que foi feito.'),
+        h('p', { class: 'texto-secundario' }, 'Planeje os treinos, veja a projeção da Forma, acompanhe os eventos e as metas e confira o que foi feito.'),
         aviso,
-        abas,
-        mensagem.el,
       ),
-      ...ABAS.map((a) => paineis[a.id]),
+      ancoras,
+      secPendencias,
+      secCalendario,
+      secProjecao,
+      secProvas,
     ),
   );
+  desenharAncoras();
+  observarSecoes();
   desenhar();
   if (estadoPlano.novoTreinoEm) {
     const data = estadoPlano.novoTreinoEm;
@@ -483,6 +543,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
 
   return () => {
     ativa = false;
+    observador?.disconnect();
     cancelar.forEach((fn) => fn());
   };
 }

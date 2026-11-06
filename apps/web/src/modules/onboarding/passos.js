@@ -86,9 +86,10 @@ export function estadoInicial(sessao, dados) {
 /**
  * Passos do wizard. Cada passo: { id, rotulo, eyebrow, titulo, subtitulo, raiz, continuar?, textoContinuar? }. `continuar`
  * valida e grava o que o passo coleta (lança Error em português); o que foi gravado fica salvo mesmo se o usuário sair.
- * @param {{ uid: string, sessao: any, dados: any, estado: any, irPara: (id: string) => void, concluir: () => Promise<void> }} ctx
+ * `revisao`: perfil já preenchido, o wizard abre no resumo (visualização) e cada "Editar" volta a ele ao salvar.
+ * @param {{ uid: string, sessao: any, dados: any, estado: any, irPara: (id: string) => void, concluir: () => Promise<void>, revisao?: boolean }} ctx
  */
-export function criarPassos({ uid, sessao, dados, estado, irPara, concluir }) {
+export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revisao = false }) {
   // ---------- boas-vindas ----------
   const boasVindas = {
     id: 'inicio',
@@ -480,10 +481,10 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir }) {
   const pronto = {
     id: 'pronto',
     rotulo: 'Pronto',
-    eyebrow: 'Tudo certo',
-    titulo: 'Agora é só treinar.',
-    subtitulo: 'Confira o resumo. Dá para editar qualquer item, agora ou depois, pelo menu da conta.',
-    textoContinuar: 'Ir pro Início',
+    eyebrow: revisao ? 'Seu perfil' : 'Tudo certo',
+    titulo: revisao ? 'Seu perfil de treino.' : 'Agora é só treinar.',
+    subtitulo: revisao ? 'Estes são os números que o app usa. Use Editar para mudar qualquer item.' : 'Confira o resumo. Dá para editar qualquer item, agora ou depois, pelo menu da conta.',
+    textoContinuar: revisao ? 'Fechar' : 'Ir pro Início',
     raiz: h('div', { class: 'wz-campos' }, resumo, mensagemFim.el, h('div', { class: 'wz-recalcular' }, botaoRecalcular, h('small', { class: 'dica' }, 'As atividades já importadas ficam com os números antigos até você recalcular.'))),
     entrar() {
       const itens = [

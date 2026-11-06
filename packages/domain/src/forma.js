@@ -34,8 +34,8 @@ export const FAIXAS_FORMA = Object.freeze([
     chip: 'Zona descansada',
     intervalo: '+5 a +25',
     acimaDe: 5,
-    descricao: 'Em forma e descansado: pronto para uma prova ou para dias fortes.',
-    resumo: 'Você está descansado e pronto para uma prova ou dias fortes.',
+    descricao: 'Em forma e descansado: pronto para um evento ou para dias fortes.',
+    resumo: 'Você está descansado e pronto para um evento ou dias fortes.',
   },
   {
     id: 'neutral',
@@ -43,7 +43,7 @@ export const FAIXAS_FORMA = Object.freeze([
     chip: 'Zona neutra',
     intervalo: '−10 a +5',
     acimaDe: -10,
-    descricao: 'Típico de semana de descanso ou de recuperação depois de prova ou bloco duro.',
+    descricao: 'Típico de semana de descanso ou de recuperação depois de um evento ou bloco duro.',
     resumo: 'Fase de recuperação, boa para absorver o treino.',
   },
   {

@@ -103,7 +103,7 @@ export function validarRascunhoAnualDaIa(saida, ctx) {
   const avisos = [];
   const itens = [];
   const porSemana = [];
-  if (!plano?.semanas?.length) return { itens, avisos: ['Não há plano anual para montar o rascunho.'], porSemana };
+  if (!plano?.semanas?.length) return { itens, avisos: ['Não há preparação para o evento para montar o rascunho.'], porSemana };
   if (esporte !== 'ciclismo' && esporte !== 'corrida') return { itens, avisos: ['O rascunho de treinos existe para ciclismo e corrida.'], porSemana };
   const configHoje = configEm(somarDias(hoje, 1));
   if (!configHoje) return { itens, avisos: ['Cadastre a sua configuração de FC (Configuração) para o app estimar o estresse dos treinos.'], porSemana };
@@ -135,7 +135,7 @@ export function validarRascunhoAnualDaIa(saida, ctx) {
     const estado = inicio ? estadoDaSemana.get(inicio) : null;
     if (!estado) {
       const daProva = [...estadoDaSemana.values()].find((e) => e.semana.semanaDaProva && t.data >= e.semana.inicio && t.data <= e.semana.fim);
-      descartar(t, daProva ? 'na semana da prova só vale a soltura da véspera' : 'o dia não está entre os seus dias livres de treino');
+      descartar(t, daProva ? 'na semana do evento só vale a soltura da véspera' : 'o dia não está entre os seus dias livres de treino');
       continue;
     }
     if (usados.has(t.data)) {
@@ -144,7 +144,7 @@ export function validarRascunhoAnualDaIa(saida, ctx) {
     }
     const { semana } = estado;
     if (semana.semanaDaProva) {
-      descartar(t, 'na semana da prova só vale a soltura da véspera');
+      descartar(t, 'na semana do evento só vale a soltura da véspera');
       continue;
     }
     const teto = semana.cargaAlvo * R.limiteSobreMeta;

@@ -98,7 +98,7 @@ export function cartaoDeEsforco({ inicioSemana, realizado, previsto, treinos, me
     'aria-label': `Esforço planejado da semana de ${formatarData(inicioSemana)}`,
   });
   if (vazio) {
-    el.append(compacta ? h('span', { class: 'cal-esforco-traco', title: 'Sem esforço planejado nesta semana' }, '—') : h('p', null, 'Sem esforço previsto. Aqui aparecem o plano anual ou os treinos avulsos previstos da semana, somados ao que você já fez.'));
+    el.append(compacta ? h('span', { class: 'cal-esforco-traco', title: 'Sem esforço planejado nesta semana' }, '—') : h('p', null, 'Sem esforço previsto. Aqui aparecem a preparação para o evento ou os treinos avulsos previstos da semana, somados ao que você já fez.'));
     return el;
   }
   if (atingiu) el.classList.add('cal-esforco-conquista');

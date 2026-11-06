@@ -3,12 +3,12 @@ import { diasEntre } from './forma.js';
 import { dataIsoValida } from './usuarios.js';
 
 /**
- * Provas (eventos-alvo) do atleta, com prioridade A/B/C como no TrainingPeaks. A prova A é o objetivo da temporada e
+ * Eventos (provas, passeios, desafios) do atleta, com prioridade A/B/C como no TrainingPeaks. O evento A é o objetivo da temporada e
  * guia o plano anual (ver planoAnual.js). Funções puras, sem Firebase e sem DOM.
  */
 export const PRIORIDADES_PROVA = Object.freeze({
-  A: { rotulo: 'A · Principal', descricao: 'O objetivo da temporada: o plano anual chega descansado nela.' },
-  B: { rotulo: 'B · Importante', descricao: 'Prova relevante, com polimento curto.' },
+  A: { rotulo: 'A · Principal', descricao: 'O objetivo da temporada: a preparação faz você chegar descansado nele.' },
+  B: { rotulo: 'B · Importante', descricao: 'Evento relevante, com polimento curto.' },
   C: { rotulo: 'C · Treino', descricao: 'Serve de treino: sem polimento relevante.' },
 });
 
@@ -68,12 +68,12 @@ export function validarProva(entrada, hoje) {
   const nome = typeof e.nome === 'string' ? e.nome.trim() : '';
   const { nome: ln, local: ll, distanciaKm: ld, metaTempoS: lt, formaAlvo: lf } = LIMITES_PROVA;
 
-  if (nome.length < ln.min || nome.length > ln.max) erros.push(`O nome da prova deve ter de ${ln.min} a ${ln.max} caracteres.`);
-  if (!dataIsoValida(e.data)) erros.push('Informe a data da prova.');
-  else if (e.data < hoje) erros.push('A data da prova não pode estar no passado.');
-  else if (diasEntre(hoje, e.data) > LIMITES_PROVA.diasAFrente) erros.push('A prova deve ficar nos próximos 2 anos.');
-  if (!ESPORTES_VALIDOS.includes(e.esporte)) erros.push('Escolha o esporte da prova.');
-  if (!Object.keys(PRIORIDADES_PROVA).includes(e.prioridade)) erros.push('Escolha a prioridade da prova (A, B ou C).');
+  if (nome.length < ln.min || nome.length > ln.max) erros.push(`O nome do evento deve ter de ${ln.min} a ${ln.max} caracteres.`);
+  if (!dataIsoValida(e.data)) erros.push('Informe a data do evento.');
+  else if (e.data < hoje) erros.push('A data do evento não pode estar no passado.');
+  else if (diasEntre(hoje, e.data) > LIMITES_PROVA.diasAFrente) erros.push('O evento deve ficar nos próximos 2 anos.');
+  if (!ESPORTES_VALIDOS.includes(e.esporte)) erros.push('Escolha o esporte do evento.');
+  if (!Object.keys(PRIORIDADES_PROVA).includes(e.prioridade)) erros.push('Escolha a prioridade do evento (A, B ou C).');
 
   let distanciaKm = null;
   if (!vazio(e.distanciaKm)) {

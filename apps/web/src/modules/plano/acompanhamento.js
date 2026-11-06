@@ -1,4 +1,4 @@
-import { compararTreino, sugerirVinculos, treinoNaoRealizado } from '@no-strova/domain';
+import { sugerirVinculos, treinoNaoRealizado } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarNumero } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
@@ -6,35 +6,24 @@ import { vinculosIgnorados } from './state.js';
 
 const descricao = (t) => (t.nomeTreino ? `${t.nomeTreino} · ${t.duracaoMin}min` : `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`);
 
-/** Quantos itens esperam uma ação: treinos com atividade para vincular e treinos que ficaram para trás. */
-export function contarPendencias({ treinos, atividades, hoje }) {
-  const sugestoes = sugerirVinculos(treinos, atividades).filter((s) => !vinculosIgnorados.has(`${s.treinoId}:${s.atividadeId}`));
-  const comSugestao = new Set(sugestoes.map((s) => s.treinoId));
-  return sugestoes.length + treinos.filter((t) => treinoNaoRealizado(t, hoje) && !comSugestao.has(t.id)).length;
-}
-
 /**
- * Cartão de acompanhamento: sugestões de vínculo com a atividade feita, treinos que ficaram para trás e o
- * comparativo planejado × realizado dos treinos já vinculados.
+ * Faixa de pendências do topo do Plano: sugestões de vínculo com a atividade feita e treinos que ficaram para trás.
+ * Devolve `null` (nada a mostrar) quando não há pendência.
  * @param {{
- *   treinos: any[], atividades: any[], configs: any[], hoje: string,
+ *   treinos: any[], atividades: any[], hoje: string,
  *   aoVincular: (treinoId: string, atividadeId: string) => Promise<void>,
  *   aoPular: (treinoId: string) => Promise<void>,
  *   aoReagendar: (treinoId: string, data: string) => Promise<void>,
  *   aoIgnorar: () => void
  * }} p
  */
-export function criarCartaoAcompanhamento({ treinos, atividades, configs, calibracao = null, hoje, aoVincular, aoPular, aoReagendar, aoIgnorar }) {
+export function criarFaixaPendencias({ treinos, atividades, hoje, aoVincular, aoPular, aoReagendar, aoIgnorar }) {
   const porId = new Map(atividades.map((a) => [a.id, a]));
   const treinoPorId = new Map(treinos.map((t) => [t.id, t]));
 
   const sugestoes = sugerirVinculos(treinos, atividades).filter((s) => !vinculosIgnorados.has(`${s.treinoId}:${s.atividadeId}`));
   const comSugestao = new Set(sugestoes.map((s) => s.treinoId));
   const atrasados = treinos.filter((t) => treinoNaoRealizado(t, hoje) && !comSugestao.has(t.id));
-  const vinculados = treinos
-    .filter((t) => t.status === 'realizado' && t.atividadeId && porId.has(t.atividadeId))
-    .sort((a, b) => (a.data < b.data ? 1 : -1))
-    .slice(0, 10);
 
   const secoes = [];
 
@@ -126,47 +115,7 @@ export function criarCartaoAcompanhamento({ treinos, atividades, configs, calibr
     );
   }
 
-  if (vinculados.length > 0) {
-    secoes.push(
-      h(
-        'div',
-        { class: 'acomp-secao' },
-        h('h3', null, 'Planejado × realizado'),
-        h(
-          'div',
-          { class: 'tabela-wrap' },
-          h(
-            'table',
-            { class: 'tabela tabela-compacta' },
-            h('thead', null, h('tr', null, ...['Data', 'Treino', 'Planejado', 'Realizado', 'Diferença', 'Duração'].map((t) => h('th', { scope: 'col' }, t)))),
-            h(
-              'tbody',
-              null,
-              ...vinculados.map((t) => {
-                const c = compararTreino(t, porId.get(t.atividadeId), configs, calibracao);
-                const dif = c.diferenca;
-                return h(
-                  'tr',
-                  null,
-                  h('td', null, formatarData(t.data)),
-                  h('td', null, descricao(t)),
-                  h('td', null, formatarNumero(c.planejado, 0)),
-                  h('td', { class: 'celula-hrss' }, c.realizado === null ? '—' : formatarNumero(c.realizado, 1)),
-                  h('td', null, dif === null ? '—' : `${dif > 0 ? '+' : dif < 0 ? '−' : ''}${formatarNumero(Math.abs(dif), 1)}`),
-                  h('td', null, c.duracaoRealizadaMin === null ? `${c.duracaoPlanejadaMin} min` : `${c.duracaoPlanejadaMin} → ${c.duracaoRealizadaMin} min`),
-                );
-              }),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  return h(
-    'section',
-    { class: 'card' },
-    h('h2', null, 'Acompanhamento'),
-    secoes.length > 0 ? h('div', null, ...secoes) : h('p', { class: 'vazio-curto' }, 'Nada pendente: sem treinos para vincular nem treinos atrasados.'),
-  );
+  // sem pendência, a faixa não aparece
+  if (secoes.length === 0) return null;
+  return h('section', { class: 'card plano-pendencias', id: 'plano-pendencias', 'aria-label': 'Pendências do plano' }, h('div', null, ...secoes));
 }

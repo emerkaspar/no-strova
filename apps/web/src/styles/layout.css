@@ -3153,55 +3153,6 @@ textarea {
   gap: 6px;
 }
 
-.treinos-abas {
-  display: flex;
-  gap: 4px;
-  margin-top: 8px;
-  border-bottom: 1px solid var(--border);
-}
-
-.treinos-abas {
-  overflow-x: auto;
-}
-
-.plano-painel[hidden] {
-  display: none;
-}
-
-.aba-contagem {
-  display: inline-block;
-  min-width: 20px;
-  margin-left: 8px;
-  padding: 1px 6px;
-  background: var(--primary);
-  border-radius: 999px;
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-align: center;
-}
-
-.treinos-aba {
-  white-space: nowrap;
-  padding: 10px 18px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 0;
-  border-bottom: 3px solid transparent;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.treinos-aba:hover {
-  color: var(--text-primary);
-}
-
-.treinos-aba[aria-selected='true'] {
-  color: var(--text-primary);
-  border-bottom-color: var(--primary);
-}
-
 .treinos-grade {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

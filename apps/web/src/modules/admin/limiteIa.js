@@ -9,7 +9,7 @@ const PADRAO = 5;
  * `configuracoes/ia`; as Functions leem na hora de cada pedido. Com "sem limite", nenhum usuário é barrado pela cota.
  */
 export function criarCartaoLimiteIa() {
-  const limite = campo({ id: 'ia-limite', rotulo: 'Sugestões por usuário por dia', tipo: 'number', min: '1', max: '500', step: '1', value: String(PADRAO), dica: 'De 1 a 500. Treinos e peso contam juntos.' });
+  const limite = campo({ id: 'ia-limite', rotulo: 'Sugestões por usuário por dia', tipo: 'number', min: '1', max: '500', step: '1', value: String(PADRAO), dica: 'De 1 a 500. Todos os tipos de sugestão de treino contam juntos.' });
   const semLimite = h('input', { type: 'checkbox', id: 'ia-sem-limite' });
   const mensagem = areaMensagem();
   const botao = h('button', { class: 'btn', type: 'submit' }, 'Salvar limite');
@@ -57,7 +57,7 @@ export function criarCartaoLimiteIa() {
     'section',
     { class: 'card' },
     h('h2', null, 'Limite das sugestões de IA'),
-    h('p', { class: 'texto-secundario' }, 'Só você, como administrador, vê esta opção. Cada sugestão de treino ou de peso consome uma chamada do Gemini. Use o limite para controlar o gasto ou marque "Sem limite" para testar.'),
+    h('p', { class: 'texto-secundario' }, 'Só você, como administrador, vê esta opção. Cada sugestão de treino (próximas semanas, até o evento ou de um dia) consome uma chamada do Gemini. Use o limite para controlar o gasto ou marque "Sem limite" para testar.'),
     estado,
     form,
     mensagem.el,

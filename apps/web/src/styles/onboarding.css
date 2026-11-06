@@ -46,6 +46,10 @@
   font-size: 14px;
 }
 
+.wz-progresso[hidden] {
+  display: none;
+}
+
 .wz-progresso {
   display: flex;
   gap: 8px;

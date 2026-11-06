@@ -26,8 +26,8 @@
 .provas-lista {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 16px 0 0;
+  gap: 6px;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -35,8 +35,8 @@
 .prova-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 8px 14px;
   background: var(--surface-light);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -61,11 +61,11 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   font-family: 'Anton', Impact, sans-serif;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: var(--primary-contrast);
 }
 
@@ -170,6 +170,368 @@
   }
 }
 
+/* evento principal e expansível da meta de carga (refinados no fim do arquivo) */
+.anual-detalhes {
+  margin: 20px 0 0;
+}
+
+/* ---------- página única do Plano: barra de âncoras, seções, faixa de pendências e painel de IA ---------- */
+.plano-ancoras {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  padding: 6px 0;
+  overflow-x: auto;
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border);
+}
+
+.plano-ancora {
+  white-space: nowrap;
+  padding: 8px 18px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.plano-ancora:hover,
+.plano-ancora[aria-current='true'] {
+  color: var(--text-primary);
+}
+
+.plano-ancora[aria-current='true'] {
+  border-bottom-color: var(--primary);
+}
+
+/* a barra fixa cobre o topo da rolagem */
+.plano-secao,
+#plano-pendencias {
+  scroll-margin-top: 60px;
+}
+
+.plano-pendencias {
+  padding: 16px 24px;
+  border-color: var(--primary);
+}
+
+.plano-pendencias h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+/* ---------- bloco Metas: uma meta por linha, cada uma numa caixa própria (sem bordas, só fundo e espaço) ---------- */
+.plano-metas {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.plano-metas-titulo {
+  margin: 0;
+}
+
+.mc {
+  --mc-tom: var(--text-secondary);
+  --mc-barra: var(--primary);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.plano-metas > .mc {
+  padding: 24px 28px;
+  background: var(--bg-main);
+  border: 0;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+/* a cor da situação aparece só no indicador, na diferença e na barra */
+.mc-positivo {
+  --mc-tom: var(--zona-freshness);
+  --mc-barra: var(--zona-freshness);
+}
+
+.mc-atencao {
+  --mc-tom: var(--zona-transicao);
+  --mc-barra: var(--zona-transicao);
+}
+
+.mc-negativo {
+  --mc-tom: var(--zona-overload);
+  --mc-barra: var(--zona-overload);
+}
+
+/* cabeçalho: título, situação e ações na mesma linha */
+.mc-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mc-titulos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  min-width: 0;
+}
+
+.mc-titulo {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+}
+
+.mc-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--mc-tom);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.mc-ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mc-tom);
+}
+
+.mc-acoes {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.mc-acoes .btn-icone {
+  width: 36px;
+  height: 36px;
+  border-color: transparent;
+}
+
+.mc-acoes .btn-icone:hover:not(:disabled),
+.mc-acoes .btn-icone:focus-visible {
+  border-color: var(--border);
+}
+
+.mc-intro {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* indicadores: rótulo pequeno e valor em destaque */
+.mc-metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 16px 28px;
+  margin: 0;
+}
+
+.mc-metrica dt {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mc-metrica dd {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.mc-metrica dd small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.mc-metrica-destaque dd {
+  color: var(--mc-tom);
+}
+
+/* progresso */
+.mc-progresso {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mc-progresso-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mc-progresso-topo strong {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-barra {
+  height: 8px;
+  background: var(--surface-light);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mc-barra span {
+  display: block;
+  height: 100%;
+  background: var(--mc-barra);
+  border-radius: inherit;
+}
+
+.mc-progresso-valores {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-aviso {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+/* orientação curta e contagem regressiva */
+.mc-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mc-orientacao {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.mc-dias {
+  display: inline-flex;
+  flex: none;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.mc-dias strong {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* metas anteriores */
+.mc-anteriores summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mc-anteriores summary::-webkit-details-marker {
+  display: none;
+}
+
+.mc-anteriores summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.mc-anteriores[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.mc-anteriores summary:hover {
+  color: var(--text-primary);
+}
+
+.mc-anteriores-n {
+  padding: 0 7px;
+  background: var(--surface-light);
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+.mc-anteriores ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mc-anteriores li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+
+.mc-ant-data {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .plano-metas > .mc {
+    padding: 20px;
+  }
+
+  .mc-rodape {
+    flex-wrap: wrap;
+  }
+}
+
+/* painel de IA: os dois horizontes mostram grupos de campos diferentes */
+.ia-grupo {
+  display: contents; /* os campos continuam filhos diretos da grade do formulário */
+}
+
+.ia-grupo[hidden],
+.ia-cartao[hidden] {
+  display: none;
+}
+
+.ia-cartao > .bloco-topo + p {
+  margin-top: 0;
+}
+
 /* ---------- lixeira do calendário e exclusão em massa ---------- */
 .cal-lixeira {
   display: flex;
@@ -234,4 +596,516 @@ body.cal-arrastando .cal-lixeira {
   color: var(--text-primary);
   border-color: var(--text-secondary);
   border-style: dashed;
+}
+
+/* ---------- Projeção do plano: refinamento visual (só o modo plano; o gráfico do Início não muda) ---------- */
+
+/* cabeçalho: título, descrição e período alinhados; o seletor vira um controle segmentado */
+.cg-plano .cg-topo {
+  align-items: center;
+  gap: 14px 24px;
+  margin-bottom: 24px;
+}
+
+.cg-plano .cg-topo h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+.cg-plano .cg-sub {
+  max-width: 64ch;
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.cg-plano .cg-periodos {
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-light);
+  border-radius: 999px;
+}
+
+.cg-plano .cg-periodo {
+  padding: 5px 14px;
+  border-color: transparent;
+  font-size: 0.8rem;
+}
+
+.cg-plano .cg-periodo:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+.cg-plano .cg-periodo[aria-pressed='true'] {
+  background: var(--primary);
+  border-color: transparent;
+}
+
+/* eixos e grades: mais leves, para as linhas de dados serem as protagonistas */
+.cg-plano .cg-grade,
+.cg-plano .cg-limite {
+  stroke: color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.cg-plano .cg-limite {
+  stroke-dasharray: 2 4;
+}
+
+.cg-plano .cg-zero {
+  opacity: 0.55;
+}
+
+.cg-plano .cg-rotulo {
+  font-size: 11.5px;
+}
+
+/* títulos dos três painéis no mesmo padrão: caixa-alta, um pouco mais fortes que os rótulos dos eixos */
+.cg-plano .cg-titulo-painel {
+  fill: var(--text-primary);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+
+/* realizado × projetado: o realizado é sólido; o projetado fica pontilhado/translúcido sobre a área sombreada do futuro */
+.cg-futuro-rotulo {
+  fill: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+
+.cg-plano .cg-tracejada {
+  stroke-dasharray: 0.1 6.5;
+}
+
+.cg-plano .cg-barra-futura {
+  fill: var(--cg-cor);
+  fill-opacity: 0.22;
+  stroke-width: 1;
+  stroke-opacity: 0.8;
+  stroke-dasharray: none;
+}
+
+.cg-plano .cg-estresse-futuro {
+  fill: var(--text-secondary);
+  fill-opacity: 0.2;
+  stroke-width: 1;
+  stroke-dasharray: none;
+}
+
+.cg-plano .cg-hoje {
+  stroke: var(--primary);
+  stroke-dasharray: none;
+  opacity: 0.6;
+}
+
+.cg-plano .cg-meta-linha {
+  stroke-dasharray: 2 4;
+}
+
+/* painel Hoje: o indicador principal em destaque, a zona logo ao lado e o treino separado por um filete */
+.cg-plano .cg-cartao {
+  padding: 22px;
+  border: 0;
+  border-radius: 16px;
+}
+
+.cg-plano .cg-dia-linha {
+  margin-top: 6px;
+  gap: 6px 14px;
+}
+
+.cg-plano .cg-dia-forma {
+  margin: 0;
+  color: var(--cg-cor, var(--text-primary));
+  font-size: 72px;
+}
+
+.cg-plano .cg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 12px 3px 10px;
+  background: color-mix(in srgb, var(--cg-cor) 16%, transparent);
+  color: var(--cg-cor);
+}
+
+.cg-plano .cg-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cg-cor);
+}
+
+.cg-plano .cg-mini-rotulo {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.cg-plano .cg-dia-treino p {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+}
+
+.cg-plano .cg-dia-treino .cg-piada {
+  margin: 4px 0 0 26px;
+  font-size: 0.8rem;
+}
+
+/* régua de zonas: barra mais fina com segmentos separados, nome da zona do dia em destaque */
+.cg-plano .cg-subtitulo {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cg-plano .cg-regua {
+  height: 220px;
+}
+
+.cg-plano .cg-regua-barra {
+  gap: 2px;
+  width: 12px;
+  border-radius: 6px;
+}
+
+.cg-plano .cg-regua-marcador {
+  left: -5px;
+  width: 22px;
+  height: 3px;
+  margin-top: -1.5px;
+}
+
+.cg-plano .cg-regua-nome {
+  left: 28px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.cg-plano .cg-regua-nome-ativo {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.cg-plano .cg-regua-limite {
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+/* legenda compacta, logo abaixo do gráfico */
+.cg-plano .cg-legenda {
+  gap: 6px 12px;
+  justify-content: space-between;
+  margin-top: 14px;
+  font-size: 0.72rem;
+}
+
+.cg-plano .cg-legenda li {
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* em telas largas os seis itens cabem numa linha só; nas menores a legenda volta a quebrar */
+@media (min-width: 1180px) {
+  .cg-plano .cg-legenda {
+    flex-wrap: nowrap;
+  }
+}
+
+.cg-plano .cg-amostra {
+  width: 14px;
+}
+
+.cg-plano .cg-amostra-plano {
+  border-top-style: dotted;
+}
+
+/* telas pequenas: o SVG encolhe junto com a largura, então os textos dele ganham corpo */
+@media (max-width: 600px) {
+  .cg-plano .cg-rotulo,
+  .cg-plano .cg-titulo-painel,
+  .cg-plano .cg-futuro-rotulo,
+  .cg-plano .cg-hoje-rotulo,
+  .cg-plano .cg-meta-rotulo {
+    font-size: 14px;
+  }
+
+  .cg-plano .cg-periodos {
+    width: 100%;
+  }
+
+  .cg-plano .cg-periodo {
+    flex: 1;
+  }
+
+  .cg-plano .cg-dia-forma {
+    font-size: 60px;
+  }
+}
+
+/* ---------- Preparação para o evento: evento principal, meta de carga e "Montar treinos" ---------- */
+.anual-intro {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+}
+
+/* evento principal: identidade à esquerda, indicadores à direita; empilha em telas estreitas */
+.anual-evento {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 32px;
+  margin-top: 24px;
+}
+
+.anual-evento-id {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.anual-evento-id .prova-prioridade {
+  width: 44px;
+  height: 44px;
+  font-size: 1.3rem;
+}
+
+.anual-evento-id > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.anual-evento-nome {
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.anual-evento-id .texto-secundario {
+  font-size: 0.85rem;
+}
+
+.anual-indicadores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 36px;
+  margin: 0;
+}
+
+.anual-ind dt {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.anual-ind dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.anual-ind dd small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* meta de carga por semana: uma barra inteira clicável, com título e um resumo do que há dentro */
+.anual-detalhes > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-light);
+  border-radius: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.anual-detalhes > summary::-webkit-details-marker {
+  display: none;
+}
+
+.anual-detalhes > summary::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.anual-detalhes[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.anual-detalhes-titulo {
+  font-weight: 700;
+}
+
+.anual-detalhes-sub {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.anual-nota {
+  margin: 16px 0 0;
+  font-size: 0.82rem;
+}
+
+/* montar treinos: título, explicação e aviso à esquerda; a ação principal à direita */
+.anual-montar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px 32px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.anual-montar h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.anual-montar-texto > p {
+  max-width: 80ch;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* aviso de que já existem treinos no período: uma nota integrada ao texto, não um alerta */
+.anual-montar-texto > .anual-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: var(--text-primary);
+}
+
+.anual-aviso .icone {
+  flex: none;
+  margin-top: 2px;
+  color: var(--primary);
+}
+
+.anual-montar-acoes {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.anual-montar-acoes .btn {
+  min-height: 46px;
+  padding: 0 28px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.anual-montar-acoes .btn:not(.btn-secundario) {
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+@media (max-width: 767px) {
+  .anual-montar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .anual-montar-acoes .btn {
+    white-space: normal;
+  }
+}
+
+/* resultado do rascunho */
+.rascunho-anual {
+  margin-top: 20px;
+}
+
+.rascunho-titulo {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.rascunho-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.rascunho-aviso .icone {
+  flex: none;
+  margin-top: 2px;
+}
+
+.rascunho-vazio {
+  padding: 16px 18px;
+  background: var(--surface-light);
+  border-radius: 12px;
+}
+
+.rascunho-vazio p {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+
+.rascunho-vazio-semanas {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.rascunho-vazio-semanas li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rascunho-obs {
+  margin: 12px 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.rascunho-obs > summary {
+  cursor: pointer;
+}
+
+.rascunho-obs .ia-avisos {
+  margin-top: 8px;
 }

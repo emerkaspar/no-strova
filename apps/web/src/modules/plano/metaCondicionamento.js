@@ -4,15 +4,22 @@ import { excluirMetaCondicionamento } from '../../infrastructure/planoRepo.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
 import { ligarFormRecolhivel } from './formRecolhivel.js';
+import { comSinal, montarCartaoDeMeta } from './metaCartao.js';
 
 const ROTULO_ESTADO = Object.freeze({ atinge: 'Chega lá', abaixo: 'Fica abaixo', acima: 'Fica acima' });
 
 // fora do cartão: ele é refeito a cada atualização de dados
 const estadoDoFormulario = { aberto: false };
 
-const comSinal = (valor, casas = 1) => `${valor > 0 ? '+' : valor < 0 ? '−' : ''}${formatarNumero(Math.abs(valor), casas)}`;
+// orientação curta de cada situação (a conta e o estado vêm do domínio)
+const ORIENTACAO = Object.freeze({
+  atinge: 'O plano atual chega dentro da meta.',
+  abaixo: 'Falta carga: planeje mais treino (volume ou intensidade).',
+  acima: 'Dá para treinar um pouco menos e ainda chegar lá.',
+});
 
 /** Frase que explica o resultado da meta de Condicionamento e o que fazer. */
 export function textoDaAvaliacaoCondicionamento(a) {
@@ -24,12 +31,6 @@ export function textoDaAvaliacaoCondicionamento(a) {
   if (a.estado === 'atinge') return `Com o plano atual você chega em ${data} com Condicionamento ${projetado}, dentro da meta (${alvo}).`;
   if (a.estado === 'abaixo') return `Com o plano atual você chega em ${data} com Condicionamento ${projetado}, ${pontos} pontos abaixo da meta (${alvo}). Falta carga: planeje mais treino (volume ou intensidade) até essa data.`;
   return `Com o plano atual você chega em ${data} com Condicionamento ${projetado}, ${pontos} pontos acima da meta (${alvo}). Dá para treinar um pouco menos e ainda chegar lá.`;
-}
-
-/** Linha do ritmo (pontos de Condicionamento por semana): o necessário e o que o plano entrega. */
-export function textoDoRitmo(a) {
-  if (a.ritmoNecessario === null || a.ritmoDoPlano === null) return null;
-  return `Ritmo necessário: ${comSinal(a.ritmoNecessario)} por semana · o seu plano entrega ${comSinal(a.ritmoDoPlano)} por semana.`;
 }
 
 /**
@@ -78,13 +79,15 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
   );
 
   const botaoAbrir = h('button', { type: 'button' });
-  const definirAberto = ligarFormRecolhivel({ estado: estadoDoFormulario, botao: botaoAbrir, form, rotulo: metaAtiva ? 'Trocar meta' : '+ Definir meta', classeFechado: metaAtiva ? 'btn btn-secundario' : 'btn' });
+  const definirAberto = ligarFormRecolhivel({ estado: estadoDoFormulario, botao: botaoAbrir, form, rotulo: metaAtiva ? 'Trocar meta' : '+ Definir meta', classeFechado: 'btn', icones: metaAtiva ? { fechado: 'lapis', aberto: 'fechar' } : null });
   const botaoRemover = metaAtiva
     ? h(
         'button',
         {
-          class: 'btn btn-secundario',
+          class: 'btn-icone btn-icone-mini btn-icone-perigo',
           type: 'button',
+          title: 'Remover meta',
+          'aria-label': 'Remover meta',
           onClick: async () => {
             if (!(await confirmar({ titulo: 'Remover a meta de Condicionamento?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
             try {
@@ -94,7 +97,7 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
             }
           },
         },
-        'Remover meta',
+        icone('lixeira', 16),
       )
     : null;
 
@@ -102,42 +105,40 @@ export function criarCartaoMetaCondicionamento({ uid, hoje, metaAtiva, metasAnte
     ? progressoDaMetaCondicionamento({ condicionamentoAtual, condicionamentoAlvo: metaAtiva.condicionamentoAlvo })
     : null;
   const pct = progresso === null ? null : Math.round(progresso * 100);
-  const ritmo = avaliacao ? textoDoRitmo(avaliacao) : null;
 
-  const resultado = !metaAtiva
-    ? h('p', { class: 'texto-secundario' }, 'A meta principal do plano: defina “chegar com Condicionamento X na data Y” e o app mostra se o plano atual chega lá e em que ritmo. O Condicionamento (a média de 42 dias do seu estresse) sobe com treino consistente.')
-    : h(
-        'div',
-        { class: `meta-resultado meta-${avaliacao?.estado ?? 'sem-dados'}`, role: 'status' },
-        avaliacao && avaliacao.estado !== 'sem-dados' ? h('span', { class: 'chip-estado' }, ROTULO_ESTADO[avaliacao.estado]) : null,
-        h('p', null, avaliacao ? textoDaAvaliacaoCondicionamento(avaliacao) : ''),
-        ritmo ? h('p', { class: 'meta-ritmo' }, ritmo) : null,
-        avaliacao?.agressiva
-          ? h(
-              'p',
-              { class: 'mensagem mensagem-aviso meta-agressiva' },
-              `Ritmo agressivo: subir mais de ${RITMO_MAXIMO_SEMANAL} pontos de Condicionamento por semana é difícil de sustentar e leva a Forma para a sobrecarga. Considere uma data mais distante ou um alvo menor.`,
-            )
-          : null,
-        pct === null
-          ? null
-          : h(
-              'div',
-              { class: 'meta-progresso' },
-              h('p', { class: 'texto-secundario' }, `Progresso: ${pct}% do alvo (${formatarNumero(condicionamentoAtual, 1)} de ${formatarNumero(metaAtiva.condicionamentoAlvo, 1)}).`),
-              h('div', { class: 'semana-progresso-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Progresso da meta de Condicionamento' }, h('span', { style: `width:${pct}%` })),
-            ),
-        avaliacao && avaliacao.dias >= 0 ? h('p', { class: 'texto-secundario' }, avaliacao.dias === 0 ? 'A meta é hoje.' : `Faltam ${avaliacao.dias} dia${avaliacao.dias === 1 ? '' : 's'}.`) : null,
-      );
+  const comDados = Boolean(metaAtiva && avaliacao && avaliacao.estado !== 'sem-dados');
+  const um = (v) => formatarNumero(v, 1);
+  const metricas = comDados
+    ? [
+        { rotulo: `Previsto em ${formatarData(avaliacao.dataAlvo).slice(0, 5)}`, valor: um(avaliacao.condicionamentoProjetado) },
+        { rotulo: 'Meta', valor: um(avaliacao.condicionamentoAlvo) },
+        { rotulo: 'Diferença', valor: comSinal(avaliacao.diferenca, um), sufixo: 'pts', destaque: true },
+        avaliacao.ritmoNecessario === null ? null : { rotulo: 'Ritmo necessário', valor: comSinal(avaliacao.ritmoNecessario, um), sufixo: 'por semana' },
+        avaliacao.ritmoDoPlano === null ? null : { rotulo: 'Ritmo do plano', valor: comSinal(avaliacao.ritmoDoPlano, um), sufixo: 'por semana' },
+      ].filter(Boolean)
+    : [];
 
-  const anteriores = metasAnteriores.length
+  const agressiva = avaliacao?.agressiva
     ? h(
-        'details',
-        { class: 'meta-anteriores' },
-        h('summary', null, `Metas anteriores (${metasAnteriores.length})`),
-        h('ul', null, ...metasAnteriores.map((m) => h('li', null, `Condicionamento ${formatarNumero(m.condicionamentoAlvo, 1)} em ${formatarData(m.dataAlvo)}`))),
+        'p',
+        { class: 'mensagem mensagem-aviso meta-agressiva mc-aviso' },
+        `Ritmo agressivo: subir mais de ${RITMO_MAXIMO_SEMANAL} pontos de Condicionamento por semana é difícil de sustentar e leva a Forma para a sobrecarga. Considere uma data mais distante ou um alvo menor.`,
       )
     : null;
 
-  return h('section', { class: 'card', id: 'meta-condicionamento' }, h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Meta de Condicionamento'), h('div', { class: 'linha-botoes' }, botaoRemover, botaoAbrir)), resultado, aviso.el, form, anteriores);
+  return montarCartaoDeMeta({
+    id: 'meta-condicionamento',
+    titulo: 'Meta de Condicionamento',
+    estado: metaAtiva ? (avaliacao?.estado ?? 'sem-dados') : 'sem-dados',
+    rotuloEstado: comDados ? ROTULO_ESTADO[avaliacao.estado] : null,
+    acoes: [botaoAbrir, botaoRemover],
+    introducao: metaAtiva ? null : 'A meta principal do plano: defina “chegar com Condicionamento X na data Y” e o app mostra se o plano atual chega lá e em que ritmo. O Condicionamento (a média de 42 dias do seu estresse) sobe com treino consistente.',
+    metricas,
+    progresso: pct === null ? null : { pct, atual: um(condicionamentoAtual), objetivo: um(metaAtiva.condicionamentoAlvo), rotulo: 'Progresso da meta de Condicionamento' },
+    aviso: agressiva,
+    orientacao: !metaAtiva ? null : comDados ? ORIENTACAO[avaliacao.estado] : avaliacao ? textoDaAvaliacaoCondicionamento(avaliacao) : null,
+    dias: metaAtiva && avaliacao && avaliacao.dias >= 0 ? { dias: avaliacao.dias, dataAlvo: formatarData(avaliacao.dataAlvo) } : null,
+    extras: [aviso.el, form],
+    anteriores: metasAnteriores.map((m) => ({ valor: `Condicionamento ${um(m.condicionamentoAlvo)}`, data: formatarData(m.dataAlvo) })),
+  });
 }

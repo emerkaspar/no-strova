@@ -108,7 +108,7 @@ export function metaDaSemanaDoPlanoAnual({ provas, dias, hoje, inicioDaSemana })
     const fim = somarDias(inicioDaSemana, 6);
     const s = montarPlanoAnual({ hoje, prova, dias }).semanas.find((x) => x.inicio <= fim && x.fim >= inicioDaSemana);
     if (!s) return null;
-    const extras = [s.recuperacao ? 'recuperação' : null, s.semanaDaProva ? 'semana da prova' : null].filter(Boolean);
+    const extras = [s.recuperacao ? 'recuperação' : null, s.semanaDaProva ? 'semana do evento' : null].filter(Boolean);
     return { cargaAlvo: s.cargaAlvo, fase: FASES[s.fase]?.rotulo ?? s.fase, detalhe: extras.join(' · ') };
   } catch {
     return null;

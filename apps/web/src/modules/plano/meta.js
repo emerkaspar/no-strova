@@ -3,13 +3,22 @@ import { excluirMeta } from '../../infrastructure/planoRepo.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarForma, formatarNumero } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
 import { ligarFormRecolhivel } from './formRecolhivel.js';
+import { comSinal, montarCartaoDeMeta } from './metaCartao.js';
 
 // fora do cartão: ele é refeito a cada atualização de dados
 const estadoDoFormulario = { aberto: false };
 
 const ROTULO_ESTADO = Object.freeze({ atinge: 'Chega lá', abaixo: 'Fica abaixo', acima: 'Fica acima' });
+
+// orientação curta de cada situação (a conta e o estado vêm do domínio)
+const ORIENTACAO = Object.freeze({
+  atinge: 'O plano atual chega dentro da meta.',
+  abaixo: 'Falta descanso: reduza a carga nos dias antes da data.',
+  acima: 'Dá para treinar um pouco mais antes da data.',
+});
 
 /** Frase que explica o resultado da meta e o que fazer. */
 export function textoDaAvaliacao(a) {
@@ -59,13 +68,15 @@ export function criarCartaoMeta({ uid, hoje, metaAtiva, metasAnteriores, avaliac
   );
 
   const botaoAbrir = h('button', { type: 'button' });
-  const definirAberto = ligarFormRecolhivel({ estado: estadoDoFormulario, botao: botaoAbrir, form, rotulo: metaAtiva ? 'Trocar meta' : '+ Definir meta', classeFechado: metaAtiva ? 'btn btn-secundario' : 'btn' });
+  const definirAberto = ligarFormRecolhivel({ estado: estadoDoFormulario, botao: botaoAbrir, form, rotulo: metaAtiva ? 'Trocar meta' : '+ Definir meta', classeFechado: 'btn', icones: metaAtiva ? { fechado: 'lapis', aberto: 'fechar' } : null });
   const botaoRemover = metaAtiva
     ? h(
         'button',
         {
-          class: 'btn btn-secundario',
+          class: 'btn-icone btn-icone-mini btn-icone-perigo',
           type: 'button',
+          title: 'Remover meta',
+          'aria-label': 'Remover meta',
           onClick: async () => {
             if (!(await confirmar({ titulo: 'Remover a meta de Forma?', mensagem: 'A meta deixa de aparecer no plano.', confirmarTexto: 'Remover', tipo: 'perigo', icone: 'lixeira' }))) return;
             try {
@@ -75,30 +86,31 @@ export function criarCartaoMeta({ uid, hoje, metaAtiva, metasAnteriores, avaliac
             }
           },
         },
-        'Remover meta',
+        icone('lixeira', 16),
       )
     : null;
 
-  const resultado = !metaAtiva
-    ? h('p', { class: 'texto-secundario' }, 'Opcional, complementa a meta de Condicionamento. Defina “chegar com Forma X na data Y” (por exemplo, descansado no dia de uma prova) e o app mostra se o plano atual chega lá.')
-    : h(
-        'div',
-        { class: `meta-resultado meta-${avaliacao?.estado ?? 'sem-dados'}`, role: 'status' },
-        avaliacao && avaliacao.estado !== 'sem-dados'
-          ? h('span', { class: 'chip-estado' }, ROTULO_ESTADO[avaliacao.estado])
-          : null,
-        h('p', null, avaliacao ? textoDaAvaliacao(avaliacao) : ''),
-        avaliacao && avaliacao.dias >= 0 ? h('p', { class: 'texto-secundario' }, avaliacao.dias === 0 ? 'A meta é hoje.' : `Faltam ${avaliacao.dias} dia${avaliacao.dias === 1 ? '' : 's'}.`) : null,
-      );
+  const comDados = Boolean(metaAtiva && avaliacao && avaliacao.estado !== 'sem-dados');
+  const um = (v) => formatarNumero(v, 1);
+  const metricas = comDados
+    ? [
+        { rotulo: `Previsto em ${formatarData(avaliacao.dataAlvo).slice(0, 5)}`, valor: formatarForma(avaliacao.formaProjetada, 1) },
+        { rotulo: 'Meta', valor: formatarForma(avaliacao.formaAlvo, 1) },
+        { rotulo: 'Diferença', valor: comSinal(avaliacao.diferenca, um), sufixo: 'pts', destaque: true },
+      ]
+    : [];
 
-  const anteriores = metasAnteriores.length
-    ? h(
-        'details',
-        { class: 'meta-anteriores' },
-        h('summary', null, `Metas anteriores (${metasAnteriores.length})`),
-        h('ul', null, ...metasAnteriores.map((m) => h('li', null, `Forma ${formatarForma(m.formaAlvo, 1)} em ${formatarData(m.dataAlvo)}`))),
-      )
-    : null;
-
-  return h('section', { class: 'card' }, h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Meta de forma'), h('div', { class: 'linha-botoes' }, botaoRemover, botaoAbrir)), resultado, aviso.el, form, anteriores);
+  return montarCartaoDeMeta({
+    id: 'plano-meta-forma', // 'meta-forma' já é o id do campo do formulário
+    titulo: 'Meta de forma',
+    estado: metaAtiva ? (avaliacao?.estado ?? 'sem-dados') : 'sem-dados',
+    rotuloEstado: comDados ? ROTULO_ESTADO[avaliacao.estado] : null,
+    acoes: [botaoAbrir, botaoRemover],
+    introducao: metaAtiva ? null : 'Opcional, complementa a meta de Condicionamento. Defina “chegar com Forma X na data Y” (por exemplo, descansado no dia de um evento) e o app mostra se o plano atual chega lá.',
+    metricas,
+    orientacao: !metaAtiva ? null : comDados ? ORIENTACAO[avaliacao.estado] : avaliacao ? textoDaAvaliacao(avaliacao) : null,
+    dias: metaAtiva && avaliacao && avaliacao.dias >= 0 ? { dias: avaliacao.dias, dataAlvo: formatarData(avaliacao.dataAlvo) } : null,
+    extras: [aviso.el, form],
+    anteriores: metasAnteriores.map((m) => ({ valor: `Forma ${formatarForma(m.formaAlvo, 1)}`, data: formatarData(m.dataAlvo) })),
+  });
 }
