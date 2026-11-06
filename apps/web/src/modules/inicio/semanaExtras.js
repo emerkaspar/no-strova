@@ -1,4 +1,4 @@
-import { progressoDaMetaCondicionamento } from '@no-strova/domain';
+import { progressoDaMetaCondicionamento, ZONAS } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarNumero } from '../../utils/formatters.js';
 
@@ -93,6 +93,42 @@ export function cartaoSequencia({ atual, recorde, nestaSemana }) {
     h('p', { class: 'semana-mini-rotulo' }, 'Sequência'),
     h('p', { class: 'semana-mini-valor' }, h('span', { class: 'semana-mini-numero' }, String(atual)), ` ${atual === 1 ? 'semana seguida' : 'semanas seguidas'} treinando`),
     h('p', { class: 'semana-mini-nota' }, nota),
+  );
+}
+
+const dias = (n) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+
+/**
+ * Mini-cartão "Descanso e recuperação" (dias sem treino planejado): os dias de descanso da semana e há quanto tempo
+ * se vem treinando ou descansando.
+ * @param {{ descansosNaSemana: number, diasSemTreinoSeguidos: number, diasTreinandoSeguidos: number }} d ver descansoERecuperacao
+ */
+export function cartaoDescanso({ descansosNaSemana, diasSemTreinoSeguidos, diasTreinandoSeguidos }) {
+  let nota;
+  if (diasSemTreinoSeguidos === 0) nota = `${dias(diasTreinandoSeguidos)} seguidos treinando, hoje incluído.`;
+  else if (diasTreinandoSeguidos > 0) nota = `Vindo de ${dias(diasTreinandoSeguidos)} seguidos treinando. Hoje é dia de recuperar.`;
+  else nota = `${dias(diasSemTreinoSeguidos)} seguidos sem treinar.`;
+  return h(
+    'div',
+    { class: 'semana-mini semana-descanso' },
+    h('p', { class: 'semana-mini-rotulo' }, 'Descanso e recuperação'),
+    h('p', { class: 'semana-mini-valor' }, h('span', { class: 'semana-mini-numero' }, String(descansosNaSemana)), ` ${descansosNaSemana === 1 ? 'dia' : 'dias'} sem treino na semana`),
+    h('p', { class: 'semana-mini-nota' }, nota),
+  );
+}
+
+/**
+ * Mini-cartão "Dica do dia": uma dica curta sobre uma zona de FC, com a faixa em bpm do atleta quando há configuração.
+ * @param {{ dica: { zona: string, texto: string }, faixaBpm: [number, number]|null }} p
+ */
+export function cartaoDicaDoDia({ dica, faixaBpm }) {
+  return h(
+    'div',
+    { class: 'semana-mini semana-dica' },
+    h('p', { class: 'semana-mini-rotulo' }, 'Dica do dia'),
+    h('p', { class: 'semana-mini-valor' }, ZONAS[dica.zona]?.rotulo ?? dica.zona),
+    faixaBpm ? h('p', { class: 'semana-mini-nota semana-dica-faixa' }, `${faixaBpm[0]}–${faixaBpm[1]} bpm`) : null,
+    h('p', { class: 'semana-mini-nota' }, dica.texto),
   );
 }
 

@@ -12,6 +12,7 @@ import { observarTrajetos } from '../../infrastructure/trajetosRepo.js';
 import { avisoDispensavel } from '../../utils/avisoDispensavel.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { resumoSincronizacao, semNovidades, sincronizarGarmin } from '../configuracao/garmin.js';
+import { criarAbas, colunasDe } from '../../utils/abas.js';
 import { h } from '../../utils/dom.js';
 import { seletor } from '../../utils/listaSuspensa.js';
 import { icone } from '../../utils/icones.js';
@@ -98,20 +99,6 @@ const GRUPOS_DE_RECORDE = [
 ];
 
 const CHAVE_ABA_RECORDES = 'no-strova:recordes-aba';
-const lerAbaDeRecordes = () => {
-  try {
-    return localStorage.getItem(CHAVE_ABA_RECORDES);
-  } catch {
-    return null;
-  }
-};
-const guardarAbaDeRecordes = (id) => {
-  try {
-    localStorage.setItem(CHAVE_ABA_RECORDES, id);
-  } catch {
-    /* sem armazenamento: a aba volta para a primeira */
-  }
-};
 
 const CARDS_DE_RECORDE = [
   { id: 'distancia', grupo: 'marcas', rotulo: 'Distância', rotuloCompleto: 'Maior distância', icone: 'distancia', formatar: (v) => formatarDistancia(v) },
@@ -393,11 +380,6 @@ export function render(raiz, sessao) {
       return Boolean(r && !r.atividade.semLink && r.atividade.data >= limiteNovo);
     };
     const abas = GRUPOS_DE_RECORDE.map((g) => ({ ...g, cartoes: cartoes.filter((c) => c.grupo === g.id) })).filter((g) => g.cartoes.length > 0);
-    let ativa = lerAbaDeRecordes();
-    if (!abas.some((g) => g.id === ativa)) ativa = abas[0]?.id;
-
-    /** Até 5 cartões por fileira; acima disso, as fileiras ficam parelhas (8 viram 4 + 4, sem cartão sozinho). */
-    const colunasDe = (n) => (n <= 5 ? n : Math.ceil(n / Math.ceil(n / 5)));
 
     function cartaoDeRecorde(c) {
       const r = doPeriodo[c.id];
@@ -433,52 +415,20 @@ export function render(raiz, sessao) {
       );
     }
 
-    const botoesAba = new Map();
-    const paineisAba = new Map();
-    const selecionarAba = (id, { foco = false } = {}) => {
-      for (const [chave, botao] of botoesAba) {
-        const ligada = chave === id;
-        botao.classList.toggle('ativa', ligada);
-        botao.setAttribute('aria-selected', String(ligada));
-        botao.tabIndex = ligada ? 0 : -1;
-        paineisAba.get(chave).hidden = !ligada;
-      }
-      guardarAbaDeRecordes(id);
-      const alvo = botoesAba.get(id);
-      if (foco) alvo.focus();
-      alvo.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
-    };
-    for (const g of abas) {
-      const novos = g.cartoes.some(ehNovo);
-      const botao = h(
-        'button',
-        { class: 'rec-aba', type: 'button', role: 'tab', id: `rec-aba-${g.id}`, 'aria-controls': `rec-painel-${g.id}`, title: g.titulo },
-        icone(g.icone, 15),
-        g.nome,
-        novos ? h('span', { class: 'rec-aba-ponto', title: 'Tem recorde novo', role: 'img', 'aria-label': 'Tem recorde novo' }) : null,
-      );
-      botao.addEventListener('click', () => selecionarAba(g.id));
-      botoesAba.set(g.id, botao);
-      paineisAba.set(
-        g.id,
-        h('div', { class: 'rec-grade', role: 'tabpanel', id: `rec-painel-${g.id}`, 'aria-labelledby': `rec-aba-${g.id}`, style: `--cols:${colunasDe(g.cartoes.length)}` }, ...g.cartoes.map(cartaoDeRecorde)),
-      );
-    }
-    const listaDeAbas = h('div', { class: 'rec-abas', role: 'tablist', 'aria-label': 'Seções de recordes' }, ...botoesAba.values());
-    listaDeAbas.addEventListener('keydown', (e) => {
-      const ids = [...botoesAba.keys()];
-      const atual = ids.findIndex((id) => botoesAba.get(id).getAttribute('aria-selected') === 'true');
-      const destino = { ArrowRight: (atual + 1) % ids.length, ArrowLeft: (atual - 1 + ids.length) % ids.length, Home: 0, End: ids.length - 1 }[e.key];
-      if (destino === undefined) return;
-      e.preventDefault();
-      selecionarAba(ids[destino], { foco: true });
+    const { lista: listaDeAbas, paineis } = criarAbas({
+      chave: CHAVE_ABA_RECORDES,
+      rotuloAria: 'Seções de recordes',
+      abas: abas.map((g) => ({
+        id: g.id,
+        nome: g.nome,
+        titulo: g.titulo,
+        icone: g.icone,
+        ponto: g.cartoes.some(ehNovo),
+        painel: h('div', { class: 'rec-grade', style: `--cols:${colunasDe(g.cartoes.length)}` }, ...g.cartoes.map(cartaoDeRecorde)),
+      })),
     });
 
-    recordes.replaceChildren(
-      h('div', { class: 'rec-topo' }, h('h2', { title: subtitulo }, 'Recordes'), listaDeAbas, botaoCalculo),
-      ...paineisAba.values(),
-    );
-    if (ativa) selecionarAba(ativa);
+    recordes.replaceChildren(h('div', { class: 'rec-topo' }, h('h2', { title: subtitulo }, 'Recordes'), listaDeAbas, botaoCalculo), ...paineis);
   }
 
   function mostrarPainel(chave, construir) {

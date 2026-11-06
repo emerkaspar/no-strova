@@ -1,4 +1,4 @@
-import { diasEntre, progressoDaMetaPeso, resumoDePeso, somarDias, totaisDaSemana } from '@no-strova/domain';
+import { condicaoDoClima, diasEntre, fraseDoClima, iconeDoClima, progressoDaMetaPeso, resumoDePeso, somarDias, totaisDaSemana } from '@no-strova/domain';
 import { destaqueDoInicio } from '../../application/inicio.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
@@ -9,7 +9,7 @@ import { criarMenuDoTreino, criarMenuNovoTreino } from '../../utils/menuNovoTrei
 import { cartaoDeEsforco } from '../plano/calendario.js';
 import { criarDicaZonas } from './dicaZonas.js';
 import { criarGraficoPrincipal } from './graficoPrincipal.js';
-import { cartaoMetaCondicionamento, cartaoProximoTreino, cartaoSequencia, progressoDaCarga, resumoDaSemana } from './semanaExtras.js';
+import { cartaoDescanso, cartaoDicaDoDia,cartaoMetaCondicionamento, cartaoProximoTreino, cartaoSequencia, progressoDaCarga, resumoDaSemana } from './semanaExtras.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { criarControlePopover, ligarPopoverDoDia } from './semanaPopover.js';
 
@@ -37,12 +37,23 @@ function numeroGrande(numero) {
   );
 }
 
+/** Badge do clima de agora (ícone, temperatura e condição) com uma frase curta, no espaço ao lado do número. */
+function badgeDoClima(clima) {
+  const condicao = condicaoDoClima(clima.climaCodigo);
+  return h(
+    'div',
+    { class: 'hero-clima', 'aria-label': 'Clima agora' },
+    h('span', { class: 'hero-clima-badge' }, icone(iconeDoClima(clima.climaCodigo), 18), `${clima.temperaturaC} °C${condicao ? ` · ${condicao}` : ''}`),
+    h('p', { class: 'hero-clima-frase' }, fraseDoClima(clima)),
+  );
+}
+
 /**
  * 1. Bloco de destaque: a Forma de hoje em número grande, com a cor da zona (ótima = laranja da marca, fresca =
  * verde, neutra = cinza, transição = azul, sobrecarga = vermelho) e quatro dados menores. A frase e a explicação
  * das zonas ficam no hint do chip e do número. Ver destaqueDoInicio.
  */
-export function blocoForma({ serie, carregou, semHrss = false }) {
+export function blocoForma({ serie, carregou, semHrss = false, clima = null }) {
   if (!carregou) {
     return h('section', { class: 'hero hero-modo-vazio', 'aria-label': 'Destaque do dia' }, h('p', { class: 'hero-rotulo' }, 'Hoje'), h('p', { class: 'hero-texto' }, 'Carregando…'));
   }
@@ -79,7 +90,7 @@ export function blocoForma({ serie, carregou, semHrss = false }) {
     'section',
     { class: `hero hero-modo-numero hero-zona-${d.zona}`, 'aria-label': 'Forma hoje' },
     h('div', { class: 'hero-topo' }, h('p', { class: 'hero-rotulo' }, d.rotulo), dica.raiz),
-    numero,
+    h('div', { class: 'hero-meio' }, numero, clima ? badgeDoClima(clima) : null),
     h('ul', { class: 'hero-dados' }, ...estatisticas),
     cta,
   );
@@ -124,13 +135,14 @@ export function tituloDoTreino(treinosDoDia) {
   return t.nomeTreino ?? `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.zona}`;
 }
 
-/** Mini-cartões sob o destaque: o próximo treino planejado, a sequência de semanas com treino e a meta de Condicionamento. */
-export function blocoMinis({ proximo, sequencia, metaCondicionamento = null, avaliacaoCondicionamento = null, condicionamentoAtual = null }) {
+/** Mini-cartões sob o destaque: o próximo treino planejado, a sequência de semanas com treino, a dica do dia sobre zonas e a meta de Condicionamento. */
+export function blocoMinis({ proximo, sequencia, dicaZona, descanso = null, metaCondicionamento = null, avaliacaoCondicionamento = null, condicionamentoAtual = null }) {
   return h(
     'div',
     { class: 'semana-minis' },
     cartaoProximoTreino(proximo),
     cartaoSequencia(sequencia),
+    descanso ? cartaoDescanso(descanso) : cartaoDicaDoDia(dicaZona),
     cartaoMetaCondicionamento({ meta: metaCondicionamento, avaliacao: avaliacaoCondicionamento, condicionamentoAtual }),
   );
 }

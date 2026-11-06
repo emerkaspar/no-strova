@@ -1,4 +1,4 @@
-import { RECURSOS, temRecurso, comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
+import { RECURSOS, configVigenteEm, descansoERecuperacao, dicaDeZonaDoDia, faixaDeFcDaZona, temRecurso, comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
@@ -88,6 +88,8 @@ export function render(raiz, sessao) {
     const planejado = treinosDaSemana.map((t) => ({ data: t.data, estresse: estresseDoTreino(t, dados.configs, dados.calibracao) }));
 
     const comDados = c.dias && dados.dias.length > 0;
+    const dicaDoDia = dicaDeZonaDoDia(hoje);
+    const configHoje = configVigenteEm(dados.configs, hoje);
     // Meta de Condicionamento: a mais próxima das ativas e a projeção do plano até a data dela (sem o corte de 14 dias do gráfico)
     const metaCond = c.metasCondicionamento ? dados.metasCondicionamento.filter((m) => m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null : null;
     const projecaoDaMeta =
@@ -104,6 +106,11 @@ export function render(raiz, sessao) {
           ? blocoMinis({
               proximo: proximoDoPlano(),
               sequencia: sequenciaSemanal(dados.dias.filter((d) => d.estresse > 0 || d.qtdAtividades > 0).map((d) => d.data), hoje),
+              // sem treino planejado para hoje, o lugar da dica mostra o descanso e a recuperação
+              descanso: dados.treinos.some((t) => t.status === 'planejado' && t.data === hoje)
+                ? null
+                : descansoERecuperacao(dados.dias.filter((d) => d.estresse > 0 || d.qtdAtividades > 0).map((d) => d.data), hoje),
+              dicaZona: { dica: dicaDoDia, faixaBpm: configHoje ? faixaDeFcDaZona(dicaDoDia.zona, configHoje) : null },
               metaCondicionamento: metaCond,
               avaliacaoCondicionamento: projecaoDaMeta?.avaliacaoCondicionamento ?? null,
               condicionamentoAtual: serieReal.length > 0 ? serieReal[serieReal.length - 1].fitness : null,

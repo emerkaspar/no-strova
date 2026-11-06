@@ -4,7 +4,7 @@ import { NOME_APP } from '../core/constants.js';
 /**
  * Logo da interface. `grande` é o ícone (public/icons/naostrova-icone.svg), das telas de status. O padrão (cabeçalho)
  * é o ícone do app (public/icons/icon-512.png), que traz o próprio fundo e por isso serve
- * aos dois temas; o slogan vai em texto, sorteado em utils/slogans.js.
+ * aos dois temas; a frase vai em texto, sorteada em utils/frases.js.
  */
 export function logo({ grande = false } = {}) {
   if (grande) {

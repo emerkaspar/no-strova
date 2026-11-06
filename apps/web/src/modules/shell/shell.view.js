@@ -23,7 +23,7 @@ const MENU = [
   { caminho: '#/progressao', rotulo: 'Progressão', icone: 'progressao' },
   { caminho: '#/treinos', rotulo: 'Treinos', icone: 'treinos' },
   { caminho: '#/peso', rotulo: 'Peso', icone: 'peso' },
-  { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao' },
+  { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao', soIcone: true },
 ];
 
 /** Resolve o hash em { menu, render, params }. Rotas desconhecidas ou proibidas caem no Início. */
@@ -111,8 +111,9 @@ export function render(raiz, sessao) {
     ),
   ];
 
-  function desenharRota() {
+  function desenharRota(evento) {
     destruirRota?.();
+    if (evento) cabecalho.novaFrase(); // frase nova só ao trocar de página (a primeira já veio sorteada com o cabeçalho)
     const rota = resolverRota(window.location.hash, sessao.admin);
     cabecalho.marcarAtivo(rota.menu);
     menuAtual = rota.menu;
@@ -124,7 +125,7 @@ export function render(raiz, sessao) {
   raiz.replaceChildren(cabecalho.topo, faixa, saida, cabecalho.abas);
 
   window.addEventListener('hashchange', desenharRota);
-  desenharRota();
+  desenharRota(null);
 
   return () => {
     window.removeEventListener('hashchange', desenharRota);

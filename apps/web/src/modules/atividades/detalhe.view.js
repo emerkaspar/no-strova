@@ -5,6 +5,7 @@ import { lerConfig, lerConfigs } from '../../infrastructure/configsRepo.js';
 import { lerTreinoDaAtividade } from '../../infrastructure/planoRepo.js';
 import { lerTrajeto } from '../../infrastructure/trajetosRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
+import { criarAbas, colunasDe } from '../../utils/abas.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDataHora, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
@@ -221,8 +222,8 @@ function indicadoresDeEsforco(a, calculando) {
     .map((e) => [`Melhor ${e.rotulo}`, e.metros, a[e.campo]])
     .filter(([, metros]) => a.distanciaM >= metros)
     .map(([rotulo, metros, tempo]) => {
-      if (Number.isFinite(tempo) && tempo > 0) return indicador(rotulo, tempoDeEsforco(tempo), ritmoTexto(a.esporte, tempo, metros), 'duracao');
-      return indicador(rotulo, calculando ? 'Calculando…' : '—', calculando ? 'Lendo o arquivo da atividade' : 'Sem dados de distância no arquivo', 'duracao');
+      if (Number.isFinite(tempo) && tempo > 0) return cartaoIndicador(rotulo, tempoDeEsforco(tempo), ritmoTexto(a.esporte, tempo, metros), 'duracao');
+      return cartaoIndicador(rotulo, calculando ? 'Calculando…' : '—', calculando ? 'Lendo o arquivo da atividade' : 'Sem dados de distância no arquivo', 'duracao');
     });
 }
 
@@ -234,15 +235,15 @@ function indicadoresDePotencia(a) {
   if (a.esporte !== 'ciclismo' || !a.potenciaOrigem || !Number.isFinite(a.potenciaMediaW)) return [];
   const w = (v) => (Number.isFinite(v) ? `${formatarNumero(v)} W` : '—');
   return [
-    indicador('Média', w(a.potenciaMediaW), null, 'hrss'),
-    indicador('Normalizada', w(a.potenciaNormalizadaW), null, 'hrss'),
+    cartaoIndicador('Média', w(a.potenciaMediaW), null, 'hrss'),
+    cartaoIndicador('Normalizada', w(a.potenciaNormalizadaW), null, 'hrss'),
     ...[
       ['Melhor 1 min', a.potenciaMax1minW],
       ['Melhor 5 min', a.potenciaMax5minW],
       ['Melhor 20 min', a.potenciaMax20minW],
     ]
       .filter(([, v]) => Number.isFinite(v))
-      .map(([rotulo, v]) => indicador(rotulo, w(v), null, 'hrss')),
+      .map(([rotulo, v]) => cartaoIndicador(rotulo, w(v), null, 'hrss')),
   ];
 }
 
@@ -255,28 +256,35 @@ function indicadoresDeClima(a) {
   const sensor = a.temperaturaOrigem === 'sensor';
   const faixa = sensor && Number.isFinite(a.temperaturaMinC) && Number.isFinite(a.temperaturaMaxC) ? `${formatarNumero(a.temperaturaMinC, 0)} a ${formatarNumero(a.temperaturaMaxC, 0)} °C` : null;
   return [
-    indicador('Temperatura', `${formatarNumero(a.temperaturaMediaC, 1)} °C`, faixa, iconeDoClima(a.climaCodigo)),
-    Number.isFinite(a.sensacaoC) ? indicador('Sensação', `${formatarNumero(a.sensacaoC, 1)} °C`, null, 'sol') : null,
-    Number.isFinite(a.umidadePct) ? indicador('Umidade', `${formatarNumero(a.umidadePct, 0)}%`, null, 'sol') : null,
-    Number.isFinite(a.ventoKmh) ? indicador('Vento', `${formatarNumero(a.ventoKmh, 1)} km/h`, null, 'vento') : null,
-    Number.isFinite(a.chuvaMm) ? indicador('Chuva', `${formatarNumero(a.chuvaMm, 1)} mm`, null, 'chuva') : null,
+    cartaoIndicador('Temperatura', `${formatarNumero(a.temperaturaMediaC, 1)} °C`, faixa, iconeDoClima(a.climaCodigo)),
+    Number.isFinite(a.sensacaoC) ? cartaoIndicador('Sensação', `${formatarNumero(a.sensacaoC, 1)} °C`, null, 'sol') : null,
+    Number.isFinite(a.umidadePct) ? cartaoIndicador('Umidade', `${formatarNumero(a.umidadePct, 0)}%`, null, 'sol') : null,
+    Number.isFinite(a.ventoKmh) ? cartaoIndicador('Vento', `${formatarNumero(a.ventoKmh, 1)} km/h`, null, 'vento') : null,
+    Number.isFinite(a.chuvaMm) ? cartaoIndicador('Chuva', `${formatarNumero(a.chuvaMm, 1)} mm`, null, 'chuva') : null,
   ].filter(Boolean);
 }
 
-/** Bloco de indicadores com título (e um selo/nota curtos ao lado dele); sem itens, não aparece. */
-function secao(titulo, itens, { selo = null, nota = null, dica = null } = {}) {
-  if (itens.length === 0) return null;
+/** Cartão compacto de indicador (o mesmo dos recordes): ícone, rótulo, valor grande e, se houver, uma nota no rodapé. */
+function cartaoIndicador(rotulo, valor, nota, nomeIcone = 'atividades') {
   return h(
-    'section',
-    { class: 'ativ-secao' },
-    h(
-      'div',
-      { class: 'ativ-secao-topo' },
-      h('h3', null, titulo),
-      selo ? h('span', { class: 'ativ-selo', title: dica ?? undefined }, selo) : null,
-      nota ? h('span', { class: 'ativ-secao-nota' }, nota) : null,
-    ),
-    h('div', { class: 'ativ-secao-grade' }, ...itens),
+    'article',
+    { class: 'rec-card' },
+    h('div', { class: 'rec-card-topo' }, h('span', { class: 'rec-card-icone' }, icone(nomeIcone, 16))),
+    h('span', { class: 'rec-card-rotulo', title: rotulo }, rotulo),
+    h('strong', { class: 'rec-card-valor' }, valor),
+    nota ? h('div', { class: 'rec-card-rodape' }, h('span', { class: 'rec-card-quando' }, nota)) : null,
+  );
+}
+
+/** Conteúdo de uma aba: uma linha de nota (com selo opcional) e a grade de cartões. */
+function painelDeIndicadores(itens, { nota = null, selo = null, dica = null } = {}) {
+  return h(
+    'div',
+    { class: 'rec-painel' },
+    nota || selo
+      ? h('p', { class: 'rec-nota' }, selo ? h('span', { class: 'ativ-selo', title: dica ?? undefined }, selo) : null, nota)
+      : null,
+    h('div', { class: 'rec-grade', style: `--cols:${colunasDe(itens.length)}` }, ...itens),
   );
 }
 
@@ -505,30 +513,51 @@ export function render(raiz, sessao, { id }) {
       grafico?.destruir();
       mapa?.destruir();
     };
-    // blocos com título: resumo, potência, clima e melhores esforços (cada um só aparece se tiver dados)
+    // abas: resumo, potência, clima e melhores esforços (cada uma só aparece se tiver dados); a última aberta fica lembrada
     const montarIndicadores = () => {
       const estimada = a.potenciaOrigem === 'estimada';
       const sensor = a.temperaturaOrigem === 'sensor';
-      return h(
-        'div',
-        { class: 'ativ-indicadores ativ-secoes' },
-        secao('Resumo', [
-          indicador('Distância', formatarDistancia(a.distanciaM), null, 'distancia'),
-          indicador('Duração', formatarDuracao(a.duracaoS), null, 'duracao'),
-          indicador('Em movimento', formatarDuracao(a.tempoMovimentoS), null, 'duracao'),
-          indicador('Subida', a.altimetriaM === null || a.altimetriaM === undefined ? '—' : `${formatarNumero(a.altimetriaM)} m`, null, 'elevacao'),
-          indicador('FC média', a.fcMedia ? `${a.fcMedia} bpm` : '—', a.zona ? `Zona informada: ${a.zona}` : null, 'fc'),
-          indicador('FC máxima', a.fcMax ? `${a.fcMax} bpm` : '—', null, 'fc'),
-          indicador('HRSS', hrssTexto, a.hrssOrigem ? ROTULO_ORIGEM_HRSS[a.hrssOrigem] : null, 'hrss'),
-          indicador('Calorias', a.calorias ? `${formatarNumero(a.calorias)} kcal` : '—', caloriasNota, 'atividades'),
-        ]),
-        secao('Potência', indicadoresDePotencia(a), {
-          selo: estimada ? 'Estimada' : 'Medida',
-          dica: estimada ? 'Estimada por velocidade, subida e peso (margem típica de 10 a 20%)' : 'Medida pelo medidor de potência',
-        }),
-        secao('Clima', indicadoresDeClima(a), { nota: [condicaoDoClima(a.climaCodigo), sensor ? 'temperatura do sensor' : 'dados do local de partida'].filter(Boolean).join(' · ') }),
-        secao('Melhores esforços', indicadoresDeEsforco(a, calculando)),
-      );
+      const potencia = indicadoresDePotencia(a);
+      const clima = indicadoresDeClima(a);
+      const esforcos = indicadoresDeEsforco(a, calculando);
+      const resumo = [
+        cartaoIndicador('Distância', formatarDistancia(a.distanciaM), null, 'distancia'),
+        cartaoIndicador('Duração', formatarDuracao(a.duracaoS), null, 'duracao'),
+        cartaoIndicador('Em movimento', formatarDuracao(a.tempoMovimentoS), null, 'duracao'),
+        cartaoIndicador('Subida', a.altimetriaM === null || a.altimetriaM === undefined ? '—' : `${formatarNumero(a.altimetriaM)} m`, null, 'elevacao'),
+        cartaoIndicador('FC média', a.fcMedia ? `${a.fcMedia} bpm` : '—', a.zona ? `Zona informada: ${a.zona}` : null, 'fc'),
+        cartaoIndicador('FC máxima', a.fcMax ? `${a.fcMax} bpm` : '—', null, 'fc'),
+        cartaoIndicador('HRSS', hrssTexto, a.hrssOrigem ? ROTULO_ORIGEM_HRSS[a.hrssOrigem] : null, 'hrss'),
+        cartaoIndicador('Calorias', a.calorias ? `${formatarNumero(a.calorias)} kcal` : '—', caloriasNota, 'atividades'),
+      ];
+      const { lista, paineis } = criarAbas({
+        chave: 'no-strova:atividade-aba',
+        rotuloAria: 'Indicadores da atividade',
+        abas: [
+          { id: 'resumo', nome: 'Resumo', icone: 'atividades', painel: painelDeIndicadores(resumo) },
+          potencia.length > 0
+            ? {
+                id: 'potencia',
+                nome: 'Potência',
+                icone: 'hrss',
+                painel: painelDeIndicadores(potencia, {
+                  selo: estimada ? 'Estimada' : 'Medida',
+                  nota: estimada ? 'por velocidade, subida e peso (margem típica de 10 a 20%)' : 'pelo medidor de potência',
+                }),
+              }
+            : null,
+          clima.length > 0
+            ? {
+                id: 'clima',
+                nome: 'Clima',
+                icone: iconeDoClima(a.climaCodigo),
+                painel: painelDeIndicadores(clima, { nota: [condicaoDoClima(a.climaCodigo), sensor ? 'temperatura do sensor' : 'dados do local de partida'].filter(Boolean).join(' · ') }),
+              }
+            : null,
+          esforcos.length > 0 ? { id: 'esforcos', nome: 'Esforços', titulo: 'Melhores esforços', icone: 'cronometro', painel: painelDeIndicadores(esforcos) } : null,
+        ],
+      });
+      return h('div', { class: 'ativ-indicadores rec-bloco' }, h('div', { class: 'rec-topo' }, lista), ...paineis);
     };
     let indicadores = montarIndicadores();
 
