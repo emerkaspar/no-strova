@@ -40,12 +40,32 @@ function numeroGrande(numero) {
 /** Badge do clima de agora (ícone, temperatura e condição) com uma frase curta, no espaço ao lado do número. */
 function badgeDoClima(clima) {
   const condicao = condicaoDoClima(clima.climaCodigo);
+  const nomeIcone = iconeDoClima(clima.climaCodigo);
+  const sinal = icone(nomeIcone, 18);
+  sinal.classList.add('clima-ico', `clima-ico-${nomeIcone}`); // cor por condição (sol, nuvem, chuva…), fixa mesmo quando o card muda de cor
   return h(
     'div',
     { class: 'hero-clima', 'aria-label': 'Clima agora' },
-    h('span', { class: 'hero-clima-badge' }, icone(iconeDoClima(clima.climaCodigo), 18), `${clima.temperaturaC} °C${condicao ? ` · ${condicao}` : ''}`),
+    h('span', { class: 'hero-clima-badge' }, sinal, `${clima.temperaturaC} °C${condicao ? ` · ${condicao}` : ''}`),
     h('p', { class: 'hero-clima-frase' }, fraseDoClima(clima)),
   );
+}
+
+const AVISO_DO_CLIMA = {
+  'localizacao-negada': 'Localização bloqueada. Libere no cadeado do navegador.',
+  'localizacao-indisponivel': 'Não deu para achar o local.',
+  'sem-resposta': 'O serviço de clima não respondeu.',
+};
+
+/** Sem clima: um botão para pedir a localização por clique (o navegador costuma ignorar o pedido automático) e o motivo. */
+function botaoDoClima(motivo, aoBuscar) {
+  const botao = h('button', { class: 'hero-clima-botao', type: 'button' }, icone('solNuvem', 18), 'Ver o clima agora');
+  botao.addEventListener('click', () => {
+    botao.disabled = true;
+    botao.lastChild.textContent = 'Buscando…';
+    aoBuscar();
+  });
+  return h('div', { class: 'hero-clima', 'aria-label': 'Clima agora' }, botao, h('p', { class: 'hero-clima-frase' }, AVISO_DO_CLIMA[motivo] ?? ''));
 }
 
 /**
@@ -53,7 +73,7 @@ function badgeDoClima(clima) {
  * verde, neutra = cinza, transição = azul, sobrecarga = vermelho) e quatro dados menores. A frase e a explicação
  * das zonas ficam no hint do chip e do número. Ver destaqueDoInicio.
  */
-export function blocoForma({ serie, carregou, semHrss = false, clima = null }) {
+export function blocoForma({ serie, carregou, semHrss = false, clima = null, climaMotivo = null, aoBuscarClima = () => {} }) {
   if (!carregou) {
     return h('section', { class: 'hero hero-modo-vazio', 'aria-label': 'Destaque do dia' }, h('p', { class: 'hero-rotulo' }, 'Hoje'), h('p', { class: 'hero-texto' }, 'Carregando…'));
   }
@@ -90,7 +110,7 @@ export function blocoForma({ serie, carregou, semHrss = false, clima = null }) {
     'section',
     { class: `hero hero-modo-numero hero-zona-${d.zona}`, 'aria-label': 'Forma hoje' },
     h('div', { class: 'hero-topo' }, h('p', { class: 'hero-rotulo' }, d.rotulo), dica.raiz),
-    h('div', { class: 'hero-meio' }, numero, clima ? badgeDoClima(clima) : null),
+    h('div', { class: 'hero-meio' }, numero, clima ? badgeDoClima(clima) : climaMotivo ? botaoDoClima(climaMotivo, aoBuscarClima) : null),
     h('ul', { class: 'hero-dados' }, ...estatisticas),
     cta,
   );

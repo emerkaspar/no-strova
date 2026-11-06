@@ -1,58 +1,27 @@
-import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, RECURSOS, SEXOS, temRecurso, validarConfigAtleta, validarDadosPerfil } from '@no-strova/domain';
+import { atividadesAntesDaPrimeiraVigencia, primeiraVigencia, RECURSOS, SEXOS, temRecurso, validarConfigAtleta } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { recalcularHistorico } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { excluirConfig, observarConfigs, salvarConfig } from '../../infrastructure/configsRepo.js';
 import { conferirLthrNoIntervals } from './lthrIntervals.js';
-import { atualizarDadosPessoais } from '../../infrastructure/perfilRepo.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { criarCartaoGarmin } from './garmin.js';
-import { secaoRecolhivel } from './secaoRecolhivel.js';
+import { linhaCartao, metricaCartao } from './linhaCartao.js';
+import { reiniciarSecoes, secaoRecolhivel } from './secaoRecolhivel.js';
 import { editar, estadoConfiguracao } from './state.js';
 import { confirmar } from '../../utils/modal.js';
 
 const ROTULO_SEXO = { [SEXOS.MASCULINO]: 'Masculino', [SEXOS.FEMININO]: 'Feminino' };
 
-function cartaoDadosPessoais(sessao) {
-  const nome = campo({ id: 'dp-nome', rotulo: 'Nome', maxlength: 80, value: sessao.perfil?.nome ?? '' });
-  const nascimento = campo({
-    id: 'dp-nasc',
-    rotulo: 'Data de nascimento',
-    tipo: 'date',
-    value: sessao.perfil?.dataNascimento ?? '',
-    dica: 'Usada para estimar o gasto calórico (calorias estimadas) nas atividades sem calorias no arquivo.',
-  });
-  const mensagem = areaMensagem();
-  const botao = h('button', { class: 'btn', type: 'submit' }, 'Salvar dados');
-  const form = h(
-    'form',
-    {
-      novalidate: true,
-      onSubmit: (e) => {
-        e.preventDefault();
-        executarComBotao(botao, mensagem, async () => {
-          const r = validarDadosPerfil({ nome: nome.input.value, dataNascimento: nascimento.input.value });
-          if (!r.valido) throw new Error(r.erros.join(' '));
-          await atualizarDadosPessoais(sessao.uid, r.valores);
-          mensagem.mostrar('Dados salvos. Use “Recalcular histórico” para atualizar as calorias estimadas.', 'ok');
-        });
-      },
-    },
-    h('div', { class: 'grid' }, nome.raiz, nascimento.raiz),
-    mensagem.el,
-    botao,
-  );
-  return secaoRecolhivel({ id: 'dados', titulo: 'Seus dados', corpo: [form] });
-}
-
 
 export function render(raiz, sessao) {
+  reiniciarSecoes(); // todas as seções abrem recolhidas
   let configs = [];
   const cancelar = [];
-  const corpoTabela = h('div', { class: 'tabela-wrap' });
+  const corpoTabela = h('div');
   const areaForm = h('div');
   // O formulário só aparece ao adicionar ou editar uma vigência (ou quando ainda não há nenhuma).
   let formAberto = false;
@@ -92,55 +61,44 @@ export function render(raiz, sessao) {
     }
     corpoTabela.replaceChildren(
       h(
-        'table',
-        { class: 'tabela' },
-        h(
-          'thead',
-          null,
-          h('tr', null, ...['Vigente desde', 'FC máx.', 'FC repouso', 'LTHR', 'Sexo', 'Peso', 'Altura', 'Ações'].map((t) => h('th', { scope: 'col' }, t))),
-        ),
-        h(
-          'tbody',
-          null,
-          ...configs.map((c, i) =>
-            h(
-              'tr',
-              null,
-              h('td', null, formatarData(c.vigenteDesde), i === 0 ? h('span', { class: 'badge' }, 'atual') : null),
-              h('td', null, `${c.fcMax} bpm`),
-              h('td', null, `${c.fcRepouso} bpm`),
-              h('td', null, `${c.lthr} bpm`),
-              h('td', null, ROTULO_SEXO[c.sexo] ?? c.sexo),
-              h('td', null, `${formatarNumero(c.pesoKg, 1)} kg`),
-              h('td', null, `${formatarNumero(c.alturaCm, 0)} cm`),
+        'ul',
+        { class: 'cfg-lista' },
+        ...configs.map((c, i) =>
+          linhaCartao({
+            atual: i === 0,
+            nomeIcone: 'calendario',
+            topo: ['Vigente desde'],
+            titulo: h('strong', { class: 'cfg-titulo' }, formatarData(c.vigenteDesde), i === 0 ? h('span', { class: 'cfg-pill' }, 'atual') : null),
+            lado: [
+              h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(c.id); formAberto = true; mensagemForm.limpar(); desenharForm(); areaForm.scrollIntoView?.({ behavior: 'smooth' }); } }, 'Editar'),
               h(
-                'td',
-                null,
-                h(
-                  'div',
-                  { class: 'acoes' },
-                  h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => { editar(c.id); formAberto = true; mensagemForm.limpar(); desenharForm(); areaForm.scrollIntoView?.({ behavior: 'smooth' }); } }, 'Editar'),
-                  h(
-                    'button',
-                    {
-                      class: 'btn btn-perigo',
-                      type: 'button',
-                      onClick: async () => {
-                        if (!(await confirmar({ titulo: 'Excluir esta configuração?', mensagem: `A configuração vigente desde ${formatarData(c.vigenteDesde)} será apagada.`, confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
-                        mensagemTabela.limpar();
-                        try {
-                          await excluirConfig(c.id);
-                        } catch {
-                          mensagemTabela.mostrar('Não foi possível excluir a configuração.');
-                        }
-                      },
-                    },
-                    'Excluir',
-                  ),
-                ),
+                'button',
+                {
+                  class: 'btn btn-perigo',
+                  type: 'button',
+                  onClick: async () => {
+                    if (!(await confirmar({ titulo: 'Excluir esta configuração?', mensagem: `A configuração vigente desde ${formatarData(c.vigenteDesde)} será apagada.`, confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
+                    mensagemTabela.limpar();
+                    try {
+                      await excluirConfig(c.id);
+                    } catch {
+                      mensagemTabela.mostrar('Não foi possível excluir a configuração.');
+                    }
+                  },
+                },
+                'Excluir',
               ),
-            ),
-          ),
+            ],
+            colunas: 6,
+            metricas: [
+              metricaCartao('fcPulso', 'FC máx.', `${c.fcMax} bpm`),
+              metricaCartao('fc', 'FC repouso', `${c.fcRepouso} bpm`),
+              metricaCartao('atividades', 'LTHR', `${c.lthr} bpm`),
+              metricaCartao('perfil', 'Sexo', ROTULO_SEXO[c.sexo] ?? c.sexo),
+              metricaCartao('peso', 'Peso', `${formatarNumero(c.pesoKg, 1)} kg`),
+              metricaCartao('regua', 'Altura', `${formatarNumero(c.alturaCm, 0)} cm`),
+            ],
+          }),
         ),
       ),
     );
@@ -248,7 +206,6 @@ export function render(raiz, sessao) {
 
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
-      cartaoDadosPessoais(sessao),
       temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoGarmin().raiz : null,
       secaoRecolhivel({
         id: 'atleta',

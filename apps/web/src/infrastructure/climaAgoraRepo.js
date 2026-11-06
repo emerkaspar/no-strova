@@ -26,21 +26,25 @@ function gravar(armazenamento, chave, valor) {
 
 /**
  * Onde o usuário está: a localização do navegador (pede permissão) ou, se negada ou indisponível, a última que funcionou
- * neste aparelho. `null` sem nenhuma das duas.
- * @returns {Promise<{ lat: number, lon: number }|null>}
+ * neste aparelho. `ponto` é null sem nenhuma das duas; `erro` é o código do navegador (1 negada, 2 indisponível,
+ * 3 demorou demais) quando a localização falhou, ou 0 se o navegador não tem geolocalização.
+ * @returns {Promise<{ ponto: { lat: number, lon: number }|null, erro: number|null }>}
  */
 export function localizarUsuario() {
   const ultimo = ler(localStorage, CHAVE_LOCAL);
-  if (!('geolocation' in navigator)) return Promise.resolve(ultimo);
+  if (!('geolocation' in navigator)) return Promise.resolve({ ponto: ultimo, erro: 0 });
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const ponto = { lat: arredondar(coords.latitude), lon: arredondar(coords.longitude) };
         gravar(localStorage, CHAVE_LOCAL, ponto);
-        resolve(ponto);
+        resolve({ ponto, erro: null });
       },
-      () => resolve(ultimo),
-      { timeout: TEMPO_LIMITE_MS, maximumAge: 60 * 60 * 1000 },
+      (falha) => {
+        console.warn('Clima: não foi possível obter a localização', falha.code, falha.message);
+        resolve({ ponto: ultimo, erro: falha.code });
+      },
+      { timeout: 10000, maximumAge: 60 * 60 * 1000 },
     );
   });
 }
@@ -54,11 +58,15 @@ export async function buscarClimaAgora(ponto) {
   if (cache && cache.lat === ponto.lat && cache.lon === ponto.lon && Date.now() - cache.em < VALIDADE_MS) return cache.clima;
   try {
     const resposta = await fetch(urlDoClimaAgora(ponto), { signal: AbortSignal.timeout(TEMPO_LIMITE_MS) });
-    if (!resposta.ok) return null;
+    if (!resposta.ok) {
+      console.warn('Clima: o serviço respondeu com erro', resposta.status);
+      return null;
+    }
     const clima = climaAgoraDaResposta(await resposta.json());
     if (clima) gravar(sessionStorage, CHAVE_CACHE, { ...ponto, em: Date.now(), clima });
     return clima;
-  } catch {
+  } catch (err) {
+    console.warn('Clima: falha ao consultar o serviço', err);
     return null;
   }
 }

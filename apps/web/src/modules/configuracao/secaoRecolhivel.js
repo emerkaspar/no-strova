@@ -1,34 +1,24 @@
 import { h } from '../../utils/dom.js';
 
-/** Seções recolhidas da tela de Configuração, guardadas no navegador (cada snapshot do Firestore redesenha alguns cartões). */
-const CHAVE_RECOLHIDAS = 'ns:configuracao:recolhidas';
+/**
+ * Seções abertas da tela de Configuração. Todas começam recolhidas a cada vez que a tela abre (`reiniciarSecoes`); a lista fica
+ * em memória só para que um cartão redesenhado por um snapshot do Firestore (a calibração, por exemplo) continue como o usuário o deixou.
+ */
+const abertas = new Set();
 
-function lerRecolhidas() {
-  try {
-    const lista = JSON.parse(localStorage.getItem(CHAVE_RECOLHIDAS) ?? '[]');
-    return Array.isArray(lista) ? lista : [];
-  } catch {
-    // navegador sem armazenamento (janela privada, dados bloqueados): tudo aberto
-    return [];
-  }
-}
-
-function salvarRecolhidas(lista) {
-  try {
-    localStorage.setItem(CHAVE_RECOLHIDAS, JSON.stringify(lista));
-  } catch {
-    // sem armazenamento: vale só nesta visita
-  }
+/** Chamado ao montar a tela: todas as seções voltam a ficar recolhidas. */
+export function reiniciarSecoes() {
+  abertas.clear();
 }
 
 /**
- * Cartão com título que recolhe e abre o corpo (o app lembra a escolha), com ações opcionais à direita do título.
+ * Cartão com título que recolhe e abre o corpo (começa recolhido), com ações opcionais à direita do título.
  * Recolhe e abre no próprio elemento, sem redesenhar a tela.
  * @param {{ id: string, titulo: string, acoes?: Node|null, corpo: Array<Node|null>|Node }} p
  * @returns {HTMLElement}
  */
 export function secaoRecolhivel({ id, titulo, acoes = null, corpo }) {
-  let recolhida = lerRecolhidas().includes(id);
+  let recolhida = !abertas.has(id);
   const corpoId = `config-corpo-${id}`;
   const areaCorpo = h('div', { class: 'config-secao-corpo', id: corpoId, hidden: recolhida }, ...(Array.isArray(corpo) ? corpo : [corpo]));
   const botao = h(
@@ -43,8 +33,8 @@ export function secaoRecolhivel({ id, titulo, acoes = null, corpo }) {
     areaCorpo.hidden = recolhida;
     botao.setAttribute('aria-expanded', String(!recolhida));
     raiz.dataset.recolhida = String(recolhida);
-    const sem = lerRecolhidas().filter((x) => x !== id);
-    salvarRecolhidas(recolhida ? [...sem, id] : sem);
+    if (recolhida) abertas.delete(id);
+    else abertas.add(id);
   });
   return raiz;
 }

@@ -1,5 +1,6 @@
 import { RECURSOS, configVigenteEm, descansoERecuperacao, dicaDeZonaDoDia, faixaDeFcDaZona, temRecurso, comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
+import { climaAgoraDoUsuario } from '../../application/climaAgora.js';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
 import { metaDaSemanaDoPlanoAnual } from '../../application/provas.js';
@@ -48,6 +49,8 @@ export function render(raiz, sessao) {
     pesagens: [],
     metasPeso: [],
     metasProgressao: [],
+    clima: null,
+    climaMotivo: null,
     atividadesAno: [],
     carregou: { metasProgressao: false, atividadesAno: false, pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false, provas: false },
   };
@@ -101,7 +104,7 @@ export function render(raiz, sessao) {
       h(
         'div',
         { class: 'inicio-coluna' },
-        blocoForma({ serie: serieReal, carregou: c.dias, semHrss: c.dias && dados.dias.length > 0 && serieReal.length === 0 }),
+        blocoForma({ serie: serieReal, carregou: c.dias, semHrss: c.dias && dados.dias.length > 0 && serieReal.length === 0, clima: dados.clima, climaMotivo: dados.climaMotivo, aoBuscarClima: buscarClima }),
         comDados
           ? blocoMinis({
               proximo: proximoDoPlano(),
@@ -180,6 +183,17 @@ export function render(raiz, sessao) {
     );
   }
   desenhar();
+
+  // Clima de agora (uma busca por visita; o botão do card repete a busca por clique, que o navegador aceita melhor)
+  function buscarClima() {
+    return climaAgoraDoUsuario().then(({ clima, motivo }) => {
+      if (!ativa) return;
+      dados.clima = clima;
+      dados.climaMotivo = motivo;
+      desenhar();
+    });
+  }
+  buscarClima();
 
   // Cada assinatura guarda seu pedaço dos dados em `chave` e marca `flag` como carregado (um erro conta como
   // "carregado, vazio").

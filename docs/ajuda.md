@@ -59,7 +59,7 @@ No primeiro acesso depois da aprovação, o app abre um **passo a passo** em tel
 Em **Configuração**, cadastre a **FC máxima**, a **FC de repouso**, o **LTHR** (a maior FC média que você sustenta por cerca de 1 hora), o **sexo** (define uma constante do cálculo), o **peso** e a **altura**. Sem isso o app não calcula o HRSS.
 
 - Use **+ Nova vigência** para cadastrar um novo conjunto (o formulário só aparece ao adicionar ou editar). Cada conjunto vale **a partir de uma data**. **Atenção:** atividades anteriores à data da sua configuração mais antiga ficam **sem HRSS**, porque não há configuração vigente nelas. Na primeira configuração, use uma data **anterior à sua atividade mais antiga** (o app já sugere essa data e avisa antes de salvar uma vigência que deixaria atividades descobertas). Cada atividade é calculada com a configuração vigente no dia dela, então você pode registrar mudanças (peso, FC máxima, LTHR) sem distorcer o histórico.
-- Em **Seus dados** você edita o nome e a data de nascimento. A data de nascimento é usada para estimar as calorias.
+- Cada conjunto aparece como um cartão: a data de início (a vigência em uso leva a faixa laranja e o selo **atual**), os botões **Editar** e **Excluir** e, embaixo, FC máxima, FC de repouso, LTHR, sexo, peso e altura, cada um com ícone.
 - Ao mudar a configuração, use **Recalcular histórico** (com confirmação) para aplicar às atividades já registradas. O estresse que você digitou manualmente nunca é alterado.
 
 ### Teste de LTHR (acertar as suas zonas)
@@ -70,9 +70,9 @@ O LTHR (FC no limiar) define as zonas e o HRSS de tudo. Para medir, faça o **te
 
 A estimativa de HRSS dos treinos planejados parte de uma fórmula. Com a **calibração**, o app aprende com as suas atividades já feitas (com frequência cardíaca real) quanto HRSS por hora você faz em cada esporte e zona, e mistura isso com a fórmula: quanto mais atividades, mais peso para o seu histórico. É automática (precisa de pelo menos 3 atividades de 20 minutos ou mais por esporte e zona), e no editor de treino aparece "calibrada com as suas N atividades". Em **Configuração → Calibração das estimativas** você vê o que o app aprendeu e pode **desligar** o uso.
 
-**Quando refazer a calibração?** Na maioria das vezes, nunca: a tabela se atualiza sozinha a cada atividade importada, editada ou excluída. Se você mudou a configuração ou o LTHR, use **Recalcular histórico** (em Configuração do atleta), que já refaz a calibração junto. O link discreto **Refazer a calibração**, no fim do bloco, serve só se tinha atividades de antes de a calibração existir, se a tabela parecer desatualizada ou se uma atividade válida (20 minutos ou mais, com FC) não aparecer. Refazer é seguro: não altera nenhuma atividade.
+**Quando refazer a calibração?** Na maioria das vezes, nunca: a lista se atualiza sozinha a cada atividade importada, editada ou excluída. Se você mudou a configuração ou o LTHR, use **Recalcular histórico** (em Configuração do atleta), que já refaz a calibração junto. O link discreto **Refazer a calibração**, no fim do bloco, serve só se tinha atividades de antes de a calibração existir, se a tabela parecer desatualizada ou se uma atividade válida (20 minutos ou mais, com FC) não aparecer. Refazer é seguro: não altera nenhuma atividade.
 
-Como ler a tabela, coluna por coluna (na tela, passe o mouse, use o teclado ou toque no nome da coluna para abrir uma explicação com um exemplo genérico):
+A calibração é uma lista de cartões, um por esporte e zona. Como ler cada dado (na tela, passe o mouse, use o teclado ou toque no nome do dado para abrir uma explicação com um exemplo genérico):
 
 - **Esporte**: ciclismo e corrida são calibrados separadamente, porque a mesma zona rende HRSS diferente em cada um.
 - **Zona**: Z1 a Z5, definida pelo seu LTHR vigente na data de cada atividade; é a mesma zona dos treinos planejados.
@@ -81,7 +81,7 @@ Como ler a tabela, coluna por coluna (na tela, passe o mouse, use o teclado ou t
 - **Fórmula (HRSS/h)**: o que a fórmula prevê sem olhar o histórico (FC média típica da zona + a sua configuração de atleta).
 - **Peso da calibração**: quanto a estimativa confia no seu histórico, atividades ÷ (atividades + 5): 38% com 3, 50% com 5, 67% com 10, 86% com 30. Com menos de 3, aparece "precisa de N a mais" e vale só a fórmula. A estimativa final é peso × seu HRSS/h + (1 − peso) × fórmula.
 
-Na tela de **Configuração**, cada bloco (Seus dados, Configuração do atleta, Teste de LTHR, Calibração, Garmin) pode ser recolhido clicando no título; o app lembra a sua escolha.
+Na tela de **Configuração**, cada bloco (Configuração do atleta, Teste de LTHR, Calibração, Garmin) começa recolhido e abre clicando no título (enquanto você estiver na tela, o que abriu continua aberto).
 
 ## Atividades
 

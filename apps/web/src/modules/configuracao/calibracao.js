@@ -8,6 +8,7 @@ import { formatarData, formatarDuracao, formatarNumero } from '../../utils/forma
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { analisarAtividadeLthr, montarResultadoLthr } from './resultadoLthr.js';
 import { criarControlePopover } from '../inicio/semanaPopover.js';
+import { linhaCartao, metricaCartao } from './linhaCartao.js';
 import { secaoRecolhivel } from './secaoRecolhivel.js';
 
 const ZONAS_EM_ORDEM = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
@@ -48,18 +49,24 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
     .map(([chave, entrada]) => ({ ...separarChave(chave), ...entrada }))
     .sort((a, b) => (a.esporte === b.esporte ? ZONAS_EM_ORDEM.indexOf(a.zona) - ZONAS_EM_ORDEM.indexOf(b.zona) : a.esporte < b.esporte ? -1 : 1));
 
+  const guia = (nome) => GUIA_DAS_COLUNAS.find((g) => g.coluna === nome);
+  // o rótulo de cada dado abre o popover explicativo da coluna que ele era
+  const rotulo = (nome) => comPopover(h('span', null, nome), guia(nome));
   const linhas = chaves.map((c) => {
     const r = hrssPorHoraCalibrado({ esporte: c.esporte, zona: c.zona, config, calibracao });
-    return h(
-      'tr',
-      null,
-      h('td', null, ROTULO_ESPORTE[c.esporte] ?? c.esporte),
-      h('td', null, c.zona),
-      h('td', null, String(c.n)),
-      h('td', { class: 'celula-hrss' }, formatarNumero(c.mediana, 1)),
-      h('td', null, r.formula === null ? '—' : formatarNumero(r.formula, 1)),
-      h('td', null, r.calibrado ? `${formatarNumero(r.peso * 100, 0)}%` : `precisa de ${3 - c.n > 0 ? 3 - c.n : 0} a mais`),
-    );
+    return linhaCartao({
+      nomeIcone: c.esporte === 'ciclismo' || c.esporte === 'corrida' ? c.esporte : 'outro',
+      topo: [rotulo('Esporte')],
+      titulo: h('strong', { class: 'cfg-titulo' }, ROTULO_ESPORTE[c.esporte] ?? c.esporte),
+      lado: [h('div', { class: 'ativ-metrica cfg-zona' }, h('span', { class: 'ativ-metrica-rotulo' }, rotulo('Zona')), h('strong', { class: 'ativ-metrica-valor' }, c.zona))],
+      colunas: 4,
+      metricas: [
+        metricaCartao('treinos', rotulo('Atividades'), String(c.n)),
+        metricaCartao('atividades', rotulo('Seu HRSS/h'), formatarNumero(c.mediana, 1)),
+        metricaCartao('progressao', rotulo('Fórmula (HRSS/h)'), r.formula === null ? '—' : formatarNumero(r.formula, 1)),
+        metricaCartao('peso', rotulo('Peso da calibração'), r.calibrado ? `${formatarNumero(r.peso * 100, 0)}%` : `precisa de ${3 - c.n > 0 ? 3 - c.n : 0} a mais`),
+      ],
+    });
   });
 
   const botaoRefazer = h(
@@ -67,7 +74,7 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
     {
       class: 'cal-refazer-link',
       type: 'button',
-      title: 'Lê todas as suas atividades de novo e monta esta tabela do zero. Não altera nenhuma atividade. Depois de mudar a configuração ou o LTHR, o “Recalcular histórico” já faz isso junto.',
+      title: 'Lê todas as suas atividades de novo e monta esta lista do zero. Não altera nenhuma atividade. Depois de mudar a configuração ou o LTHR, o “Recalcular histórico” já faz isso junto.',
     },
     'Refazer a calibração',
   );
@@ -81,20 +88,7 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
   const tabela =
     chaves.length === 0
       ? h('p', { class: 'vazio-curto' }, 'Ainda sem dados suficientes: cada esporte e zona precisa de pelo menos 3 atividades com FC de 20 minutos ou mais.')
-      : h(
-          'div',
-          { class: 'tabela-wrap' },
-          h(
-            'table',
-            { class: 'tabela tabela-compacta' },
-            h(
-              'thead',
-              null,
-              h('tr', null, ...GUIA_DAS_COLUNAS.map((item) => cabecalho(item))),
-            ),
-            h('tbody', null, ...linhas),
-          ),
-        );
+      : h('ul', { class: 'cfg-lista' }, ...linhas);
 
   return secaoRecolhivel({
     id: 'calibracao',
@@ -107,11 +101,11 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
       ),
       h('label', { class: 'opcao', for: 'cal-ativa' }, caixa, ' Usar a calibração nas estimativas dos treinos planejados'),
       tabela,
-      chaves.length > 0 ? h('p', { class: 'dica' }, 'Passe o mouse (ou toque) no nome de uma coluna para ver o que ela significa.') : null,
+      chaves.length > 0 ? h('p', { class: 'dica' }, 'Passe o mouse (ou toque) no nome de um dado para ver o que ele significa.') : null,
       h(
         'div',
         { class: 'cal-refazer' },
-        h('span', null, 'A tabela se atualiza sozinha. Algo parece errado ou desatualizado?'),
+        h('span', null, 'A lista se atualiza sozinha. Algo parece errado ou desatualizado?'),
         botaoRefazer,
         mensagem.el,
       ),
@@ -121,26 +115,27 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
 
 const controlePopover = criarControlePopover();
 
-/** Cabeçalho de coluna que abre um popover explicativo ao passar o mouse, focar (teclado) ou tocar (celular). */
-function cabecalho(item) {
-  const th = h('th', { scope: 'col', class: 'cal-coluna', tabIndex: 0 }, item.coluna);
+/** Liga a um elemento o popover explicativo do dado: abre ao passar o mouse, focar (teclado) ou tocar (celular). */
+function comPopover(el, item) {
+  el.classList.add('cal-coluna');
+  el.tabIndex = 0;
   const conteudo = () => [
     h('p', { class: 'dia-pop-titulo' }, item.coluna),
     ...item.paragrafos.map((p) => h('p', { class: 'cal-pop-texto' }, p)),
     item.exemplo ? h('p', { class: 'cal-pop-exemplo' }, h('strong', null, 'Exemplo: '), item.exemplo) : null,
   ];
-  const abrir = (opcoes) => controlePopover.abrir(th, conteudo, { rotulo: item.coluna, ...opcoes });
-  th.addEventListener('mouseenter', () => abrir());
-  th.addEventListener('mouseleave', controlePopover.agendarFechar);
-  th.addEventListener('focus', () => abrir());
-  th.addEventListener('click', () => {
-    if (controlePopover.coluna() === th && controlePopover.fixado()) controlePopover.fechar();
+  const abrir = (opcoes) => controlePopover.abrir(el, conteudo, { rotulo: item.coluna, ...opcoes });
+  el.addEventListener('mouseenter', () => abrir());
+  el.addEventListener('mouseleave', controlePopover.agendarFechar);
+  el.addEventListener('focus', () => abrir());
+  el.addEventListener('click', () => {
+    if (controlePopover.coluna() === el && controlePopover.fixado()) controlePopover.fechar();
     else abrir({ fixar: true });
   });
-  return th;
+  return el;
 }
 
-/** Explicação de cada coluna da tabela, com exemplos genéricos (números inventados, não são os do usuário). */
+/** Explicação de cada dado da calibração (eram as colunas da tabela), com exemplos genéricos (números inventados, não são os do usuário). */
 const GUIA_DAS_COLUNAS = [
   {
     coluna: 'Esporte',

@@ -9,73 +9,64 @@
 }
 
 /*
- * O cabeçalho usa o mesmo .container do conteúdo (mesma largura e mesmo padding), então as bordas do logo e das ações
- * alinham com as dos cards. .topo-conteudo é o container das container queries; .topo-linha é a linha em si.
- * Tudo numa linha: o bloco da saudação é o que cede espaço (reticências).
+ * Um só cabeçalho, igual em todas as páginas, no mesmo .container do conteúdo (--container-max e --container-pad em
+ * base.css): as bordas do logo e das ações alinham com as dos cards. .topo-wrap é o container das container queries.
+ * Grade de 2 linhas: logo e faixa nas duas; 1ª linha: data e saudação | menu | ações; 2ª: a frase, até a borda direita.
  */
-.topo-conteudo {
+.topo-wrap {
   container-type: inline-size;
   padding-top: 18px;
   padding-bottom: 8px;
 }
 
-/* A tela Início alarga o conteúdo; o cabeçalho acompanha para continuar alinhado com os cards. */
-@media (min-width: 1360px) {
-  body:has(.inicio) .topo-conteudo {
-    max-width: 1640px;
-  }
-}
-
-.topo-linha {
-  display: flex;
+.topo-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 16px;
+  column-gap: 16px;
+  row-gap: 2px;
+  padding: 18px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
 }
 
-.topo-marca {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-  flex: 1 1 0;
-}
-
-/*
- * A marca fica à parte do texto: uma barra laranja fina separa o logo da data e da saudação, e a saudação usa Inter
- * (não a Anton do logo), para os dois não se lerem como uma frase só.
- */
 .topo-logo {
   display: inline-flex;
-  flex: none;
+  grid-column: 1;
+  grid-row: 1 / 3;
   align-items: center;
   line-height: 0;
-}
-
-.topo-logo::after {
-  content: '';
-  width: 3px;
-  height: 64px;
-  margin-left: 16px;
-  border-radius: 2px;
-  background: var(--primary);
 }
 
 /* O ícone do app é quadrado e traz o próprio fundo arredondado, então destaca igual nos dois temas. */
 .topo-logo .logo {
   width: auto;
-  height: 64px;
+  height: 72px;
   border-radius: 18%; /* acompanha os cantos do PNG (proporcionais), para o contorno não ficar serrilhado */
 }
 
-.topo-texto {
+/* Barra laranja fina entre o logo e o texto; a saudação usa Inter (não a Anton do logo). */
+.topo-faixa {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  width: 3px;
+  height: 64px;
+  border-radius: 2px;
+  background: var(--primary);
+}
+
+.topo-titulo {
+  grid-column: 3;
+  grid-row: 1;
   min-width: 0;
 }
 
 .topo-data {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -84,7 +75,7 @@
 
 .topo-saudacao {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.3125rem;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
@@ -92,27 +83,22 @@
   text-overflow: ellipsis;
 }
 
-/* Frase de brincadeira: itálico discreto, até 2 linhas, com altura reservada para o cabeçalho não pular na troca. */
+/* Frase de brincadeira: 2ª linha, uma linha só, itálico discreto; trunca com reticências (a dica mostra inteira). */
 .topo-frase {
   position: relative;
-  display: flex;
+  grid-column: 3 / 6;
+  grid-row: 2;
+  justify-self: start;
+  min-width: 0;
   max-width: 100%;
-  margin-top: 4px;
   cursor: help;
 }
 
 .frase-texto {
-  display: -webkit-box;
-  flex: 0 1 auto;
+  display: flex;
   min-width: 0;
-  min-height: 2.7em;
-  padding-right: 0.4em; /* o itálico invade um pouco à direita e o overflow cortava a última letra */
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   font-style: italic;
   line-height: 1.35;
   transition: opacity 0.3s ease;
@@ -122,8 +108,20 @@
   opacity: 0;
 }
 
+.frase-citacao {
+  min-width: 0;
+  padding-right: 0.3em; /* o itálico invade um pouco à direita e o overflow cortava a última letra */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .frase-autor {
+  flex: none;
+  margin-left: 0.35em;
   color: color-mix(in srgb, var(--text-secondary) 65%, transparent);
+  font-style: normal;
+  white-space: nowrap;
 }
 
 .topo-frase:focus-visible {
@@ -177,6 +175,9 @@
 
 .menu-pilula {
   display: flex;
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
   flex: none;
   gap: 2px;
   padding: 4px;
@@ -199,15 +200,11 @@
   color: var(--text-primary);
 }
 
-/* Configuração: rótulo por extenso quando há espaço; entre 1100 e 1400 px de container, só a engrenagem */
+/* Configuração: sempre só a engrenagem (o nome vai na dica e no aria-label) */
 .menu-pilula a.so-icone {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.menu-pilula a.so-icone .icone {
-  display: none;
 }
 
 .menu-pilula a[aria-current='page'] {
@@ -218,6 +215,8 @@
 
 .topo-acoes {
   display: flex;
+  grid-column: 5;
+  grid-row: 1;
   flex: none;
   align-items: center;
   gap: 10px;
@@ -381,12 +380,6 @@
   color: var(--text-secondary);
   font-size: 0.75rem;
   white-space: nowrap;
-}
-
-@media (min-width: 1360px) {
-  .container:has(.inicio) {
-    max-width: 1640px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -748,11 +741,63 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: var(--hero-tile);
+  background: var(--hero-fg);
+  color: var(--hero-bg); /* mesma cor do chip da zona: o selo acompanha a cor do card */
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* Ícones do clima com cor própria sobre o selo claro (o resto do selo acompanha a cor do card) */
+.clima-ico-sol {
+  color: #f59e0b;
+}
+
+.clima-ico-solNuvem {
+  color: #f59e0b;
+}
+
+.clima-ico-nuvem,
+.clima-ico-neblina {
+  color: #64748b;
+}
+
+.clima-ico-chuva {
+  color: #2563eb;
+}
+
+.clima-ico-trovoada {
+  color: #7c3aed;
+}
+
+.clima-ico-floco {
+  color: #0ea5e9;
+}
+
+.hero-clima-botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--hero-fg);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--hero-bg);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hero-clima-botao:hover,
+.hero-clima-botao:focus-visible {
+  border-color: currentColor;
+}
+
+.hero-clima-botao:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 .hero-clima-frase {
@@ -1155,36 +1200,14 @@
   }
 }
 
-/* Cabeçalho estreito: a data vai na versão curta ("Qua, 4 nov 2026"); a por extenso só cabe a partir de 1500 px. */
-.data-curta {
-  display: none;
-}
-
-@container (max-width: 1499px) {
-  .data-longa {
-    display: none;
-  }
-
-  .data-curta {
-    display: inline;
-  }
-}
-
-/* Container < 1100 px: o menu passa para uma segunda linha, na largura toda. */
-@container (max-width: 1099px) {
-  .topo-linha {
-    flex-wrap: wrap;
-    row-gap: 10px;
-  }
-
-  .topo-acoes {
-    order: 2;
-  }
-
+/* Container < 900 px: o menu vai para uma 3ª linha, na largura toda (a frase continua na 2ª). */
+@container (max-width: 899px) {
   .menu-pilula {
-    order: 3;
-    flex: 1 1 100%;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
     justify-content: space-between;
+    margin-top: 12px;
   }
 
   .menu-pilula a {
@@ -1193,7 +1216,7 @@
   }
 }
 
-/* Abaixo de 640 px a segunda linha rola na horizontal. */
+/* Abaixo de 640 px o menu rola na horizontal. */
 @container (max-width: 639px) {
   .menu-pilula {
     overflow-x: auto;
@@ -1202,32 +1225,6 @@
 
   .menu-pilula a {
     flex: none;
-  }
-}
-
-/* Container de 1100 a 1399 px: logo de 64 px e Configuração só com a engrenagem (com dica). */
-@container (min-width: 1100px) and (max-width: 1399px) {
-  .menu-pilula a.so-icone .icone {
-    display: block;
-  }
-
-  .menu-pilula a.so-icone .rotulo {
-    display: none;
-  }
-}
-
-/* Container >= 1400 px: logo de 80 px e frase maior. */
-@container (min-width: 1400px) {
-  .topo-logo .logo {
-    height: 80px;
-  }
-
-  .topo-logo::after {
-    height: 80px;
-  }
-
-  .frase-texto {
-    font-size: 0.85rem;
   }
 }
 
@@ -1247,12 +1244,13 @@
     display: none;
   }
 
-  .topo-conteudo {
+  .topo-wrap {
     padding-top: 14px;
   }
 
-  .topo-linha {
-    gap: 10px;
+  .topo-card {
+    column-gap: 10px;
+    padding: 12px 14px;
   }
 
   .topo-logo .logo {
@@ -1260,13 +1258,8 @@
     border-radius: 8px;
   }
 
-  .topo-logo::after {
+  .topo-faixa {
     height: 44px;
-    margin-left: 10px;
-  }
-
-  .topo-marca {
-    gap: 10px;
   }
 
   .topo-data {
@@ -8073,4 +8066,167 @@ a.rec-card-quando:hover {
   margin: 0 0 10px;
   color: var(--text-secondary);
   font-size: 0.8rem;
+}
+
+/* ---------- Configuração: linhas em dois andares (o mesmo padrão da lista de Atividades) ---------- */
+.cfg-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.cfg-linha {
+  position: relative;
+  container-type: inline-size;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-primary) 3%, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: border-color 0.12s ease;
+}
+
+.cfg-linha:hover {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+}
+
+/* a vigência atual leva a faixa lateral de 3px, como o recorde na lista de atividades */
+.cfg-linha-atual::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--primary);
+}
+
+.cfg-cartao {
+  display: grid;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.cfg-id {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.cfg-icone {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-primary) 7%, var(--surface));
+  border-radius: 8px;
+}
+
+.cfg-ident {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cfg-ident-topo {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.cfg-titulo {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.cfg-pill {
+  padding: 1px 8px;
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+  border-radius: 999px;
+}
+
+.cfg-lado {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cfg-lado .btn {
+  padding: 6px 14px;
+}
+
+.cfg-metricas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+/* os ícones ficam cinza e laranja só no hover da linha */
+.cfg-linha:hover .ativ-metrica-rotulo .icone {
+  color: var(--primary);
+}
+
+@container (min-width: 640px) {
+  .cfg-metricas {
+    grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 519px) {
+  .cfg-lado {
+    width: 100%;
+  }
+
+  .cfg-lado .btn {
+    flex: 1;
+  }
+}
+
+/* largo: identificação, métricas e ações na mesma linha */
+@container (min-width: 1060px) {
+  .cfg-cartao {
+    grid-template-columns: 48px minmax(160px, 1fr) minmax(0, 560px) auto;
+    align-items: center;
+    column-gap: 14px;
+  }
+
+  .cfg-id {
+    display: contents;
+  }
+
+  .cfg-id > .cfg-icone {
+    grid-area: 1 / 1;
+  }
+
+  .cfg-id > .cfg-ident {
+    grid-area: 1 / 2;
+  }
+
+  .cfg-id > .cfg-lado {
+    grid-area: 1 / 4;
+  }
+
+  .cfg-metricas {
+    grid-area: 1 / 3;
+    padding-top: 0;
+    border-top: 0;
+  }
 }

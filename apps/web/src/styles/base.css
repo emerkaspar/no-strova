@@ -4,6 +4,9 @@
  * Títulos em Anton (caixa alta), corpo em Inter com números tabulares. Fontes self-hosted (@fontsource).
  */
 :root {
+  /* Largura do conteúdo e padding lateral: usados pelo cabeçalho E por todas as páginas (um só valor) */
+  --container-max: 1560px;
+  --container-pad: 40px;
   --bg-main: #0a0a0a;
   --surface: #161616;
   --surface-light: #1f1f1f;
@@ -101,9 +104,9 @@ a {
 /* Layout */
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: calc(var(--container-max) + 2 * var(--container-pad));
   margin: 0 auto;
-  padding: 24px 40px;
+  padding: 24px var(--container-pad);
 }
 
 .centralizado {
@@ -141,9 +144,8 @@ a {
     padding: 20px;
   }
 
-  .container {
-    padding-left: 16px;
-    padding-right: 16px;
+  :root {
+    --container-pad: 16px;
   }
 }
 
