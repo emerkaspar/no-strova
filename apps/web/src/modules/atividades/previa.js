@@ -127,10 +127,35 @@ function miniaturaDaSerie(serie) {
   return raiz;
 }
 
+/** Perfil de elevação como marca d'água (área e linha, esticado ao espaço): null sem altimetria. */
+function marcaDeAltimetria(serie) {
+  const validos = serie?.alt?.filter(Number.isFinite) ?? [];
+  if (validos.length <= 2) return null;
+  const min = Math.min(...validos);
+  const faixa = Math.max(...validos) - min || 1;
+  const l = 240;
+  const a = 60;
+  const passo = Math.max(1, Math.floor(serie.alt.length / 80));
+  let ultimo = validos[0];
+  const pontos = [];
+  for (let i = 0; i < serie.alt.length; i += passo) {
+    ultimo = Number.isFinite(serie.alt[i]) ? serie.alt[i] : ultimo;
+    pontos.push([(i / (serie.alt.length - 1)) * l, a - 4 - ((ultimo - min) / faixa) * (a - 14)]);
+  }
+  const linha = pontos.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('');
+  return svg(
+    'svg',
+    { viewBox: `0 0 ${l} ${a}`, preserveAspectRatio: 'none', class: 'ativ-marca-svg', 'aria-hidden': 'true' },
+    svg('path', { d: `${linha}L${l} ${a}L0 ${a}Z`, class: 'ativ-marca-area' }),
+    svg('path', { d: linha, class: 'ativ-marca-linha' }),
+  );
+}
+
 /**
  * Miniaturas da lista. Cada uma nasce com o ícone do esporte e só lê a série da atividade quando entra na tela
  * (o cache é o mesmo da prévia). `reiniciar` solta as miniaturas antigas antes de desenhar a página de novo.
- * @returns {{ criar: (a: object) => HTMLElement, reiniciar: () => void }}
+ * `marca` devolve a altimetria da atividade como marca d'água (o mesmo cache de séries, então não lê nada a mais).
+ * @returns {{ criar: (a: object) => HTMLElement, marca: (a: object) => HTMLElement, reiniciar: () => void }}
  */
 export function criarMiniaturas({ iconeDoEsporte }) {
   const carregadores = new WeakMap();
@@ -146,21 +171,33 @@ export function criarMiniaturas({ iconeDoEsporte }) {
             }),
           { rootMargin: '240px' },
         );
+  /** Lê a série quando o elemento entra na tela (ou já, sem IntersectionObserver). */
+  function quandoVisivel(el, carregar) {
+    if (observador) {
+      carregadores.set(el, carregar);
+      observador.observe(el);
+    } else {
+      carregar();
+    }
+  }
   return {
     criar(a) {
       const el = h('div', { class: 'ativ-mini', 'aria-hidden': 'true' }, iconeDoEsporte(a.esporte));
       // atividade manual não tem série: fica com o ícone
       if (a.origem === 'manual') return el;
-      const carregar = async () => {
+      quandoVisivel(el, async () => {
         const desenho = miniaturaDaSerie(await carregarSerie(a.id));
         if (desenho) el.replaceChildren(desenho);
-      };
-      if (observador) {
-        carregadores.set(el, carregar);
-        observador.observe(el);
-      } else {
-        carregar();
-      }
+      });
+      return el;
+    },
+    marca(a) {
+      const el = h('div', { class: 'ativ-marca', 'aria-hidden': 'true' });
+      if (a.origem === 'manual') return el;
+      quandoVisivel(el, async () => {
+        const desenho = marcaDeAltimetria(await carregarSerie(a.id));
+        if (desenho) el.append(desenho);
+      });
       return el;
     },
     reiniciar() {

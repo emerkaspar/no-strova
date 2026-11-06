@@ -47,6 +47,21 @@ const CONDICOES = Object.freeze({
 /** Texto da condição do tempo; `null` para código desconhecido. */
 export const condicaoDoClima = (codigo) => CONDICOES[codigo] ?? null;
 
+/**
+ * Nome do ícone da condição do tempo (código WMO): `sol`, `solNuvem`, `nuvem`, `neblina`, `chuva`, `floco` (neve) ou
+ * `trovoada`. Sem código conhecido, `sol`.
+ */
+export function iconeDoClima(codigo) {
+  if (codigo === 0 || codigo === 1) return 'sol';
+  if (codigo === 2) return 'solNuvem';
+  if (codigo === 3) return 'nuvem';
+  if (codigo === 45 || codigo === 48) return 'neblina';
+  if ((codigo >= 51 && codigo <= 67) || (codigo >= 80 && codigo <= 82)) return 'chuva';
+  if ((codigo >= 71 && codigo <= 77) || codigo === 85 || codigo === 86) return 'floco';
+  if (codigo >= 95 && codigo <= 99) return 'trovoada';
+  return 'sol';
+}
+
 const arredondar = (v, casas = 0) => {
   if (!Number.isFinite(v)) return null;
   const f = 10 ** casas;

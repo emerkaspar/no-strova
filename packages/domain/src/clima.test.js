@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { camposDeClima, climaDaResposta, condicaoDoClima, pontoDePartida, recordesDeClima, resumirTemperaturaDoSensor, urlDoClima, VERSAO_DO_CLIMA } from './clima.js';
+import { camposDeClima, climaDaResposta, condicaoDoClima, iconeDoClima, pontoDePartida, recordesDeClima, resumirTemperaturaDoSensor, urlDoClima, VERSAO_DO_CLIMA } from './clima.js';
 
 const hora = (iso) => Date.parse(iso);
 
@@ -65,6 +65,23 @@ describe('climaDaResposta', () => {
   it('sem hora que cubra a atividade ou resposta vazia, nulo', () => {
     expect(climaDaResposta(resposta, hora('2026-10-25T10:00:00Z'), 3600)).toBeNull();
     expect(climaDaResposta({}, hora('2026-10-19T10:00:00Z'), 3600)).toBeNull();
+  });
+});
+
+describe('iconeDoClima', () => {
+  it('escolhe o ícone pela condição do tempo', () => {
+    expect(iconeDoClima(0)).toBe('sol');
+    expect(iconeDoClima(2)).toBe('solNuvem');
+    expect(iconeDoClima(3)).toBe('nuvem');
+    expect(iconeDoClima(45)).toBe('neblina');
+    expect(iconeDoClima(61)).toBe('chuva');
+    expect(iconeDoClima(81)).toBe('chuva');
+    expect(iconeDoClima(73)).toBe('floco');
+    expect(iconeDoClima(95)).toBe('trovoada');
+  });
+  it('sem código, sol', () => {
+    expect(iconeDoClima(null)).toBe('sol');
+    expect(iconeDoClima(undefined)).toBe('sol');
   });
 });
 

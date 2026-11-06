@@ -1,4 +1,4 @@
-import { calcularHrss, condicaoDoClima, configVigenteEm, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsporte, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
+import { calcularHrss, condicaoDoClima, iconeDoClima, configVigenteEm, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsporte, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
 import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo, renomearAtividade } from '../../core/functions.js';
 import { lerAtividade, lerSerieDetalhe, lerSerieFc, lerVoltas } from '../../infrastructure/atividadesRepo.js';
 import { lerConfig, lerConfigs } from '../../infrastructure/configsRepo.js';
@@ -232,20 +232,17 @@ function indicadoresDeEsforco(a, calculando) {
  */
 function indicadoresDePotencia(a) {
   if (a.esporte !== 'ciclismo' || !a.potenciaOrigem || !Number.isFinite(a.potenciaMediaW)) return [];
-  const estimada = a.potenciaOrigem === 'estimada';
-  const sufixo = estimada ? ' (est.)' : '';
-  const nota = estimada ? 'Estimada por velocidade, subida e peso' : 'Medida pelo medidor de potência';
   const w = (v) => (Number.isFinite(v) ? `${formatarNumero(v)} W` : '—');
   return [
-    indicador(`Potência média${sufixo}`, w(a.potenciaMediaW), nota, 'hrss'),
-    indicador(`Potência normalizada${sufixo}`, w(a.potenciaNormalizadaW), null, 'hrss'),
+    indicador('Média', w(a.potenciaMediaW), null, 'hrss'),
+    indicador('Normalizada', w(a.potenciaNormalizadaW), null, 'hrss'),
     ...[
       ['Melhor 1 min', a.potenciaMax1minW],
       ['Melhor 5 min', a.potenciaMax5minW],
       ['Melhor 20 min', a.potenciaMax20minW],
     ]
       .filter(([, v]) => Number.isFinite(v))
-      .map(([rotulo, v]) => indicador(`${rotulo}${sufixo}`, w(v), null, 'hrss')),
+      .map(([rotulo, v]) => indicador(rotulo, w(v), null, 'hrss')),
   ];
 }
 
@@ -257,14 +254,30 @@ function indicadoresDeClima(a) {
   if (!a.temperaturaOrigem || !Number.isFinite(a.temperaturaMediaC)) return [];
   const sensor = a.temperaturaOrigem === 'sensor';
   const faixa = sensor && Number.isFinite(a.temperaturaMinC) && Number.isFinite(a.temperaturaMaxC) ? `${formatarNumero(a.temperaturaMinC, 0)} a ${formatarNumero(a.temperaturaMaxC, 0)} °C` : null;
-  const condicao = condicaoDoClima(a.climaCodigo);
   return [
-    indicador('Temperatura', `${formatarNumero(a.temperaturaMediaC, 1)} °C`, [faixa, sensor ? 'Sensor do arquivo' : 'Clima no local'].filter(Boolean).join(' · '), 'sol'),
-    Number.isFinite(a.sensacaoC) ? indicador('Sensação térmica', `${formatarNumero(a.sensacaoC, 1)} °C`, condicao, 'sol') : null,
+    indicador('Temperatura', `${formatarNumero(a.temperaturaMediaC, 1)} °C`, faixa, iconeDoClima(a.climaCodigo)),
+    Number.isFinite(a.sensacaoC) ? indicador('Sensação', `${formatarNumero(a.sensacaoC, 1)} °C`, null, 'sol') : null,
     Number.isFinite(a.umidadePct) ? indicador('Umidade', `${formatarNumero(a.umidadePct, 0)}%`, null, 'sol') : null,
-    Number.isFinite(a.ventoKmh) ? indicador('Vento', `${formatarNumero(a.ventoKmh, 1)} km/h`, null, 'sol') : null,
-    Number.isFinite(a.chuvaMm) ? indicador('Chuva', `${formatarNumero(a.chuvaMm, 1)} mm`, null, 'sol') : null,
+    Number.isFinite(a.ventoKmh) ? indicador('Vento', `${formatarNumero(a.ventoKmh, 1)} km/h`, null, 'vento') : null,
+    Number.isFinite(a.chuvaMm) ? indicador('Chuva', `${formatarNumero(a.chuvaMm, 1)} mm`, null, 'chuva') : null,
   ].filter(Boolean);
+}
+
+/** Bloco de indicadores com título (e um selo/nota curtos ao lado dele); sem itens, não aparece. */
+function secao(titulo, itens, { selo = null, nota = null, dica = null } = {}) {
+  if (itens.length === 0) return null;
+  return h(
+    'section',
+    { class: 'ativ-secao' },
+    h(
+      'div',
+      { class: 'ativ-secao-topo' },
+      h('h3', null, titulo),
+      selo ? h('span', { class: 'ativ-selo', title: dica ?? undefined }, selo) : null,
+      nota ? h('span', { class: 'ativ-secao-nota' }, nota) : null,
+    ),
+    h('div', { class: 'ativ-secao-grade' }, ...itens),
+  );
 }
 
 /** Card "Frequência cardíaca por zona": uma coluna por zona (tempo, % e faixa em bpm). */
@@ -492,22 +505,31 @@ export function render(raiz, sessao, { id }) {
       grafico?.destruir();
       mapa?.destruir();
     };
-    const montarIndicadores = () =>
-      h(
-      'div',
-      { class: 'ativ-recordes-grade ativ-indicadores' },
-      indicador('HRSS', hrssTexto, a.hrssOrigem ? ROTULO_ORIGEM_HRSS[a.hrssOrigem] : null, 'hrss'),
-      indicador('Duração', formatarDuracao(a.duracaoS), null, 'duracao'),
-      indicador('Em movimento', formatarDuracao(a.tempoMovimentoS), null, 'duracao'),
-      indicador('Distância', formatarDistancia(a.distanciaM), null, 'distancia'),
-      indicador('Subida', a.altimetriaM === null || a.altimetriaM === undefined ? '—' : `${formatarNumero(a.altimetriaM)} m`, null, 'elevacao'),
-      indicador('FC média', a.fcMedia ? `${a.fcMedia} bpm` : '—', a.zona ? `Zona informada: ${a.zona}` : null, 'fc'),
-      indicador('FC máxima', a.fcMax ? `${a.fcMax} bpm` : '—', null, 'fc'),
-      indicador('Calorias', a.calorias ? `${formatarNumero(a.calorias)} kcal` : '—', caloriasNota, 'atividades'),
-      ...indicadoresDePotencia(a),
-      ...indicadoresDeClima(a),
-      ...indicadoresDeEsforco(a, calculando),
-    );
+    // blocos com título: resumo, potência, clima e melhores esforços (cada um só aparece se tiver dados)
+    const montarIndicadores = () => {
+      const estimada = a.potenciaOrigem === 'estimada';
+      const sensor = a.temperaturaOrigem === 'sensor';
+      return h(
+        'div',
+        { class: 'ativ-indicadores ativ-secoes' },
+        secao('Resumo', [
+          indicador('Distância', formatarDistancia(a.distanciaM), null, 'distancia'),
+          indicador('Duração', formatarDuracao(a.duracaoS), null, 'duracao'),
+          indicador('Em movimento', formatarDuracao(a.tempoMovimentoS), null, 'duracao'),
+          indicador('Subida', a.altimetriaM === null || a.altimetriaM === undefined ? '—' : `${formatarNumero(a.altimetriaM)} m`, null, 'elevacao'),
+          indicador('FC média', a.fcMedia ? `${a.fcMedia} bpm` : '—', a.zona ? `Zona informada: ${a.zona}` : null, 'fc'),
+          indicador('FC máxima', a.fcMax ? `${a.fcMax} bpm` : '—', null, 'fc'),
+          indicador('HRSS', hrssTexto, a.hrssOrigem ? ROTULO_ORIGEM_HRSS[a.hrssOrigem] : null, 'hrss'),
+          indicador('Calorias', a.calorias ? `${formatarNumero(a.calorias)} kcal` : '—', caloriasNota, 'atividades'),
+        ]),
+        secao('Potência', indicadoresDePotencia(a), {
+          selo: estimada ? 'Estimada' : 'Medida',
+          dica: estimada ? 'Estimada por velocidade, subida e peso (margem típica de 10 a 20%)' : 'Medida pelo medidor de potência',
+        }),
+        secao('Clima', indicadoresDeClima(a), { nota: [condicaoDoClima(a.climaCodigo), sensor ? 'temperatura do sensor' : 'dados do local de partida'].filter(Boolean).join(' · ') }),
+        secao('Melhores esforços', indicadoresDeEsforco(a, calculando)),
+      );
+    };
     let indicadores = montarIndicadores();
 
     // medalhas de recorde: calculadas sobre todas as atividades, então chegam depois do resto da tela

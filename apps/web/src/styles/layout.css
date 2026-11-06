@@ -6628,6 +6628,42 @@ textarea {
   min-width: 0;
 }
 
+/* marca d'água com a altimetria, no espaço vazio entre o título e a medalha (o título passa por cima) */
+.ativ-ident {
+  position: relative;
+}
+
+.ativ-ident > :not(.ativ-marca) {
+  position: relative;
+  z-index: 1;
+}
+
+.ativ-marca {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40%);
+  mask-image: linear-gradient(to right, transparent 0, #000 40%);
+}
+
+.ativ-marca-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ativ-marca-area {
+  fill: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+}
+
+.ativ-marca-linha {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text-secondary) 32%, transparent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
 .ativ-ident-topo {
   display: flex;
   gap: 8px;
@@ -7642,4 +7678,313 @@ button.ativ-badge:hover {
 /* os dias da semana (SEG 2, TER 3…) continuam bem destacados */
 .bloco-semana .dia .dia-rotulo {
   font-weight: 800;
+}
+
+/* Detalhe da atividade: indicadores em blocos com título, cartões compactos em grade uniforme */
+.ativ-secoes {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ativ-secao-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 10px;
+}
+
+.ativ-secao-topo h3 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ativ-secao-nota {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.ativ-secao-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.ativ-secao .ativ-recorde {
+  gap: 2px;
+  padding: 12px 14px 10px 18px;
+  border-radius: 14px;
+}
+
+.ativ-secao .ativ-recorde-topo {
+  gap: 6px;
+}
+
+.ativ-secao .ativ-recorde-icone {
+  padding: 0;
+  background: none;
+}
+
+.ativ-secao .ativ-recorde-rotulo {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.ativ-secao .ativ-recorde-valor {
+  margin-top: 2px;
+  font-size: 1.55rem;
+}
+
+.ativ-secao .ativ-recorde-rodape {
+  margin-top: 4px;
+  padding-top: 6px;
+}
+
+.ativ-secao .ativ-recorde-quando {
+  font-size: 0.75rem;
+}
+
+/* Recordes: um card só, com abas e uma fileira de cartões compactos */
+.ativ-recordes {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.rec-topo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.rec-topo h2 {
+  flex: none;
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.rec-abas {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+.rec-aba {
+  appearance: none;
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 12px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.rec-aba:hover {
+  color: var(--text-primary);
+}
+
+.rec-aba.ativa {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.rec-aba-ponto {
+  width: 6px;
+  height: 6px;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.rec-acoes {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.rec-acoes .ativ-esforcos-estado {
+  font-size: 0.75rem;
+}
+
+.rec-atualizar {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.rec-atualizar:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+}
+
+.rec-atualizar:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.rec-girando .icone {
+  animation: rec-giro 1s linear infinite;
+}
+
+@keyframes rec-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rec-grade {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rec-grade[hidden] {
+  display: none;
+}
+
+.rec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.rec-card-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.rec-card-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-radius: 8px;
+}
+
+.rec-novo {
+  padding: 2px 8px;
+  color: var(--primary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  border-radius: 999px;
+}
+
+.rec-card-rotulo {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rec-card-valor {
+  font-family: var(--fonte-titulo);
+  font-size: 1.6rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.rec-card-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.rec-card-quando {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+a.rec-card-quando:hover {
+  color: var(--primary);
+}
+
+.rec-card-aux {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.rec-pill {
+  margin-left: auto;
+  padding: 1px 8px;
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.rec-card-hist {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+@media (max-width: 640px) {
+  .rec-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-girando .icone {
+    animation: none;
+  }
 }
