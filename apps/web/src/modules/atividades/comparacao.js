@@ -13,7 +13,7 @@ const VEREDITOS = {
   dentro: { icone: '✓', texto: 'Na zona' },
   abaixo: { icone: '↓', texto: 'Abaixo da zona' },
   acima: { icone: '↑', texto: 'Acima da zona' },
-  'sem-alvo': { icone: '–', texto: 'Sem alvo' },
+  'sem-alvo': { icone: '–', texto: 'Por esforço' },
   'sem-dados': { icone: '?', texto: 'Sem FC' },
   'nao-feito': { icone: '×', texto: 'Não feito' },
 };
@@ -89,7 +89,12 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
   function resumo(avaliacoes, origem) {
     const r = resumirAderencia(avaliacoes);
     const esforcos = avaliacoes.filter((a) => a.papel === 'principal' && a.veredito !== 'sem-alvo');
-    const titulo = r.esforcos === 0 ? 'Treino sem alvo de FC nos esforços' : `${r.cumpridos} de ${r.esforcos} ${r.esforcos === 1 ? 'esforço dentro' : 'esforços dentro'} da zona`;
+    const titulo =
+      r.esforcos > 0
+        ? `${r.cumpridos} de ${r.esforcos} ${r.esforcos === 1 ? 'esforço dentro' : 'esforços dentro'} da zona`
+        : r.tirosCurtos > 0
+          ? `${r.tirosCurtos} ${r.tirosCurtos === 1 ? 'tiro curto' : 'tiros curtos'}`
+          : 'Treino sem alvo de FC nos esforços';
     const notas = [];
     if (r.acima) notas.push(`${r.acima} acima da zona`);
     if (r.abaixo) notas.push(`${r.abaixo} abaixo da zona`);
@@ -97,6 +102,17 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
     if (r.fcMediaEsforcos !== null) notas.push(`FC média nos esforços: ${r.fcMediaEsforcos} bpm`);
     if (r.tendenciaFc !== null && Math.abs(r.tendenciaFc) >= 6) {
       notas.push(`a FC ${r.tendenciaFc > 0 ? 'subiu' : 'caiu'} ${Math.abs(r.tendenciaFc)} bpm do primeiro ao último esforço${r.tendenciaFc > 0 ? ' (deriva cardíaca)' : ''}`);
+    }
+    // tiros curtos não têm faixa de FC (a FC não chega a tempo): o que mede é manter o nível de um tiro ao outro
+    const c = r.consistencia;
+    if (c) {
+      const ritmo = (v) => textoRitmo(atividade.esporte, v);
+      notas.push(
+        Math.abs(c.variacaoPct) < 3
+          ? `Nos tiros curtos você manteve o nível: ${ritmo(c.velInicialKmh)} no começo, ${ritmo(c.velFinalKmh)} no fim`
+          : `Nos tiros curtos, ${atividade.esporte === 'corrida' ? 'o ritmo' : 'a velocidade'} foi de ${ritmo(c.velInicialKmh)} para ${ritmo(c.velFinalKmh)} do começo ao fim (${atividade.esporte === 'corrida' ? 'velocidade ' : ''}${c.variacaoPct > 0 ? '+' : '−'}${Math.abs(c.variacaoPct)}%)`,
+      );
+      if (c.fcPicoMedio !== null) notas.push(`pico de FC médio nos tiros: ${c.fcPicoMedio} bpm`);
     }
     return h(
       'div',
@@ -211,7 +227,7 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
         h('th', { scope: 'row' }, rotulos[k], alinhado.bloco.descricao ? h('small', null, alinhado.bloco.descricao) : null),
         h('td', null, formatarSegundos(a.duracaoPlanejadaS), h('small', null, `${a.zona} · ${textoFaixa(a.faixa)}`)),
         h('td', null, a.veredito === 'nao-feito' ? '—' : formatarDuracao(a.duracaoRealS), h('small', null, a.distanciaM !== null && a.veredito !== 'nao-feito' ? `${formatarNumero(a.distanciaM / 1000, 2)} km` : '')),
-        h('td', null, a.fcMedia !== null ? `${a.fcMedia} bpm` : '—', h('small', null, a.fracaoNaFaixa !== null ? `${Math.round(a.fracaoNaFaixa * 100)}% do tempo na faixa` : '')),
+        h('td', null, a.fcMedia !== null ? `${a.fcMedia} bpm` : '—', h('small', null, a.fracaoNaFaixa !== null ? `${Math.round(a.fracaoNaFaixa * 100)}% do tempo na faixa` : a.veredito === 'sem-alvo' && a.fcPico !== null ? `pico ${a.fcPico} bpm` : '')),
         h('td', null, a.veredito === 'nao-feito' ? '—' : textoRitmo(atividade.esporte, a.velMediaKmh)),
         h('td', null, marcador(a.veredito)),
       );
@@ -230,7 +246,7 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       h(
         'table',
         { class: 'cpr-tabela' },
-        h('caption', { class: 'texto-secundario' }, 'A FC média e o tempo na faixa ignoram os primeiros segundos de cada passo, porque o coração demora a reagir à mudança de esforço.'),
+        h('caption', { class: 'texto-secundario' }, 'A FC média e o tempo na faixa ignoram os primeiros segundos de cada passo, porque o coração demora a reagir à mudança de esforço. Passos de menos de 1 min não têm faixa de FC (a FC não chega a tempo): nesses, o resultado é "Por esforço" e a tabela mostra o pico de FC, que costuma vir logo depois do passo, e o ritmo.'),
         h('thead', null, h('tr', null, ...['Passo', 'Planejado', 'Feito', 'FC média', 'Ritmo', 'Resultado'].map((t) => h('th', { scope: 'col' }, t)))),
         h('tbody', null, ...corpo),
       ),

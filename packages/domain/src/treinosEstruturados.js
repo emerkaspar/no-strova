@@ -5,7 +5,8 @@ import { arredondarHrss, estimarHrssPorZona, ZONAS } from './hrss.js';
  * Treinos estruturados (intervalados): uma lista de passos, cada um com duração e zona de FC.
  *   - bloco: { tipo: 'bloco', papel, duracaoS, zona, descricao?, alvoAberto? }
  *   - série: { tipo: 'serie', repeticoes, esforco: { duracaoS, zona, descricao?, alvoAberto? }, recuperacao: { duracaoS, zona, descricao?, alvoAberto? } }
- *   - `alvoAberto`: o passo não tem alvo de FC no relógio (o teste de LTHR: o aparelho não deve cobrar uma faixa que o teste ainda vai descobrir)
+ *   - `alvoAberto`: o passo não tem alvo de FC no relógio (o teste de LTHR: o aparelho não deve cobrar uma faixa que o teste ainda vai descobrir).
+ *     Passo com menos de 1 min também não tem alvo de FC (ver `etapaTemAlvoDeFc`), mesmo sem `alvoAberto`.
  *     (a recuperação vem entre as repetições, não depois da última)
  * Funções puras, sem Firebase e sem DOM.
  */
@@ -55,17 +56,28 @@ export function faixaDeFcDaZona(zona, config) {
   return [Math.min(baixo, alto), alto];
 }
 
+/**
+ * Abaixo disto a FC não alcança a faixa da zona: ela leva de 30 a 60 s para reagir (e para cair), então um tiro de 30 s
+ * termina antes da FC chegar e a recuperação seguinte ainda mostra a FC do tiro. Esses passos são guiados pelo esforço.
+ */
+export const DURACAO_MINIMA_ALVO_FC_S = 60;
+
+/** O passo tem faixa de FC como alvo? Não tem se for marcado `alvoAberto` ou se for curto demais para a FC acompanhar. */
+export function etapaTemAlvoDeFc(etapa) {
+  return etapa?.alvoAberto !== true && etapa?.duracaoS >= DURACAO_MINIMA_ALVO_FC_S;
+}
+
 /** Passos em blocos planos, na ordem de execução (a série vira esforço, recuperação, esforço…). */
 export function expandirPassos(passos) {
   const blocos = [];
   for (const p of passos ?? []) {
     if (p.tipo === 'serie') {
       for (let i = 0; i < p.repeticoes; i++) {
-        blocos.push({ papel: 'principal', duracaoS: p.esforco.duracaoS, zona: p.esforco.zona, descricao: p.esforco.descricao ?? null, alvoAberto: p.esforco.alvoAberto === true });
-        if (i < p.repeticoes - 1) blocos.push({ papel: 'recuperacao', duracaoS: p.recuperacao.duracaoS, zona: p.recuperacao.zona, descricao: p.recuperacao.descricao ?? null, alvoAberto: p.recuperacao.alvoAberto === true });
+        blocos.push({ papel: 'principal', duracaoS: p.esforco.duracaoS, zona: p.esforco.zona, descricao: p.esforco.descricao ?? null, alvoAberto: !etapaTemAlvoDeFc(p.esforco) });
+        if (i < p.repeticoes - 1) blocos.push({ papel: 'recuperacao', duracaoS: p.recuperacao.duracaoS, zona: p.recuperacao.zona, descricao: p.recuperacao.descricao ?? null, alvoAberto: !etapaTemAlvoDeFc(p.recuperacao) });
       }
     } else {
-      blocos.push({ papel: p.papel, duracaoS: p.duracaoS, zona: p.zona, descricao: p.descricao ?? null, alvoAberto: p.alvoAberto === true });
+      blocos.push({ papel: p.papel, duracaoS: p.duracaoS, zona: p.zona, descricao: p.descricao ?? null, alvoAberto: !etapaTemAlvoDeFc(p) });
     }
   }
   return blocos;

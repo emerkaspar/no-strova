@@ -123,3 +123,73 @@ describe('resumirAderencia', () => {
     expect(resumo.tendenciaFc).toBeLessThanOrEqual(15);
   });
 });
+
+describe('tiros curtos (menos de 1 min): sem alvo de FC', () => {
+  const tiros = [{ tipo: 'serie', repeticoes: 4, esforco: { duracaoS: 30, zona: 'Z5', descricao: 'esforço máximo' }, recuperacao: { duracaoS: 30, zona: 'Z1' } }]; // 4 × 30 s + 3 × 30 s = 210 s
+  const VEL_DO_TIRO = [36, 34, 30, 28];
+  // a FC só sobe depois do tiro (nos 20 s seguintes); a velocidade cai a cada tiro
+  const serieDeTiros = () => {
+    const t = [];
+    const fc = [];
+    const vel = [];
+    const dist = [];
+    for (let s = 0; s <= 210; s += 5) {
+      const k = (s - 1 + 60) % 60;
+      const emTiro = s > 0 && k < 30;
+      t.push(s);
+      fc.push(k >= 30 && k < 50 && s > 0 ? 165 : 130);
+      vel.push(emTiro ? VEL_DO_TIRO[Math.floor((s - 1) / 60)] : 15);
+      dist.push((s * 25) / 3600);
+    }
+    return { passoS: 5, t, fc, vel, dist };
+  };
+
+  it('não dá veredito de FC a esforços nem a recuperações de 30 s', () => {
+    const r = compararPassos({ passos: tiros, voltas: null, serie: serieDeTiros(), config });
+    expect(r).toHaveLength(7);
+    expect(r.every((x) => x.avaliacao.veredito === 'sem-alvo')).toBe(true);
+    expect(r.every((x) => x.avaliacao.faixa === null)).toBe(true);
+  });
+
+  it('acha o pico de FC na recuperação que vem logo depois do tiro', () => {
+    const r = compararPassos({ passos: tiros, voltas: null, serie: serieDeTiros(), config });
+    expect(r[0].avaliacao.fcPico).toBe(165);
+    expect(r[6].avaliacao.fcPico).toBe(130); // último tiro: nada depois dele
+  });
+
+  it('resume a consistência: velocidade do começo ao fim da série', () => {
+    const r = compararPassos({ passos: tiros, voltas: null, serie: serieDeTiros(), config });
+    const resumo = resumirAderencia(r.map((x) => x.avaliacao));
+    expect(resumo.esforcos).toBe(0);
+    expect(resumo.tirosCurtos).toBe(4);
+    expect(resumo.consistencia.n).toBe(4);
+    expect(resumo.consistencia.velInicialKmh).toBeCloseTo(35, 0);
+    expect(resumo.consistencia.velFinalKmh).toBeCloseTo(29, 0);
+    expect(resumo.consistencia.variacaoPct).toBe(-17);
+    expect(resumo.consistencia.fcPicoMedio).toBeGreaterThan(130);
+  });
+
+  it('sem consistência com um tiro só', () => {
+    const um = [{ tipo: 'bloco', papel: 'principal', duracaoS: 30, zona: 'Z5', descricao: 'máximo' }];
+    const r = compararPassos({ passos: um, voltas: null, serie: serieDeTiros(), config });
+    const resumo = resumirAderencia(r.map((x) => x.avaliacao));
+    expect(resumo.tirosCurtos).toBe(1);
+    expect(resumo.consistencia).toBeNull();
+  });
+
+  it('num treino misto, os blocos longos mantêm o veredito e só os tiros ficam sem alvo', () => {
+    const misto = [{ tipo: 'bloco', papel: 'principal', duracaoS: 120, zona: 'Z4' }, ...tiros];
+    const fc = (s) => (s < 120 ? 165 : 130);
+    const serie = { passoS: 5, t: [], fc: [], vel: [], dist: [] };
+    for (let s = 0; s <= 330; s += 5) {
+      serie.t.push(s);
+      serie.fc.push(fc(s));
+      serie.vel.push(25);
+      serie.dist.push((s * 25) / 3600);
+    }
+    const r = compararPassos({ passos: misto, voltas: null, serie, config });
+    expect(r[0].avaliacao.veredito).toBe('dentro');
+    expect(r.slice(1).every((x) => x.avaliacao.veredito === 'sem-alvo')).toBe(true);
+    expect(resumirAderencia(r.map((x) => x.avaliacao)).esforcos).toBe(1);
+  });
+});

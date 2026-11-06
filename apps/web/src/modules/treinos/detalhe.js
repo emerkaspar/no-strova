@@ -1,4 +1,4 @@
-import { estimarEstresseEstruturado, faixaDeFcDaZona, FOCOS, formatarSegundos, gerarFitDoTreino, NIVEIS, resumirTreino } from '@no-strova/domain';
+import { estimarEstresseEstruturado, etapaTemAlvoDeFc, faixaDeFcDaZona, FOCOS, formatarSegundos, gerarFitDoTreino, NIVEIS, resumirTreino } from '@no-strova/domain';
 import { adicionarModeloAoPlano } from '../../application/treinos.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -29,11 +29,12 @@ export function criarDetalheTreino({ uid, modelo, configs, hoje, aoFechar, aoEdi
   const linhas = [];
   for (const p of modelo.passos) {
     if (p.tipo === 'serie') {
-      const fcE = faixaDeFcDaZona(p.esforco.zona, config);
-      const fcR = faixaDeFcDaZona(p.recuperacao.zona, config);
+      // passo curto demais (menos de 1 min) não tem faixa de FC: a FC não chega a tempo, então o esforço é guiado pela sensação
+      const fcE = etapaTemAlvoDeFc(p.esforco) ? faixaDeFcDaZona(p.esforco.zona, config) : null;
+      const fcR = etapaTemAlvoDeFc(p.recuperacao) ? faixaDeFcDaZona(p.recuperacao.zona, config) : null;
       linhas.push({
         rotulo: `${p.repeticoes} ×`,
-        texto: `${formatarSegundos(p.esforco.duracaoS)} em ${p.esforco.zona}${p.esforco.descricao ? ` (${p.esforco.descricao})` : ''}, recuperação de ${formatarSegundos(p.recuperacao.duracaoS)} em ${p.recuperacao.zona}`,
+        texto: `${formatarSegundos(p.esforco.duracaoS)} em ${p.esforco.zona}${p.esforco.descricao ? ` (${p.esforco.descricao})` : ''}, recuperação de ${formatarSegundos(p.recuperacao.duracaoS)} em ${p.recuperacao.zona}${fcE ? '' : ' · sem alvo de FC: a FC demora a reagir, guie-se pelo esforço'}`,
         fc: [fcE, fcR],
         zonas: [p.esforco.zona, p.recuperacao.zona],
       });
@@ -42,8 +43,8 @@ export function criarDetalheTreino({ uid, modelo, configs, hoje, aoFechar, aoEdi
       linhas.push({
         rotulo,
         // mostra a descrição dos passos que têm uma instrução (esforço principal, aberturas do aquecimento), sem repetir os rótulos padrão
-        texto: `${formatarSegundos(p.duracaoS)} em ${p.zona}${p.descricao && !DESCRICOES_PADRAO.includes(p.descricao) ? ` (${p.descricao})` : ''}${p.alvoAberto ? ' · sem alvo de FC' : ''}`,
-        fc: [p.alvoAberto ? null : faixaDeFcDaZona(p.zona, config)],
+        texto: `${formatarSegundos(p.duracaoS)} em ${p.zona}${p.descricao && !DESCRICOES_PADRAO.includes(p.descricao) ? ` (${p.descricao})` : ''}${etapaTemAlvoDeFc(p) ? '' : ' · sem alvo de FC'}`,
+        fc: [etapaTemAlvoDeFc(p) ? faixaDeFcDaZona(p.zona, config) : null],
         zonas: [p.zona],
       });
     }

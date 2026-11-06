@@ -167,3 +167,24 @@ describe('catálogo: teste de LTHR', () => {
     expect(Buffer.from(a.bytes).equals(Buffer.from(b.bytes))).toBe(false);
   });
 });
+
+describe('catálogo: passos curtos (menos de 1 min) são guiados pelo esforço', () => {
+  const todos = [...CATALOGO_TREINOS, ...TREINOS_DE_BASE.filter((m) => Array.isArray(m.passos))];
+
+  it('todo esforço curto tem a descrição, a única orientação sem a faixa de FC', () => {
+    for (const m of todos) {
+      for (const b of expandirPassos(m.passos).filter((x) => x.papel === 'principal' && x.duracaoS < 60)) {
+        expect(b.descricao, `${m.id}: esforço de ${b.duracaoS} s sem descrição`).toBeTruthy();
+      }
+    }
+  });
+
+  it('esforços e recuperações curtos saem sem alvo de FC; os de 1 min ou mais mantêm', () => {
+    for (const m of todos) {
+      for (const b of expandirPassos(m.passos)) {
+        if (b.duracaoS < 60) expect(b.alvoAberto, `${m.id}: ${b.duracaoS} s`).toBe(true);
+        else if (m.foco !== 'teste') expect(b.alvoAberto, `${m.id}: ${b.duracaoS} s`).toBe(false);
+      }
+    }
+  });
+});
