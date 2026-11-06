@@ -13,6 +13,8 @@ const VEREDITOS = {
   dentro: { icone: '✓', texto: 'Na zona' },
   abaixo: { icone: '↓', texto: 'Abaixo da zona' },
   acima: { icone: '↑', texto: 'Acima da zona' },
+  'pico-na-zona': { icone: '✓', texto: 'Pico na zona' },
+  'pico-abaixo': { icone: '↓', texto: 'Pico abaixo' },
   'sem-alvo': { icone: '–', texto: 'Por esforço' },
   'sem-dados': { icone: '?', texto: 'Sem FC' },
   'nao-feito': { icone: '×', texto: 'Não feito' },
@@ -104,6 +106,9 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       notas.push(`a FC ${r.tendenciaFc > 0 ? 'subiu' : 'caiu'} ${Math.abs(r.tendenciaFc)} bpm do primeiro ao último esforço${r.tendenciaFc > 0 ? ' (deriva cardíaca)' : ''}`);
     }
     // tiros curtos não têm faixa de FC (a FC não chega a tempo): o que mede é manter o nível de um tiro ao outro
+    if (r.tirosComPico > 0) {
+      notas.push(`o pico de FC chegou à zona do tiro em ${r.picosNaZona} de ${r.tirosComPico} ${r.tirosComPico === 1 ? 'tiro' : 'tiros'} (a FC sobe logo depois do tiro, por isso o pico conta até 20 s após ele)`);
+    }
     const c = r.consistencia;
     if (c) {
       const ritmo = (v) => textoRitmo(atividade.esporte, v);
@@ -182,6 +187,11 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       const largura = Math.max(1, px(alinhado.fimS) - x);
       const sel = escolhido === alinhado.indice;
       if (sel) raiz.append(svg('rect', { x, y: MARGEM.topo, width: largura, height: base - MARGEM.topo, class: 'cpr-coluna-sel' }));
+      if (!avaliacao.faixa && avaliacao.veredito.startsWith('pico') && avaliacao.faixaDaZona) {
+        // tiro curto: a zona aparece só como contorno tracejado (não é um alvo de FC)
+        const [baixo, alto] = avaliacao.faixaDaZona;
+        raiz.append(svg('rect', { x, y: py(alto), width: largura, height: Math.max(2, py(baixo) - py(alto)), class: `cpr-faixa-curta cpr-contorno-${avaliacao.zona.toLowerCase()}` }));
+      }
       if (avaliacao.faixa) {
         const [baixo, alto] = avaliacao.faixa;
         raiz.append(svg('rect', { x, y: py(alto), width: largura, height: Math.max(2, py(baixo) - py(alto)), class: `cpr-faixa cpr-faixa-${avaliacao.zona.toLowerCase()}${sel ? ' cpr-faixa-sel' : ''}` }));
@@ -214,7 +224,7 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       'figure',
       { class: 'cpr-figura' },
       raiz,
-      h('figcaption', { class: 'texto-secundario' }, h('span', { class: 'cpr-leg cpr-leg-fc' }, 'FC da atividade'), h('span', { class: 'cpr-leg cpr-leg-faixa' }, 'Faixa de FC planejada'), ' · toque num trecho para ver o passo'),
+      h('figcaption', { class: 'texto-secundario' }, h('span', { class: 'cpr-leg cpr-leg-fc' }, 'FC da atividade'), h('span', { class: 'cpr-leg cpr-leg-faixa' }, 'Faixa de FC planejada'), h('span', { class: 'cpr-leg cpr-leg-curta' }, 'Zona do tiro (sem alvo)'), ' · toque num trecho para ver o passo'),
     );
   }
 
@@ -225,9 +235,9 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
         'tr',
         { class: `cpr-linha cpr-linha-${a.papel}${escolhido === k ? ' cpr-linha-sel' : ''}`, tabindex: 0, 'aria-selected': escolhido === k ? 'true' : 'false' },
         h('th', { scope: 'row' }, rotulos[k], alinhado.bloco.descricao ? h('small', null, alinhado.bloco.descricao) : null),
-        h('td', null, formatarSegundos(a.duracaoPlanejadaS), h('small', null, `${a.zona} · ${textoFaixa(a.faixa)}`)),
+        h('td', null, formatarSegundos(a.duracaoPlanejadaS), h('small', null, a.faixa ? `${a.zona} · ${textoFaixa(a.faixa)}` : a.veredito.startsWith('pico') && a.faixaDaZona ? `${a.zona} · sem alvo de FC (a zona começa em ${a.faixaDaZona[0]} bpm)` : `${a.zona} · sem alvo de FC`)),
         h('td', null, a.veredito === 'nao-feito' ? '—' : formatarDuracao(a.duracaoRealS), h('small', null, a.distanciaM !== null && a.veredito !== 'nao-feito' ? `${formatarNumero(a.distanciaM / 1000, 2)} km` : '')),
-        h('td', null, a.fcMedia !== null ? `${a.fcMedia} bpm` : '—', h('small', null, a.fracaoNaFaixa !== null ? `${Math.round(a.fracaoNaFaixa * 100)}% do tempo na faixa` : a.veredito === 'sem-alvo' && a.fcPico !== null ? `pico ${a.fcPico} bpm` : '')),
+        h('td', null, a.fcMedia !== null ? `${a.fcMedia} bpm` : '—', h('small', null, a.fracaoNaFaixa !== null ? `${Math.round(a.fracaoNaFaixa * 100)}% do tempo na faixa` : a.fcPico !== null && a.veredito !== 'nao-feito' ? `pico ${a.fcPico} bpm` : '')),
         h('td', null, a.veredito === 'nao-feito' ? '—' : textoRitmo(atividade.esporte, a.velMediaKmh)),
         h('td', null, marcador(a.veredito)),
       );
@@ -246,7 +256,7 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       h(
         'table',
         { class: 'cpr-tabela' },
-        h('caption', { class: 'texto-secundario' }, 'A FC média e o tempo na faixa ignoram os primeiros segundos de cada passo, porque o coração demora a reagir à mudança de esforço. Passos de menos de 1 min não têm faixa de FC (a FC não chega a tempo): nesses, o resultado é "Por esforço" e a tabela mostra o pico de FC, que costuma vir logo depois do passo, e o ritmo.'),
+        h('caption', { class: 'texto-secundario' }, 'A FC média e o tempo na faixa ignoram os primeiros segundos de cada passo, porque o coração demora a reagir à mudança de esforço. Passos de menos de 1 min não têm faixa de FC como alvo (a FC não chega a tempo): nos tiros de Z4/Z5 o resultado é o pico de FC, que costuma vir logo depois do tiro, contra o início da zona; nas recuperações curtas, só os números.'),
         h('thead', null, h('tr', null, ...['Passo', 'Planejado', 'Feito', 'FC média', 'Ritmo', 'Resultado'].map((t) => h('th', { scope: 'col' }, t)))),
         h('tbody', null, ...corpo),
       ),

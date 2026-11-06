@@ -226,6 +226,29 @@ function indicadoresDeEsforco(a, calculando) {
     });
 }
 
+/**
+ * Potência do ciclismo: medida (medidor no arquivo) ou estimada pelo modelo físico (margem típica de 10 a 20%, sem vento nem pelotão).
+ * Atividade sem potência calculada não mostra nada.
+ */
+function indicadoresDePotencia(a) {
+  if (a.esporte !== 'ciclismo' || !a.potenciaOrigem || !Number.isFinite(a.potenciaMediaW)) return [];
+  const estimada = a.potenciaOrigem === 'estimada';
+  const sufixo = estimada ? ' (est.)' : '';
+  const nota = estimada ? 'Estimada por velocidade, subida e peso' : 'Medida pelo medidor de potência';
+  const w = (v) => (Number.isFinite(v) ? `${formatarNumero(v)} W` : '—');
+  return [
+    indicador(`Potência média${sufixo}`, w(a.potenciaMediaW), nota, 'hrss'),
+    indicador(`Potência normalizada${sufixo}`, w(a.potenciaNormalizadaW), null, 'hrss'),
+    ...[
+      ['Melhor 1 min', a.potenciaMax1minW],
+      ['Melhor 5 min', a.potenciaMax5minW],
+      ['Melhor 20 min', a.potenciaMax20minW],
+    ]
+      .filter(([, v]) => Number.isFinite(v))
+      .map(([rotulo, v]) => indicador(`${rotulo}${sufixo}`, w(v), null, 'hrss')),
+  ];
+}
+
 /** Card "Frequência cardíaca por zona": uma coluna por zona (tempo, % e faixa em bpm). */
 function cartaoDeZonas(zonas, ehTrecho) {
   const maior = Math.max(...zonas.map((z) => z.segundos), 1);
@@ -463,6 +486,7 @@ export function render(raiz, sessao, { id }) {
       indicador('FC média', a.fcMedia ? `${a.fcMedia} bpm` : '—', a.zona ? `Zona informada: ${a.zona}` : null, 'fc'),
       indicador('FC máxima', a.fcMax ? `${a.fcMax} bpm` : '—', null, 'fc'),
       indicador('Calorias', a.calorias ? `${formatarNumero(a.calorias)} kcal` : '—', caloriasNota, 'atividades'),
+      ...indicadoresDePotencia(a),
       ...indicadoresDeEsforco(a, calculando),
     );
     let indicadores = montarIndicadores();

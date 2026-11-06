@@ -3,8 +3,8 @@
  * nas amostras do arquivo (distância acumulada ou coordenadas). Funções puras, sem Firebase e sem DOM.
  */
 export const DISTANCIAS_DE_ESFORCO = Object.freeze({ umK: 1000, cincoK: 5000, dezK: 10000, vinteK: 20000, meia: 21097.5, quarentaK: 40000 });
-/** Versão do cálculo gravada na atividade (`melhoresEsforcosEm`): mude para recalcular o histórico. A 2 acrescentou 1, 20, 21 e 40 km. */
-export const VERSAO_DOS_ESFORCOS = 2;
+/** Versão do cálculo gravada na atividade (`melhoresEsforcosEm`): mude para recalcular o histórico. A 2 acrescentou 1, 20, 21 e 40 km; a 3, a potência do ciclismo (`potenciaEstimada.js`). */
+export const VERSAO_DOS_ESFORCOS = 3;
 
 /**
  * Esforços que cada esporte mostra: `id` (chave dos cartões e das medalhas), `campo` (onde o tempo fica na atividade), distância

@@ -12,6 +12,7 @@ import {
   reduzirSerieDetalhe,
   reduzirSerieFc,
   resumirAmostras,
+  resumirPotencia,
   tempoNasZonasDaAtividade,
   validarAtividadeManual,
   validarConfigAtleta,
@@ -234,6 +235,7 @@ export async function processarArquivo(
     data,
     ...resumo,
     ...melhoresEsforcos(lido.amostras),
+    ...resumirPotencia(lido.amostras, esporte, { pesoKg: config?.pesoKg ?? null }),
     melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
     detalheEm: VERSAO_DO_DETALHE,
     // tempo em cada zona de FC, pela configuração usada no HRSS (recalculado quando ela muda; ver calcularMelhoresEsforcosDoUsuario)
@@ -630,6 +632,7 @@ export async function calcularMelhoresEsforcosDoUsuario(
     const a = doc.data();
     const precisaDoArquivo = a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS || a.detalheEm !== VERSAO_DO_DETALHE;
     let tempos: ReturnType<typeof melhoresEsforcos> | null = null;
+    let potencia: ReturnType<typeof resumirPotencia> | null = null;
     let detalhe: ReturnType<typeof reduzirSerieDetalhe> = null;
     let voltas: NonNullable<Awaited<ReturnType<typeof lerArquivo>>["voltas"]> = [];
     if (precisaDoArquivo) {
@@ -637,6 +640,7 @@ export async function calcularMelhoresEsforcosDoUsuario(
         const [conteudo] = await getStorage().bucket().file(a.arquivoPath as string).download();
         const lido = await lerArquivo(conteudo, a.extensao as Extensao);
         tempos = melhoresEsforcos(lido.amostras);
+        potencia = resumirPotencia(lido.amostras, a.esporte as string, { pesoKg: configVigenteEm(configs, a.data as string)?.pesoKg ?? null });
         detalhe = reduzirSerieDetalhe(lido.amostras);
         voltas = lido.voltas ?? [];
       } catch (err) {
@@ -657,6 +661,7 @@ export async function calcularMelhoresEsforcosDoUsuario(
     const novosTempos = tempos ?? (a.melhoresEsforcosEm === VERSAO_DOS_ESFORCOS ? {} : semTempos);
     lote.update(doc.ref, {
       ...novosTempos,
+      ...(potencia ?? {}),
       melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
       detalheEm: VERSAO_DO_DETALHE,
       tempoZonasS: tempoNasZonasDaAtividade(detalhe, configDoHrss),

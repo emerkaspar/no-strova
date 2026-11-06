@@ -22,6 +22,18 @@ function indiceDoInstante(serie, segundos, ultimo) {
   return t.length - 1;
 }
 
+/** Valor da série num instante exato (interpolação linear entre as duas amostras vizinhas); null se não der para saber. */
+function valorEm(serie, campo, instante) {
+  const t = serie.t;
+  const v = serie[campo];
+  if (!v || !(instante >= t[0]) || instante > t[t.length - 1]) return null;
+  let i = indiceDoInstante(serie, instante, true); // última amostra com t <= instante
+  if (i >= t.length - 1) i = t.length - 2;
+  const [a, b] = [v[i], v[i + 1]];
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return t[i + 1] === t[i] ? a : a + ((b - a) * (instante - t[i])) / (t[i + 1] - t[i]);
+}
+
 /**
  * Casa cada passo planejado (já expandido) com um trecho da atividade.
  *
@@ -70,19 +82,22 @@ export function alinharPassos({ passos, voltas, serie, deslocamentoS = 0 }) {
  * Mede um trecho alinhado contra o alvo do passo.
  * Ignora a carência inicial (a FC demora a reagir ao esforço) ao calcular a FC média e o tempo na faixa.
  *
- * Passo sem alvo de FC (tiro curto ou `alvoAberto`) não recebe veredito: devolve a FC média (sem carência) e o `fcPico`,
- * que também olha os 20 s seguintes ao passo.
+ * Passo sem alvo de FC (tiro curto ou `alvoAberto`) não tem veredito pela FC média: devolve a FC média (sem carência) e o `fcPico`,
+ * que também olha os 20 s seguintes ao passo (a FC reage com atraso). Para o esforço curto em Z4/Z5 o veredito é o pico:
+ * `pico-na-zona` se ele chegou ao mínimo da faixa da zona (`faixaDaZona`), senão `pico-abaixo`. A distância e a velocidade média
+ * vêm do instante exato do passo (interpolado), não das amostras vizinhas.
  *
- * @returns {{ indice: number, papel: string, zona: string, faixa: number[]|null, duracaoPlanejadaS: number, duracaoRealS: number,
+ * @returns {{ indice: number, papel: string, zona: string, faixa: number[]|null, faixaDaZona: number[]|null, duracaoPlanejadaS: number, duracaoRealS: number,
  *   fcMedia: number|null, fcMax: number|null, fcPico: number|null, fracaoNaFaixa: number|null, velMediaKmh: number|null, distanciaM: number|null,
- *   veredito: 'dentro'|'abaixo'|'acima'|'sem-alvo'|'sem-dados'|'nao-feito' }}
+ *   veredito: 'dentro'|'abaixo'|'acima'|'pico-na-zona'|'pico-abaixo'|'sem-alvo'|'sem-dados'|'nao-feito' }}
  */
 export function avaliarPasso({ alinhado, serie, config }) {
   const { bloco, iniS, fimS, iniIdx, fimIdx, indice } = alinhado;
   const duracaoRealS = Math.max(0, Math.round(fimS - iniS));
-  const faixa = bloco.alvoAberto ? null : faixaDeFcDaZona(bloco.zona, config);
+  const faixaDaZona = faixaDeFcDaZona(bloco.zona, config);
+  const faixa = bloco.alvoAberto ? null : faixaDaZona;
   const base = {
-    indice, papel: bloco.papel, zona: bloco.zona, faixa, duracaoPlanejadaS: bloco.duracaoS, duracaoRealS,
+    indice, papel: bloco.papel, zona: bloco.zona, faixa, faixaDaZona, duracaoPlanejadaS: bloco.duracaoS, duracaoRealS,
     fcMedia: null, fcMax: null, fcPico: null, fracaoNaFaixa: null, velMediaKmh: null, distanciaM: null,
   };
   if (alinhado.incompleto && duracaoRealS < bloco.duracaoS * 0.5) return { ...base, veredito: 'nao-feito' };
@@ -119,20 +134,28 @@ export function avaliarPasso({ alinhado, serie, config }) {
     const fc = serie.fc?.[i];
     if (Number.isFinite(fc) && (fcPico === null || fc > fcPico)) fcPico = fc;
   }
-  const distancias = [serie.dist?.[iniIdx], serie.dist?.[fimIdx]];
-  const distanciaM = distancias.every(Number.isFinite) && distancias[1] >= distancias[0] ? Math.round((distancias[1] - distancias[0]) * 1000) : null;
+  const d0 = serie.dist ? valorEm(serie, 'dist', iniS) : null;
+  const d1 = serie.dist ? valorEm(serie, 'dist', fimS) : null;
+  const distanciaM = Number.isFinite(d0) && Number.isFinite(d1) && d1 >= d0 ? Math.round((d1 - d0) * 1000) : null;
+  // com a distância, a velocidade média é distância ÷ tempo: não depende de qual amostra caiu na borda do passo
+  const velPelaDistancia = distanciaM !== null && fimS > iniS ? distanciaM / 1000 / ((fimS - iniS) / 3600) : null;
   const resultado = {
     ...base,
     fcMedia: pesoFc > 0 ? Math.round(somaFc / pesoFc) : null,
     fcMax,
     fcPico,
     fracaoNaFaixa: faixa && pesoFc > 0 ? naFaixaS / pesoFc : null,
-    velMediaKmh: pesoVel > 0 ? somaVel / pesoVel : null,
+    velMediaKmh: velPelaDistancia ?? (pesoVel > 0 ? somaVel / pesoVel : null),
     distanciaM,
   };
 
   if (resultado.fcMedia === null) return { ...resultado, veredito: 'sem-dados' };
-  if (!faixa) return { ...resultado, veredito: 'sem-alvo' };
+  if (!faixa) {
+    // tiro curto de Z4/Z5: a régua é o pico (ele vem depois do tiro), não a média do passo
+    const ehTiro = bloco.papel === 'principal' && bloco.duracaoS < DURACAO_MINIMA_ALVO_FC_S && (bloco.zona === 'Z4' || bloco.zona === 'Z5');
+    if (ehTiro && faixaDaZona && fcPico !== null) return { ...resultado, veredito: fcPico >= faixaDaZona[0] ? 'pico-na-zona' : 'pico-abaixo' };
+    return { ...resultado, veredito: 'sem-alvo' };
+  }
   let veredito;
   if (resultado.fracaoNaFaixa >= FRACAO_NA_FAIXA_PARA_CUMPRIR) veredito = 'dentro';
   else if (resultado.fcMedia < faixa[0]) veredito = 'abaixo';
@@ -147,21 +170,27 @@ export function compararPassos({ passos, voltas, serie, config, deslocamentoS = 
   return alinhados.map((alinhado) => ({ alinhado, avaliacao: avaliarPasso({ alinhado, serie, config }) }));
 }
 
+const VEREDITOS_DE_TIRO = ['sem-alvo', 'pico-na-zona', 'pico-abaixo'];
+
 /**
- * Resumo da aderência considerando só os esforços (passos 'principal' com alvo).
+ * Resumo da aderência: os esforços (passos 'principal') com alvo de FC contam em "cumpridos"; os tiros curtos contam à parte
+ * (`tirosCurtos`, `picosNaZona`) e entram na consistência.
  * @returns {{ esforcos: number, cumpridos: number, abaixo: number, acima: number, naoFeitos: number, fcMediaEsforcos: number|null, tendenciaFc: number|null,
- *   tirosCurtos: number, consistencia: null | { n: number, velInicialKmh: number, velFinalKmh: number, variacaoPct: number, fcPicoMedio: number|null } }}
+ *   tirosCurtos: number, picosNaZona: number, tirosComPico: number, consistencia: null | { n: number, velInicialKmh: number, velFinalKmh: number, variacaoPct: number, fcPicoMedio: number|null } }}
  *   `tendenciaFc`: bpm de diferença entre a FC média do último e a do primeiro esforço (positivo = FC subindo; só com 3+ esforços).
  *   `tirosCurtos`: esforços sem alvo de FC por serem curtos (menos de 1 min). `consistencia`: com 2 ou mais tiros e velocidade, quanto o
  *   nível caiu (ou subiu) do começo ao fim; com 4 ou mais compara a média dos 2 primeiros com a dos 2 últimos.
  */
 export function resumirAderencia(avaliacoes) {
-  const esforcos = avaliacoes.filter((a) => a.papel === 'principal' && a.veredito !== 'sem-alvo');
+  const esforcos = avaliacoes.filter((a) => a.papel === 'principal' && !VEREDITOS_DE_TIRO.includes(a.veredito));
   const medidos = esforcos.filter((a) => a.fcMedia !== null);
   const fcMediaEsforcos = medidos.length ? Math.round(medidos.reduce((s, a) => s + a.fcMedia, 0) / medidos.length) : null;
-  const tiros = avaliacoes.filter((a) => a.papel === 'principal' && a.veredito === 'sem-alvo' && a.duracaoPlanejadaS < DURACAO_MINIMA_ALVO_FC_S);
+  const tiros = avaliacoes.filter((a) => a.papel === 'principal' && VEREDITOS_DE_TIRO.includes(a.veredito) && a.duracaoPlanejadaS < DURACAO_MINIMA_ALVO_FC_S);
+  const comPico = tiros.filter((a) => a.veredito !== 'sem-alvo');
   return {
     tirosCurtos: tiros.length,
+    tirosComPico: comPico.length,
+    picosNaZona: comPico.filter((a) => a.veredito === 'pico-na-zona').length,
     consistencia: consistenciaDosTiros(tiros),
     esforcos: esforcos.length,
     cumpridos: esforcos.filter((a) => a.veredito === 'dentro').length,

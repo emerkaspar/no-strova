@@ -12,6 +12,7 @@ interface RegistroFit {
   enhanced_altitude?: number;
   position_lat?: number;
   position_long?: number;
+  power?: number;
 }
 
 interface VoltaFit {
@@ -43,6 +44,7 @@ export async function lerFit(conteudo: Buffer): Promise<ArquivoLido> {
       alt: numero(r.enhanced_altitude ?? r.altitude),
       lat: numero(r.position_lat),
       lon: numero(r.position_long),
+      pot: numero(r.power),
     }))
     .filter((p) => Number.isFinite(p.ms));
 

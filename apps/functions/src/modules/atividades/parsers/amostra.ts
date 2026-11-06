@@ -7,6 +7,8 @@ export interface Amostra {
   alt?: number;
   lat?: number;
   lon?: number;
+  /** Potência medida (W). */
+  pot?: number;
 }
 
 export interface Ponto {
@@ -17,6 +19,7 @@ export interface Ponto {
   alt?: number;
   lat?: number;
   lon?: number;
+  pot?: number;
 }
 
 export function numero(valor: unknown): number | undefined {

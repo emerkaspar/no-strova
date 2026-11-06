@@ -38,6 +38,8 @@
 .cpr-ponto.cpr-v-dentro { background: var(--success); }
 .cpr-ponto.cpr-v-abaixo { background: var(--zona-1); }
 .cpr-ponto.cpr-v-acima { background: var(--danger); }
+.cpr-ponto.cpr-v-pico-na-zona { background: var(--success); }
+.cpr-ponto.cpr-v-pico-abaixo { background: var(--zona-1); }
 
 .cpr-ajuste {
   display: flex;
@@ -76,6 +78,11 @@
 .cpr-faixa-z4 { fill: var(--zona-4); }
 .cpr-faixa-z5 { fill: var(--zona-5); }
 
+/* tiro curto: a zona só como contorno tracejado, sem preenchimento (não é alvo de FC) */
+.cpr-faixa-curta { fill: none; stroke-width: 1.5; stroke-dasharray: 4 3; pointer-events: none; }
+.cpr-contorno-z4 { stroke: var(--zona-4); }
+.cpr-contorno-z5 { stroke: var(--zona-5); }
+
 .cpr-coluna-sel { fill: var(--text-primary); opacity: 0.08; pointer-events: none; }
 
 .cpr-clique { fill: transparent; cursor: pointer; }
@@ -94,6 +101,7 @@
 .cpr-leg + .cpr-leg { margin-left: 14px; }
 .cpr-leg-fc::before { background: var(--serie-fc); }
 .cpr-leg-faixa::before { background: var(--zona-4); opacity: 0.5; }
+.cpr-leg-curta::before { background: none; border: 1.5px dashed var(--zona-5); }
 
 .cpr-tabela-rolagem {
   overflow-x: auto;
@@ -151,6 +159,8 @@
 .cpr-v-dentro { color: var(--success); }
 .cpr-v-abaixo { color: var(--zona-1); }
 .cpr-v-acima { color: var(--danger); }
+.cpr-v-pico-na-zona { color: var(--success); }
+.cpr-v-pico-abaixo { color: var(--zona-1); }
 .cpr-v-sem-alvo,
 .cpr-v-sem-dados,
 .cpr-v-nao-feito { color: var(--text-secondary); }

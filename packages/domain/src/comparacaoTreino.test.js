@@ -124,7 +124,8 @@ describe('resumirAderencia', () => {
   });
 });
 
-describe('tiros curtos (menos de 1 min): sem alvo de FC', () => {
+describe('tiros curtos (menos de 1 min): sem alvo de FC, avaliados pelo pico', () => {
+  const config = { vigenteDesde: '2026-01-01', lthr: 150, fcMax: 190 }; // Z5 = 150–165 bpm
   const tiros = [{ tipo: 'serie', repeticoes: 4, esforco: { duracaoS: 30, zona: 'Z5', descricao: 'esforço máximo' }, recuperacao: { duracaoS: 30, zona: 'Z1' } }]; // 4 × 30 s + 3 × 30 s = 210 s
   const VEL_DO_TIRO = [36, 34, 30, 28];
   // a FC só sobe depois do tiro (nos 20 s seguintes); a velocidade cai a cada tiro
@@ -133,22 +134,48 @@ describe('tiros curtos (menos de 1 min): sem alvo de FC', () => {
     const fc = [];
     const vel = [];
     const dist = [];
+    let km = 0;
     for (let s = 0; s <= 210; s += 5) {
       const k = (s - 1 + 60) % 60;
       const emTiro = s > 0 && k < 30;
       t.push(s);
       fc.push(k >= 30 && k < 50 && s > 0 ? 165 : 130);
-      vel.push(emTiro ? VEL_DO_TIRO[Math.floor((s - 1) / 60)] : 15);
-      dist.push((s * 25) / 3600);
+      const v = emTiro ? VEL_DO_TIRO[Math.floor((s - 1) / 60)] : 15;
+      vel.push(v);
+      if (s > 0) km += (v * 5) / 3600; // a distância acumulada é coerente com a velocidade
+      dist.push(km);
     }
     return { passoS: 5, t, fc, vel, dist };
   };
 
-  it('não dá veredito de FC a esforços nem a recuperações de 30 s', () => {
+  it('não tem faixa de alvo nos passos de 30 s: o tiro vira pico, a recuperação fica sem alvo', () => {
     const r = compararPassos({ passos: tiros, voltas: null, serie: serieDeTiros(), config });
     expect(r).toHaveLength(7);
-    expect(r.every((x) => x.avaliacao.veredito === 'sem-alvo')).toBe(true);
     expect(r.every((x) => x.avaliacao.faixa === null)).toBe(true);
+    expect(r.every((x) => x.avaliacao.faixaDaZona !== null)).toBe(true);
+    expect(r.filter((x) => x.alinhado.bloco.papel === 'recuperacao').every((x) => x.avaliacao.veredito === 'sem-alvo')).toBe(true);
+  });
+
+  it('o tiro é "pico na zona" quando a FC chegou à zona logo depois dele, e "pico abaixo" quando não chegou', () => {
+    const r = compararPassos({ passos: tiros, voltas: null, serie: serieDeTiros(), config });
+    expect(r[0].avaliacao.veredito).toBe('pico-na-zona'); // 165 bpm, a Z5 começa em 150
+    expect(r[6].avaliacao.veredito).toBe('pico-abaixo'); // último tiro: a FC não subiu depois
+    const resumo = resumirAderencia(r.map((x) => x.avaliacao));
+    expect(resumo.tirosComPico).toBe(4);
+    expect(resumo.picosNaZona).toBe(3);
+    expect(resumo.esforcos).toBe(0);
+  });
+
+  it('a velocidade do tiro vem da distância no instante exato, não das amostras da borda', () => {
+    // amostras a cada 10 s; o tiro vai de 5 s a 35 s, no meio delas
+    const t = [0, 10, 20, 30, 40, 50];
+    const dist = [0, 0.01, 0.02, 0.03, 0.04, 0.05]; // 3,6 km/h constantes
+    const serie = { passoS: 10, t, fc: [130, 130, 130, 130, 130, 130], vel: [3.6, 3.6, 3.6, 3.6, 3.6, 3.6], dist };
+    const voltas = [{ iniS: 5, fimS: 35 }];
+    const um = [{ tipo: 'bloco', papel: 'principal', duracaoS: 30, zona: 'Z5', descricao: 'máximo' }];
+    const [{ avaliacao }] = compararPassos({ passos: um, voltas, serie, config });
+    expect(avaliacao.distanciaM).toBe(30);
+    expect(avaliacao.velMediaKmh).toBeCloseTo(3.6, 5);
   });
 
   it('acha o pico de FC na recuperação que vem logo depois do tiro', () => {
@@ -187,9 +214,9 @@ describe('tiros curtos (menos de 1 min): sem alvo de FC', () => {
       serie.vel.push(25);
       serie.dist.push((s * 25) / 3600);
     }
-    const r = compararPassos({ passos: misto, voltas: null, serie, config });
+    const r = compararPassos({ passos: misto, voltas: null, serie, config: { ...config, lthr: 170 } }); // Z4 = 161–170 bpm
     expect(r[0].avaliacao.veredito).toBe('dentro');
-    expect(r.slice(1).every((x) => x.avaliacao.veredito === 'sem-alvo')).toBe(true);
+    expect(r.slice(1).every((x) => x.avaliacao.faixa === null)).toBe(true);
     expect(resumirAderencia(r.map((x) => x.avaliacao)).esforcos).toBe(1);
   });
 });

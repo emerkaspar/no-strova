@@ -34,7 +34,7 @@ describe('melhoresEsforcos', () => {
   });
 
   it('a versão do cálculo mudou para recalcular o histórico', () => {
-    expect(VERSAO_DOS_ESFORCOS).toBe(2);
+    expect(VERSAO_DOS_ESFORCOS).toBe(3);
   });
 });
 
