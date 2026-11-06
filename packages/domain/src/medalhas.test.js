@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { medalhasDasAtividades, melhorMedalha, textoDaJanela } from './medalhas.js';
+import { medalhasDasAtividades, melhorMedalha, podioDaMetrica, textoDaJanela } from './medalhas.js';
 
 const HOJE = '2026-11-04';
 const ativ = (id, data, extra = {}) => ({ id, data, esporte: 'ciclismo', distanciaM: 20000, duracaoS: 3600, altimetriaM: 100, hrss: 50, ...extra });
@@ -140,5 +140,30 @@ describe('melhorMedalha / textoDaJanela', () => {
 
   it('escreve a janela', () => {
     expect(textoDaJanela(30)).toBe('Melhor dos últimos 30 dias');
+  });
+});
+
+describe('podioDaMetrica', () => {
+  const lista = [
+    ativ('a', '2026-01-10', { distanciaM: 90000 }),
+    ativ('b', '2026-02-10', { distanciaM: 80000 }),
+    ativ('c', '2026-03-10', { distanciaM: 70000 }),
+    ativ('d', '2026-04-10', { distanciaM: 60000 }),
+    ativ('e', '2026-05-10', { distanciaM: 95000, esporte: 'corrida' }),
+  ];
+
+  it('devolve as três melhores do esporte, da melhor para a pior', () => {
+    const p = podioDaMetrica(lista, 'ciclismo', 'distancia');
+    expect(p.map((x) => [x.posicao, x.medalha, x.atividade.id, x.valor])).toEqual([
+      [1, 'ouro', 'a', 90000],
+      [2, 'prata', 'b', 80000],
+      [3, 'bronze', 'c', 70000],
+    ]);
+  });
+
+  it('com duas atividades só há ouro; métrica inexistente ou esporte sem atividade dá vazio', () => {
+    expect(podioDaMetrica(lista.slice(0, 2), 'ciclismo', 'distancia').map((x) => x.medalha)).toEqual(['ouro']);
+    expect(podioDaMetrica(lista, 'ciclismo', 'nao-existe')).toEqual([]);
+    expect(podioDaMetrica(lista, 'outro', 'distancia')).toEqual([]);
   });
 });

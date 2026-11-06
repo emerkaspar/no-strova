@@ -35,6 +35,29 @@ function ranking(lista, campo, menorVence) {
   return lista.filter((a) => valido(a[campo])).sort((x, y) => (menorVence ? x[campo] - y[campo] : y[campo] - x[campo]) || porData(x, y));
 }
 
+/** Métricas com medalha em um esporte: as de maior valor e os melhores esforços (menor tempo vence). */
+function metricasDoEsporte(esporte) {
+  return [
+    ...METRICAS_DE_MAIOR_VALOR.map((m) => ({ ...m, menorVence: false })),
+    ...esforcosDoEsporte(esporte).map((e) => ({ id: e.id, campo: e.campo, rotulo: `Melhor ${e.rotulo}`, menorVence: true })),
+  ];
+}
+
+/**
+ * O pódio de uma métrica entre as atividades de um esporte (a base do ranking que se abre ao clicar na medalha): até três
+ * atividades, da melhor para a pior, com a mesma regra de `medalhasDasAtividades` (só entra quem supera pelo menos uma outra).
+ * @returns {Array<{ posicao: number, medalha: 'ouro'|'prata'|'bronze', atividade: object, valor: number }>} vazio se a métrica não existe
+ */
+export function podioDaMetrica(atividades, esporte, metricaId) {
+  const m = metricasDoEsporte(esporte).find((x) => x.id === metricaId);
+  if (!m) return [];
+  const geral = ranking(atividades.filter((a) => a.esporte === esporte), m.campo, m.menorVence);
+  return geral
+    .slice(0, MEDALHA_DA_POSICAO.length)
+    .map((a, i) => ({ posicao: i + 1, medalha: MEDALHA_DA_POSICAO[i], atividade: a, valor: a[m.campo] }))
+    .filter((_, i) => i < geral.length - 1);
+}
+
 /**
  * Medalhas de cada atividade.
  *  - Pódio: ouro, prata e bronze para as três melhores de cada métrica. Só ganha quem supera pelo menos uma outra (com duas
@@ -58,10 +81,7 @@ export function medalhasDasAtividades(atividades, hojeIso) {
   for (const esporte of new Set(atividades.map((a) => a.esporte))) {
     const doEsporte = atividades.filter((a) => a.esporte === esporte);
     const maisAntiga = doEsporte.reduce((m, a) => (a.data < m ? a.data : m), hojeIso);
-    const metricas = [
-      ...METRICAS_DE_MAIOR_VALOR.map((m) => ({ ...m, menorVence: false })),
-      ...esforcosDoEsporte(esporte).map((e) => ({ id: e.id, campo: e.campo, rotulo: `Melhor ${e.rotulo}`, menorVence: true })),
-    ];
+    const metricas = metricasDoEsporte(esporte);
 
     for (const m of metricas) {
       const geral = ranking(doEsporte, m.campo, m.menorVence);

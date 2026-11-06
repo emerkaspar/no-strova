@@ -51,7 +51,7 @@ function textoRitmo(esporte, velKmh) {
 
 function marcador(veredito) {
   const v = VEREDITOS[veredito];
-  return h('span', { class: `comp-v comp-v-${veredito}` }, h('span', { 'aria-hidden': 'true' }, v.icone), ` ${v.texto}`);
+  return h('span', { class: `cpr-v cpr-v-${veredito}` }, h('span', { 'aria-hidden': 'true' }, v.icone), ` ${v.texto}`);
 }
 
 /**
@@ -67,7 +67,7 @@ function marcador(veredito) {
  * @returns {{ el: HTMLElement }}
  */
 export function criarComparacao({ atividade, treino, detalhe, voltas, config, aoSelecionar }) {
-  const el = h('section', { class: 'comp' });
+  const el = h('section', { class: 'cpr' });
   let deslocamentoS = 0;
   let escolhido = null; // índice do passo destacado
 
@@ -100,15 +100,15 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
     }
     return h(
       'div',
-      { class: 'comp-resumo' },
-      h('strong', { class: 'comp-resumo-titulo' }, titulo),
+      { class: 'cpr-resumo' },
+      h('strong', { class: 'cpr-resumo-titulo' }, titulo),
       esforcos.length
-        ? h('div', { class: 'comp-pontos', 'aria-hidden': 'true' }, ...esforcos.map((a) => h('i', { class: `comp-ponto comp-v-${a.veredito}`, title: VEREDITOS[a.veredito].texto })))
+        ? h('div', { class: 'cpr-pontos', 'aria-hidden': 'true' }, ...esforcos.map((a) => h('i', { class: `cpr-ponto cpr-v-${a.veredito}`, title: VEREDITOS[a.veredito].texto })))
         : null,
       notas.length ? h('p', { class: 'texto-secundario' }, notas.join(' · ')) : null,
       h(
         'p',
-        { class: 'texto-secundario comp-origem' },
+        { class: 'texto-secundario cpr-origem' },
         origem === 'volta' ? 'Alinhado pelas voltas gravadas no relógio.' : 'Alinhado pelo tempo planejado, a partir do início da atividade. Se os trechos não batem com o que você fez, ajuste o início abaixo.',
       ),
     );
@@ -122,7 +122,7 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
     });
     const zerar = h('button', { class: 'btn btn-secundario', type: 'button', disabled: deslocamentoS === 0 }, 'Zerar');
     zerar.addEventListener('click', () => mudarDeslocamento(0));
-    return h('div', { class: 'comp-ajuste' }, h('span', null, 'Início do treino: ', h('strong', null, deslocamentoS === 0 ? 'no começo da atividade' : `${deslocamentoS > 0 ? '+' : '−'}${formatarSegundos(Math.abs(deslocamentoS))} do começo`)), h('div', { class: 'linha-botoes' }, ...botoes, zerar));
+    return h('div', { class: 'cpr-ajuste' }, h('span', null, 'Início do treino: ', h('strong', null, deslocamentoS === 0 ? 'no começo da atividade' : `${deslocamentoS > 0 ? '+' : '−'}${formatarSegundos(Math.abs(deslocamentoS))} do começo`)), h('div', { class: 'linha-botoes' }, ...botoes, zerar));
   }
 
   function mudarDeslocamento(valor) {
@@ -149,15 +149,15 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
     const py = (bpm) => MARGEM.topo + (1 - (bpm - minimo) / (maximo - minimo || 1)) * (A - MARGEM.topo - MARGEM.base);
     const base = A - MARGEM.base;
 
-    const raiz = svg('svg', { class: 'comp-grafico', viewBox: `0 0 ${L} ${A}`, role: 'img', 'aria-label': 'Frequência cardíaca da atividade sobre as faixas de FC planejadas para cada passo' });
+    const raiz = svg('svg', { class: 'cpr-grafico', viewBox: `0 0 ${L} ${A}`, role: 'img', 'aria-label': 'Frequência cardíaca da atividade sobre as faixas de FC planejadas para cada passo' });
 
     const passoBpm = maximo - minimo > 80 ? 20 : 10;
     for (let v = Math.ceil(minimo / passoBpm) * passoBpm; v <= maximo; v += passoBpm) {
-      raiz.append(svg('line', { x1: MARGEM.esq, x2: L - MARGEM.dir, y1: py(v), y2: py(v), class: 'comp-grade' }), svg('text', { x: MARGEM.esq - 6, y: py(v) + 4, 'text-anchor': 'end', class: 'comp-rotulo' }, String(v)));
+      raiz.append(svg('line', { x1: MARGEM.esq, x2: L - MARGEM.dir, y1: py(v), y2: py(v), class: 'cpr-grade' }), svg('text', { x: MARGEM.esq - 6, y: py(v) + 4, 'text-anchor': 'end', class: 'cpr-rotulo' }, String(v)));
     }
     const passoMin = fim / 60 > 90 ? 20 : fim / 60 > 40 ? 10 : 5;
     for (let m = 0; m * 60 <= fim; m += passoMin) {
-      raiz.append(svg('text', { x: px(m * 60), y: A - 6, 'text-anchor': 'middle', class: 'comp-rotulo' }, `${m} min`));
+      raiz.append(svg('text', { x: px(m * 60), y: A - 6, 'text-anchor': 'middle', class: 'cpr-rotulo' }, `${m} min`));
     }
 
     for (const { alinhado, avaliacao } of linhas) {
@@ -165,12 +165,12 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       const x = px(alinhado.iniS);
       const largura = Math.max(1, px(alinhado.fimS) - x);
       const sel = escolhido === alinhado.indice;
-      if (sel) raiz.append(svg('rect', { x, y: MARGEM.topo, width: largura, height: base - MARGEM.topo, class: 'comp-coluna-sel' }));
+      if (sel) raiz.append(svg('rect', { x, y: MARGEM.topo, width: largura, height: base - MARGEM.topo, class: 'cpr-coluna-sel' }));
       if (avaliacao.faixa) {
         const [baixo, alto] = avaliacao.faixa;
-        raiz.append(svg('rect', { x, y: py(alto), width: largura, height: Math.max(2, py(baixo) - py(alto)), class: `comp-faixa comp-faixa-${avaliacao.zona.toLowerCase()}${sel ? ' comp-faixa-sel' : ''}` }));
+        raiz.append(svg('rect', { x, y: py(alto), width: largura, height: Math.max(2, py(baixo) - py(alto)), class: `cpr-faixa cpr-faixa-${avaliacao.zona.toLowerCase()}${sel ? ' cpr-faixa-sel' : ''}` }));
       }
-      const alvo = svg('rect', { x, y: MARGEM.topo, width: largura, height: base - MARGEM.topo, class: 'comp-clique', tabindex: 0, role: 'button', 'aria-label': `${avaliacao.papel} ${alinhado.indice + 1}: ${textoFaixa(avaliacao.faixa)}` }, svg('title', {}, `${formatarSegundos(avaliacao.duracaoPlanejadaS)} em ${avaliacao.zona} · ${textoFaixa(avaliacao.faixa)}`));
+      const alvo = svg('rect', { x, y: MARGEM.topo, width: largura, height: base - MARGEM.topo, class: 'cpr-clique', tabindex: 0, role: 'button', 'aria-label': `${avaliacao.papel} ${alinhado.indice + 1}: ${textoFaixa(avaliacao.faixa)}` }, svg('title', {}, `${formatarSegundos(avaliacao.duracaoPlanejadaS)} em ${avaliacao.zona} · ${textoFaixa(avaliacao.faixa)}`));
       alvo.addEventListener('click', () => escolher(alinhado.indice, linhas));
       alvo.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -192,13 +192,13 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       }
     });
     if (atual.length) segmentos.push(atual);
-    for (const seg of segmentos) raiz.append(svg('path', { d: caminhoSuave(seg), class: 'comp-fc' }));
+    for (const seg of segmentos) raiz.append(svg('path', { d: caminhoSuave(seg), class: 'cpr-fc' }));
 
     return h(
       'figure',
-      { class: 'comp-figura' },
+      { class: 'cpr-figura' },
       raiz,
-      h('figcaption', { class: 'texto-secundario' }, h('span', { class: 'comp-leg comp-leg-fc' }, 'FC da atividade'), h('span', { class: 'comp-leg comp-leg-faixa' }, 'Faixa de FC planejada'), ' · toque num trecho para ver o passo'),
+      h('figcaption', { class: 'texto-secundario' }, h('span', { class: 'cpr-leg cpr-leg-fc' }, 'FC da atividade'), h('span', { class: 'cpr-leg cpr-leg-faixa' }, 'Faixa de FC planejada'), ' · toque num trecho para ver o passo'),
     );
   }
 
@@ -207,7 +207,7 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
       const a = avaliacoes[k];
       const tr = h(
         'tr',
-        { class: `comp-linha comp-linha-${a.papel}${escolhido === k ? ' comp-linha-sel' : ''}`, tabindex: 0, 'aria-selected': escolhido === k ? 'true' : 'false' },
+        { class: `cpr-linha cpr-linha-${a.papel}${escolhido === k ? ' cpr-linha-sel' : ''}`, tabindex: 0, 'aria-selected': escolhido === k ? 'true' : 'false' },
         h('th', { scope: 'row' }, rotulos[k], alinhado.bloco.descricao ? h('small', null, alinhado.bloco.descricao) : null),
         h('td', null, formatarSegundos(a.duracaoPlanejadaS), h('small', null, `${a.zona} · ${textoFaixa(a.faixa)}`)),
         h('td', null, a.veredito === 'nao-feito' ? '—' : formatarDuracao(a.duracaoRealS), h('small', null, a.distanciaM !== null && a.veredito !== 'nao-feito' ? `${formatarNumero(a.distanciaM / 1000, 2)} km` : '')),
@@ -226,10 +226,10 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
     });
     return h(
       'div',
-      { class: 'comp-tabela-rolagem' },
+      { class: 'cpr-tabela-rolagem' },
       h(
         'table',
-        { class: 'comp-tabela' },
+        { class: 'cpr-tabela' },
         h('caption', { class: 'texto-secundario' }, 'A FC média e o tempo na faixa ignoram os primeiros segundos de cada passo, porque o coração demora a reagir à mudança de esforço.'),
         h('thead', null, h('tr', null, ...['Passo', 'Planejado', 'Feito', 'FC média', 'Ritmo', 'Resultado'].map((t) => h('th', { scope: 'col' }, t)))),
         h('tbody', null, ...corpo),

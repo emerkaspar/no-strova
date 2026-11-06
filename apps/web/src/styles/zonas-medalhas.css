@@ -78,17 +78,10 @@
   border-color: var(--tom);
 }
 
-/* a linha inteira ganha um tom suave da medalha */
-.ativ-linha-medalha > td {
-  background: color-mix(in srgb, var(--tom) 6%, transparent);
-}
-
-.ativ-linha-medalha > td:first-child {
+/* a linha de atividade do pódio ganha a faixa lateral fina e um tom bem leve da medalha (ver "Lista de atividades" em layout.css) */
+.ativ-linha.ativ-linha-medalha {
+  background: color-mix(in srgb, var(--tom) 4%, var(--surface-light));
   box-shadow: inset 3px 0 0 var(--tom);
-}
-
-.ativ-linha-medalha:hover > td {
-  background: color-mix(in srgb, var(--tom) 11%, transparent);
 }
 
 /* cartão de recordes (aparece ao passar o mouse no selo) */
@@ -96,12 +89,12 @@
   position: fixed;
   z-index: 70;
   width: 340px;
-  overflow: hidden;
   background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--tom) 55%, var(--border));
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--tom) 25%, transparent);
-  pointer-events: none;
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
   opacity: 0;
   transform: translateY(6px) scale(0.98);
   transition: opacity 0.16s ease, transform 0.16s ease;
@@ -441,48 +434,102 @@
   }
 }
 
-/* ---------- coluna "Data / Nome" da lista de atividades ---------- */
-.ativ-celula-nome {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* recorde clicável: abre o ranking dele (as três melhores atividades) */
+.medalha-cartao-escolha {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.ativ-celula-nome .medalha-selo {
-  flex-shrink: 0;
+.medalha-cartao-escolha:hover,
+.medalha-cartao-escolha:focus-visible,
+.medalha-cartao-escolha.aberto {
+  background: color-mix(in srgb, var(--tom-item) 18%, transparent);
+  border-color: var(--tom-item);
 }
 
-.ativ-celula-nome .ativ-data {
+.medalha-cartao-seta {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.medalha-cartao-escolha.aberto .medalha-cartao-seta {
+  transform: rotate(180deg);
+}
+
+.medalha-cartao-bloco {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  line-height: 1.2;
+  gap: 6px;
 }
 
-.ativ-data-dia {
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+.medalha-cartao-podio {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: none;
 }
 
-.ativ-nome {
-  max-width: 210px;
-  overflow: hidden;
-  color: var(--primary);
-  font-size: 1rem;
+.medalha-cartao-posicao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  color: inherit;
+  font-size: 0.82rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.medalha-cartao-posicao:hover,
+.medalha-cartao-posicao:focus-visible {
+  background: color-mix(in srgb, var(--tom-item, var(--medalha-ouro)) 12%, transparent);
+}
+
+.medalha-cartao-posicao.atual {
+  background: color-mix(in srgb, var(--tom-item, var(--medalha-ouro)) 16%, transparent);
+  border-color: color-mix(in srgb, var(--tom-item, var(--medalha-ouro)) 45%, transparent);
+}
+
+.medalha-cartao-ordem {
+  min-width: 22px;
+  color: var(--tom-item, var(--medalha-ouro));
   font-weight: 700;
+}
+
+.medalha-cartao-quem {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.medalha-cartao-quem b {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* sem título do usuário vale o esporte, mais discreto */
-.ativ-nome-padrao {
-  color: var(--text-primary);
-  font-weight: 600;
+.medalha-cartao-quem small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
 }
 
-.ativ-celula-nome .ativ-data:hover .ativ-nome {
-  text-decoration: underline;
+.medalha-cartao-quanto {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.medalha-cartao-dica {
+  padding: 0 16px 14px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
 }

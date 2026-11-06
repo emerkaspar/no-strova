@@ -15,6 +15,7 @@ import { ROTULO_ESPORTE, ROTULO_ORIGEM_CALORIAS, ROTULO_ORIGEM_HRSS, TEXTO_ALERT
 import { confirmar } from '../../utils/modal.js';
 import { cartaoComoFoi } from './feedbackModal.js';
 import { criarComparacao } from './comparacao.js';
+import { EVENTO_VINCULO } from './treinoDoDia.js';
 import { medalhasDaAtividade } from '../../application/medalhas.js';
 import { prepararEvolucaoDoTrajeto } from '../treinos/state.js';
 
@@ -286,6 +287,7 @@ export function render(raiz, sessao, { id }) {
   let nomeDoTrajeto = null; // nome do trajeto de treino da atividade (lido uma vez; o modal atualiza)
   let configDoHrss; // undefined = ainda não buscada; null = indisponível
   let treinoVinculado; // undefined = ainda não buscado; null = a atividade não está vinculada a um treino
+  let recarregarComparacao = () => {}; // refaz a seção Planejado × Realizado (o vínculo pode mudar no modal "Como foi?")
   let configDaComparacao; // configuração de FC da data da atividade, para as faixas do treino
   const mensagem = areaMensagem();
   raiz.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
@@ -391,9 +393,23 @@ export function render(raiz, sessao, { id }) {
     // comparação com o treino intervalado vinculado: só aparece quando existe vínculo, passos e a série detalhada
     const comparacaoEl = h('div', { class: 'ativ-grafico', hidden: true });
     async function carregarComparacao() {
-      if (!detalhe?.t) return;
-      if (treinoVinculado === undefined) treinoVinculado = await lerTreinoDaAtividade(sessao.uid, id).catch(() => null);
-      if (!ativa || !Array.isArray(treinoVinculado?.passos) || treinoVinculado.passos.length === 0) return;
+      const aviso = (texto) => {
+        comparacaoEl.hidden = false;
+        comparacaoEl.replaceChildren(h('h2', null, 'Planejado × Realizado'), h('p', { class: 'texto-secundario' }, texto));
+      };
+      if (!detalhe?.t) return aviso(carregandoDetalhe ? 'Gerando os dados da atividade para poder comparar…' : 'Esta atividade não tem a série detalhada (arquivo com tempo e FC), então não dá para comparar com o treino.');
+      if (treinoVinculado === undefined) {
+        try {
+          treinoVinculado = await lerTreinoDaAtividade(sessao.uid, id);
+        } catch {
+          return aviso('Não foi possível buscar o treino vinculado a esta atividade.');
+        }
+      }
+      if (!ativa) return;
+      if (!treinoVinculado) return aviso('Esta atividade não está vinculada a um treino do Plano. Em Plano, use "Vincular" no treino do dia (seção "Parece que você fez") para ver a comparação aqui.');
+      if (!Array.isArray(treinoVinculado.passos) || treinoVinculado.passos.length === 0) {
+        return aviso('O treino vinculado é livre (sem passos de aquecimento, esforço e recuperação), então não há o que comparar passo a passo. A comparação vale para treinos intervalados.');
+      }
       if (configDaComparacao === undefined) {
         configDaComparacao = a.configIdUsada
           ? await lerConfig(a.configIdUsada).catch(() => null)
@@ -492,6 +508,10 @@ export function render(raiz, sessao, { id }) {
       ),
     );
 
+    recarregarComparacao = () => {
+      treinoVinculado = undefined;
+      carregarComparacao().catch(() => {});
+    };
     carregarComparacao().catch(() => {});
 
     medalhasDaAtividade(sessao.uid, id, hojeIso())
@@ -513,9 +533,14 @@ export function render(raiz, sessao, { id }) {
       .catch(() => {});
   }
 
+  const aoMudarVinculo = (e) => {
+    if (e.detail?.atividadeId === id) recarregarComparacao();
+  };
+  window.addEventListener(EVENTO_VINCULO, aoMudarVinculo);
   carregar();
   return () => {
     ativa = false;
+    window.removeEventListener(EVENTO_VINCULO, aoMudarVinculo);
     limparVisuais();
   };
 }

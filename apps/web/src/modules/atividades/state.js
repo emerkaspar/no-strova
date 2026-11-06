@@ -2,6 +2,8 @@
 export const estadoAtividades = {
   busca: '',
   esporte: '',
+  /** Chip "Com recorde" da lista: só as atividades que têm alguma medalha de recorde. */
+  soRecordes: false,
   /** Período dos cards e da tabela: '30d', '6m', 'ano', 'ano:2025' ou 'tudo'. */
   periodo: 'tudo',
   ordem: { campo: 'data', direcao: 'desc' },

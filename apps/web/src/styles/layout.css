@@ -3686,48 +3686,6 @@ textarea {
   white-space: nowrap;
 }
 
-.ativ-tabela-card .tabela th {
-  padding: 12px 14px;
-  border-bottom: 2px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.ativ-tabela-card .tabela th button:hover,
-.ativ-tabela-card .tabela th[aria-sort='ascending'] button,
-.ativ-tabela-card .tabela th[aria-sort='descending'] button {
-  color: var(--primary);
-}
-
-.tabela-atividades {
-  font-variant-numeric: tabular-nums;
-}
-
-.tabela-atividades td {
-  padding: 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  white-space: nowrap;
-}
-
-.tabela-atividades tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.tabela-atividades tbody tr {
-  transition: background 0.12s ease;
-}
-
-.tabela-atividades tbody tr:hover {
-  background: var(--surface-light);
-}
-
-.tabela-atividades tbody tr:hover td:first-child {
-  box-shadow: inset 3px 0 0 var(--primary);
-}
-
 .ativ-data {
   font-weight: 700;
   text-decoration: none;
@@ -6520,54 +6478,406 @@ textarea {
   border-bottom: 1px solid var(--border);
 }
 
-.ativ-tabela-card .tabela-wrap {
-  padding: 0 12px;
+/* Lista de atividades: uma linha larga por atividade. As larguras de métrica são fixas para alinhar entre as linhas e com o cabeçalho.
+   O layout segue a largura do próprio card (container query): linha única, métricas em uma segunda linha ou card empilhado. */
+.ativ-lista-wrap {
+  container-type: inline-size;
+  padding: 14px 16px 8px;
 }
 
-.ativ-tabela-card .tabela th {
-  background: transparent;
+.ativ-chips-lista {
+  padding: 4px;
 }
 
-.tabela-atividades tbody tr {
-  position: relative;
+.ativ-chips-lista .ativ-chip {
+  padding: 5px 12px;
+  font-size: 0.82rem;
 }
 
-.tabela-atividades tbody tr:hover {
-  background: color-mix(in srgb, var(--primary) 6%, var(--surface-light));
+.ativ-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 0;
+  padding: 12px 28px 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
 }
 
-.tabela-atividades td,
-.tabela-atividades th {
-  text-align: left;
-}
-
-.ativ-col-abrir {
-  width: 1%;
-  text-align: center !important;
-}
-
-.ativ-olho {
+.ativ-legenda span {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  gap: 4px;
+}
+
+.ativ-legenda-faixa {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+}
+
+.ativ-legenda-ouro {
+  background: var(--medalha-ouro);
+}
+
+.ativ-legenda-prata {
+  background: var(--medalha-prata);
+}
+
+.ativ-legenda-bronze {
+  background: var(--medalha-bronze);
+}
+
+.ativ-legenda-nenhuma {
+  background: var(--border);
+}
+
+.ativ-colunas,
+.ativ-linha {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 88px 88px 100px 84px 92px 100px 44px 84px;
+  align-items: center;
+  column-gap: 14px;
+}
+
+.ativ-colunas {
+  padding: 0 15px 8px;
+}
+
+.ativ-colunas-ident {
+  display: flex;
+  grid-column: 1 / 3;
+  gap: 18px;
+}
+
+.ativ-ordem {
+  appearance: none;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.ativ-ordem:hover,
+.ativ-ordem.ativo {
   color: var(--primary);
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.ativ-olho .icone {
-  width: 16px;
-  height: 16px;
-  stroke-width: 1.5;
+.ativ-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.ativ-olho:hover,
-.ativ-olho:focus-visible {
-  background: var(--primary);
-  color: var(--primary-contrast);
+.ativ-linha {
+  position: relative;
+  padding: 10px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.12s ease;
+}
+
+.ativ-linha:hover {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+}
+
+.ativ-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 48px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border-radius: 8px;
+}
+
+.ativ-mini-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ativ-mini-linha {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ativ-mini-inicio {
+  fill: var(--success);
+}
+
+.ativ-ident {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ativ-ident .ativ-data {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  color: inherit;
+  line-height: 1.25;
+}
+
+.ativ-data-dia {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* o título é branco (o laranja fica para destaque e ação) */
+.ativ-nome {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* sem título do usuário vale o esporte, mais discreto */
+.ativ-nome-padrao {
+  font-weight: 600;
+}
+
+.ativ-ident .ativ-data:hover {
+  text-decoration: none;
+}
+
+.ativ-ident .ativ-data:hover .ativ-nome {
+  text-decoration: underline;
+}
+
+/* faixa de badges: reserva 1 linha de altura e nunca empurra as colunas (quebra de linha dentro do bloco de identificação) */
+.ativ-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 24px;
+  min-width: 0;
+}
+
+.ativ-badge {
+  --cor: var(--text-secondary);
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--cor);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  background: color-mix(in srgb, var(--cor) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cor) 40%, transparent);
+  border-radius: 999px;
+}
+
+.ativ-badge .icone {
+  width: 14px;
+  height: 14px;
+}
+
+/* cor por categoria; `style="--cor: ..."` no badge sobrescreve (a medalha e a sensação têm tom próprio) */
+.ativ-badge-conquista {
+  --cor: var(--medalha-ouro);
+}
+
+.ativ-badge-acao {
+  --cor: var(--primary);
+}
+
+.ativ-badge-registro {
+  --cor: var(--text-secondary);
+}
+
+.ativ-badge-status {
+  --cor: var(--success);
+}
+
+button.ativ-badge,
+.ativ-badge[role='button'] {
+  cursor: pointer;
+}
+
+.ativ-badge[role='button'] {
+  cursor: help;
+}
+
+button.ativ-badge:hover,
+.ativ-badge[role='button']:hover {
+  background: color-mix(in srgb, var(--cor) 26%, transparent);
+  border-color: var(--cor);
+}
+
+.ativ-badge:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.ativ-badge-pill {
+  width: auto;
+  padding: 0 9px;
+}
+
+.ativ-badge-mais {
+  --cor: var(--text-primary);
+  background: transparent;
+  border-color: var(--border);
+}
+
+.ativ-badges-popover {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+}
+
+.ativ-badges-popover[hidden] {
+  display: none;
+}
+
+.ativ-badges-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+/* na linha única as métricas entram direto na grade; o rótulo fica no cabeçalho de ordenação */
+.ativ-metricas {
+  display: contents;
+}
+
+.ativ-metrica {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ativ-metrica-rotulo {
+  display: none;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.ativ-metrica-valor {
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.ativ-celula-origem {
+  display: flex;
+  justify-content: center;
+}
+
+.ativ-abrir {
+  justify-content: center;
+  padding: 7px 16px;
+  text-decoration: none;
+}
+
+/* segunda linha: identificação no alto e as seis métricas abaixo, com rótulo */
+@container (max-width: 1059px) {
+  .ativ-colunas {
+    display: none;
+  }
+
+  .ativ-linha {
+    grid-template-columns: 64px minmax(0, 1fr) auto auto;
+    row-gap: 10px;
+  }
+
+  .ativ-linha > .ativ-mini {
+    grid-area: 1 / 1;
+  }
+
+  .ativ-linha > .ativ-ident {
+    grid-area: 1 / 2;
+  }
+
+  .ativ-linha > .ativ-celula-origem {
+    grid-area: 1 / 3;
+  }
+
+  .ativ-linha > .ativ-abrir {
+    grid-area: 1 / 4;
+  }
+
+  .ativ-metricas {
+    display: grid;
+    grid-area: 2 / 1 / 3 / -1;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ativ-metrica-rotulo {
+    display: block;
+  }
+}
+
+/* celular: o card empilha (miniatura e título no alto, métricas 2 × 3, botão no rodapé) */
+@container (max-width: 559px) {
+  .ativ-linha {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+  }
+
+  .ativ-linha > .ativ-abrir {
+    grid-area: 3 / 1 / 4 / -1;
+    width: 100%;
+  }
+
+  .ativ-linha > .ativ-celula-origem {
+    grid-area: 1 / 3;
+  }
+
+  .ativ-metricas {
+    grid-area: 2 / 1 / 3 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .ativ-paginacao {
@@ -6836,6 +7146,7 @@ textarea {
 
 @media (max-width: 767px) {
   .ativ-tabela-card .barra-tabela,
+  .ativ-legenda,
   .ativ-paginacao {
     padding-left: 16px;
     padding-right: 16px;
@@ -6848,7 +7159,7 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .previa,
-  .ativ-olho {
+  .ativ-linha {
     transition: none;
   }
 

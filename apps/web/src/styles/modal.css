@@ -1283,3 +1283,87 @@
 .ativ-pag-tamanho .ls-botao {
   padding: 6px 10px;
 }
+
+/* Treino planejado do dia, no topo do "Como foi?": vincula com um toque */
+.fb-treino-secao {
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--primary);
+  border-radius: 16px;
+  background: var(--surface-light);
+}
+
+.fb-treino-secao .fb-secao-titulo {
+  color: var(--primary);
+}
+
+.fb-treino {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.fb-treino + .fb-treino {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.fb-treino-perfil {
+  flex: 0 0 96px;
+  height: 44px;
+}
+
+.fb-treino-perfil .perfil-treino {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fb-treino-icone {
+  flex: 0 0 96px;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+
+.fb-treino-texto {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.fb-treino-texto small {
+  color: var(--text-secondary);
+}
+
+.fb-treino .btn {
+  flex: 0 0 auto;
+}
+
+.fb-treino-dica,
+.fb-treino-ok {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.fb-treino-ok {
+  color: var(--success);
+}
+
+@media (max-width: 767px) {
+  .fb-treino {
+    flex-wrap: wrap;
+  }
+
+  .fb-treino-perfil,
+  .fb-treino-icone {
+    flex-basis: 72px;
+  }
+
+  .fb-treino .btn {
+    flex: 1 0 100%;
+  }
+}

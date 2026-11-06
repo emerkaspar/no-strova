@@ -33,7 +33,7 @@ function svg(nome, atributos = {}, ...filhos) {
 }
 
 /** Trajeto projetado (equiretangular, corrigido pela latitude) dentro de um quadro `l × a`. Null sem pontos suficientes. */
-function desenharTrajeto(lat, lon, l, a) {
+function desenharTrajeto(lat, lon, l, a, pad = 22) {
   const pts = [];
   lat.forEach((la, i) => {
     if (Number.isFinite(la) && Number.isFinite(lon?.[i])) pts.push([lon[i], la]);
@@ -47,7 +47,6 @@ function desenharTrajeto(lat, lon, l, a) {
   const minY = Math.min(...ys);
   const larg = Math.max(...xs) - minX || 1e-9;
   const alt = Math.max(...ys) - minY || 1e-9;
-  const pad = 22;
   const escala = Math.min((l - pad * 2) / larg, (a - pad * 2) / alt);
   const dx = (l - larg * escala) / 2;
   const dy = (a - alt * escala) / 2;
@@ -95,6 +94,81 @@ function perfil(serie) {
 
 const metros = (m) => (Number.isFinite(m) && m > 0 ? `${formatarNumero(m, 0)} m` : '—');
 
+const LARGURA_MINI = 64;
+const ALTURA_MINI = 48;
+
+/** Miniatura 64×48: o traçado do percurso ou, sem GPS, a linha de elevação (ou de FC). Null sem dados. */
+function miniaturaDaSerie(serie) {
+  const raiz = svg('svg', { viewBox: `0 0 ${LARGURA_MINI} ${ALTURA_MINI}`, class: 'ativ-mini-svg', 'aria-hidden': 'true' });
+  const trajeto = serie?.lat && serie?.lon ? desenharTrajeto(serie.lat, serie.lon, LARGURA_MINI, ALTURA_MINI, 8) : null;
+  if (trajeto) {
+    raiz.append(
+      svg('path', { d: trajeto.d, class: 'ativ-mini-linha' }),
+      svg('circle', { cx: trajeto.inicio[0], cy: trajeto.inicio[1], r: 2.6, class: 'ativ-mini-inicio' }),
+    );
+    return raiz;
+  }
+  const valores = serie?.alt?.filter(Number.isFinite).length > 2 ? serie.alt : serie?.fc?.filter(Number.isFinite).length > 2 ? serie.fc : null;
+  if (!valores) return null;
+  const validos = valores.filter(Number.isFinite);
+  const min = Math.min(...validos);
+  const faixa = Math.max(...validos) - min || 1;
+  const passo = Math.max(1, Math.floor(valores.length / 40));
+  const pontos = [];
+  let ultimo = validos[0];
+  for (let i = 0; i < valores.length; i += passo) {
+    ultimo = Number.isFinite(valores[i]) ? valores[i] : ultimo;
+    pontos.push([8 + (i / (valores.length - 1)) * (LARGURA_MINI - 16), ALTURA_MINI - 8 - ((ultimo - min) / faixa) * (ALTURA_MINI - 16)]);
+  }
+  raiz.append(
+    svg('path', { d: pontos.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(''), class: 'ativ-mini-linha' }),
+    svg('circle', { cx: pontos[0][0], cy: pontos[0][1], r: 2.6, class: 'ativ-mini-inicio' }),
+  );
+  return raiz;
+}
+
+/**
+ * Miniaturas da lista. Cada uma nasce com o ícone do esporte e só lê a série da atividade quando entra na tela
+ * (o cache é o mesmo da prévia). `reiniciar` solta as miniaturas antigas antes de desenhar a página de novo.
+ * @returns {{ criar: (a: object) => HTMLElement, reiniciar: () => void }}
+ */
+export function criarMiniaturas({ iconeDoEsporte }) {
+  const carregadores = new WeakMap();
+  const observador =
+    typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver(
+          (entradas) =>
+            entradas.forEach((e) => {
+              if (!e.isIntersecting) return;
+              observador.unobserve(e.target);
+              carregadores.get(e.target)?.();
+            }),
+          { rootMargin: '240px' },
+        );
+  return {
+    criar(a) {
+      const el = h('div', { class: 'ativ-mini', 'aria-hidden': 'true' }, iconeDoEsporte(a.esporte));
+      // atividade manual não tem série: fica com o ícone
+      if (a.origem === 'manual') return el;
+      const carregar = async () => {
+        const desenho = miniaturaDaSerie(await carregarSerie(a.id));
+        if (desenho) el.replaceChildren(desenho);
+      };
+      if (observador) {
+        carregadores.set(el, carregar);
+        observador.observe(el);
+      } else {
+        carregar();
+      }
+      return el;
+    },
+    reiniciar() {
+      observador?.disconnect();
+    },
+  };
+}
+
 function dado(rotulo, valor) {
   return h('div', { class: 'previa-dado' }, h('span', null, rotulo), h('strong', null, valor));
 }
@@ -113,15 +187,21 @@ export function criarPrevia({ textoVelocidade, iconeDoEsporte }) {
   let temporizador = null;
   let atual = null; // id da atividade mostrada
 
-  function posicionar(linha, mouseX) {
+  /** Ao lado da lista (alinhada à linha), para não cobrir as outras atividades; sem espaço, abaixo (ou acima) da linha. */
+  function posicionar(linha) {
     const r = linha.getBoundingClientRect();
     const alturaPrevia = el.offsetHeight;
-    const x = Math.min(Math.max(MARGEM, mouseX + 20), window.innerWidth - LARGURA - MARGEM);
+    const lista = linha.closest('.ativ-lista')?.getBoundingClientRect() ?? r;
+    const aoLado = lista.right + 12 + LARGURA + MARGEM <= window.innerWidth;
+    if (aoLado) {
+      el.style.left = `${lista.right + 12}px`;
+      el.style.top = `${Math.min(Math.max(MARGEM, r.top), Math.max(MARGEM, window.innerHeight - alturaPrevia - MARGEM))}px`;
+      return;
+    }
     const abaixo = r.bottom + 10;
     const cabeAbaixo = abaixo + alturaPrevia <= window.innerHeight - MARGEM;
-    const y = cabeAbaixo ? abaixo : Math.max(MARGEM, r.top - alturaPrevia - 10);
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+    el.style.left = `${Math.min(Math.max(MARGEM, r.left), window.innerWidth - LARGURA - MARGEM)}px`;
+    el.style.top = `${cabeAbaixo ? abaixo : Math.max(MARGEM, r.top - alturaPrevia - 10)}px`;
   }
 
   function conteudo(a, serie) {
@@ -147,16 +227,16 @@ export function criarPrevia({ textoVelocidade, iconeDoEsporte }) {
         dado('FC média', a.fcMedia ? `${a.fcMedia} bpm` : '—'),
         dado('Calorias', a.calorias ? `${formatarNumero(a.calorias, 0)} kcal` : '—'),
       ),
-      h('footer', { class: 'previa-rodape' }, icone('olho', 14), 'Clique no olho para abrir a atividade'),
+      h('footer', { class: 'previa-rodape' }, icone('olho', 14), 'Clique na linha para abrir a atividade'),
     ];
   }
 
-  async function mostrar(linha, a, mouseX) {
+  async function mostrar(linha, a) {
     atual = a.id;
     el.replaceChildren(...conteudo(a, null));
     el.classList.add('carregando');
     el.hidden = false;
-    posicionar(linha, mouseX);
+    posicionar(linha);
     requestAnimationFrame(() => el.classList.add('visivel'));
     // Só atividades de arquivo têm série; as manuais já mostram o resumo.
     if (a.origem === 'manual') {
@@ -167,7 +247,7 @@ export function criarPrevia({ textoVelocidade, iconeDoEsporte }) {
     if (atual !== a.id) return;
     el.replaceChildren(...conteudo(a, serie));
     el.classList.remove('carregando');
-    posicionar(linha, mouseX);
+    posicionar(linha);
   }
 
   function esconder() {
@@ -181,13 +261,9 @@ export function criarPrevia({ textoVelocidade, iconeDoEsporte }) {
   return {
     ligar(linha, a) {
       if (!podeHover) return;
-      linha.addEventListener('mouseenter', (e) => {
+      linha.addEventListener('mouseenter', () => {
         clearTimeout(temporizador);
-        const x = e.clientX;
-        temporizador = setTimeout(() => mostrar(linha, a, x), ATRASO_MS);
-      });
-      linha.addEventListener('mousemove', (e) => {
-        if (atual === a.id && !el.hidden) posicionar(linha, e.clientX);
+        temporizador = setTimeout(() => mostrar(linha, a), ATRASO_MS);
       });
       linha.addEventListener('mouseleave', esconder);
     },

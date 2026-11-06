@@ -33,6 +33,11 @@ export async function lerTreinoDaAtividade(uid, atividadeId) {
   return treino ?? null;
 }
 
+/** Os treinos planejados de um dia (yyyy-mm-dd), em qualquer status. */
+export function lerTreinosDoDia(uid, data) {
+  return lerConsulta(TREINOS, { onde: [['userId', '==', uid], ['data', '==', data]], limite: 20 });
+}
+
 /** Cria um treino planejado. \`valores\` já validado (ver validarTreinoPlanejado). Retorna o id. */
 export async function criarTreino(uid, valores, estresseEstimado) {
   const id = novoId();

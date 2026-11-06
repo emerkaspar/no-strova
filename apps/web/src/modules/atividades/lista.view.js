@@ -1,4 +1,4 @@
-import { anosComAtividades, atividadePrecisaCompletar, esforcosDoEsporte, medalhasDasAtividades, melhorMedalha, melhoresEsforcosDasAtividades, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, RECURSOS, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, temRecurso, velocidadeMediaMs } from '@no-strova/domain';
+import { anosComAtividades, atividadePrecisaCompletar, esforcosDoEsporte, medalhasDasAtividades, melhorMedalha, melhoresEsforcosDasAtividades, podioDaMetrica, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, RECURSOS, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, temRecurso, velocidadeMediaMs } from '@no-strova/domain';
 import { montarSerie } from '../../application/forma.js';
 import { obterSessao } from '../../application/sessao.js';
 import { completarAtividades } from '../../application/completarAtividades.js';
@@ -15,26 +15,40 @@ import { seletor } from '../../utils/listaSuspensa.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { tempoDeEsforco, ritmoTexto } from './esforcos.js';
-import { abrirFeedbackDaAtividade, abrirFeedbackPorId, miniSensacao } from './feedbackModal.js';
+import { criarFaixaDeBadges, montarBadge } from './badges.js';
+import { abrirFeedbackDaAtividade, abrirFeedbackPorId, dadosDaSensacao } from './feedbackModal.js';
 import { painelImportar } from './importar.js';
 import { painelManual } from './manual.js';
 import { criarCartaoDeMedalhas } from './medalhaCartao.js';
-import { criarPrevia } from './previa.js';
+import { criarMiniaturas, criarPrevia } from './previa.js';
 import { alternarOrdem, estadoAtividades, EVENTO_IMPORTAR } from './state.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE, ROTULO_ORIGEM_HRSS } from './textos.js';
 
+/** Cabeçalho de ordenação das linhas (a ordem das colunas é a da grade em layout.css). `ident` ocupa a miniatura e a identificação. */
 const COLUNAS = [
-  { campo: 'data', rotulo: 'Data / Nome' },
-  { campo: 'esporte', rotulo: 'Esporte' },
-  { campo: 'duracaoS', rotulo: 'Duração' },
+  { campo: 'data', rotulo: 'Data / Nome', ident: true },
+  { campo: 'esporte', rotulo: 'Esporte', ident: true },
   { campo: 'distanciaM', rotulo: 'Distância' },
-  { campo: 'velocidadeMs', rotulo: 'Vel. média' },
+  { campo: 'duracaoS', rotulo: 'Duração' },
+  { campo: 'velocidadeMs', rotulo: 'Vel. / Ritmo' },
   { campo: 'altimetriaM', rotulo: 'Elevação' },
   { campo: 'fcMedia', rotulo: 'FC média' },
   { campo: 'hrss', rotulo: 'HRSS' },
   { campo: 'fonteOrdem', rotulo: 'Origem' },
-  { campo: null, rotulo: 'Abrir' },
 ];
+
+/** Tom do selo de cada medalha (o mesmo que colore a faixa lateral da linha). */
+const TOM_DA_MEDALHA = Object.freeze({ ouro: 'var(--medalha-ouro)', prata: 'var(--medalha-prata)', bronze: 'var(--medalha-bronze)', recente: 'var(--primary)' });
+
+const DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "Qui, 05 nov 2026" a partir de `AAAA-MM-DD`. */
+function dataCurtaDaAtividade(iso) {
+  const [ano, mes, dia] = String(iso).split('-').map(Number);
+  if (!ano || !mes || !dia) return formatarData(iso);
+  return `${DIAS_CURTOS[new Date(ano, mes - 1, dia).getDay()]}, ${String(dia).padStart(2, '0')} ${MESES_CURTOS[mes - 1]} ${ano}`;
+}
 
 const OPCOES_POR_PAGINA = [10, 25, 50, 100];
 
@@ -114,13 +128,15 @@ export function render(raiz, sessao) {
   const mensagem = areaMensagem();
   const aviso = h('p', { class: 'mensagem', hidden: true });
   const mensagemGarmin = avisoDispensavel();
-  const corpo = h('div', { class: 'tabela-wrap' });
+  const corpo = h('div', { class: 'ativ-lista-wrap' });
   const paineis = h('div');
   const contagem = h('span', { class: 'texto-secundario' });
   const paginacao = h('nav', { class: 'ativ-paginacao', 'aria-label': 'Paginação das atividades' });
   const previa = criarPrevia({ textoVelocidade, iconeDoEsporte });
+  const miniaturas = criarMiniaturas({ iconeDoEsporte });
+  const faixaDeBadges = criarFaixaDeBadges();
   // a medalha abre o cartão de recordes no lugar da prévia do mapa
-  const medalhaCartao = criarCartaoDeMedalhas({ aoAbrir: () => previa.esconder() });
+  const medalhaCartao = criarCartaoDeMedalhas({ aoAbrir: () => previa.esconder(), podioDe: (esporte, metrica) => podioDaMetrica(atividades, esporte, metrica) });
 
   const busca = h('input', {
     type: 'search',
@@ -133,6 +149,7 @@ export function render(raiz, sessao) {
       desenharTabela();
     },
   });
+  const chipsDaLista = h('div', { class: 'ativ-grupo ativ-chips-lista', role: 'group', 'aria-label': 'Filtrar a lista' });
   const hoje = hojeIso();
   const filtros = h('div', { class: 'ativ-filtros' });
   const resumo = h('div', { class: 'ativ-resumo' });
@@ -145,7 +162,29 @@ export function render(raiz, sessao) {
     return h('button', { type: 'button', class: `ativ-chip${ativo ? ' ativo' : ''}`, 'aria-pressed': String(ativo), onClick: aoClicar }, conteudo, rotulo);
   }
 
+  /** Chips da barra da lista: esporte (o mesmo filtro do topo da página) e "Com recorde". */
+  function desenharChipsDaLista() {
+    const escolherEsporte = (valor) => () => {
+      estadoAtividades.esporte = valor;
+      estadoAtividades.soRecordes = false;
+      estadoAtividades.pagina = 1;
+      desenharTudo();
+    };
+    const { esporte, soRecordes } = estadoAtividades;
+    chipsDaLista.replaceChildren(
+      chip('Todos', !esporte && !soRecordes, escolherEsporte('')),
+      chip('Ciclismo', esporte === 'ciclismo' && !soRecordes, escolherEsporte('ciclismo')),
+      chip('Corrida', esporte === 'corrida' && !soRecordes, escolherEsporte('corrida')),
+      chip('Com recorde', soRecordes, () => {
+        estadoAtividades.soRecordes = !estadoAtividades.soRecordes;
+        estadoAtividades.pagina = 1;
+        desenharTudo();
+      }),
+    );
+  }
+
   function desenharTudo() {
+    desenharChipsDaLista();
     desenharFiltros();
     desenharResumo();
     desenharRecordes();
@@ -379,13 +418,29 @@ export function render(raiz, sessao) {
     );
   }
 
-  /** Selo de medalha ao lado da data (a medalha mais alta da atividade). Ao passar o mouse, abre o cartão com os recordes. */
-  function medalhaDaLinha(a, lista, escopo) {
-    if (!escopo) return null;
-    const texto = `${lista.length} ${lista.length === 1 ? 'recorde pessoal' : 'recordes pessoais'}: ${lista.map((m) => m.rotulo).join(', ')}`;
-    const selo = h('span', { class: `medalha-selo medalha-selo-${escopo}`, tabindex: '0', role: 'button', 'aria-label': texto }, icone('medalha', 20));
-    medalhaCartao.ligar(selo, a, lista);
-    return selo;
+  /**
+   * Badges da atividade, na faixa abaixo do título. Para um badge novo: acrescente a entrada em `BADGES` (badges.js) e devolva-o aqui;
+   * a ordem e o "+N" são da faixa.
+   */
+  function badgesDaAtividade(a, medalhasDaAtividade, escopo) {
+    const lista = [];
+    if (escopo) {
+      const texto = `${medalhasDaAtividade.length} ${medalhasDaAtividade.length === 1 ? 'recorde pessoal' : 'recordes pessoais'}: ${medalhasDaAtividade.map((m) => m.rotulo).join(', ')}`;
+      // a medalha abre o cartão de recordes ao passar o mouse (ou ao focar pelo teclado)
+      lista.push(montarBadge('medalha', { rotulo: texto, tom: TOM_DA_MEDALHA[escopo], ligar: (el) => medalhaCartao.ligar(el, a, medalhasDaAtividade) }));
+    }
+    const sensacao = dadosDaSensacao(a.feedback);
+    const abrirComoFoi = () => abrirFeedbackDaAtividade({ atividade: a });
+    lista.push(
+      sensacao
+        ? montarBadge('sensacao', { icone: sensacao.icone, rotulo: sensacao.rotulo, tom: sensacao.tom, aoClicar: abrirComoFoi })
+        : montarBadge('comoFoi', { aoClicar: abrirComoFoi }),
+    );
+    return lista;
+  }
+
+  function metrica(rotulo, valor, classe = '') {
+    return h('div', { class: `ativ-metrica ${classe}`.trim() }, h('span', { class: 'ativ-metrica-rotulo' }, rotulo), h('strong', { class: 'ativ-metrica-valor' }, valor));
   }
 
   function linha(a) {
@@ -393,69 +448,55 @@ export function render(raiz, sessao) {
     const fonte = origemDaAtividade(a);
     const medalhasDaAtividade = medalhas.get(a.id);
     const escopoDaLinha = melhorMedalha(medalhasDaAtividade);
-    const tr = h(
-      'tr',
-      // só o pódio colore a linha toda; a medalha recente é um selo menor, sem destaque na linha
-      escopoDaLinha && escopoDaLinha !== 'recente' ? { class: `ativ-linha-medalha ativ-linha-medalha-${escopoDaLinha}` } : null,
-      // data pequena em cima e o nome embaixo (o do usuário ou, sem ele, o esporte): duas linhas curtas, que não aumentam a altura da linha
+    const rotuloEsporte = ROTULO_ESPORTE[a.esporte] ?? a.esporte;
+    const li = h(
+      'li',
+      // só o pódio colore a linha (faixa lateral e fundo leves); a medalha recente é só o badge, sem destaque na linha
+      { class: `ativ-linha ativ-linha-clicavel${escopoDaLinha && escopoDaLinha !== 'recente' ? ` ativ-linha-medalha ativ-linha-medalha-${escopoDaLinha}` : ''}` },
+      miniaturas.criar(a),
+      // data e esporte pequenos em cima, o nome (o do usuário ou, sem ele, o esporte) em destaque e a faixa de badges embaixo
       h(
-        'td',
-        null,
+        'div',
+        { class: 'ativ-ident' },
         h(
-          'div',
-          { class: 'ativ-celula-nome' },
-          medalhaDaLinha(a, medalhasDaAtividade, escopoDaLinha),
-          h(
-            'a',
-            { class: 'ativ-data', href: `#/atividades/${a.id}`, title: a.titulo || undefined },
-            h('span', { class: 'ativ-data-dia' }, formatarData(a.data)),
-            h('span', { class: `ativ-nome${a.titulo ? '' : ' ativ-nome-padrao'}` }, a.titulo || (ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
-          ),
-          h(
-            'button',
-            {
-              type: 'button',
-              class: 'ativ-como-foi',
-              title: a.feedback ? 'Ver ou editar como foi' : 'Conte como foi esta atividade',
-              'aria-label': a.feedback ? `Editar como foi a atividade de ${formatarData(a.data)}` : `Contar como foi a atividade de ${formatarData(a.data)}`,
-              onClick: () => abrirFeedbackDaAtividade({ atividade: a }),
-            },
-            miniSensacao(a.feedback) ?? h('span', { class: 'ativ-pendente' }, icone('lapis', 14)),
-          ),
+          'a',
+          { class: 'ativ-data', href: `#/atividades/${a.id}`, title: a.titulo || undefined },
+          h('span', { class: 'ativ-data-dia' }, `${dataCurtaDaAtividade(a.data)} · ${rotuloEsporte}`),
+          h('span', { class: `ativ-nome${a.titulo ? '' : ' ativ-nome-padrao'}` }, a.titulo || rotuloEsporte),
+        ),
+        faixaDeBadges.faixa(badgesDaAtividade(a, medalhasDaAtividade, escopoDaLinha)),
+      ),
+      h(
+        'div',
+        { class: 'ativ-metricas' },
+        metrica('Distância', formatarDistancia(a.distanciaM)),
+        metrica('Duração', formatarDuracao(a.duracaoS)),
+        metrica(a.esporte === 'corrida' ? 'Ritmo' : 'Vel. média', textoVelocidade(a)),
+        metrica('Elevação', metros(a.altimetriaM)),
+        metrica('FC média', a.fcMedia ? `${a.fcMedia} bpm` : '—'),
+        metrica(
+          'HRSS',
+          [
+            a.hrss === null || a.hrss === undefined ? h('span', { class: 'badge badge-aviso', title: 'HRSS não calculado' }, 'sem HRSS') : formatarNumero(a.hrss, 1),
+            origem && a.hrssOrigem !== 'fc' ? h('small', { class: 'dica', title: `HRSS ${origem}` }, ` (${a.hrssOrigem})`) : null,
+            a.alertas?.length ? h('span', { class: 'badge badge-aviso', title: 'Há avisos nesta atividade' }, '!') : null,
+          ],
         ),
       ),
-      h('td', null, h('span', { class: 'ativ-esporte' }, h('span', { class: 'ativ-esporte-icone' }, iconeDoEsporte(a.esporte)), ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
-      h('td', null, formatarDuracao(a.duracaoS)),
-      h('td', null, formatarDistancia(a.distanciaM)),
-      h('td', null, textoVelocidade(a)),
-      h('td', null, metros(a.altimetriaM)),
-      h('td', null, a.fcMedia ? `${a.fcMedia} bpm` : '—'),
+      h('div', { class: 'ativ-celula-origem' }, h('span', { class: `ativ-origem ativ-origem-${fonte.id}`, title: fonte.rotulo, role: 'img', 'aria-label': fonte.rotulo }, icone(fonte.icone, 16))),
       h(
-        'td',
-        null,
-        a.hrss === null || a.hrss === undefined ? h('span', { class: 'badge badge-aviso', title: 'HRSS não calculado' }, 'sem HRSS') : formatarNumero(a.hrss, 1),
-        origem && a.hrssOrigem !== 'fc' ? h('small', { class: 'dica', title: `HRSS ${origem}` }, ` (${a.hrssOrigem})`) : null,
-        a.alertas?.length ? h('span', { class: 'badge badge-aviso', title: 'Há avisos nesta atividade' }, '!') : null,
-      ),
-      h(
-        'td',
-        null,
-        h('span', { class: `ativ-origem ativ-origem-${fonte.id}`, title: fonte.rotulo, role: 'img', 'aria-label': fonte.rotulo }, icone(fonte.icone, 16)),
-      ),
-      h(
-        'td',
-        { class: 'ativ-col-abrir' },
-        h('a', { class: 'ativ-olho', href: `#/atividades/${a.id}`, title: 'Abrir a atividade', 'aria-label': `Abrir a atividade de ${formatarData(a.data)}` }, icone('olho', 16)),
+        'a',
+        { class: 'btn btn-secundario ativ-abrir', href: `#/atividades/${a.id}`, title: 'Abrir a atividade', 'aria-label': `Abrir a atividade de ${formatarData(a.data)}` },
+        'Abrir',
       ),
     );
-    previa.ligar(tr, a);
-    // clicar na linha abre a atividade; o "Como foi?" (botão ao lado do nome), os links e a medalha têm ação própria
-    tr.classList.add('ativ-linha-clicavel');
-    tr.addEventListener('click', (e) => {
+    previa.ligar(li, a);
+    // clicar na linha abre a atividade; os badges (como o "Como foi?"), os links e a medalha têm ação própria
+    li.addEventListener('click', (e) => {
       if (e.target.closest('a, button, [role="button"]')) return;
       window.location.hash = `#/atividades/${a.id}`;
     });
-    return tr;
+    return li;
   }
 
   function desenharPaginacao(total, inicio, naPagina, totalPaginas) {
@@ -487,11 +528,13 @@ export function render(raiz, sessao) {
   }
 
   function desenharTabela() {
-    const base = visiveis();
+    const base = visiveis().filter((a) => !estadoAtividades.soRecordes || medalhas.get(a.id)?.length > 0);
     const lista = filtrarEOrdenar([...base]);
     contagem.textContent = `${lista.length} de ${base.length} atividade${base.length === 1 ? '' : 's'}`;
     previa.esconder();
     medalhaCartao.esconder();
+    faixaDeBadges.esconder();
+    miniaturas.reiniciar();
     if (lista.length === 0) {
       paginacao.replaceChildren();
       corpo.replaceChildren(
@@ -506,29 +549,29 @@ export function render(raiz, sessao) {
     const daPagina = lista.slice(inicio, inicio + porPagina);
     desenharPaginacao(lista.length, inicio, daPagina.length, totalPaginas);
     const { campo, direcao } = estadoAtividades.ordem;
-    const cabecalho = COLUNAS.map((c) =>
-      !c.campo
-        ? h('th', { scope: 'col', class: 'ativ-col-abrir' }, c.rotulo)
-        : h(
-        'th',
-        { scope: 'col', 'aria-sort': c.campo === campo ? (direcao === 'asc' ? 'ascending' : 'descending') : 'none' },
-        h(
-          'button',
-          {
-            type: 'button',
-            onClick: () => {
-              alternarOrdem(c.campo);
-              estadoAtividades.pagina = 1;
-              desenharTabela();
-            },
+    // cabeçalho de ordenação: só aparece com a lista em linha única (nas outras larguras cada métrica traz o próprio rótulo)
+    const botaoDeOrdem = (c) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          class: `ativ-ordem${c.campo === campo ? ' ativo' : ''}`,
+          'aria-label': `Ordenar por ${c.rotulo}${c.campo === campo ? (direcao === 'asc' ? ', ordem crescente' : ', ordem decrescente') : ''}`,
+          onClick: () => {
+            alternarOrdem(c.campo);
+            estadoAtividades.pagina = 1;
+            desenharTabela();
           },
-          c.rotulo + (c.campo === campo ? (direcao === 'asc' ? ' ▲' : ' ▼') : ''),
-        ),
-      ),
+        },
+        c.rotulo + (c.campo === campo ? (direcao === 'asc' ? ' ▲' : ' ▼') : ''),
+      );
+    const cabecalho = h(
+      'div',
+      { class: 'ativ-colunas' },
+      h('div', { class: 'ativ-colunas-ident' }, ...COLUNAS.filter((c) => c.ident).map(botaoDeOrdem)),
+      ...COLUNAS.filter((c) => !c.ident).map(botaoDeOrdem),
     );
-    corpo.replaceChildren(
-      h('table', { class: 'tabela tabela-atividades' }, h('thead', null, h('tr', null, ...cabecalho)), h('tbody', null, ...daPagina.map(linha))),
-    );
+    corpo.replaceChildren(cabecalho, h('ul', { class: 'ativ-lista' }, ...daPagina.map(linha)));
   }
 
   function atualizarAviso() {
@@ -579,7 +622,20 @@ export function render(raiz, sessao) {
       filtros,
       resumo,
       recordes,
-      h('section', { class: 'card ativ-tabela-card' }, h('div', { class: 'barra-tabela' }, busca, contagem), mensagem.el, corpo, paginacao),
+      h(
+        'section',
+        { class: 'card ativ-tabela-card' },
+        h('div', { class: 'barra-tabela' }, busca, chipsDaLista, contagem),
+        h(
+          'p',
+          { class: 'ativ-legenda' },
+          h('span', null, h('i', { class: 'ativ-legenda-faixa ativ-legenda-ouro' }), h('i', { class: 'ativ-legenda-faixa ativ-legenda-prata' }), h('i', { class: 'ativ-legenda-faixa ativ-legenda-bronze' }), 'Faixa colorida: recorde pessoal (ouro, prata ou bronze)'),
+          h('span', null, h('i', { class: 'ativ-legenda-faixa ativ-legenda-nenhuma' }), 'Sem faixa: atividade comum'),
+        ),
+        mensagem.el,
+        corpo,
+        paginacao,
+      ),
     ),
   );
   corpo.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
@@ -625,5 +681,7 @@ export function render(raiz, sessao) {
     cancelar.forEach((fn) => fn());
     previa.destruir();
     medalhaCartao.destruir();
+    faixaDeBadges.destruir();
+    miniaturas.reiniciar();
   };
 }

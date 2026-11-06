@@ -12,6 +12,7 @@ import { listaSuspensa, seletor } from '../../utils/listaSuspensa.js';
 import { abrirModal, confirmar } from '../../utils/modal.js';
 import { analisarAtividadeLthr, montarResultadoLthr } from '../configuracao/resultadoLthr.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE } from './textos.js';
+import { criarSecaoTreinoDoDia } from './treinoDoDia.js';
 
 const TITULO_MAX = 80;
 /** Valor da lista de trajetos que significa "criar um novo". */
@@ -370,6 +371,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
       h(
         'div',
         { class: 'fb-corpo' },
+        criarSecaoTreinoDoDia({ atividade: a, uid }),
         h('section', { class: 'fb-secao' }, h('h3', { class: 'fb-secao-titulo' }, 'Como você se sentiu?'), sensacao.raiz, legendaSensacao),
         h('section', { class: 'fb-secao' }, h('div', { class: 'fb-secao-linha' }, h('h3', { class: 'fb-secao-titulo' }, 'Quão duro foi?'), legendaEsforco), esforco.raiz, h('div', { class: 'fb-escala' }, h('span', null, 'leve'), h('span', null, 'máximo'))),
         h('section', { class: 'fb-secao' }, h('h3', { class: 'fb-secao-titulo' }, 'O que marcou o treino?'), h('div', { class: 'fb-chips' }, ...chips), blocoDor),
@@ -457,11 +459,17 @@ export async function abrirFeedbackPorId(id, opcoes = {}) {
 
 /** Ícone pequeno da sensação registrada (tabela de atividades), ou null sem registro. */
 export function miniSensacao(feedback) {
+  const s = dadosDaSensacao(feedback);
+  if (!s) return null;
+  return h('span', { class: 'ativ-sensacao', style: `--cor:${s.tom}`, title: s.rotulo, role: 'img', 'aria-label': s.rotulo }, icone(s.icone, 16));
+}
+
+/** Ícone, texto e cor da sensação registrada no "Como foi?" (null sem sensação). */
+export function dadosDaSensacao(feedback) {
   const s = SENSACOES.find((x) => x.valor === feedback?.sensacao);
   if (!s) return null;
   const rpe = feedback.rpe ? ` · esforço ${feedback.rpe}/10` : '';
-  const rotulo = `Sensação: ${s.rotulo}${rpe}`;
-  return h('span', { class: 'ativ-sensacao', style: `--cor:${TOM_DA_SENSACAO[s.valor]}`, title: rotulo, role: 'img', 'aria-label': rotulo }, icone(s.id, 16));
+  return { icone: s.id, rotulo: `Sensação: ${s.rotulo}${rpe}`, tom: TOM_DA_SENSACAO[s.valor] };
 }
 
 /**
