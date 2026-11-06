@@ -303,7 +303,7 @@ service cloud.firestore {
       allow read: if acessoLiberado() && request.auth.uid == uid;
       allow create, update: if acessoLiberado()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding'])
+        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding', 'usoGarmin'])
         && request.resource.data.keys().hasAll(['userId'])
         && request.resource.data.userId == request.auth.uid
         && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
@@ -316,7 +316,8 @@ service cloud.firestore {
         && (!('horasSemana' in request.resource.data) || (request.resource.data.horasSemana is number
           && request.resource.data.horasSemana >= 1 && request.resource.data.horasSemana <= 25))
         && (!('esportePrincipal' in request.resource.data) || request.resource.data.esportePrincipal in ['ciclismo', 'corrida', 'ambos'])
-        && (!('onboarding' in request.resource.data) || request.resource.data.onboarding in ['concluido', 'pulado']);
+        && (!('onboarding' in request.resource.data) || request.resource.data.onboarding in ['concluido', 'pulado'])
+        && (!('usoGarmin' in request.resource.data) || request.resource.data.usoGarmin in ['sim', 'nao', 'depois']);
       allow delete: if false;
     }
 

@@ -34,15 +34,16 @@ O app abre no **tema escuro**. Para alternar, clique no **círculo com a sua ini
 
 ## Perfil de treino (o passo a passo inicial)
 
-No primeiro acesso depois da aprovação, o app abre um **passo a passo** em tela cheia para você preencher tudo o que entra nos cálculos. São sete etapas, com barra de progresso:
+No primeiro acesso depois da aprovação, o app abre um **passo a passo** em tela cheia para você preencher tudo o que entra nos cálculos. São oito etapas, com barra de progresso:
 
 1. **Você:** nome e data de nascimento.
 2. **Corpo:** sexo, peso e altura (mostra o IMC na hora).
 3. **Coração:** FC de repouso, FC máxima e LTHR. Não sabe? **Não sei: estimar pra mim** preenche a FC máxima pela idade (208 − 0,7 × idade) e o LTHR com 90% dela. São estimativas: o **Teste de LTHR** (em Configuração) acerta bem mais. As suas **cinco zonas de FC** aparecem conforme você digita.
 4. **Nível:** iniciante, intermediário ou avançado, e o esporte principal. As sugestões de treino usam o nível.
 5. **Semana:** os dias em que dá para treinar, o **dia do longão** e as **horas por semana**. A **Sugestão de treinos com IA** (no Plano) já abre com essa rotina.
-6. **Meta de peso (opcional):** peso desejado e data. O app avisa se o ritmo passa de 1% do peso por semana e recusa metas que levem o IMC abaixo de 18,5.
-7. **Pronto:** resumo com **Editar** em cada item. Se você já tem atividades importadas e mudou os números, há o botão **Recalcular o meu histórico agora** (com confirmação).
+6. **Garmin (opcional, mas importante para quem treina com relógio):** você diz se **usa o Garmin**, **não usa** ou **decide depois**. Quem usa vê, na própria tela, o passo a passo para ligar o Garmin ao app pelo intervals.icu (criar a conta gratuita, conectar o Garmin e marcar *Upload planned workouts*, copiar a *API Key*) e já cola a chave ali mesmo para conectar; o passo também lembra de conferir se o LTHR do intervals.icu é o mesmo do seu perfil. Esse recurso precisa ser liberado pelo administrador: sem a liberação, o passo explica isso e o guia, e a sua escolha fica salva. Quem marcar "uso" ou "decido depois" e ainda não tiver conectado vê um lembrete discreto no Plano, com **Configurar agora** e **Não uso**.
+7. **Meta de peso (opcional):** peso desejado e data. O app avisa se o ritmo passa de 1% do peso por semana e recusa metas que levem o IMC abaixo de 18,5.
+8. **Pronto:** resumo com **Editar** em cada item. Se você já tem atividades importadas e mudou os números, há o botão **Recalcular o meu histórico agora** (com confirmação).
 
 - **Cada etapa salva ao continuar:** se você sair no meio, o que já foi feito fica guardado.
 - **Dá para preencher depois:** **Preencher depois** (ou Esc) fecha o passo a passo. Enquanto o perfil não estiver completo, o **Início** mostra uma faixa **Completar perfil**.
@@ -132,6 +133,14 @@ Usa as calorias do arquivo quando existem. Sem elas, o app **estima** pela FC, p
 - **Sem configuração de FC vigente nesta data:** em Configuração, ajuste o "Vigente desde" da configuração mais antiga para uma data anterior à atividade e use *Recalcular histórico*. A lista de Atividades mostra um aviso quando isso acontece, e o recálculo informa quantas ainda ficaram sem HRSS.
 - **HRSS por hora muito alto (acima de 225):** confira os dados, pode ser erro do sensor.
 - **FC máxima acima da configurada:** revise a sua FC máxima.
+
+### Planejado × Realizado (treino intervalado)
+Quando a atividade está **vinculada a um treino intervalado** do Plano, o detalhe ganha a seção **Planejado × Realizado**, que mostra se você cumpriu cada passo (aquecimento, cada esforço, cada recuperação):
+- **Resumo no topo:** quantos esforços ficaram dentro da zona (ex.: "6 de 8"), com um quadradinho por esforço (verde = na zona, azul = abaixo, vermelho = acima), a FC média dos esforços e um aviso se a FC subiu ou caiu bastante entre o primeiro e o último esforço.
+- **Gráfico:** a sua FC (linha vermelha) sobre a **faixa de FC planejada** de cada passo (faixas coloridas pela zona). Clique num passo, no gráfico ou na tabela, para destacá-lo (e ver o trecho no mapa).
+- **Tabela:** uma linha por passo, com o planejado (duração, zona e faixa em bpm), o feito (tempo, distância, FC média e % do tempo na faixa, ritmo) e o resultado.
+- **Como os passos são encontrados:** se você fez o treino pelo relógio (enviado pelo intervals.icu), o app usa as **voltas gravadas no relógio**. Sem elas, usa o tempo planejado a partir do começo da atividade; se não bater com o que você fez (atraso, pausa), use os botões **±5 s / ±30 s** para deslocar o início.
+- A FC média e o tempo na faixa **ignoram os primeiros segundos de cada passo**, porque o coração demora a reagir. A comparação é só por FC (o app não usa alvo de ritmo ou potência) e precisa de FC no arquivo. Atividades importadas antes deste recurso ganham as voltas na primeira vez que você abre o detalhe.
 
 ### Detalhe, download e exclusão
 Clique na data de uma atividade para ver os indicadores, o **mapa do trajeto** (nos arquivos com GPS) e o gráfico de **elevação, frequência cardíaca e velocidade** (corrida mostra o **ritmo** em min/km). Passe o mouse (ou o dedo) no gráfico para ver os valores de cada ponto: a posição aparece também no mapa. Cada métrica tem o seu painel, com a média no cabeçalho. **Arraste sobre o gráfico para selecionar um trecho**: o mapa destaca e enquadra esse trecho e todos os indicadores (HRSS, duração, movimento, distância, subida, FC, calorias, melhor 5 e 10 km) passam a mostrar só ele. Os valores do trecho são calculados sobre a série reduzida da atividade, então podem diferir um pouco dos da atividade inteira (e as calorias são proporcionais ao tempo). Clique no gráfico ou em **Limpar seleção** para voltar à atividade toda. Abaixo do gráfico, o card **Frequência cardíaca por zona** mostra, em colunas, o tempo e o percentual em cada zona (Z1 a Z5, com a faixa em bpm calculada a partir do seu LTHR); ele também acompanha o trecho selecionado. Precisa de FC no arquivo e de uma configuração de atleta válida. Atividades importadas antes deste recurso ganham o mapa e o gráfico na primeira vez que você abre o detalhe (o app relê o arquivo original; leva alguns segundos). Dali você pode **baixar o arquivo original** e **excluir** a atividade (o arquivo também é apagado).

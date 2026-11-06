@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { estimarFcMax, estimarLthr, situacaoDoPerfilDeTreino, validarRotina } from './onboarding.js';
+import { estimarFcMax, estimarLthr, situacaoDoPerfilDeTreino, validarRotina, validarUsoGarmin } from './onboarding.js';
 
 const HOJE = new Date('2026-11-04T12:00:00Z');
 
@@ -50,6 +50,14 @@ describe('validarRotina', () => {
     expect(validarRotina({ ...base, horasSemana: 0 }).valido).toBe(false);
     expect(validarRotina({ ...base, horasSemana: 26 }).valido).toBe(false);
     expect(validarRotina({ ...base, esportePrincipal: 'natacao' }).valido).toBe(false);
+  });
+});
+
+describe('validarUsoGarmin', () => {
+  it('aceita sim, não e depois; o resto vira null', () => {
+    expect(['sim', 'nao', 'depois'].map(validarUsoGarmin)).toEqual(['sim', 'nao', 'depois']);
+    expect(validarUsoGarmin('talvez')).toBeNull();
+    expect(validarUsoGarmin(undefined)).toBeNull();
   });
 });
 

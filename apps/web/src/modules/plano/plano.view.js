@@ -15,6 +15,8 @@ import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
+import { salvarPassoGarmin } from '../../application/onboarding.js';
+import { intervalsSituacao } from '../../core/functions.js';
 import { confirmar } from '../../utils/modal.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { abrirSugestaoDeTreinoDoDia } from './sugestaoTreinoDia.js';
@@ -64,6 +66,8 @@ export function render(raiz, sessao, params = {}) {
   const calendario = h('div');
   const editorArea = h('div');
   const exportacaoArea = h('div');
+  const lembreteGarmin = h('div');
+  let garminConectado; // undefined = ainda não sabemos; só é consultado para quem disse que quer usar o Garmin
   const ancoras = h('nav', { class: 'plano-ancoras', 'aria-label': 'Seções do plano' });
   const secPendencias = h('div');
   const secCalendario = h('div', { class: 'pilha plano-secao', id: 'plano-calendario' });
@@ -228,6 +232,56 @@ Os treinos já realizados e o de hoje não são afetados.`,
     );
   }
 
+  // ---- lembrete do Garmin: só para quem disse "uso" ou "decido depois" no perfil e ainda não conectou o intervals.icu ----
+  let consultandoGarmin = false;
+  function desenharLembreteGarmin() {
+    const uso = dados.preferencias?.usoGarmin;
+    const querUsar = temRecurso(obterSessao().perfil, RECURSOS.GARMIN) && (uso === 'sim' || uso === 'depois');
+    if (!querUsar || garminConectado === true) {
+      lembreteGarmin.replaceChildren();
+      return;
+    }
+    if (garminConectado === undefined) {
+      if (!consultandoGarmin) {
+        consultandoGarmin = true;
+        intervalsSituacao()
+          .then((s) => (garminConectado = Boolean(s.conectado)))
+          .catch(() => (garminConectado = true)) // sem como saber: não incomoda
+          .finally(() => {
+            consultandoGarmin = false;
+            if (ativa) desenharLembreteGarmin();
+          });
+      }
+      lembreteGarmin.replaceChildren();
+      return;
+    }
+    lembreteGarmin.replaceChildren(
+      h(
+        'div',
+        { class: 'lembrete-garmin' },
+        icone('garmin', 16),
+        h('span', null, uso === 'sim' ? 'Você quer enviar treinos ao Garmin, mas o intervals.icu ainda não está conectado.' : 'Você deixou o Garmin para decidir depois: dá para enviar os treinos do plano ao relógio.'),
+        h(
+          'button',
+          {
+            class: 'btn-link',
+            type: 'button',
+            onClick: () => {
+              if (!exportacaoArea.hasChildNodes()) alternarExportacao();
+              exportacaoArea.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+            },
+          },
+          'Configurar agora',
+        ),
+        h(
+          'button',
+          { class: 'btn-link', type: 'button', onClick: () => executar(() => salvarPassoGarmin({ uid: sessao.uid, uso: 'nao' })).catch(() => {}) },
+          'Não uso',
+        ),
+      ),
+    );
+  }
+
   // ---- exportação para o Garmin ----
   function alternarExportacao() {
     if (exportacaoArea.hasChildNodes()) {
@@ -239,6 +293,10 @@ Os treinos já realizados e o de hoje não são afetados.`,
         hoje,
         obterAncora: ancora,
         aoFechar: () => exportacaoArea.replaceChildren(),
+        aoConectar: () => {
+          garminConectado = true;
+          desenharLembreteGarmin();
+        },
       }),
     );
   }
@@ -313,6 +371,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
     desenharSecaoProjecao(pronto);
     desenharSecaoProvas(pronto);
     painelIa?.atualizar();
+    desenharLembreteGarmin();
 
     // rota antiga (#/plano/provas, /acompanhamento…): só rola quando os dados chegaram, para a página já ter a altura final
     if (pronto && secaoInicial) {
@@ -477,6 +536,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
         h('p', { class: 'texto-secundario' }, 'Arraste um treino para outro dia. Treinos planejados em dias passados e não feitos não entram na projeção.'),
         mensagem.el,
         barra,
+        lembreteGarmin,
         exportacaoArea,
         painelIa?.el,
         calendario,

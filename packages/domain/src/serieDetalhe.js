@@ -7,7 +7,7 @@ import { haversineM } from './esforcos.js';
 import { faixaDeFcDaZona } from './treinosEstruturados.js';
 
 /** Versão do formato gravada na atividade (`detalheEm`): mude para regerar a série das atividades antigas. */
-export const VERSAO_DO_DETALHE = 1;
+export const VERSAO_DO_DETALHE = 2;
 const MAXIMO_DE_PONTOS = 1500;
 const PASSO_MINIMO_S = 5;
 const FC_VALIDA = { min: 30, max: 250 };

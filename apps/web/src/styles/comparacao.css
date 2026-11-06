@@ -1,0 +1,160 @@
+/* Comparação "Planejado × Realizado" no detalhe da atividade. Cores do tema e das zonas (--zona-1…5). */
+.comp {
+  display: grid;
+  gap: 16px;
+}
+
+.comp h2,
+.comp p {
+  margin: 0;
+}
+
+.comp-resumo {
+  display: grid;
+  gap: 8px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-light);
+}
+
+.comp-resumo-titulo {
+  font-size: 1.25rem;
+}
+
+.comp-pontos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.comp-ponto {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--text-secondary);
+}
+
+.comp-ponto.comp-v-dentro { background: var(--success); }
+.comp-ponto.comp-v-abaixo { background: var(--zona-1); }
+.comp-ponto.comp-v-acima { background: var(--danger); }
+
+.comp-ajuste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.comp-ajuste .btn {
+  min-height: 36px;
+  padding: 4px 12px;
+}
+
+.comp-figura {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.comp-grafico {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.comp-grade { stroke: var(--border); stroke-width: 1; }
+.comp-rotulo { fill: var(--text-secondary); font-size: 11px; }
+.comp-fc { fill: none; stroke: var(--serie-fc); stroke-width: 2; stroke-linejoin: round; pointer-events: none; }
+
+.comp-faixa { opacity: 0.28; pointer-events: none; }
+.comp-faixa-sel { opacity: 0.55; }
+.comp-faixa-z1 { fill: var(--zona-1); }
+.comp-faixa-z2 { fill: var(--zona-2); }
+.comp-faixa-z3 { fill: var(--zona-3); }
+.comp-faixa-z4 { fill: var(--zona-4); }
+.comp-faixa-z5 { fill: var(--zona-5); }
+
+.comp-coluna-sel { fill: var(--text-primary); opacity: 0.08; pointer-events: none; }
+
+.comp-clique { fill: transparent; cursor: pointer; }
+.comp-clique:hover { fill: var(--text-primary); fill-opacity: 0.05; }
+.comp-clique:focus-visible { outline: 2px solid var(--primary); }
+
+.comp-leg::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: baseline;
+}
+.comp-leg + .comp-leg { margin-left: 14px; }
+.comp-leg-fc::before { background: var(--serie-fc); }
+.comp-leg-faixa::before { background: var(--zona-4); opacity: 0.5; }
+
+.comp-tabela-rolagem {
+  overflow-x: auto;
+}
+
+.comp-tabela {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.comp-tabela caption {
+  caption-side: bottom;
+  padding-top: 8px;
+  text-align: left;
+}
+
+.comp-tabela th,
+.comp-tabela td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.comp-tabela thead th {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.comp-tabela small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.comp-linha { cursor: pointer; }
+.comp-linha:hover,
+.comp-linha-sel { background: var(--surface-light); }
+.comp-linha:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.comp-linha-recuperacao,
+.comp-linha-aquecimento,
+.comp-linha-desaquecimento { color: var(--text-secondary); }
+
+.comp-v {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.comp-v-dentro { color: var(--success); }
+.comp-v-abaixo { color: var(--zona-1); }
+.comp-v-acima { color: var(--danger); }
+.comp-v-sem-alvo,
+.comp-v-sem-dados,
+.comp-v-nao-feito { color: var(--text-secondary); }
+
+@media (max-width: 767px) {
+  .comp-resumo { padding: 14px 16px; }
+}

@@ -254,6 +254,7 @@ export async function processarArquivo(
     lote.set(ref.collection("series").doc("fc"), { passoS: 5, ...serie });
   }
   if (detalhe) lote.set(ref.collection("series").doc("detalhe"), detalhe);
+  if (lido.voltas && lido.voltas.length >= 2) lote.set(ref.collection("series").doc("voltas"), { voltas: lido.voltas });
   await lote.commit();
 
   return { atividadeId: pedido.atividadeId, hrss: estresse.hrss, alertas: estresse.alertas, jaExistia: false };
@@ -630,12 +631,14 @@ export async function calcularMelhoresEsforcosDoUsuario(
     const precisaDoArquivo = a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS || a.detalheEm !== VERSAO_DO_DETALHE;
     let tempos: ReturnType<typeof melhoresEsforcos> | null = null;
     let detalhe: ReturnType<typeof reduzirSerieDetalhe> = null;
+    let voltas: NonNullable<Awaited<ReturnType<typeof lerArquivo>>["voltas"]> = [];
     if (precisaDoArquivo) {
       try {
         const [conteudo] = await getStorage().bucket().file(a.arquivoPath as string).download();
         const lido = await lerArquivo(conteudo, a.extensao as Extensao);
         tempos = melhoresEsforcos(lido.amostras);
         detalhe = reduzirSerieDetalhe(lido.amostras);
+        voltas = lido.voltas ?? [];
       } catch (err) {
         logger.warn("Não foi possível reler o arquivo de uma atividade", { atividadeId: doc.id, erro: String(err) });
       }
@@ -648,6 +651,7 @@ export async function calcularMelhoresEsforcosDoUsuario(
     const configDoHrss = typeof a.configIdUsada === "string" ? (configs.find((c) => c.id === a.configIdUsada) ?? null) : null;
     const lote = db.batch();
     if (detalhe && precisaDoArquivo) lote.set(doc.ref.collection("series").doc("detalhe"), detalhe);
+    if (precisaDoArquivo && voltas.length >= 2) lote.set(doc.ref.collection("series").doc("voltas"), { voltas });
     // arquivo ilegível: marca como calculado, sem apagar tempos que já existiam
     const semTempos = { melhor1kS: null, melhor5kS: null, melhor10kS: null, melhor20kS: null, melhor21kS: null, melhor40kS: null };
     const novosTempos = tempos ?? (a.melhoresEsforcosEm === VERSAO_DOS_ESFORCOS ? {} : semTempos);

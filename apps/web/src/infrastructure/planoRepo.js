@@ -4,6 +4,7 @@ import {
   excluirDocumento,
   gravarDocumento,
   gravarEmLote,
+  lerConsulta,
   observarConsulta,
 } from '../core/db.js';
 
@@ -24,6 +25,12 @@ export function observarTreinos(uid, desdeData, aoDados, aoErro) {
     aoDados,
     aoErro,
   );
+}
+
+/** O treino planejado vinculado a uma atividade (ou null). */
+export async function lerTreinoDaAtividade(uid, atividadeId) {
+  const [treino] = await lerConsulta(TREINOS, { onde: [['userId', '==', uid], ['atividadeId', '==', atividadeId]], limite: 1 });
+  return treino ?? null;
 }
 
 /** Cria um treino planejado. \`valores\` já validado (ver validarTreinoPlanejado). Retorna o id. */

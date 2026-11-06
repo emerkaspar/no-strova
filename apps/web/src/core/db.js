@@ -3,6 +3,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
   limit,
   onSnapshot,
@@ -22,6 +23,14 @@ const db = getFirestore(app);
 export async function lerDocumento(caminho) {
   const snap = await getDoc(doc(db, caminho));
   return snap.exists() ? snap.data() : null;
+}
+
+/** Lê uma consulta uma vez só. Retorna [{ id, ...dados }]. */
+export async function lerConsulta(colecao, { onde = [], limite } = {}) {
+  const restricoes = onde.map(([campo, operador, valor]) => where(campo, operador, valor));
+  if (limite) restricoes.push(limit(limite));
+  const snap = await getDocs(query(collection(db, colecao), ...restricoes));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /**

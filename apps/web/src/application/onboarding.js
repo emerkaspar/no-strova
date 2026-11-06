@@ -1,4 +1,4 @@
-import { ESTADOS_ONBOARDING, validarConfigAtleta, validarDadosPerfil, validarRotina } from '@no-strova/domain';
+import { ESTADOS_ONBOARDING, validarConfigAtleta, validarDadosPerfil, validarRotina, validarUsoGarmin } from '@no-strova/domain';
 import { observarAtividades } from '../infrastructure/atividadesRepo.js';
 import { observarPreferencias, salvarPreferencias } from '../infrastructure/calibracaoRepo.js';
 import { idConfig, observarConfigs, salvarConfig } from '../infrastructure/configsRepo.js';
@@ -84,6 +84,13 @@ export async function salvarPassoCorpoECoracao({ uid, entrada, dados }) {
 /** Passo "Nível". */
 export function salvarPassoNivel({ uid, nivel, esporte }) {
   return salvarPreferencias(uid, { nivelTreinos: nivel, esportePrincipal: esporte });
+}
+
+/** Passo "Garmin": guarda se o usuário quer enviar treinos ao Garmin (sim, não ou decide depois). Lança Error em português. */
+export function salvarPassoGarmin({ uid, uso }) {
+  const usoGarmin = validarUsoGarmin(uso);
+  if (!usoGarmin) throw new Error('Escolha uma das opções.');
+  return salvarPreferencias(uid, { usoGarmin });
 }
 
 /** Passo "Semana": dias, longão e horas. Lança Error em português. */

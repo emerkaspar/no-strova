@@ -1,10 +1,11 @@
 import { inicioDaSemana, primeiroDoMes, somarDias, somarMeses } from '@no-strova/domain';
-import { intervalsConectar, intervalsDesconectar, intervalsEnviarTreinos, intervalsLthr, intervalsSituacao } from '../../core/functions.js';
-import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
+import { intervalsDesconectar, intervalsEnviarTreinos, intervalsLthr, intervalsSituacao } from '../../core/functions.js';
+import { areaMensagem, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
 import { confirmar } from '../../utils/modal.js';
 import { confirmarEAtualizarLthr, detalheDoLthrDiferente, esportesComLthrDiferente } from '../configuracao/lthrIntervals.js';
+import { criarCampoDaChave, criarGuiaIntervals } from './conexaoIntervals.js';
 
 const PERIODOS = [
   { valor: 'proximos7', rotulo: 'Próximos 7 dias' },
@@ -44,9 +45,9 @@ export function resumirEnvio(r) {
  * Painel "Enviar para o Garmin". O Garmin bloqueia o login vindo de servidores, então o envio passa pelo intervals.icu: o
  * usuário conecta o Garmin lá uma vez, cola aqui a chave de API do intervals.icu, e o sistema cria os treinos no calendário
  * dele; o intervals.icu repassa a próxima semana ao Garmin Connect.
- * @param {{ hoje: string, obterAncora: () => string, aoFechar: () => void }} p
+ * @param {{ hoje: string, obterAncora: () => string, aoFechar: () => void, aoConectar?: () => void }} p
  */
-export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar }) {
+export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar, aoConectar = () => {} }) {
   const corpo = h('div', { class: 'pilha' });
   const mensagem = areaMensagem();
 
@@ -57,37 +58,15 @@ export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar }) {
 
   // ---- ainda não conectado: configurar o intervals.icu e colar a chave ----
   function desenharConexao() {
-    const chave = campo({ id: 'int-chave', rotulo: 'Chave de API do intervals.icu', tipo: 'password', autocomplete: 'off' });
-    const botao = h('button', { class: 'btn', type: 'submit' }, 'Conectar');
-    const form = h(
-      'form',
-      {
-        novalidate: true,
-        autocomplete: 'off',
-        onSubmit: (e) => {
-          e.preventDefault();
-          executarComBotao(botao, mensagem, async () => {
-            await intervalsConectar({ chave: chave.input.value });
-            chave.input.value = '';
-            await carregar();
-          });
-        },
+    const form = criarCampoDaChave({
+      mensagem,
+      aoConectado: async () => {
+        aoConectar();
+        await carregar();
       },
-      chave.raiz,
-      h('div', { class: 'linha-botoes' }, botao, h('button', { class: 'btn btn-secundario', type: 'button', onClick: aoFechar }, 'Fechar')),
-    );
-    corpo.replaceChildren(
-      h('p', null, h('strong', null, 'Configuração (uma vez só):')),
-      h(
-        'ol',
-        null,
-        h('li', null, 'Crie uma conta gratuita em intervals.icu.'),
-        h('li', null, 'No intervals.icu, abra Settings, conecte o Garmin e marque ', h('strong', null, 'Upload planned workouts'), '.'),
-        h('li', null, 'Ainda em Settings, em ', h('strong', null, 'Developer Settings'), ', gere e copie a ', h('strong', null, 'API Key'), '.'),
-        h('li', null, 'Cole a chave abaixo. Ela fica guardada com criptografia e só serve para criar treinos no seu calendário.'),
-      ),
-      form,
-    );
+      botoesExtras: [h('button', { class: 'btn btn-secundario', type: 'button', onClick: aoFechar }, 'Fechar')],
+    });
+    corpo.replaceChildren(h('p', null, h('strong', null, 'Configuração (uma vez só):')), criarGuiaIntervals(), form);
   }
 
   // ---- conectado: escolher o período e enviar ----

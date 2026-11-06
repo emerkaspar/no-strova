@@ -12,6 +12,7 @@ import '@fontsource/inter/latin-700.css';
 import './styles/base.css';
 import './styles/layout.css';
 import './styles/modal.css';
+import './styles/comparacao.css';
 import './styles/onboarding.css';
 import './styles/plano-anual.css';
 import './styles/zonas-medalhas.css';

@@ -1,7 +1,8 @@
-import { calcularHrss, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsporte, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
+import { calcularHrss, configVigenteEm, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsporte, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
 import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo, renomearAtividade } from '../../core/functions.js';
-import { lerAtividade, lerSerieDetalhe, lerSerieFc } from '../../infrastructure/atividadesRepo.js';
-import { lerConfig } from '../../infrastructure/configsRepo.js';
+import { lerAtividade, lerSerieDetalhe, lerSerieFc, lerVoltas } from '../../infrastructure/atividadesRepo.js';
+import { lerConfig, lerConfigs } from '../../infrastructure/configsRepo.js';
+import { lerTreinoDaAtividade } from '../../infrastructure/planoRepo.js';
 import { lerTrajeto } from '../../infrastructure/trajetosRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -13,6 +14,7 @@ import { ritmoTexto, tempoDeEsforco } from './esforcos.js';
 import { ROTULO_ESPORTE, ROTULO_ORIGEM_CALORIAS, ROTULO_ORIGEM_HRSS, TEXTO_ALERTA } from './textos.js';
 import { confirmar } from '../../utils/modal.js';
 import { cartaoComoFoi } from './feedbackModal.js';
+import { criarComparacao } from './comparacao.js';
 import { medalhasDaAtividade } from '../../application/medalhas.js';
 import { prepararEvolucaoDoTrajeto } from '../treinos/state.js';
 
@@ -283,6 +285,8 @@ export function render(raiz, sessao, { id }) {
   let limparVisuais = () => {};
   let nomeDoTrajeto = null; // nome do trajeto de treino da atividade (lido uma vez; o modal atualiza)
   let configDoHrss; // undefined = ainda não buscada; null = indisponível
+  let treinoVinculado; // undefined = ainda não buscado; null = a atividade não está vinculada a um treino
+  let configDaComparacao; // configuração de FC da data da atividade, para as faixas do treino
   const mensagem = areaMensagem();
   raiz.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
 
@@ -384,6 +388,23 @@ export function render(raiz, sessao, { id }) {
       }
     }
 
+    // comparação com o treino intervalado vinculado: só aparece quando existe vínculo, passos e a série detalhada
+    const comparacaoEl = h('div', { class: 'ativ-grafico', hidden: true });
+    async function carregarComparacao() {
+      if (!detalhe?.t) return;
+      if (treinoVinculado === undefined) treinoVinculado = await lerTreinoDaAtividade(sessao.uid, id).catch(() => null);
+      if (!ativa || !Array.isArray(treinoVinculado?.passos) || treinoVinculado.passos.length === 0) return;
+      if (configDaComparacao === undefined) {
+        configDaComparacao = a.configIdUsada
+          ? await lerConfig(a.configIdUsada).catch(() => null)
+          : configVigenteEm(await lerConfigs(sessao.uid).catch(() => []), a.data);
+      }
+      const voltas = await lerVoltas(id).catch(() => []);
+      if (!ativa) return;
+      comparacaoEl.hidden = false;
+      comparacaoEl.replaceChildren(criarComparacao({ atividade: a, treino: treinoVinculado, detalhe, voltas, config: configDaComparacao, aoSelecionar: (sel) => mapa?.selecionar(sel) }).el);
+    }
+
     const zonasEl = h('div', { class: 'ativ-grafico ativ-zonas', hidden: true });
     function atualizarZonas() {
       const sel = selecaoAtual;
@@ -465,10 +486,13 @@ export function render(raiz, sessao, { id }) {
         carregandoDetalhe && !grafico ? h('p', { class: 'texto-secundario', role: 'status' }, 'Gerando o gráfico e o mapa a partir do arquivo da atividade…') : null,
         grafico ? h('div', { class: 'ativ-grafico' }, h('h2', null, 'Desempenho'), grafico.el) : null,
         zonasEl,
+        comparacaoEl,
         mensagem.el,
         h('div', { class: 'linha-botoes' }, a.arquivoPath ? baixar : null, excluir),
       ),
     );
+
+    carregarComparacao().catch(() => {});
 
     medalhasDaAtividade(sessao.uid, id, hojeIso())
       .then((lista) => {

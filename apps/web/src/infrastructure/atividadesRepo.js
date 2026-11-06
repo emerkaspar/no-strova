@@ -44,6 +44,12 @@ export function lerSerieDetalhe(id) {
   return lerDocumento(`atividades/${id}/series/detalhe`);
 }
 
+/** Voltas gravadas pelo aparelho ([{ iniS, fimS }], em segundos desde o início), ou [] (sem arquivo .fit com voltas). */
+export async function lerVoltas(id) {
+  const doc = await lerDocumento(`atividades/${id}/series/voltas`);
+  return Array.isArray(doc?.voltas) ? doc.voltas : [];
+}
+
 /**
  * Atividades que estão em algum trajeto de treino (as que têm `trajetoId`), sem ordem: quem chama separa por trajeto e ordena.
  * Lê só essas atividades, não o histórico inteiro. Quem chama cancela o listener ao sair da tela.

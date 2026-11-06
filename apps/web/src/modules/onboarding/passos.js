@@ -8,18 +8,21 @@ import {
   LIMITES_CONFIG,
   LIMITES_ROTINA,
   NIVEIS,
+  RECURSOS,
   somarDias,
+  temRecurso,
   validarMetaPeso,
   ZONAS,
 } from '@no-strova/domain';
-import { salvarPassoCorpoECoracao, salvarPassoMeta, salvarPassoNivel, salvarPassoSemana, salvarPassoVoce } from '../../application/onboarding.js';
-import { recalcularHistorico } from '../../core/functions.js';
+import { salvarPassoCorpoECoracao, salvarPassoGarmin, salvarPassoMeta, salvarPassoNivel, salvarPassoSemana, salvarPassoVoce } from '../../application/onboarding.js';
+import { intervalsSituacao, recalcularHistorico } from '../../core/functions.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
 import { conferirLthrNoIntervals } from '../configuracao/lthrIntervals.js';
+import { criarCampoDaChave, criarGuiaIntervals } from '../plano/conexaoIntervals.js';
 
 const ABREV = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const NOMES = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -77,6 +80,7 @@ export function estadoInicial(sessao, dados) {
     dias: new Set(p.diasTreino ?? []),
     longao: p.diaLongao ?? null,
     horas: p.horasSemana ?? 6,
+    usoGarmin: p.usoGarmin ?? '',
     querMeta: Boolean(meta),
     metaPeso: paraCampo(meta?.pesoAlvoKg),
     metaData: meta?.dataAlvo ?? '',
@@ -97,7 +101,7 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
     rotulo: 'Boas-vindas',
     eyebrow: 'Antes de treinar',
     titulo: 'Bora acertar esses números.',
-    subtitulo: 'Seis perguntas rápidas. Em troca, o app para de chutar o seu estresse, as suas zonas e o seu plano.',
+    subtitulo: 'Sete perguntas rápidas. Em troca, o app para de chutar o seu estresse, as suas zonas e o seu plano.',
     textoContinuar: 'Começar',
     raiz: h(
       'ul',
@@ -472,6 +476,76 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
     },
   };
 
+  // ---------- Garmin (opcional, mas importante para quem treina com relógio) ----------
+  const ROTULO_USO_GARMIN = { sim: 'Uso o Garmin', nao: 'Não uso', depois: 'Decido depois' };
+  const liberadoGarmin = temRecurso(sessao.perfil, RECURSOS.GARMIN);
+  const detalheGarmin = h('div', { class: 'wz-garmin-detalhe', 'aria-live': 'polite' });
+  const mensagemGarmin = areaMensagem();
+  async function desenharDetalheGarmin() {
+    detalheGarmin.hidden = estado.usoGarmin !== 'sim';
+    if (estado.usoGarmin !== 'sim') return;
+    if (!liberadoGarmin) {
+      detalheGarmin.replaceChildren(
+        h('p', { class: 'wz-nota' }, 'Esse recurso (“Sincronização com o Garmin”) precisa ser liberado pelo administrador do app. Peça a liberação e volte aqui depois, pelo menu da conta → Perfil de treino. A sua escolha fica salva. Enquanto isso, já dá para deixar o intervals.icu pronto:'),
+        criarGuiaIntervals({ comCampo: false }),
+      );
+      return;
+    }
+    detalheGarmin.replaceChildren(h('p', { class: 'wz-nota', role: 'status' }, 'Verificando a conexão…'));
+    let situacao = null;
+    try {
+      situacao = await intervalsSituacao();
+    } catch {
+      situacao = { conectado: false };
+    }
+    if (situacao.conectado) {
+      detalheGarmin.replaceChildren(
+        h('p', { class: 'mensagem mensagem-ok' }, `Conectado ao intervals.icu${situacao.atleta ? ` como ${situacao.atleta}` : ''}. Para enviar os treinos: Plano → Enviar para o Garmin.`),
+        h('p', { class: 'wz-nota' }, `Confira em Settings do intervals.icu (na configuração do esporte) se o LTHR é ${estado.lthr || 'o mesmo do seu perfil'}${estado.lthr ? ' bpm' : ''}: as faixas de FC dos treinos só batem se forem iguais.`),
+      );
+      return;
+    }
+    detalheGarmin.replaceChildren(
+      h('p', { class: 'wz-nota' }, 'Configuração, uma vez só (leva uns 5 minutos):'),
+      criarGuiaIntervals(),
+      criarCampoDaChave({ mensagem: mensagemGarmin, aoConectado: desenharDetalheGarmin, idCampo: 'wz-int-chave', comoFormulario: false }),
+      mensagemGarmin.el,
+      h('p', { class: 'wz-nota' }, `Depois de conectar, confira em Settings do intervals.icu (na configuração do esporte) se o LTHR é ${estado.lthr || 'o mesmo do seu perfil'}${estado.lthr ? ' bpm' : ''}. Dá para pular e fazer depois em Plano → Enviar para o Garmin.`),
+    );
+  }
+  const escolhaGarmin = grupoDeOpcoes({
+    rotulo: 'Enviar treinos para o Garmin',
+    valor: estado.usoGarmin,
+    classe: 'wz-opcoes-3',
+    aoEscolher: (v) => {
+      estado.usoGarmin = v;
+      desenharDetalheGarmin();
+    },
+    opcoes: [
+      { valor: 'sim', titulo: 'Uso o Garmin', texto: 'Quero os treinos do plano no meu relógio.' },
+      { valor: 'nao', titulo: 'Não uso', texto: 'Sigo só com o app, sem enviar nada.' },
+      { valor: 'depois', titulo: 'Decido depois', texto: 'Aviso você mais tarde, no Plano.' },
+    ],
+  });
+  const garmin = {
+    id: 'garmin',
+    rotulo: 'Garmin',
+    eyebrow: 'Seu relógio',
+    titulo: 'Treino direto no relógio?',
+    subtitulo: 'Opcional, mas vale a pena: o app envia os treinos planejados ao Garmin Connect, com a faixa de FC de cada passo, pelo intervals.icu (um site gratuito).',
+    raiz: h('div', { class: 'wz-campos' }, escolhaGarmin, detalheGarmin),
+    entrar() {
+      desenharDetalheGarmin();
+    },
+    async continuar() {
+      // sem escolha, vale "decido depois": o passo nunca trava o perfil
+      const uso = estado.usoGarmin || 'depois';
+      await salvarPassoGarmin({ uid, uso });
+      estado.usoGarmin = uso;
+      dados.preferencias = { ...(dados.preferencias ?? {}), usoGarmin: uso };
+    },
+  };
+
   // ---------- pronto ----------
   const mensagemFim = areaMensagem();
   const botaoRecalcular = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Recalcular o meu histórico agora');
@@ -503,6 +577,7 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
           estado.dias.size === 0 ? '—' : [...estado.dias].sort((a, b) => a - b).map((d) => ABREV[d]).join(' · '),
           `${formatarNumero(estado.horas, estado.horas % 1 === 0 ? 0 : 1)} h${estado.longao === null ? '' : ` · longão de ${NOMES[estado.longao]}`}`,
         ],
+        ['garmin', 'Garmin', ROTULO_USO_GARMIN[estado.usoGarmin] ?? '—', estado.usoGarmin === 'sim' ? 'Envio de treinos pelo intervals.icu' : 'Dá para configurar depois'],
         ['meta', 'Meta de peso', estado.querMeta && estado.metaPeso ? `${estado.metaPeso} kg` : 'Sem meta', estado.querMeta && estado.metaData ? `até ${formatarData(estado.metaData)}` : 'Dá para definir depois'],
       ];
       resumo.replaceChildren(
@@ -522,5 +597,5 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
     continuar: concluir,
   };
 
-  return [boasVindas, voce, corpo, coracao, nivel, semana, meta, pronto];
+  return [boasVindas, voce, corpo, coracao, nivel, semana, garmin, meta, pronto];
 }

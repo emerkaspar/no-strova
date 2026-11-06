@@ -14,6 +14,11 @@ interface RegistroFit {
   position_long?: number;
 }
 
+interface VoltaFit {
+  start_time?: Date | string | number;
+  total_elapsed_time?: number;
+}
+
 interface SessaoFit {
   sport?: string;
   total_calories?: number;
@@ -22,7 +27,7 @@ interface SessaoFit {
 export async function lerFit(conteudo: Buffer): Promise<ArquivoLido> {
   const parser = new FitParser({ force: true, speedUnit: "m/s", lengthUnit: "m", mode: "list" });
   const bytes = new Uint8Array(conteudo);
-  let fit: { records?: RegistroFit[]; sessions?: SessaoFit[] };
+  let fit: { records?: RegistroFit[]; sessions?: SessaoFit[]; laps?: VoltaFit[] };
   try {
     fit = (await parser.parseAsync(bytes.buffer as ArrayBuffer)) as unknown as typeof fit;
   } catch {
@@ -50,5 +55,19 @@ export async function lerFit(conteudo: Buffer): Promise<ArquivoLido> {
     ...montado,
     esporteArquivo: sessoes[0]?.sport ?? null,
     calorias: calorias > 0 ? Math.round(calorias) : null,
+    voltas: lerVoltas(fit.laps ?? [], montado.inicioMs),
   };
+}
+
+/** Voltas em segundos desde o primeiro ponto, na ordem do arquivo; descarta as sem início ou duração válidos. */
+function lerVoltas(laps: VoltaFit[], inicioMs: number) {
+  const voltas: Array<{ iniS: number; fimS: number }> = [];
+  for (const v of laps) {
+    const ms = v.start_time === undefined ? Number.NaN : new Date(v.start_time).getTime();
+    const duracao = numero(v.total_elapsed_time);
+    if (!Number.isFinite(ms) || duracao === undefined || duracao <= 0) continue;
+    const iniS = Math.max(0, (ms - inicioMs) / 1000);
+    voltas.push({ iniS: Math.round(iniS * 10) / 10, fimS: Math.round((iniS + duracao) * 10) / 10 });
+  }
+  return voltas.sort((a, b) => a.iniS - b.iniS);
 }

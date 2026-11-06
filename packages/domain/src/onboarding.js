@@ -12,6 +12,14 @@ export const LIMITES_ROTINA = Object.freeze({ horasMin: 1, horasMax: 25 });
 
 export const ESPORTES_PRINCIPAIS = Object.freeze(['ciclismo', 'corrida', 'ambos']);
 
+/** Escolha do usuário sobre enviar treinos ao Garmin (pelo intervals.icu): usa, não usa ou decide depois. */
+export const USOS_DO_GARMIN = Object.freeze(['sim', 'nao', 'depois']);
+
+/** A escolha do Garmin, ou null se não for uma das aceitas. */
+export function validarUsoGarmin(valor) {
+  return USOS_DO_GARMIN.includes(valor) ? valor : null;
+}
+
 /** Fração da FC máxima usada como LTHR quando o usuário ainda não fez o teste (padrão sugerido). */
 export const FRACAO_LTHR_ESTIMADA = 0.9;
 
