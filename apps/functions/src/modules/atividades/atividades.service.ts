@@ -29,6 +29,7 @@ import { logger } from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
 import { db } from "../../shared/firebase";
 import { ALERTAS, type ResultadoProcessamento } from "./atividades.types";
+import { climaDaAtividade } from "./clima.service";
 import { calcularCalorias, calcularEstresse } from "./estresse";
 import { ArquivoInvalidoError, type Extensao, lerArquivo } from "./parsers";
 import { trechoParaAtividadeNova } from "./trajetos.service";
@@ -226,6 +227,7 @@ export async function processarArquivo(
   });
 
   const detalhe = reduzirSerieDetalhe(lido.amostras);
+  const clima = await climaDaAtividade(lido.amostras, lido.inicioMs, resumo.duracaoS);
   const lote = db.batch();
   lote.create(ref, {
     userId: uid,
@@ -236,6 +238,7 @@ export async function processarArquivo(
     ...resumo,
     ...melhoresEsforcos(lido.amostras),
     ...resumirPotencia(lido.amostras, esporte, { pesoKg: config?.pesoKg ?? null }),
+    ...clima,
     melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
     detalheEm: VERSAO_DO_DETALHE,
     // tempo em cada zona de FC, pela configuração usada no HRSS (recalculado quando ela muda; ver calcularMelhoresEsforcosDoUsuario)
@@ -633,6 +636,7 @@ export async function calcularMelhoresEsforcosDoUsuario(
     const precisaDoArquivo = a.melhoresEsforcosEm !== VERSAO_DOS_ESFORCOS || a.detalheEm !== VERSAO_DO_DETALHE;
     let tempos: ReturnType<typeof melhoresEsforcos> | null = null;
     let potencia: ReturnType<typeof resumirPotencia> | null = null;
+    let clima: Awaited<ReturnType<typeof climaDaAtividade>> | null = null;
     let detalhe: ReturnType<typeof reduzirSerieDetalhe> = null;
     let voltas: NonNullable<Awaited<ReturnType<typeof lerArquivo>>["voltas"]> = [];
     if (precisaDoArquivo) {
@@ -640,6 +644,8 @@ export async function calcularMelhoresEsforcosDoUsuario(
         const [conteudo] = await getStorage().bucket().file(a.arquivoPath as string).download();
         const lido = await lerArquivo(conteudo, a.extensao as Extensao);
         tempos = melhoresEsforcos(lido.amostras);
+        const inicioMs = (a.inicio as Timestamp).toMillis();
+        clima = await climaDaAtividade(lido.amostras, inicioMs, a.duracaoS as number);
         potencia = resumirPotencia(lido.amostras, a.esporte as string, { pesoKg: configVigenteEm(configs, a.data as string)?.pesoKg ?? null });
         detalhe = reduzirSerieDetalhe(lido.amostras);
         voltas = lido.voltas ?? [];
@@ -662,6 +668,7 @@ export async function calcularMelhoresEsforcosDoUsuario(
     lote.update(doc.ref, {
       ...novosTempos,
       ...(potencia ?? {}),
+      ...(clima ?? {}),
       melhoresEsforcosEm: VERSAO_DOS_ESFORCOS,
       detalheEm: VERSAO_DO_DETALHE,
       tempoZonasS: tempoNasZonasDaAtividade(detalhe, configDoHrss),

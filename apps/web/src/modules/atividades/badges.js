@@ -6,18 +6,21 @@ import { icone } from '../../utils/icones.js';
  * para criar um novo, basta acrescentar a entrada aqui e devolvê-lo em `badgesDaAtividade` (lista.view.js). A faixa ordena
  * por prioridade (menor primeiro), mostra até `MAXIMO_VISIVEL` e agrupa o resto em um chip "+N" com popover.
  *
- * Categorias (a cor vem do CSS `.ativ-badge-<categoria>`): conquista (amarelo), acao (laranja), registro (cinza), status (verde).
- * Campos opcionais da config: `texto` (rótulo curto para a versão em pill, usada só com poucos badges) e `tom` (cor própria).
+ * Categorias: acao e registro (cinza por padrão), status (verde). Os badges do "Como foi?" têm `tom` próprio (sensação e esforço trazem o da escala).
+ * A medalha de recorde não é um badge: vive no emblema próprio da linha (lista.view.js). Todo badge é um círculo de 20px com ícone e dica de texto. Campos opcionais: `tom` (cor própria) e `valor` (um número no lugar do ícone, como o esforço).
  */
 export const BADGES = Object.freeze({
-  medalha: { icone: 'medalha', rotulo: 'Recorde pessoal', texto: 'Recorde', categoria: 'conquista', prioridade: 10 },
+  vinculado: { icone: 'vinculo', rotulo: 'Vinculada a um treino', categoria: 'status', prioridade: 15 },
+  semVinculo: { icone: 'semVinculo', rotulo: 'Sem vínculo com um treino', categoria: 'registro', prioridade: 15 },
   sensacao: { icone: 'sensacaoFoguete', rotulo: 'Como foi', categoria: 'acao', prioridade: 20 },
-  comoFoi: { icone: 'lapis', rotulo: 'Contar como foi esta atividade', texto: 'Como foi?', categoria: 'registro', prioridade: 30 },
+  esforco: { icone: 'fc', rotulo: 'Esforço percebido', categoria: 'acao', prioridade: 25 },
+  etiquetas: { icone: 'etiqueta', rotulo: 'O que marcou o treino', categoria: 'registro', tom: 'var(--zona-3)', prioridade: 30 },
+  testeLthr: { icone: 'fcPulso', rotulo: 'Teste de LTHR', categoria: 'acao', tom: 'var(--serie-fc)', prioridade: 35 },
+  trajeto: { icone: 'rota', rotulo: 'Trajeto de treino', categoria: 'registro', tom: 'var(--serie-vel)', prioridade: 40 },
+  comoFoi: { icone: 'lapis', rotulo: 'Contar como foi esta atividade', categoria: 'registro', tom: 'var(--primary)', prioridade: 50 },
 });
 
 export const MAXIMO_VISIVEL = 5;
-/** Até esta quantidade, os badges que têm `texto` aparecem como pill; acima, tudo vira só ícone. */
-export const MAXIMO_COM_TEXTO = 3;
 
 const MARGEM = 12;
 
@@ -27,6 +30,9 @@ export function montarBadge(tipo, dados = {}) {
   if (!base) throw new Error(`Badge desconhecido: ${tipo}`);
   return { id: tipo, ...base, ...dados };
 }
+
+/** O ícone do badge ou, com `valor`, o número. */
+const conteudoDoBadge = (b, tamanho) => (b.valor !== undefined && b.valor !== null ? h('span', { class: 'ativ-badge-valor' }, String(b.valor)) : icone(b.icone, tamanho));
 
 export const ordenarBadges = (lista) => [...lista].sort((a, b) => a.prioridade - b.prioridade);
 
@@ -50,7 +56,7 @@ export function criarFaixaDeBadges() {
     aberto = ancora;
     ancora.setAttribute('aria-expanded', 'true');
     el.replaceChildren(
-      ...badges.map((b) => h('div', { class: 'ativ-badges-item' }, h('span', { class: `ativ-badge ativ-badge-${b.categoria}`, style: b.tom ? `--cor:${b.tom}` : null }, icone(b.icone, 14)), h('span', null, b.rotulo))),
+      ...badges.map((b) => h('div', { class: 'ativ-badges-item' }, h('span', { class: `ativ-badge ativ-badge-${b.categoria}`, style: b.tom ? `--cor:${b.tom}` : null }, conteudoDoBadge(b, 14)), h('span', null, b.rotulo))),
     );
     el.hidden = false;
     const r = ancora.getBoundingClientRect();
@@ -67,10 +73,10 @@ export function criarFaixaDeBadges() {
   document.addEventListener('click', foraOuEsc, true);
   document.addEventListener('keydown', foraOuEsc);
 
-  function chipDoBadge(b, comTexto) {
-    const conteudo = [icone(b.icone, 14), comTexto && b.texto ? h('span', { class: 'ativ-badge-texto' }, b.texto) : null];
+  function chipDoBadge(b) {
+    const conteudo = [conteudoDoBadge(b, 14)];
     const props = {
-      class: `ativ-badge ativ-badge-${b.categoria}${comTexto && b.texto ? ' ativ-badge-pill' : ''}`,
+      class: `ativ-badge ativ-badge-${b.categoria}`,
       style: b.tom ? `--cor:${b.tom}` : null,
       // o badge com popover próprio (a medalha) dispensa a dica nativa do navegador
       title: b.ligar ? null : b.rotulo,
@@ -86,15 +92,14 @@ export function criarFaixaDeBadges() {
   return {
     faixa(lista) {
       const ordenados = ordenarBadges(lista);
-      const comTexto = ordenados.length <= MAXIMO_COM_TEXTO;
       const visiveis = ordenados.slice(0, MAXIMO_VISIVEL);
       const resto = ordenados.length - visiveis.length;
       const mais =
         resto > 0
-          ? h('button', { type: 'button', class: 'ativ-badge ativ-badge-pill ativ-badge-mais', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', title: `Ver todos os ${ordenados.length} badges`, 'aria-label': `Mais ${resto} badge${resto === 1 ? '' : 's'}: ver todos` }, `+${resto}`)
+          ? h('button', { type: 'button', class: 'ativ-badge ativ-badge-mais', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', title: `Ver todos os ${ordenados.length} badges`, 'aria-label': `Mais ${resto} badge${resto === 1 ? '' : 's'}: ver todos` }, `+${resto}`)
           : null;
       mais?.addEventListener('click', () => (aberto === mais ? esconder() : mostrar(mais, ordenados)));
-      return h('div', { class: 'ativ-badges' }, ...visiveis.map((b) => chipDoBadge(b, comTexto)), mais);
+      return h('div', { class: 'ativ-badges' }, ...visiveis.map(chipDoBadge), mais);
     },
     esconder,
     destruir() {

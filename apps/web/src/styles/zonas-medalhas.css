@@ -78,11 +78,7 @@
   border-color: var(--tom);
 }
 
-/* a linha de atividade do pódio ganha a faixa lateral fina e um tom bem leve da medalha (ver "Lista de atividades" em layout.css) */
-.ativ-linha.ativ-linha-medalha {
-  background: color-mix(in srgb, var(--tom) 4%, var(--surface-light));
-  box-shadow: inset 3px 0 0 var(--tom);
-}
+/* a linha do pódio ganha a faixa lateral de 3px no tom da medalha (ver "Lista de atividades" em layout.css) */
 
 /* cartão de recordes (aparece ao passar o mouse no selo) */
 .medalha-cartao {

@@ -1,4 +1,4 @@
-import { calcularHrss, configVigenteEm, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsporte, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
+import { calcularHrss, condicaoDoClima, configVigenteEm, zonasPendentes, MEDALHAS, textoDaJanela, esforcosDoEsporte, melhorTempoNaDistancia, pontosDeDistanciaDoTrecho, resumirTrecho, tempoPorZonaDeFc, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS } from '@no-strova/domain';
 import { calcularMelhoresEsforcos, excluirAtividade, obterUrlArquivo, renomearAtividade } from '../../core/functions.js';
 import { lerAtividade, lerSerieDetalhe, lerSerieFc, lerVoltas } from '../../infrastructure/atividadesRepo.js';
 import { lerConfig, lerConfigs } from '../../infrastructure/configsRepo.js';
@@ -249,6 +249,24 @@ function indicadoresDePotencia(a) {
   ];
 }
 
+/**
+ * Temperatura e clima: a temperatura é a do sensor do arquivo (a do pulso/ciclocomputador costuma ler alto) ou, sem sensor,
+ * a do serviço de clima; sensação, umidade, vento e chuva vêm do serviço, pelo ponto de partida. Sem dado, nada aparece.
+ */
+function indicadoresDeClima(a) {
+  if (!a.temperaturaOrigem || !Number.isFinite(a.temperaturaMediaC)) return [];
+  const sensor = a.temperaturaOrigem === 'sensor';
+  const faixa = sensor && Number.isFinite(a.temperaturaMinC) && Number.isFinite(a.temperaturaMaxC) ? `${formatarNumero(a.temperaturaMinC, 0)} a ${formatarNumero(a.temperaturaMaxC, 0)} °C` : null;
+  const condicao = condicaoDoClima(a.climaCodigo);
+  return [
+    indicador('Temperatura', `${formatarNumero(a.temperaturaMediaC, 1)} °C`, [faixa, sensor ? 'Sensor do arquivo' : 'Clima no local'].filter(Boolean).join(' · '), 'sol'),
+    Number.isFinite(a.sensacaoC) ? indicador('Sensação térmica', `${formatarNumero(a.sensacaoC, 1)} °C`, condicao, 'sol') : null,
+    Number.isFinite(a.umidadePct) ? indicador('Umidade', `${formatarNumero(a.umidadePct, 0)}%`, null, 'sol') : null,
+    Number.isFinite(a.ventoKmh) ? indicador('Vento', `${formatarNumero(a.ventoKmh, 1)} km/h`, null, 'sol') : null,
+    Number.isFinite(a.chuvaMm) ? indicador('Chuva', `${formatarNumero(a.chuvaMm, 1)} mm`, null, 'sol') : null,
+  ].filter(Boolean);
+}
+
 /** Card "Frequência cardíaca por zona": uma coluna por zona (tempo, % e faixa em bpm). */
 function cartaoDeZonas(zonas, ehTrecho) {
   const maior = Math.max(...zonas.map((z) => z.segundos), 1);
@@ -487,6 +505,7 @@ export function render(raiz, sessao, { id }) {
       indicador('FC máxima', a.fcMax ? `${a.fcMax} bpm` : '—', null, 'fc'),
       indicador('Calorias', a.calorias ? `${formatarNumero(a.calorias)} kcal` : '—', caloriasNota, 'atividades'),
       ...indicadoresDePotencia(a),
+      ...indicadoresDeClima(a),
       ...indicadoresDeEsforco(a, calculando),
     );
     let indicadores = montarIndicadores();

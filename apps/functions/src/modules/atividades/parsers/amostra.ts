@@ -9,6 +9,8 @@ export interface Amostra {
   lon?: number;
   /** Potência medida (W). */
   pot?: number;
+  /** Temperatura do sensor (°C). */
+  temp?: number;
 }
 
 export interface Ponto {
@@ -20,6 +22,7 @@ export interface Ponto {
   lat?: number;
   lon?: number;
   pot?: number;
+  temp?: number;
 }
 
 export function numero(valor: unknown): number | undefined {

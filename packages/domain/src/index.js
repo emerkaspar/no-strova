@@ -21,6 +21,7 @@ export * from './planoAnual.js';
 export * from './provas.js';
 export * from './esforcos.js';
 export * from './potenciaEstimada.js';
+export * from './clima.js';
 export * from './serieDetalhe.js';
 export * from './progressao.js';
 export * from './ia.js';

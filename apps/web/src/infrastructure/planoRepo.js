@@ -33,6 +33,11 @@ export async function lerTreinoDaAtividade(uid, atividadeId) {
   return treino ?? null;
 }
 
+/** Treinos planejados já realizados, ou seja, os vinculados a uma atividade (`atividadeId`), sem ordem. Cancele o listener ao sair da tela. */
+export function observarTreinosVinculados(uid, aoDados, aoErro) {
+  return observarConsulta(TREINOS, { onde: [['userId', '==', uid], ['status', '==', 'realizado']], limite: 1500 }, aoDados, aoErro);
+}
+
 /** Os treinos planejados de um dia (yyyy-mm-dd), em qualquer status. */
 export function lerTreinosDoDia(uid, data) {
   return lerConsulta(TREINOS, { onde: [['userId', '==', uid], ['data', '==', data]], limite: 20 });

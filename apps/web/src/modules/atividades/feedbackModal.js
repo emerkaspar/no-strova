@@ -464,6 +464,20 @@ export function miniSensacao(feedback) {
   return h('span', { class: 'ativ-sensacao', style: `--cor:${s.tom}`, title: s.rotulo, role: 'img', 'aria-label': s.rotulo }, icone(s.icone, 16));
 }
 
+/** Esforço percebido (1 a 10) do "Como foi?": o número, o texto e a cor da escala (null sem esforço). */
+export function dadosDoEsforco(feedback) {
+  const n = feedback?.rpe;
+  if (!n) return null;
+  return { valor: n, rotulo: `Esforço percebido: ${n}/10 (${rotuloDoEsforco(n)})`, tom: corDoEsforco(n) };
+}
+
+/** O que marcou o treino (etiquetas do "Como foi?") em um texto só, ou null sem etiquetas. */
+export function textoDasEtiquetas(feedback) {
+  const ids = feedback?.etiquetas ?? [];
+  if (ids.length === 0) return null;
+  return ids.map((id) => (id === 'dor' && feedback.dor ? `Dor: ${feedback.dor}` : (ETIQUETAS.find((e) => e.id === id)?.rotulo ?? id))).join(', ');
+}
+
 /** Ícone, texto e cor da sensação registrada no "Como foi?" (null sem sensação). */
 export function dadosDaSensacao(feedback) {
   const s = SENSACOES.find((x) => x.valor === feedback?.sensacao);

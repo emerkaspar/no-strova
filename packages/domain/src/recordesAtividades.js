@@ -62,6 +62,8 @@ export const CAMPOS_DE_RECORDE = Object.freeze({
   elevacao: 'altimetriaM',
   hrss: 'hrss',
   fcMax: 'fcMax',
+  potencia: 'potenciaMediaW',
+  potencia20min: 'potenciaMax20minW',
 });
 
 /**
