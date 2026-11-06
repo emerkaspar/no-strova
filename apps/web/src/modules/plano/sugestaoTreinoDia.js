@@ -43,6 +43,7 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, aoAceitar
       }),
     );
     corpo.replaceChildren(
+      ...[
       h('p', { class: 'ia-aviso' }, icone('ia', 14), AVISO_IA),
       h(
         'p',
@@ -53,6 +54,7 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, aoAceitar
       ),
       it.motivo ? h('p', { class: 'ia-resumo' }, it.motivo) : null,
       saida.avisos.length > 0 ? h('ul', { class: 'ia-avisos' }, ...saida.avisos.map((a) => h('li', null, a))) : null,
+      ].filter(Boolean),
     );
     rodape.replaceChildren(botaoAceitar, botaoDescartar);
   }

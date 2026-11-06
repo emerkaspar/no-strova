@@ -1418,47 +1418,141 @@ textarea {
   border-color: var(--text-secondary);
 }
 
-.cal-novo-wrap {
+/* Menu do "+" de novo treino (calendário do Plano e semana do Início): dois ícones coloridos que saltam ao abrir */
+.novo-wrap {
   position: relative;
 }
 
-.cal-novo-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 5;
-  display: none;
-  gap: 4px;
-  padding: 4px;
-  background: var(--surface-light);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-}
-
-.cal-novo-wrap.aberto .cal-novo-menu {
-  display: flex;
-}
-
-.cal-novo-opcao {
+.novo-mais {
   appearance: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border);
   border-radius: 50%;
+  font: inherit;
+  line-height: 1;
   cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.cal-novo-opcao:hover,
-.cal-novo-opcao:focus-visible {
-  color: var(--primary-contrast);
-  background: var(--primary);
+.novo-mais:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.novo-wrap.aberto .novo-mais {
+  transform: rotate(45deg);
+  color: var(--primary);
   border-color: var(--primary);
+}
+
+.novo-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: none;
+  gap: 8px;
+}
+
+.novo-centro .novo-menu {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.novo-wrap.aberto .novo-menu {
+  display: flex;
+}
+
+.novo-opcao {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #fff;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  animation: novo-saltar 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transition: transform 0.15s, filter 0.15s;
+}
+
+.novo-opcao:nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.novo-opcao:hover,
+.novo-opcao:focus-visible {
+  transform: scale(1.15);
+  filter: brightness(1.1);
+}
+
+.novo-manual,
+.novo-editar {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--success) 70%, #fff), var(--success));
+  color: #052e16;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--success) 45%, transparent);
+}
+
+/* IA: a cor da marca (laranja) com um toque mais claro */
+.novo-ia {
+  background: linear-gradient(135deg, #ffb347, var(--primary));
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 50%, transparent);
+}
+
+.novo-excluir {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 70%, #fff), var(--danger));
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+/* "⋯" do dia com treino planejado: não gira ao abrir */
+.novo-edicao .novo-mais {
+  font-weight: 700;
+}
+
+.novo-edicao.aberto .novo-mais {
+  transform: none;
+}
+
+@keyframes novo-saltar {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.3);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .novo-opcao {
+    animation: none;
+  }
+
+  .novo-mais {
+    transition: none;
+  }
+}
+
+/* "+" na coluna de cada dia que falta na semana do Início */
+.dia-novo {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.dia-novo .novo-mais {
+  width: 28px;
+  height: 28px;
+  font-size: 1.1rem;
 }
 
 .cal-itens {
@@ -1877,7 +1971,7 @@ textarea {
   }
 
   .cal-compacta .cal-itens,
-  .cal-compacta .cal-novo-wrap,
+  .cal-compacta .novo-wrap,
   .cal-compacta .cal-novo {
     display: none;
   }
@@ -6882,4 +6976,183 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/* Esforço da semana no cabeçalho da semana do Início (mesmo cartão da coluna do calendário do Plano) */
+.semana-esforco {
+  margin-left: 0;
+  flex: 0 1 260px;
+  min-width: min(100%, 220px);
+}
+
+@media (max-width: 768px) {
+  .semana-esforco {
+    flex-basis: 100%;
+  }
+}
+
+/* "+" no meio do espaço das barras, nos dias sem treino da semana do Início */
+.dia-area {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.dia-novo-centro {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+}
+
+.dia-novo-centro .novo-mais {
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
+}
+
+/* esforço da semana mais compacto */
+.semana-esforco {
+  flex-basis: 190px;
+  min-width: min(100%, 170px);
+  gap: 6px;
+  padding: 9px 11px;
+}
+
+.semana-esforco .cal-esforco {
+  gap: 5px;
+}
+
+.semana-esforco .cal-esforco-total {
+  font-size: 1.15rem;
+}
+
+.semana-esforco .cal-esforco-meta,
+.semana-esforco .cal-esforco-detalhe {
+  font-size: 0.72rem;
+}
+
+.semana-esforco .badge-conquista {
+  padding: 2px 7px;
+  font-size: 0.68rem;
+}
+
+@media (max-width: 768px) {
+  .semana-esforco {
+    flex-basis: 100%;
+  }
+}
+
+/* linha acima das barras da semana do Início: abriga o "+" dos dias que já têm treino */
+.dia-topo {
+  gap: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+}
+
+.dia-topo .novo-mais {
+  width: 28px;
+  height: 28px;
+  font-size: 1.1rem;
+}
+
+/* esforço da semana na horizontal: título e total na primeira linha, barra e feito/previsto abaixo */
+.semana-esforco {
+  flex: 0 1 340px;
+  min-width: min(100%, 260px);
+  padding: 8px 12px;
+}
+
+.semana-esforco .cal-esforco {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.semana-esforco .cal-esforco-barra {
+  grid-column: 1 / -1;
+}
+
+.semana-esforco .cal-esforco-detalhe {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+
+.semana-esforco .cal-esforco-fase {
+  justify-self: end;
+}
+
+.semana-esforco .cal-esforco-topo {
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 768px) {
+  .semana-esforco {
+    flex-basis: 100%;
+  }
+}
+
+.semana-esforco .cal-esforco-topo {
+  grid-column: 1 / -1;
+}
+
+/* esforço da semana do Início: ainda mais baixo e com textos menores */
+.semana-esforco {
+  gap: 3px;
+  padding: 6px 12px;
+}
+
+.semana-esforco .cal-esforco {
+  gap: 3px 12px;
+}
+
+.semana-esforco .cal-esforco-titulo {
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.semana-esforco .cal-esforco-total {
+  font-size: 1.05rem;
+}
+
+.semana-esforco .cal-esforco-meta,
+.semana-esforco .cal-esforco-detalhe,
+.semana-esforco .cal-esforco-fase {
+  font-size: 0.64rem;
+  line-height: 1.1;
+}
+
+.semana-esforco .cal-esforco-barra {
+  height: 4px;
+}
+
+.semana-esforco .badge-conquista {
+  padding: 1px 6px;
+  font-size: 0.6rem;
+}
+
+/* textos abaixo das barras da semana do Início: menores e menos pesados */
+.bloco-semana .dia .dia-rotulo {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.bloco-semana .dia .dia-titulo {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.bloco-semana .dia .dia-valor {
+  font-size: 0.78rem;
+}
+
+/* os dias da semana (SEG 2, TER 3…) continuam bem destacados */
+.bloco-semana .dia .dia-rotulo {
+  font-weight: 800;
 }

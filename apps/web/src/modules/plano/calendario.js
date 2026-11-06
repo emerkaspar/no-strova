@@ -10,26 +10,13 @@ import {
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarNumero } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
+import { criarMenuNovoTreino } from '../../utils/menuNovoTreino.js';
 import { perfilDoTreino } from '../../utils/perfilTreino.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 
 /** Id do treino sendo arrastado (HTML5 drag and drop). */
 let arrastandoId = null;
 
-/** Menu do "+" aberto no momento (só um por vez); fecha ao clicar fora ou apertar Esc. */
-let menuNovoAberto = null;
-function fecharMenuNovo() {
-  if (!menuNovoAberto) return;
-  menuNovoAberto.classList.remove('aberto');
-  menuNovoAberto.querySelector('.cal-novo')?.setAttribute('aria-expanded', 'false');
-  menuNovoAberto = null;
-}
-document.addEventListener('click', (e) => {
-  if (menuNovoAberto && !menuNovoAberto.contains(e.target)) fecharMenuNovo();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') fecharMenuNovo();
-});
 
 const ROTULO_ESTADO = { feito: 'feito', pulado: 'pulado', atrasado: 'não realizado', planejado: 'plano' };
 
@@ -97,6 +84,61 @@ function chipAtividade(a) {
 }
 
 /**
+ * Cartão do esforço de uma semana: total (feito + previsto) em destaque, meta do plano anual ao lado, barra, feito × previsto e
+ * badge de conquista quando o que foi feito já atinge a meta. Usado na coluna do calendário e na semana do Início.
+ * @param {{ inicioSemana: string, realizado: number, previsto: number, treinos: number, meta: { cargaAlvo: number, fase: string, detalhe?: string }|null, compacta?: boolean }} p
+ */
+export function cartaoDeEsforco({ inicioSemana, realizado, previsto, treinos, meta, compacta = false }) {
+  const total = realizado + previsto;
+  const atingiu = Boolean(meta) && meta.cargaAlvo > 0 && realizado >= meta.cargaAlvo;
+  const vazio = !meta && treinos === 0 && realizado === 0;
+  const el = h('div', {
+    class: `cal-esforco${compacta ? ' cal-esforco-compacto' : ''}${vazio ? ' cal-esforco-vazio' : ''}`,
+    role: 'group',
+    'aria-label': `Esforço planejado da semana de ${formatarData(inicioSemana)}`,
+  });
+  if (vazio) {
+    el.append(compacta ? h('span', { class: 'cal-esforco-traco', title: 'Sem esforço planejado nesta semana' }, '—') : h('p', null, 'Sem esforço previsto. Aqui aparecem o plano anual ou os treinos avulsos previstos da semana, somados ao que você já fez.'));
+    return el;
+  }
+  if (atingiu) el.classList.add('cal-esforco-conquista');
+  const pct = meta && meta.cargaAlvo > 0 ? Math.min(100, Math.round((total / meta.cargaAlvo) * 100)) : 0;
+  const pctFeito = meta && meta.cargaAlvo > 0 ? Math.min(100, Math.round((realizado / meta.cargaAlvo) * 100)) : 0;
+  const textoTreinos = treinos > 0 ? ` · ${treinos} ${treinos === 1 ? 'treino' : 'treinos'}` : '';
+
+  // cabeçalho: total em destaque, a meta ao lado e o badge de conquista
+  el.append(
+    h(
+      'div',
+      { class: 'cal-esforco-topo' },
+      h('span', { class: 'cal-esforco-total' }, formatarNumero(total, 0)),
+      meta ? h('span', { class: 'cal-esforco-meta' }, `/ ${formatarNumero(meta.cargaAlvo, 0)}`) : null,
+      atingiu ? h('span', { class: 'badge-conquista', title: 'Você atingiu a meta de carga desta semana' }, icone('medalha', 14), compacta ? null : 'Meta atingida') : null,
+    ),
+  );
+  if (meta) {
+    el.append(
+      h(
+        'div',
+        { class: 'cal-esforco-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Total da semana em relação à meta' },
+        h('span', { class: 'cal-esforco-barra-prevista', style: `width:${pct}%` }),
+        h('span', { class: 'cal-esforco-barra-feita', style: `width:${pctFeito}%` }),
+      ),
+    );
+  }
+  el.append(
+    h(
+      'div',
+      { class: 'cal-esforco-detalhe' },
+      h('span', null, h('i', { class: 'cal-ponto cal-ponto-feito', 'aria-hidden': 'true' }), `Feito ${formatarNumero(realizado, 0)}`),
+      h('span', null, h('i', { class: 'cal-ponto cal-ponto-previsto', 'aria-hidden': 'true' }), `Previsto ${formatarNumero(previsto, 0)}${compacta ? '' : textoTreinos}`),
+    ),
+  );
+  if (meta && !compacta) el.append(h('span', { class: 'cal-esforco-fase' }, `${meta.fase}${meta.detalhe ? ` · ${meta.detalhe}` : ''}`));
+  return el;
+}
+
+/**
  * Calendário do plano (semana ou mês). Treinos "planejados" podem ser arrastados para outro dia ou para a lixeira (que pede
  * a confirmação da exclusão em `aoExcluir`).
  * @param {{
@@ -128,54 +170,7 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
         treinos += 1;
       }
     }
-    const total = realizado + previsto;
-    const meta = metaDaSemana(inicioSemana);
-    const atingiu = Boolean(meta) && meta.cargaAlvo > 0 && realizado >= meta.cargaAlvo;
-    const vazio = !meta && treinos === 0 && realizado === 0;
-    const el = h('div', {
-      class: `cal-esforco${compacta ? ' cal-esforco-compacto' : ''}${vazio ? ' cal-esforco-vazio' : ''}`,
-      role: 'group',
-      'aria-label': `Esforço planejado da semana de ${formatarData(inicioSemana)}`,
-    });
-    if (vazio) {
-      el.append(compacta ? h('span', { class: 'cal-esforco-traco', title: 'Sem esforço planejado nesta semana' }, '—') : h('p', null, 'Sem esforço previsto. Aqui aparecem o plano anual ou os treinos avulsos previstos da semana, somados ao que você já fez.'));
-      return el;
-    }
-    if (atingiu) el.classList.add('cal-esforco-conquista');
-    const pct = meta && meta.cargaAlvo > 0 ? Math.min(100, Math.round((total / meta.cargaAlvo) * 100)) : 0;
-    const pctFeito = meta && meta.cargaAlvo > 0 ? Math.min(100, Math.round((realizado / meta.cargaAlvo) * 100)) : 0;
-    const textoTreinos = treinos > 0 ? ` · ${treinos} ${treinos === 1 ? 'treino' : 'treinos'}` : '';
-
-    // cabeçalho: total em destaque, a meta ao lado e o badge de conquista
-    el.append(
-      h(
-        'div',
-        { class: 'cal-esforco-topo' },
-        h('span', { class: 'cal-esforco-total' }, formatarNumero(total, 0)),
-        meta ? h('span', { class: 'cal-esforco-meta' }, `/ ${formatarNumero(meta.cargaAlvo, 0)}`) : null,
-        atingiu ? h('span', { class: 'badge-conquista', title: 'Você atingiu a meta de carga desta semana' }, icone('medalha', 14), compacta ? null : 'Meta atingida') : null,
-      ),
-    );
-    if (meta) {
-      el.append(
-        h(
-          'div',
-          { class: 'cal-esforco-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': 'Total da semana em relação à meta' },
-          h('span', { class: 'cal-esforco-barra-prevista', style: `width:${pct}%` }),
-          h('span', { class: 'cal-esforco-barra-feita', style: `width:${pctFeito}%` }),
-        ),
-      );
-    }
-    el.append(
-      h(
-        'div',
-        { class: 'cal-esforco-detalhe' },
-        h('span', null, h('i', { class: 'cal-ponto cal-ponto-feito', 'aria-hidden': 'true' }), `Feito ${formatarNumero(realizado, 0)}`),
-        h('span', null, h('i', { class: 'cal-ponto cal-ponto-previsto', 'aria-hidden': 'true' }), `Previsto ${formatarNumero(previsto, 0)}${compacta ? '' : textoTreinos}`),
-      ),
-    );
-    if (meta && !compacta) el.append(h('span', { class: 'cal-esforco-fase' }, `${meta.fase}${meta.detalhe ? ` · ${meta.detalhe}` : ''}`));
-    return el;
+    return cartaoDeEsforco({ inicioSemana, realizado, previsto, treinos, meta: metaDaSemana(inicioSemana), compacta });
   }
 
   /** Idêntico para semana e mês: o treino arrastado até aqui é excluído (depois de confirmar). */
@@ -210,33 +205,6 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
     return el;
   }
 
-  /** Botão "+" do dia: com IA liberada abre dois ícones (manual e IA); sem IA, vai direto para o formulário manual. */
-  function botaoNovo(data) {
-    const rotulo = formatarData(data);
-    if (!comIa) return h('button', { type: 'button', class: 'cal-novo', 'aria-label': `Novo treino em ${rotulo}`, onClick: () => aoNovo(data, 'manual') }, '+');
-    const escolher = (modo) => {
-      fecharMenuNovo();
-      aoNovo(data, modo);
-    };
-    const mais = h('button', { type: 'button', class: 'cal-novo', 'aria-label': `Novo treino em ${rotulo}`, 'aria-haspopup': 'true', 'aria-expanded': 'false' }, '+');
-    const menu = h(
-      'div',
-      { class: 'cal-novo-menu', role: 'group', 'aria-label': 'Como criar o treino' },
-      h('button', { type: 'button', class: 'cal-novo-opcao', title: 'Manual', 'aria-label': `Criar treino manualmente em ${rotulo}`, onClick: () => escolher('manual') }, icone('lapis', 16)),
-      h('button', { type: 'button', class: 'cal-novo-opcao', title: 'Sugestão da IA', 'aria-label': `Pedir um treino à IA para ${rotulo}`, onClick: () => escolher('ia') }, icone('ia', 16)),
-    );
-    const wrap = h('div', { class: 'cal-novo-wrap' }, mais, menu);
-    mais.addEventListener('click', () => {
-      const abrir = menuNovoAberto !== wrap;
-      fecharMenuNovo();
-      if (abrir) {
-        wrap.classList.add('aberto');
-        mais.setAttribute('aria-expanded', 'true');
-        menuNovoAberto = wrap;
-      }
-    });
-    return wrap;
-  }
 
   function celula(data, indice, { doMes = true, compacta = false } = {}) {
     const dia = porDia.get(data) ?? { treinos: [], atividades: [] };
@@ -261,7 +229,7 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
         { class: 'cal-topo' },
         h('span', { class: 'cal-rotulo' }, compacta ? String(numero) : `${ROTULOS_DIA[indice]} ${numero}`),
         itens.length > 0 && compacta ? h('span', { class: 'cal-contagem', 'aria-hidden': 'true' }, String(itens.length)) : null,
-        botaoNovo(data),
+        criarMenuNovoTreino({ rotulo: formatarData(data), comIa, aoEscolher: (modo) => aoNovo(data, modo), classe: 'cal-novo' }),
       ),
       h('div', { class: 'cal-itens' }, ...visiveis, itens.length > limite ? h('span', { class: 'cal-mais' }, `+${itens.length - limite}`) : null),
       !compacta && (planejado > 0 || realizado > 0)

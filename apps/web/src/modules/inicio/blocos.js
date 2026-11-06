@@ -5,6 +5,8 @@ import { icone } from '../../utils/icones.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarDuracaoCurta, formatarNumero } from '../../utils/formatters.js';
 import { pedirImportacao } from '../atividades/state.js';
+import { criarMenuDoTreino, criarMenuNovoTreino } from '../../utils/menuNovoTreino.js';
+import { cartaoDeEsforco } from '../plano/calendario.js';
 import { criarDicaZonas } from './dicaZonas.js';
 import { criarGraficoPrincipal } from './graficoPrincipal.js';
 import { cartaoMetaCondicionamento, cartaoProximoTreino, cartaoSequencia, progressoDaCarga, resumoDaSemana } from './semanaExtras.js';
@@ -134,15 +136,21 @@ export function blocoMinis({ proximo, sequencia, metaCondicionamento = null, ava
 }
 
 /** 3. Semana atual em 7 colunas: realizado cheio, planejado tracejado, descanso mínimo. */
-export function blocoSemana({ semana, atividades, treinos = [], carregou, comparativo = null }) {
+export function blocoSemana({ semana, atividades, treinos = [], carregou, comparativo = null, meta = null, comIa = false, aoNovo = () => {}, aoExcluir = () => {} }) {
   const totais = totaisDaSemana(semana);
-  const resumo =
-    totais.planejado > 0
-      ? `Carga total prevista: ${formatarNumero(totais.realizado + totais.planejado, 0)} · realizada até hoje: ${formatarNumero(totais.realizado, 0)}`
-      : `Realizada até hoje: ${formatarNumero(totais.realizado, 0)}`;
-  const cabecalho = cabecalhoDoBloco(tituloDaSemana(semana), h('p', { class: 'texto-secundario bloco-resumo' }, resumo));
+  const cabecalho = cabecalhoDoBloco(
+    tituloDaSemana(semana),
+    carregou && (totais.realizado > 0 || totais.planejado > 0 || meta)
+      ? h(
+          'div',
+          { class: 'cal-esforco-coluna semana-esforco' },
+          h('span', { class: 'cal-esforco-titulo' }, 'ESFORÇO DA SEMANA'),
+          cartaoDeEsforco({ inicioSemana: semana[0].data, realizado: totais.realizado, previsto: totais.planejado, treinos: treinos.filter((t) => t.data >= semana[0].data && t.data <= semana[6].data).length, meta }),
+        )
+      : null,
+  );
 
-  if (!carregou || (totais.realizado === 0 && totais.planejado === 0)) {
+  if (!carregou) {
     return h(
       'section',
       { class: 'card bloco-semana' },
@@ -176,10 +184,22 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
       d.realizado > 0 ? h('span', { class: 'barra-real', style: `height:${Math.max(6, (d.realizado / maximo) * 100)}%` }) : null,
       descanso ? h('span', { class: 'barra-descanso' }) : null,
     );
+    // dia sem barra: o "+" fica no meio do espaço das barras; com barra (treino feito ou planejado), embaixo do valor
+    const podeCriar = d.hoje || d.futuro;
+    const planejadoDoDia = (planoPorDia.get(d.data) ?? []).find((t) => t.status === 'planejado');
+    // dia com treino planejado: um único "⋯" (criar manual, IA ou excluir o treino); nos demais, o "+"
+    const rotuloDia = formatarData(d.data);
+    const novo = !podeCriar
+      ? null
+      : planejadoDoDia
+        ? criarMenuDoTreino({ rotulo: rotuloDia, comIa, centralizado: true, aoEscolher: (modo) => aoNovo(d.data, modo), aoExcluir: () => aoExcluir(planejadoDoDia) })
+        : criarMenuNovoTreino({ rotulo: rotuloDia, comIa, centralizado: true, aoEscolher: (modo) => aoNovo(d.data, modo) });
     const coluna = h(
       'li',
       { class: `dia${d.hoje ? ' dia-hoje' : ''}${descanso ? ' dia-descanso' : ''}`, 'aria-current': d.hoje ? 'date' : null },
-      barras,
+      // linha reservada acima das barras em todas as colunas (mantém a escala igual); o "+" de dias com treino fica nela
+      h('div', { class: 'dia-topo' }, !descanso && novo ? novo : null),
+      h('div', { class: 'dia-area' }, barras, descanso && novo ? h('div', { class: 'dia-novo-centro' }, novo) : null),
       h('p', { class: 'dia-rotulo' }, `${d.rotulo} ${Number(d.dia)}${d.hoje ? ' · HOJE' : ''}`),
       h('p', { class: 'dia-titulo' }, titulo ?? (d.planejado > 0 ? 'Treino planejado' : d.futuro ? 'Livre' : 'Descanso')),
       h('p', { class: 'dia-valor' }, valor),

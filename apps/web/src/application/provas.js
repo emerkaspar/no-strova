@@ -3,8 +3,11 @@ import {
   configVigenteEm,
   estimarEstresseEstruturado,
   estimarEstresseTreino,
+  FASES,
   gerarPlanoAnual,
   gerarRascunhoDoPlano,
+  provaDoPlano,
+  somarDias,
   validarProva,
   validarTreinoPlanejado,
 } from '@no-strova/domain';
@@ -92,4 +95,22 @@ export function descartarRascunhoDaIa(rascunhoId) {
 /** Define a meta de Forma (a existente) com a Forma-alvo e a data da prova. Lança Error em português. */
 export function definirMetaDeFormaDaProva({ uid, prova, hoje, metasAtivas }) {
   return salvarMetaDeForma({ uid, entrada: { formaAlvo: prova.formaAlvo, dataAlvo: prova.data }, hoje, metasAtivas });
+}
+
+/**
+ * Meta de carga da semana que começa em `inicioDaSemana`, vinda do plano anual da prova mais próxima (ou null se a semana não
+ * está no plano). Retorna { cargaAlvo, fase, detalhe }.
+ */
+export function metaDaSemanaDoPlanoAnual({ provas, dias, hoje, inicioDaSemana }) {
+  try {
+    const prova = provaDoPlano(provas, hoje);
+    if (!prova) return null;
+    const fim = somarDias(inicioDaSemana, 6);
+    const s = montarPlanoAnual({ hoje, prova, dias }).semanas.find((x) => x.inicio <= fim && x.fim >= inicioDaSemana);
+    if (!s) return null;
+    const extras = [s.recuperacao ? 'recuperação' : null, s.semanaDaProva ? 'semana da prova' : null].filter(Boolean);
+    return { cargaAlvo: s.cargaAlvo, fase: FASES[s.fase]?.rotulo ?? s.fase, detalhe: extras.join(' · ') };
+  } catch {
+    return null;
+  }
 }

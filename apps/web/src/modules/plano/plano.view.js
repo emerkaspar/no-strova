@@ -446,6 +446,13 @@ Os treinos já realizados e o de hoje não são afetados.`,
     ),
   );
   desenhar();
+  if (estadoPlano.novoTreinoEm) {
+    const data = estadoPlano.novoTreinoEm;
+    estadoPlano.novoTreinoEm = null;
+    estadoPlano.ancora = data;
+    desenhar();
+    abrirEditor(null, data);
+  }
 
   const aoErro = (err) => {
     console.error('Plano: falha ao carregar os dados', err);

@@ -1,16 +1,23 @@
-import { comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
+import { RECURSOS, temRecurso, comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
 import { montarProjecao } from '../../application/plano.js';
+import { metaDaSemanaDoPlanoAnual } from '../../application/provas.js';
+import { obterSessao } from '../../application/sessao.js';
+import { observarProvas } from '../../infrastructure/provasRepo.js';
+import { estadoPlano } from '../plano/state.js';
+import { abrirSugestaoDeTreinoDoDia } from '../plano/sugestaoTreinoDia.js';
 import { observarAtividadesDesde, observarAtividadesParaProgressao, observarUltimasAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarMetasProgressao } from '../../infrastructure/metasProgressaoRepo.js';
 import { blocoObjetivosInicio } from './objetivosInicio.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
-import { observarMetasCondicionamento, observarTreinos } from '../../infrastructure/planoRepo.js';
+import { excluirTreino, observarMetasCondicionamento, observarTreinos } from '../../infrastructure/planoRepo.js';
+import { confirmar } from '../../utils/modal.js';
+import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { observarMetasPeso, observarPesagens } from '../../infrastructure/pesoRepo.js';
 import { h } from '../../utils/dom.js';
-import { hojeIso } from '../../utils/formatters.js';
+import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
 import { blocoAtividades, blocoComparativo, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoRegistroDePeso, blocoSemana, tituloDoTreino } from './blocos.js';
 import { DIAS_DE_PLANO, rotuloDoDia } from './graficoPrincipal.js';
@@ -36,11 +43,12 @@ export function render(raiz, sessao) {
     configs: [],
     calibracao: null,
     metasCondicionamento: [],
+    provas: [],
     pesagens: [],
     metasPeso: [],
     metasProgressao: [],
     atividadesAno: [],
-    carregou: { metasProgressao: false, atividadesAno: false, pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false },
+    carregou: { metasProgressao: false, atividadesAno: false, pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false, provas: false },
   };
   let ativa = true;
 
@@ -112,6 +120,27 @@ export function render(raiz, sessao) {
         treinos: treinosDaSemana.map((t, i) => ({ ...t, estresseProjetado: planejado[i].estresse })),
         comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
         carregou: c.dias && c.atividades && c.treinos && c.configs && c.calibracao,
+        meta: metaDaSemanaDoPlanoAnual({ provas: dados.provas, dias: dados.dias, hoje, inicioDaSemana: segunda }),
+        comIa: temRecurso(obterSessao().perfil, RECURSOS.IA),
+        aoExcluir: async (t) => {
+          const ok = await confirmar({
+            titulo: 'Excluir este treino?',
+            mensagem: `${t.nomeTreino || `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} de ${t.duracaoMin} min`} em ${formatarData(t.data)} sai do plano e da projeção.`,
+            confirmarTexto: 'Excluir',
+            tipo: 'perigo',
+            icone: 'lixeira',
+          });
+          if (ok) excluirTreino(t.id).catch((err) => console.error('Início: falha ao excluir o treino', err));
+        },
+        aoNovo: (data, modo) => {
+          if (modo === 'ia') {
+            abrirSugestaoDeTreinoDoDia({ uid: sessao.uid, data, configs: dados.configs });
+            return;
+          }
+          // manual: abre o editor do Plano já na data escolhida
+          estadoPlano.novoTreinoEm = data;
+          window.location.hash = '#/plano';
+        },
       }),
       ),
       blocoComparativo({
@@ -171,6 +200,7 @@ export function render(raiz, sessao) {
     ouvir('metasProgressao', 'metasProgressao', (ok, erro) => observarMetasProgressao(sessao.uid, ok, erro)),
     // o objetivo anual precisa das atividades desde 1º de janeiro (e a semana pode começar no ano anterior)
     ouvir('atividadesAno', 'atividadesAno', (ok, erro) => observarAtividadesParaProgressao(sessao.uid, hoje.slice(0, 4) + '-01-01' < segunda ? hoje.slice(0, 4) + '-01-01' : segunda, ok, erro)),
+    ouvir('provas', 'provas', (ok, erro) => observarProvas(sessao.uid, hoje, ok, erro)),
     ouvir('metasCondicionamento', 'metasCondicionamento', (ok, erro) => observarMetasCondicionamento(sessao.uid, ok, erro)),
     observarCalibracaoDoUsuario(sessao.uid, ({ efetiva }) => {
       dados.calibracao = efetiva;
