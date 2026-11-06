@@ -8,6 +8,7 @@ import { observarTreinos } from '../../infrastructure/planoRepo.js';
 import { observarPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { seletor } from '../../utils/listaSuspensa.js';
 import { hojeIso } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { criarCartaoTreino } from './cartaoTreino.js';
@@ -15,6 +16,7 @@ import { criarConstrutor } from './construtor.js';
 import { criarDetalheTreino } from './detalhe.js';
 import { criarAbaSugestoes } from './sugestoes.js';
 import { estadoTreinos } from './state.js';
+import { criarAbaTrajetos } from './trajetos/aba.js';
 
 /** Quantos dias de histórico a sugestão considera (o suficiente para a regra de não repetir em 6 semanas). */
 const DIAS_DE_HISTORICO = 45;
@@ -23,6 +25,7 @@ const ABAS = [
   { id: 'sugestoes', rotulo: 'Sugestões' },
   { id: 'biblioteca', rotulo: 'Biblioteca' },
   { id: 'meus', rotulo: 'Meus treinos' },
+  { id: 'trajetos', rotulo: 'Trajetos' },
 ];
 
 /**
@@ -39,6 +42,12 @@ export function render(raiz, sessao) {
   const nivel = () => dados.preferencias?.nivelTreinos ?? 'intermediario';
   const proprios = () => modelosProprios(dados.modelos);
   const mensagem = areaMensagem();
+  /** Aba Trajetos (com os próprios listeners): existe só enquanto a aba está aberta. */
+  let abaTrajetos = null;
+  const descartarAbaTrajetos = () => {
+    abaTrajetos?.destruir();
+    abaTrajetos = null;
+  };
 
   const cabecalho = h('section', { class: 'card' });
   const aberto = h('div');
@@ -74,6 +83,10 @@ export function render(raiz, sessao) {
   }
 
   function desenharAberto() {
+    if (estadoTreinos.aba === 'trajetos') {
+      aberto.replaceChildren();
+      return;
+    }
     if (estadoTreinos.construtor) {
       const { base } = estadoTreinos.construtor;
       aberto.replaceChildren(
@@ -140,13 +153,16 @@ export function render(raiz, sessao) {
           estadoTreinos.desmarcadas = [];
           desenhar();
         })),
-        h('div', null, h('p', { class: 'cg-mini-rotulo' }, 'Nível'), segmentado('Nível', Object.entries(NIVEIS), nivel(), (v) => {
-          dados.preferencias = { ...(dados.preferencias ?? {}), nivelTreinos: v };
-          estadoTreinos.recusados = [];
-          estadoTreinos.desmarcadas = [];
-          desenhar();
-          salvarNivelDosTreinos(sessao.uid, v).catch(() => mensagem.mostrar('Não foi possível salvar o nível.'));
-        })),
+        // o nível não se aplica aos trajetos (são do usuário, não da biblioteca)
+        estadoTreinos.aba === 'trajetos'
+          ? null
+          : h('div', null, h('p', { class: 'cg-mini-rotulo' }, 'Nível'), segmentado('Nível', Object.entries(NIVEIS), nivel(), (v) => {
+              dados.preferencias = { ...(dados.preferencias ?? {}), nivelTreinos: v };
+              estadoTreinos.recusados = [];
+              estadoTreinos.desmarcadas = [];
+              desenhar();
+              salvarNivelDosTreinos(sessao.uid, v).catch(() => mensagem.mostrar('Não foi possível salvar o nível.'));
+            })),
       ),
       mensagem.el,
       h('div', { class: 'treinos-abas', role: 'tablist', 'aria-label': 'Seções' }, ...ABAS.map((a) =>
@@ -167,6 +183,13 @@ export function render(raiz, sessao) {
   }
 
   function desenharConteudo() {
+    if (estadoTreinos.aba === 'trajetos') {
+      if (!abaTrajetos) abaTrajetos = criarAbaTrajetos({ uid: sessao.uid, esporte: estadoTreinos.esporte });
+      else abaTrajetos.definirEsporte(estadoTreinos.esporte);
+      if (conteudo.firstChild !== abaTrajetos.el || conteudo.childNodes.length !== 1) conteudo.replaceChildren(abaTrajetos.el);
+      return;
+    }
+    descartarAbaTrajetos();
     const pronto = Object.values(carregou).every(Boolean);
     if (!pronto) {
       conteudo.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
@@ -193,12 +216,12 @@ export function render(raiz, sessao) {
       return;
     }
     if (estadoTreinos.aba === 'biblioteca') {
-      const foco = h(
-        'select',
-        { id: 'filtro-foco', 'aria-label': 'Foco' },
-        h('option', { value: '' }, 'Todos os focos'),
-        ...Object.entries(FOCOS).map(([id, f]) => h('option', { value: id, selected: id === estadoTreinos.foco }, f.rotulo)),
-      );
+      const foco = seletor({
+        id: 'filtro-foco',
+        rotulo: 'Foco',
+        opcoes: [{ valor: '', rotulo: 'Todos os focos' }, ...Object.entries(FOCOS).map(([id, f]) => ({ valor: id, rotulo: f.rotulo }))],
+        valor: estadoTreinos.foco ?? '',
+      });
       foco.addEventListener('change', () => {
         estadoTreinos.foco = foco.value;
         desenhar();
@@ -252,6 +275,7 @@ export function render(raiz, sessao) {
 
   return () => {
     ativa = false;
+    descartarAbaTrajetos();
     cancelar.forEach((fn) => fn());
   };
 }

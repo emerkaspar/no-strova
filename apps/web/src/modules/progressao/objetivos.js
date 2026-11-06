@@ -43,7 +43,7 @@ function estaEncerrada(meta, av, hoje) {
  * objetivos são independentes: atingir um não afeta os outros. Metas de semana e de mês são recorrentes: o cartão mostra
  * o período atual e o histórico (em quantos períodos o objetivo foi atingido).
  */
-export function painelDeObjetivos({ metas, atividades, condicionamentoPorData, hoje, selecionadaId, aoSelecionar }) {
+export function painelDeObjetivos({ metas, atividades, condicionamentoPorData, hoje, selecionadaId, aoSelecionar, acoes = null }) {
   if (metas.length === 0) {
     return h('p', { class: 'texto-secundario' }, 'Você ainda não criou objetivos. Use "Nova meta" para criar um de distância, tempo, elevação ou Condicionamento, por semana, mês ou ano.');
   }
@@ -70,7 +70,7 @@ export function painelDeObjetivos({ metas, atividades, condicionamentoPorData, h
       'section',
       { class: 'obj-grupo' },
       h('h3', { class: 'obj-grupo-titulo' }, medalha(periodo, true, 18), TITULO_DO_GRUPO[periodo], h('span', { class: 'obj-contagem' }, String(doGrupo.length))),
-      h('div', { class: 'obj-lista' }, doGrupo.map(({ meta, r }) => cartaoDoObjetivo(meta, r, estaEncerrada(meta, r.atual, hoje), meta.id === selecionadaId, aoSelecionar))),
+      h('div', { class: 'obj-lista' }, doGrupo.map(({ meta, r }) => cartaoDoObjetivo(meta, r, estaEncerrada(meta, r.atual, hoje), meta.id === selecionadaId, aoSelecionar, false, acoes ? { ...acoes, encerrada: estaEncerrada(meta, r.atual, hoje) } : null))),
     );
   });
   return h('div', { class: 'obj-painel' }, resumo, grupos);
@@ -112,7 +112,7 @@ export function marcadorDoEsperado(meta, av) {
 }
 
 /** Cartão de um objetivo (o mesmo na Progressão e na Início). `resumo.instancias` = 0 esconde o histórico das metas recorrentes. */
-export function cartaoDoObjetivo(meta, resumo, encerrada, selecionado, aoSelecionar, compacto = false) {
+export function cartaoDoObjetivo(meta, resumo, encerrada, selecionado, aoSelecionar, compacto = false, acoes = null) {
   const av = resumo.atual;
   const periodo = PERIODOS_DE_PROGRESSAO[meta.periodo];
   const recorrente = ehRecorrente(meta);
@@ -161,7 +161,28 @@ export function cartaoDoObjetivo(meta, resumo, encerrada, selecionado, aoSelecio
     historico ? h('div', { class: 'obj-historico' }, historico) : null,
   );
   botao.addEventListener('click', () => aoSelecionar(meta));
-  return botao;
+  if (!acoes) return botao;
+
+  // os botões de ação ficam sobre o canto do cartão, não dentro dele (um botão não pode conter outros botões)
+  const acao = (rotulo, nomeIcone, variante, fn) => {
+    const nome = `${rotulo} o objetivo ${nomeDoObjetivo(meta)}`;
+    const b = h('button', { class: `btn-icone btn-icone-mini${variante ? ` btn-icone-${variante}` : ''}`, type: 'button', title: rotulo, 'aria-label': nome }, icone(nomeIcone, 16));
+    b.addEventListener('click', () => fn(meta));
+    return b;
+  };
+  const podeEncerrar = recorrente && !meta.ate && !acoes.encerrada;
+  return h(
+    'div',
+    { class: 'obj-item' },
+    botao,
+    h(
+      'div',
+      { class: 'obj-acoes' },
+      acao('Editar', 'lapis', '', acoes.editar),
+      podeEncerrar ? acao('Encerrar (vale só até o fim do período atual)', 'bloquear', '', acoes.encerrar) : null,
+      acao('Excluir', 'lixeira', 'perigo', acoes.excluir),
+    ),
+  );
 }
 
 /** Prateleira de badges: uma por objetivo atingido (concedida pelo servidor), das mais recentes para as mais antigas. */

@@ -13,7 +13,7 @@ import {
   TIPOS_DE_PROGRESSAO,
   valorEsperadoDaMeta,
 } from '@no-strova/domain';
-import { encerrarMetaDeProgressao, salvarMetaDeProgressao } from '../../application/progressao.js';
+import { editarMeta, encerrarMetaDeProgressao, salvarMetaDeProgressao } from '../../application/progressao.js';
 import { marcarConquistasComoVistas } from '../../core/functions.js';
 import { observarConquistas } from '../../infrastructure/conquistasRepo.js';
 import { observarAtividadesParaProgressao } from '../../infrastructure/atividadesRepo.js';
@@ -21,13 +21,14 @@ import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { excluirMetaProgressao, observarMetasProgressao } from '../../infrastructure/metasProgressaoRepo.js';
 import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { seletor } from '../../utils/listaSuspensa.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { graficoProgressao } from './graficoProgressao.js';
 import { painelDeObjetivos, prateleiraDeConquistas } from './objetivos.js';
 import { consumirMetaPedida } from './state.js';
-import { confirmar } from '../../utils/modal.js';
+import { abrirModal, confirmar } from '../../utils/modal.js';
 import { criarCartaoZonas } from './zonas.js';
 
 const ANOS_DE_HISTORICO = 5;
@@ -69,12 +70,6 @@ function cartao({ rotulo, nomeIcone, valor, nota = null, gravidade = '' }) {
 
 /** Rótulo enxuto de um período para a tabela: "Semana de 02/11" vira "02/11". */
 const rotuloCurto = (periodo) => periodo.rotulo.replace(/^Semana de /, '');
-
-function rotuloDaMeta(m) {
-  const esportes = m.esportes?.length ? ` · ${m.esportes.map((e) => ESPORTES.find(([id]) => id === e)?.[1] ?? e).join(', ')}` : '';
-  const quando = ehRecorrente(m) ? `${m.periodo === 'mes' ? 'todos os meses' : 'todas as semanas'}${m.ate ? ' (encerrada)' : ''}` : periodoDe(m.periodo, m.inicio).rotulo;
-  return `${PERIODOS_DE_PROGRESSAO[m.periodo].rotulo}: ${TIPOS_DE_PROGRESSAO[m.tipo].rotulo} ${formatarValor(m.tipo, m.valorAlvo)} · ${quando}${esportes}`;
-}
 
 /** Marcas do eixo X conforme o tipo de período. */
 function marcadoresDo(periodo) {
@@ -174,7 +169,7 @@ export function render(raiz, sessao) {
       }),
     );
 
-    const seletorTipo = h('select', { id: 'prog-tipo', 'aria-label': 'Tipo de progresso' }, Object.entries(TIPOS_DE_PROGRESSAO).map(([id, t]) => h('option', { value: id, selected: id === estado.tipo }, t.rotulo)));
+    const seletorTipo = seletor({ id: 'prog-tipo', rotulo: 'Tipo de progresso', opcoes: Object.entries(TIPOS_DE_PROGRESSAO).map(([id, t]) => ({ valor: id, rotulo: t.rotulo })), valor: estado.tipo });
     seletorTipo.addEventListener('change', () => {
       estado.tipo = seletorTipo.value;
       if (estado.tipo === 'condicionamento') estado.esportes = new Set();
@@ -199,49 +194,35 @@ export function render(raiz, sessao) {
         )
       : h('span', { class: 'texto-secundario' }, 'Considera todos os esportes');
 
-    // "Nova meta" fica no cabeçalho de Objetivos; a meta escolhida (ao clicar num objetivo) aparece junto da análise.
+    // "Nova meta" fica no cabeçalho de Objetivos; editar, encerrar e excluir ficam em cada cartão de objetivo.
     const botaoNova = h('button', { class: estado.formAberto ? 'btn btn-secundario' : 'btn', type: 'button', 'aria-expanded': String(estado.formAberto) }, estado.formAberto ? 'Fechar' : '+ Nova meta');
     botaoNova.addEventListener('click', () => {
       estado.formAberto = !estado.formAberto;
       desenhar();
     });
-    const botaoEncerrar = meta && ehRecorrente(meta) && !meta.ate ? h('button', { class: 'btn btn-secundario', type: 'button', title: 'Para de valer a partir do próximo período; o histórico e as badges ficam' }, 'Encerrar meta') : null;
-    botaoEncerrar?.addEventListener('click', async () => {
-      if (!(await confirmar({ titulo: 'Encerrar esta meta?', mensagem: `Ela deixa de valer ao fim d${meta.periodo === 'mes' ? 'este mês' : 'esta semana'}. As badges conquistadas continuam com você.`, confirmarTexto: 'Encerrar meta', tipo: 'aviso', icone: 'medalha' }))) return;
-      mensagem.limpar();
-      try {
-        await encerrarMetaDeProgressao({ meta, hoje });
-      } catch (err) {
-        mensagem.mostrar(err.message || 'Não foi possível encerrar a meta.');
-      }
-    });
-    const botaoExcluir = meta
-      ? h('button', { class: 'btn btn-perigo', type: 'button' }, 'Excluir meta')
-      : null;
-    botaoExcluir?.addEventListener('click', async () => {
-      if (!(await confirmar({ titulo: 'Excluir esta meta?', mensagem: 'Isso não pode ser desfeito.', confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
-      mensagem.limpar();
-      try {
-        await excluirMetaProgressao(meta.id);
-        estado.metaId = null;
-      } catch (err) {
-        mensagem.mostrar(err.message || 'Não foi possível excluir a meta.');
-      }
-    });
-
-    const botaoLimpar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Ver sem meta');
-    botaoLimpar.addEventListener('click', () => {
-      aplicarMeta(null);
-      desenhar();
-    });
-    const faixaMeta = meta
-      ? h(
-          'div',
-          { class: 'prog-meta-faixa' },
-          h('div', { class: 'prog-meta-nome' }, h('span', { class: 'prog-rotulo' }, 'Comparando com o objetivo'), h('strong', null, rotuloDaMeta(meta))),
-          h('div', { class: 'linha-botoes' }, botaoEncerrar, botaoExcluir, botaoLimpar),
-        )
-      : null;
+    const acoesDoObjetivo = {
+      editar: (m) =>
+        abrirModal({ classe: 'modal-meta', rotulo: 'Editar meta', conteudo: (fechar) => formularioDeMeta(m, fechar) }),
+      encerrar: async (m) => {
+        if (!(await confirmar({ titulo: 'Encerrar esta meta?', mensagem: `Ela deixa de valer ao fim d${m.periodo === 'mes' ? 'este mês' : 'esta semana'}. O histórico e as badges conquistadas continuam com você.`, confirmarTexto: 'Encerrar meta', tipo: 'aviso', icone: 'medalha' }))) return;
+        mensagem.limpar();
+        try {
+          await encerrarMetaDeProgressao({ meta: m, hoje });
+        } catch (err) {
+          mensagem.mostrar(err.message || 'Não foi possível encerrar a meta.');
+        }
+      },
+      excluir: async (m) => {
+        if (!(await confirmar({ titulo: 'Excluir esta meta?', mensagem: 'Isso não pode ser desfeito.', confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
+        mensagem.limpar();
+        try {
+          await excluirMetaProgressao(m.id);
+          if (estado.metaId === m.id) estado.metaId = null;
+        } catch (err) {
+          mensagem.mostrar(err.message || 'Não foi possível excluir a meta.');
+        }
+      },
+    };
 
     const controles = h(
       'div',
@@ -368,14 +349,16 @@ export function render(raiz, sessao) {
           condicionamentoPorData,
           hoje,
           selecionadaId: estado.metaId,
+          acoes: acoesDoObjetivo,
           aoSelecionar: (m) => {
             aplicarMeta(m);
             desenhar();
             raiz.querySelector('.prog-analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           },
         }),
+        mensagem.el,
       ),
-      h('section', { class: 'card prog-analise' }, h('h2', null, 'Análise por período'), controles, faixaMeta, mensagem.el),
+      h('section', { class: 'card prog-analise' }, h('h2', null, 'Análise por período'), controles),
       h('div', { class: 'ativ-recordes-grade ativ-indicadores prog-cartoes' }, cartoes),
       temDados || !cfg.acumulado
         ? h(
@@ -395,14 +378,32 @@ export function render(raiz, sessao) {
     }
   }
 
-  /** Formulário "Nova meta": período, qual período, tipo, valor e esportes. */
-  function formularioDeMeta() {
+  /** Grupo de botões de escolha única (no lugar de um select). */
+  function grupoDeBotoes({ rotulo, opcoes, valor, aoMudar, desativado = false, classe = '' }) {
+    let atual = valor;
+    const botoes = opcoes.map(([id, texto]) => {
+      const b = h('button', { class: 'prog-segmento', type: 'button', 'aria-pressed': String(id === atual), disabled: desativado }, texto);
+      b.addEventListener('click', () => {
+        atual = id;
+        botoes.forEach((x, i) => x.setAttribute('aria-pressed', String(opcoes[i][0] === atual)));
+        aoMudar?.(atual);
+      });
+      return b;
+    });
+    return { el: h('div', { class: `campo ${classe}`.trim() }, h('span', { class: 'prog-rotulo' }, rotulo), h('div', { class: 'prog-segmentos', role: 'group', 'aria-label': rotulo }, botoes)), valor: () => atual };
+  }
+
+  /** Formulário de meta: "Nova meta" ou, com `metaEdicao`, a edição de uma existente (o período não muda). */
+  function formularioDeMeta(metaEdicao = null, fecharModal = null) {
     const msg = areaMensagem();
-    const periodo = h('select', { id: 'nm-periodo' }, Object.entries(PERIODOS_DE_PROGRESSAO).map(([id, p]) => h('option', { value: id, selected: id === estado.periodo }, p.rotulo)));
+    const editando = Boolean(metaEdicao);
+    const periodoInicial = metaEdicao?.periodo ?? estado.periodo;
+    const tipoInicial = metaEdicao?.tipo ?? estado.tipo;
+    const periodo = grupoDeBotoes({ rotulo: 'Meta de', opcoes: Object.entries(PERIODOS_DE_PROGRESSAO).map(([id, p]) => [id, p.rotulo]), valor: periodoInicial, aoMudar: () => atualizar(), desativado: editando, classe: 'campo-periodo' });
     const ano = h('input', { id: 'nm-ano', type: 'number', min: '2000', max: '2100', value: String(anoHoje) });
-    const tipo = h('select', { id: 'nm-tipo' }, Object.entries(TIPOS_DE_PROGRESSAO).map(([id, t]) => h('option', { value: id, selected: id === estado.tipo }, t.rotulo)));
-    const valor = h('input', { id: 'nm-valor', type: 'text', inputMode: 'decimal', placeholder: 'Ex.: 2000', autocomplete: 'off' });
-    const escolhidos = new Set(estado.esportes);
+    const tipo = grupoDeBotoes({ rotulo: 'Tipo', opcoes: Object.entries(TIPOS_DE_PROGRESSAO).map(([id, t]) => [id, t.rotulo]), valor: tipoInicial, aoMudar: () => atualizar(), classe: 'campo-largo' });
+    const valor = h('input', { id: 'nm-valor', type: 'text', inputMode: 'decimal', placeholder: 'Ex.: 2000', autocomplete: 'off', value: editando ? formatarNumero(metaEdicao.valorAlvo, TIPOS_DE_PROGRESSAO[metaEdicao.tipo].casas) : '' });
+    const escolhidos = new Set(metaEdicao ? (metaEdicao.esportes ?? []) : estado.esportes);
     const chips = h(
       'div',
       { class: 'prog-chips', role: 'group', 'aria-label': 'Esportes da meta' },
@@ -416,46 +417,65 @@ export function render(raiz, sessao) {
         return botao;
       }),
     );
-    const campoAno = h('div', { class: 'campo' }, h('label', { for: 'nm-ano' }, 'Ano'), ano);
+    const campoAno = h('div', { class: 'campo campo-ano' }, h('label', { for: 'nm-ano' }, 'Ano'), ano);
     const campoRecorrente = h('p', { class: 'texto-secundario prog-recorrente' }, '');
-    const campoEsportes = h('div', { class: 'campo' }, h('span', { class: 'prog-rotulo' }, 'Esportes (nenhum = todos)'), chips);
+    const campoEsportes = h('div', { class: 'campo campo-largo' }, h('span', { class: 'prog-rotulo' }, 'Esportes (nenhum = todos)'), chips);
     const unidade = h('small', { class: 'dica' });
+    const alteraDepois = editando && ehRecorrente(metaEdicao) && metaEdicao.inicio < periodoDe(metaEdicao.periodo, hoje).inicio;
     const atualizar = () => {
-      campoAno.hidden = periodo.value !== 'ano';
-      campoRecorrente.hidden = periodo.value === 'ano';
-      campoRecorrente.textContent = periodo.value === 'semana' ? 'Vale para todas as semanas, a partir desta, até você alterar ou encerrar a meta. Cada semana atingida rende uma badge.' : 'Vale para todos os meses, a partir deste, até você alterar ou encerrar a meta. Cada mês atingido rende uma badge.';
-      campoEsportes.hidden = !TIPOS_DE_PROGRESSAO[tipo.value].acumulado;
-      const u = TIPOS_DE_PROGRESSAO[tipo.value].unidade;
+      campoAno.hidden = editando || periodo.valor() !== 'ano';
+      campoRecorrente.hidden = periodo.valor() === 'ano';
+      const sem = periodo.valor() === 'semana';
+      campoRecorrente.textContent = alteraDepois
+        ? `A alteração vale a partir d${sem ? 'esta semana' : 'este mês'}; os períodos anteriores e as badges já conquistadas continuam como estavam.`
+        : sem ? 'Vale para todas as semanas, a partir desta, até você alterar ou encerrar a meta. Cada semana atingida rende uma badge.' : 'Vale para todos os meses, a partir deste, até você alterar ou encerrar a meta. Cada mês atingido rende uma badge.';
+      campoEsportes.hidden = !TIPOS_DE_PROGRESSAO[tipo.valor()].acumulado;
+      const u = TIPOS_DE_PROGRESSAO[tipo.valor()].unidade;
       unidade.textContent = u ? `Em ${u === 'h' ? 'horas' : u === 'km' ? 'quilômetros' : 'metros'}.` : 'Valor do Condicionamento que você quer ter no fim do período.';
     };
-    periodo.addEventListener('change', atualizar);
-    tipo.addEventListener('change', atualizar);
     atualizar();
 
     const salvar = h('button', { class: 'btn', type: 'submit' }, 'Salvar meta');
+    const cancelar = editando ? h('button', { class: 'btn btn-secundario', type: 'button' }, 'Cancelar') : null;
+    cancelar?.addEventListener('click', () => fecharModal?.());
     const form = h(
       'form',
       { class: 'prog-form', novalidate: true },
-      h('h2', null, 'Nova meta'),
+      h('h2', null, editando ? 'Editar meta' : 'Nova meta'),
       h(
         'div',
         { class: 'prog-form-grade' },
-        h('div', { class: 'campo' }, h('label', { for: 'nm-periodo' }, 'Meta de'), periodo),
+        periodo.el,
         campoAno,
-        h('div', { class: 'campo' }, h('label', { for: 'nm-tipo' }, 'Tipo'), tipo),
         h('div', { class: 'campo' }, h('label', { for: 'nm-valor' }, 'Valor da meta'), valor, unidade),
+        tipo.el,
         campoEsportes,
       ),
-      campoRecorrente,
       msg.el,
-      h('div', { class: 'linha-botoes' }, salvar),
+      h('div', { class: 'prog-rodape' }, campoRecorrente, h('div', { class: 'linha-botoes' }, salvar, cancelar)),
     );
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      // ano: o ano escolhido; semana e mês: a vigência começa no período atual
-      const inicio = periodo.value === 'ano' ? `${ano.value}-01-01` : hoje;
       await executarComBotao(salvar, msg, async () => {
-        const id = await salvarMetaDeProgressao({ uid: sessao.uid, metas: dados.metas, hoje, entrada: { periodo: periodo.value, inicio, tipo: tipo.value, valorAlvo: valor.value, esportes: [...escolhidos] } });
+        if (editando) {
+          const tipoNovo = tipo.valor();
+          const esportesNovos = TIPOS_DE_PROGRESSAO[tipoNovo].acumulado ? [...escolhidos] : [];
+          const id = await editarMeta({ uid: sessao.uid, meta: metaEdicao, metas: dados.metas, valorAlvo: valor.value, tipo: tipoNovo, esportes: esportesNovos, hoje });
+          // se o objetivo editado era o que está no gráfico, o gráfico acompanha a mudança
+          if (estado.metaId === metaEdicao.id) {
+            if (id !== metaEdicao.id) estado.metaPendente = id; // nova vigência: seleciona quando o listener a trouxer
+            else {
+              estado.tipo = tipoNovo;
+              estado.esportes = new Set(esportesNovos);
+            }
+          }
+          fecharModal?.(true);
+          desenhar();
+          return;
+        }
+        // ano: o ano escolhido; semana e mês: a vigência começa no período atual
+        const inicio = periodo.valor() === 'ano' ? `${ano.value}-01-01` : hoje;
+        const id = await salvarMetaDeProgressao({ uid: sessao.uid, metas: dados.metas, hoje, entrada: { periodo: periodo.valor(), inicio, tipo: tipo.valor(), valorAlvo: valor.value, esportes: [...escolhidos] } });
         estado.formAberto = false;
         // a meta nova chega pelo listener; guarda o id para selecioná-la assim que aparecer
         estado.metaPendente = id;

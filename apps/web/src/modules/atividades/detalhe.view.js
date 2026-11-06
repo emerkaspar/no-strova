@@ -14,6 +14,7 @@ import { ROTULO_ESPORTE, ROTULO_ORIGEM_CALORIAS, ROTULO_ORIGEM_HRSS, TEXTO_ALERT
 import { confirmar } from '../../utils/modal.js';
 import { cartaoComoFoi } from './feedbackModal.js';
 import { medalhasDaAtividade } from '../../application/medalhas.js';
+import { prepararEvolucaoDoTrajeto } from '../treinos/state.js';
 
 /** Indicador no estilo dos recordes: ícone, rótulo, valor grande e nota no rodapé. */
 function indicador(rotulo, valor, nota, nomeIcone = 'atividades') {
@@ -453,6 +454,10 @@ export function render(raiz, sessao, { id }) {
           nomeDoTrajeto = r.trajeto?.nome ?? null;
           if (ativa) desenhar(a, serie, detalhe, { calculando, carregandoDetalhe });
         }, { trajetoNome: nomeDoTrajeto }),
+        // a evolução por trajeto existe para ciclismo e corrida (os esportes de Treinos)
+        a.trajetoId && nomeDoTrajeto && (a.esporte === 'ciclismo' || a.esporte === 'corrida')
+          ? h('p', null, h('a', { href: '#/treinos', onClick: () => prepararEvolucaoDoTrajeto({ esporte: a.esporte, trajetoId: a.trajetoId }) }, `Ver a evolução em ${nomeDoTrajeto} →`))
+          : null,
         aviso,
         medalhasEl,
         indicadores,

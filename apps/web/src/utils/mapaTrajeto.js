@@ -13,7 +13,7 @@ const temaClaro = () => document.documentElement.dataset.tema === 'claro';
  * Mapa base. Com `VITE_MAPBOX_TOKEN` (token público do Mapbox) usa os estilos escuro/claro do Mapbox; sem ele, cai para os
  * blocos do OpenStreetMap, que não pedem chave (no tema escuro o CSS os escurece: .mapa-base).
  */
-function camadaBase() {
+export function camadaBase() {
   if (TOKEN_MAPBOX) {
     const estilo = temaClaro() ? 'light-v11' : 'dark-v11';
     return L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/${estilo}/tiles/{z}/{x}/{y}?access_token=${TOKEN_MAPBOX}`, {

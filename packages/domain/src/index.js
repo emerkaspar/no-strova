@@ -7,6 +7,8 @@ export * from './configAtleta.js';
 export * from './exportarPlano.js';
 export * from './feedback.js';
 export * from './trajeto.js';
+export * from './trechoDoTrajeto.js';
+export * from './evolucaoTrajeto.js';
 export * from './exportarTreino.js';
 export * from './textoIntervals.js';
 export * from './forma.js';

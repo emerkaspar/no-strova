@@ -1,4 +1,5 @@
 import { h } from './dom.js';
+import { seletor } from './listaSuspensa.js';
 
 /** Campo de formulário com rótulo. Retorna { raiz, input }. */
 export function campo({ id, rotulo, tipo = 'text', dica, ...atributos }) {
@@ -17,11 +18,7 @@ export function campo({ id, rotulo, tipo = 'text', dica, ...atributos }) {
  * Lista suspensa com rótulo. `opcoes` é [{ valor, rotulo }]. Retorna { raiz, select }.
  */
 export function selecao({ id, rotulo, opcoes, valor = '', dica }) {
-  const select = h(
-    'select',
-    { id, name: id },
-    ...opcoes.map((o) => h('option', { value: o.valor, selected: o.valor === valor }, o.rotulo)),
-  );
+  const select = seletor({ id, rotulo, opcoes, valor });
   const raiz = h(
     'div',
     { class: 'campo' },

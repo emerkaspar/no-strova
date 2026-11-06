@@ -3,6 +3,7 @@ import { reconstruirCalibracao } from '../../core/functions.js';
 import { salvarPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { seletor } from '../../utils/listaSuspensa.js';
 import { formatarData, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { analisarAtividadeLthr, montarResultadoLthr } from './resultadoLthr.js';
@@ -112,7 +113,7 @@ export function criarCartaoTesteLthr({ uid }) {
   let atividades = [];
   const mensagem = areaMensagem();
   const resultado = h('div', { class: 'teste-resultado' });
-  const select = h('select', { id: 'teste-atividade', name: 'teste-atividade' });
+  const select = seletor({ id: 'teste-atividade', rotulo: 'Atividade do teste' });
   const botaoAnalisar = h('button', { class: 'btn', type: 'button' }, 'Analisar esta atividade');
   const dicaSemOpcoes = h('p', { class: 'vazio-curto' }, 'Importe uma atividade de pelo menos 30 minutos com frequência cardíaca para analisá-la aqui.');
 
@@ -127,8 +128,7 @@ export function criarCartaoTesteLthr({ uid }) {
   function atualizarOpcoes() {
     const atual = select.value;
     const lista = candidatas();
-    select.replaceChildren(...lista.map((a) => h('option', { value: a.id }, rotulo(a))));
-    if (lista.some((a) => a.id === atual)) select.value = atual;
+    select.definirOpcoes(lista.map((a) => ({ valor: a.id, rotulo: rotulo(a) })), atual);
     select.hidden = lista.length === 0;
     botaoAnalisar.hidden = lista.length === 0;
     dicaSemOpcoes.hidden = lista.length > 0;

@@ -11,6 +11,7 @@ import { avisoDispensavel } from '../../utils/avisoDispensavel.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { resumoSincronizacao, semNovidades, sincronizarGarmin } from '../configuracao/garmin.js';
 import { h } from '../../utils/dom.js';
+import { seletor } from '../../utils/listaSuspensa.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { tempoDeEsforco, ritmoTexto } from './esforcos.js';
@@ -159,21 +160,18 @@ export function render(raiz, sessao) {
       estadoAtividades.pagina = 1;
       desenharTudo();
     };
-    const seletorAno = h(
-      'select',
-      {
-        class: `ativ-ano${periodo.startsWith('ano:') ? ' ativo' : ''}`,
-        'aria-label': 'Escolher um ano',
-        onChange: (e) => {
-          if (!e.target.value) return;
-          estadoAtividades.periodo = e.target.value;
-          estadoAtividades.pagina = 1;
-          desenharTudo();
-        },
-      },
-      h('option', { value: '' }, 'Ano…'),
-      ...anos.map((a) => h('option', { value: `ano:${a}`, selected: periodo === `ano:${a}` }, String(a))),
-    );
+    const seletorAno = seletor({
+      classe: `ativ-ano-ls${periodo.startsWith('ano:') ? ' ativo' : ''}`,
+      rotulo: 'Escolher um ano',
+      opcoes: [{ valor: '', rotulo: 'Ano…' }, ...anos.map((a) => ({ valor: `ano:${a}`, rotulo: String(a) }))],
+      valor: periodo.startsWith('ano:') ? periodo : '',
+    });
+    seletorAno.addEventListener('change', () => {
+      if (!seletorAno.value) return;
+      estadoAtividades.periodo = seletorAno.value;
+      estadoAtividades.pagina = 1;
+      desenharTudo();
+    });
     const esportes = [
       ['', 'Todos', null],
       ['ciclismo', 'Ciclismo', icone('ciclismo', 16)],
@@ -406,13 +404,13 @@ export function render(raiz, sessao) {
         h(
           'div',
           { class: 'ativ-celula-nome' },
+          medalhaDaLinha(a, medalhasDaAtividade, escopoDaLinha),
           h(
             'a',
             { class: 'ativ-data', href: `#/atividades/${a.id}`, title: a.titulo || undefined },
             h('span', { class: 'ativ-data-dia' }, formatarData(a.data)),
             h('span', { class: `ativ-nome${a.titulo ? '' : ' ativ-nome-padrao'}` }, a.titulo || (ROTULO_ESPORTE[a.esporte] ?? a.esporte)),
           ),
-          medalhaDaLinha(a, medalhasDaAtividade, escopoDaLinha),
           h(
             'button',
             {
@@ -422,7 +420,7 @@ export function render(raiz, sessao) {
               'aria-label': a.feedback ? `Editar como foi a atividade de ${formatarData(a.data)}` : `Contar como foi a atividade de ${formatarData(a.data)}`,
               onClick: () => abrirFeedbackDaAtividade({ atividade: a }),
             },
-            miniSensacao(a.feedback) ?? h('span', { class: 'ativ-pendente' }, 'Como foi?'),
+            miniSensacao(a.feedback) ?? h('span', { class: 'ativ-pendente' }, icone('lapis', 14)),
           ),
         ),
       ),
@@ -447,7 +445,7 @@ export function render(raiz, sessao) {
       h(
         'td',
         { class: 'ativ-col-abrir' },
-        h('a', { class: 'ativ-olho', href: `#/atividades/${a.id}`, title: 'Abrir a atividade', 'aria-label': `Abrir a atividade de ${formatarData(a.data)}` }, icone('olho', 20)),
+        h('a', { class: 'ativ-olho', href: `#/atividades/${a.id}`, title: 'Abrir a atividade', 'aria-label': `Abrir a atividade de ${formatarData(a.data)}` }, icone('olho', 16)),
       ),
     );
     previa.ligar(tr, a);
@@ -468,21 +466,15 @@ export function render(raiz, sessao) {
     };
     const seta = (nome, rotulo, destino, desligada) =>
       h('button', { type: 'button', class: 'ativ-pag-seta', title: rotulo, 'aria-label': rotulo, disabled: desligada, onClick: irPara(destino) }, icone(nome, 18));
-    const seletor = h(
-      'select',
-      {
-        'aria-label': 'Atividades por página',
-        onChange: (e) => {
-          estadoAtividades.porPagina = Number(e.target.value);
-          estadoAtividades.pagina = 1;
-          desenharTabela();
-        },
-      },
-      ...OPCOES_POR_PAGINA.map((n) => h('option', { value: String(n), selected: n === estadoAtividades.porPagina }, String(n))),
-    );
+    const tamanhoPagina = seletor({ rotulo: 'Atividades por página', opcoes: OPCOES_POR_PAGINA.map((n) => ({ valor: String(n), rotulo: String(n) })), valor: String(estadoAtividades.porPagina) });
+    tamanhoPagina.addEventListener('change', () => {
+      estadoAtividades.porPagina = Number(tamanhoPagina.value);
+      estadoAtividades.pagina = 1;
+      desenharTabela();
+    });
     const { pagina } = estadoAtividades;
     paginacao.replaceChildren(
-      h('label', { class: 'ativ-pag-tamanho' }, 'Atividades por página', seletor),
+      h('label', { class: 'ativ-pag-tamanho' }, 'Atividades por página', tamanhoPagina),
       h('span', { class: 'ativ-pag-faixa' }, h('strong', null, `${inicio + 1}–${inicio + naPagina}`), ` de ${total}`),
       h(
         'div',

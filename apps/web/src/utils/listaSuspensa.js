@@ -198,3 +198,36 @@ export function listaSuspensa({ rotulo, aoMudar }) {
     fechar,
   };
 }
+
+/**
+ * Substituto do <select> nativo com a lista suspensa do projeto. Devolve o elemento (`.ls`) com a mesma interface básica
+ * de um select: `.value` (lê e escreve), `.disabled`, `.hidden` e o evento `change`. `definirOpcoes(opcoes, valor)` troca as
+ * opções. Use `id` para que um <label for> aponte para o botão.
+ *
+ *   const esporte = seletor({ id: 'esporte', rotulo: 'Esporte', opcoes: [{ valor: 'corrida', rotulo: 'Corrida' }], valor: 'corrida' });
+ *
+ * @param {{ id?: string, rotulo: string, opcoes?: Array<{ valor: string, rotulo: string }>, valor?: string, classe?: string }} p
+ */
+export function seletor({ id, rotulo, opcoes = [], valor = '', classe = '' }) {
+  let atuais = opcoes;
+  const lista = listaSuspensa({ rotulo, aoMudar: () => el.dispatchEvent(new Event('change', { bubbles: true })) });
+  const el = lista.raiz;
+  const botao = el.querySelector('.ls-botao');
+  if (id) botao.id = id;
+  if (classe) el.classList.add(...classe.split(' '));
+  const escolhaValida = (v) => (atuais.some((o) => o.valor === v) ? v : (atuais[0]?.valor ?? ''));
+  lista.definir(atuais, escolhaValida(String(valor)));
+  Object.defineProperty(el, 'value', {
+    get: () => lista.valor(),
+    set: (v) => lista.definir(atuais, escolhaValida(String(v))),
+  });
+  Object.defineProperty(el, 'disabled', {
+    get: () => botao.disabled,
+    set: (d) => lista.desabilitar(Boolean(d)),
+  });
+  el.definirOpcoes = (novas, v = lista.valor()) => {
+    atuais = novas;
+    lista.definir(atuais, escolhaValida(String(v)));
+  };
+  return el;
+}

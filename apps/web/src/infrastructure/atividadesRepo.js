@@ -44,6 +44,19 @@ export function lerSerieDetalhe(id) {
   return lerDocumento(`atividades/${id}/series/detalhe`);
 }
 
+/**
+ * Atividades que estão em algum trajeto de treino (as que têm `trajetoId`), sem ordem: quem chama separa por trajeto e ordena.
+ * Lê só essas atividades, não o histórico inteiro. Quem chama cancela o listener ao sair da tela.
+ */
+export function observarAtividadesComTrajeto(uid, aoDados, aoErro) {
+  return observarConsulta(
+    'atividades',
+    { onde: [['userId', '==', uid], ['trajetoId', '>', '']], ordenarPor: [['trajetoId', 'asc']], limite: 3000 },
+    aoDados,
+    aoErro,
+  );
+}
+
 /** Atividades de uma data (yyyy-mm-dd) em diante para a progressão do ano (vários anos, então o limite é maior que o do Início). */
 export function observarAtividadesParaProgressao(uid, dataInicio, aoDados, aoErro) {
   return observarConsulta(

@@ -4,6 +4,7 @@ import { aceitarRascunho, aceitarRascunhoDaIa, definirMetaDeFormaDaProva, descar
 import { obterSessao } from '../../application/sessao.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { seletor } from '../../utils/listaSuspensa.js';
 import { formatarData, formatarForma, formatarNumero } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
@@ -165,21 +166,18 @@ export function criarCartaoPlanoAnual({ uid, hoje, aoAceitar = () => {} }) {
     const plano = montarPlanoAnual({ hoje, prova, dias: ctx.dias });
     const r = plano.resumo;
 
-    const seletor = h(
-      'select',
-      {
-        id: 'anual-prova',
-        name: 'anual-prova',
-        'aria-label': 'Prova do plano anual',
-        onChange: (e) => {
-          provaId = e.target.value;
-          rascunho = null;
-          mensagem.limpar();
-          desenhar();
-        },
-      },
-      ...futuras.map((p) => h('option', { value: p.id, selected: p.id === prova.id }, `${p.prioridade} · ${p.nome} · ${formatarData(p.data)}`)),
-    );
+    const seletorProva = seletor({
+      id: 'anual-prova',
+      rotulo: 'Prova do plano anual',
+      opcoes: futuras.map((p) => ({ valor: p.id, rotulo: `${p.prioridade} · ${p.nome} · ${formatarData(p.data)}` })),
+      valor: prova.id,
+    });
+    seletorProva.addEventListener('change', () => {
+      provaId = seletorProva.value;
+      rascunho = null;
+      mensagem.limpar();
+      desenhar();
+    });
 
     const botaoRascunho = h('button', { class: 'btn', type: 'button', disabled: !r }, 'Montar rascunho das próximas 4 semanas');
     botaoRascunho.addEventListener('click', () => {
@@ -222,7 +220,7 @@ export function criarCartaoPlanoAnual({ uid, hoje, aoAceitar = () => {} }) {
 
     // replaceChildren() escreve "null" na tela se receber null: os itens opcionais saem pelo filter
     corpo.replaceChildren(...[
-      h('div', { class: 'campo anual-seletor' }, h('label', { for: 'anual-prova' }, 'Prova'), seletor),
+      h('div', { class: 'campo anual-seletor' }, h('label', { for: 'anual-prova' }, 'Prova'), seletorProva),
       h(
         'p',
         { class: 'texto-secundario' },

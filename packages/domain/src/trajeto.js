@@ -1,6 +1,6 @@
 /**
  * "Trajeto de Treino": um percurso com nome que o usuário cria e escolhe nas atividades, para comparar esforços
- * entre atividades do mesmo trajeto (a comparação é uma melhoria futura). Cada trajeto vale para um esporte e a
+ * entre atividades do mesmo trajeto (ver evolucaoTrajeto.js e trechoDoTrajeto.js). Cada trajeto vale para um esporte e a
  * atividade tem no máximo um. Funções puras.
  */
 export const LIMITES_TRAJETO = Object.freeze({ nomeMax: 60, porUsuario: 50 });

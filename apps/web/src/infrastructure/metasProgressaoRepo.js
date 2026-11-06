@@ -27,6 +27,11 @@ export function encerrarMetaProgressao(id, ate) {
   return gravarEmLote([{ tipo: 'update', caminho: `${COLECAO}/${id}`, dados: { ate } }]);
 }
 
+/** Corrige a meta no próprio documento: `dados` = { valorAlvo, tipo, esportes }. */
+export function atualizarMetaProgressao(id, dados) {
+  return gravarEmLote([{ tipo: 'update', caminho: `${COLECAO}/${id}`, dados }]);
+}
+
 export function excluirMetaProgressao(id) {
   return excluirDocumento(`${COLECAO}/${id}`);
 }

@@ -21,6 +21,19 @@ export function lerTrajetos(uid) {
   });
 }
 
+/**
+ * Trajetos do usuário em tempo real (a rota de referência muda quando a callable `definirRotaDoTrajeto` roda), em ordem
+ * alfabética. Quem chama cancela o listener ao sair da tela.
+ */
+export function observarTrajetos(uid, aoDados, aoErro) {
+  return observarConsulta(
+    COLECAO,
+    { onde: [['userId', '==', uid]] },
+    (lista) => aoDados(lista.sort((x, y) => String(x.nome).localeCompare(String(y.nome), 'pt-BR'))),
+    aoErro,
+  );
+}
+
 /** Um trajeto pelo id, ou null. */
 export async function lerTrajeto(id) {
   const dados = await lerDocumento(`${COLECAO}/${id}`);

@@ -4773,11 +4773,51 @@ textarea {
   border-radius: 16px;
 }
 
+/* campos crescem para preencher cada linha, sem sobrar espaço vazio */
 .prog-form-grade {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.prog-form-grade > .campo {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.prog-form-grade > .campo-periodo {
+  flex: 2 1 280px;
+}
+
+.prog-form-grade > .campo-ano {
+  flex: 0 1 150px;
+}
+
+.prog-form-grade > .campo-largo {
+  flex: 1 1 100%;
+}
+
+.prog-form .prog-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.prog-form .prog-rodape .prog-recorrente {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.prog-form .prog-rodape .linha-botoes {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .prog-form h2,
@@ -4793,9 +4833,18 @@ textarea {
   align-content: start;
 }
 
-/* esportes ocupam a linha toda, com os chips lado a lado */
-.prog-form .campo:has(.prog-chips) {
-  grid-column: 1 / -1;
+/* rótulos de todos os campos do formulário com o mesmo estilo (maiúsculas, discreto) */
+.prog-form .campo > label {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prog-form .campo .dica {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 .prog-form .prog-chips {
@@ -5038,6 +5087,76 @@ textarea {
 .obj-selecionado {
   border-color: var(--primary);
 }
+
+.obj-item {
+  position: relative;
+  display: flex;
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+.obj-item > .obj-cartao {
+  flex: 1 1 auto;
+}
+
+/* ícones no canto inferior direito do cartão; o cartão reserva uma faixa embaixo para eles */
+.obj-acoes {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.obj-item > .obj-cartao {
+  padding-bottom: 54px;
+}
+
+.btn-icone-mini {
+  width: 32px;
+  height: 32px;
+}
+
+.btn-icone-perigo {
+  color: var(--danger, #ff6b6b);
+}
+
+.btn-icone-perigo:hover,
+.btn-icone-perigo:focus-visible {
+  border-color: var(--danger, #ff6b6b);
+  color: var(--danger, #ff6b6b);
+}
+
+/* escolhas de tipo/período dentro do formulário: quebram de linha em vez de estourar a largura */
+.prog-form .prog-segmentos {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: stretch;
+  gap: 2px;
+  border-radius: 14px;
+}
+
+.prog-form .prog-segmento {
+  flex: 1 1 auto;
+  padding: 10px 14px;
+  border-radius: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* esportes: um chip ao lado do outro, ocupando a linha toda */
+.prog-form .campo .prog-chips {
+  flex-wrap: nowrap;
+}
+
+.prog-form .campo .prog-chip {
+  flex: 1 1 0;
+  justify-content: center;
+  padding-block: 10px;
+  text-align: center;
+}
+
+
 
 .obj-encerrada {
   opacity: 0.7;
@@ -6226,23 +6345,24 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-hover), var(--primary));
-  color: var(--primary-contrast);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent), 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .ativ-olho .icone {
-  stroke-width: 2;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
 }
 
 .ativ-olho:hover,
 .ativ-olho:focus-visible {
-  transform: scale(1.12);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 22%, transparent), 0 6px 18px color-mix(in srgb, var(--primary) 50%, transparent);
+  background: var(--primary);
+  color: var(--primary-contrast);
 }
 
 .ativ-paginacao {

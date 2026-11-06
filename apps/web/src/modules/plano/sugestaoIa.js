@@ -3,6 +3,7 @@ import { lerPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { aceitarTreinosDaIa, descartarRascunho, pedirTreinosDaIa, restantesDaIa } from '../../application/ia.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { seletor } from '../../utils/listaSuspensa.js';
 import { formatarData } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 
@@ -22,7 +23,7 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
   const escolhidos = new Set([1, 3, 5, 6]);
   const longaoSelecionado = { valor: '6' };
   const diasCampo = h('div', { class: 'campo ia-dias-campo' }, h('span', { class: 'ia-rotulo' }, 'Dias de treino'));
-  const longao = h('select', { id: 'ia-longao', name: 'ia-longao', 'aria-label': 'Dia do longão' });
+  const longao = seletor({ id: 'ia-longao', rotulo: 'Dia do longão' });
   const longaoCampo = h('div', { class: 'campo' }, h('label', { for: 'ia-longao' }, 'Dia do longão'), longao);
   longao.addEventListener('change', () => {
     longaoSelecionado.valor = longao.value;
@@ -30,11 +31,7 @@ export function criarCartaoSugestaoIa({ uid, obterConfigs, aoAceitar = () => {} 
   function desenharDias() {
     const ordenados = [...escolhidos].sort((a, b) => a - b);
     if (!escolhidos.has(Number(longaoSelecionado.valor))) longaoSelecionado.valor = '';
-    longao.replaceChildren(
-      h('option', { value: '' }, 'Sem longão'),
-      ...ordenados.map((d) => h('option', { value: String(d), selected: String(d) === longaoSelecionado.valor }, NOMES[d])),
-    );
-    longao.value = longaoSelecionado.valor;
+    longao.definirOpcoes([{ valor: '', rotulo: 'Sem longão' }, ...ordenados.map((d) => ({ valor: String(d), rotulo: NOMES[d] }))], longaoSelecionado.valor);
     diasCampo.replaceChildren(
       h('span', { class: 'ia-rotulo' }, `Dias de treino (${escolhidos.size} por semana)`),
       h(

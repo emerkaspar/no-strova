@@ -1,5 +1,5 @@
 import { ehRecorrente, periodoDe, somarDias, validarMetaDeProgressao } from '@no-strova/domain';
-import { criarMetaProgressao, encerrarMetaProgressao } from '../infrastructure/metasProgressaoRepo.js';
+import { atualizarMetaProgressao, criarMetaProgressao, encerrarMetaProgressao } from '../infrastructure/metasProgressaoRepo.js';
 
 const mesmosEsportes = (a, b) => a.length === b.length && a.every((e) => b.includes(e));
 
@@ -9,7 +9,7 @@ const mesmosEsportes = (a, b) => a.length === b.length && a.every((e) => b.inclu
  * anterior passa a valer só até o período anterior (ou some, se tinha começado neste mesmo período). As badges já
  * conquistadas ficam. Devolve o id; lança Error com a mensagem em português quando inválida.
  */
-export async function salvarMetaDeProgressao({ uid, entrada, metas = [], hoje }) {
+export async function salvarMetaDeProgressao({ uid, entrada, metas = [], hoje, ajustesExtras = [] }) {
   const r = validarMetaDeProgressao(entrada);
   if (!r.valido) throw new Error(r.erros.join(' '));
   // Condicionamento vem do HRSS de todos os esportes: o filtro de esporte não se aplica
@@ -25,7 +25,27 @@ export async function salvarMetaDeProgressao({ uid, entrada, metas = [], hoje })
       ajustes.push({ id: m.id, apagar: true });
     }
   }
+  for (const extra of ajustesExtras) if (!ajustes.some((a) => a.id === extra.id)) ajustes.push(extra);
   return criarMetaProgressao(uid, valores, ajustes);
+}
+
+/**
+ * Edita o valor da meta. Meta anual, ou recorrente que começou no período atual: corrige no próprio registro.
+ * Recorrente de períodos anteriores: abre uma nova vigência a partir de agora, e o histórico (e as badges) ficam com o valor antigo.
+ */
+export async function editarMeta({ uid, meta, metas, valorAlvo, tipo, esportes, hoje }) {
+  const entrada = { periodo: meta.periodo, inicio: meta.inicio, tipo, valorAlvo, esportes };
+  const r = validarMetaDeProgressao(entrada);
+  if (!r.valido) throw new Error(r.erros.join(' '));
+  const { valorAlvo: alvo, tipo: tipoFinal } = r.valores;
+  const esportesFinal = tipoFinal === 'condicionamento' ? [] : r.valores.esportes;
+  if (!ehRecorrente(meta) || meta.inicio >= periodoDe(meta.periodo, hoje).inicio) {
+    await atualizarMetaProgressao(meta.id, { valorAlvo: alvo, tipo: tipoFinal, esportes: esportesFinal });
+    return meta.id;
+  }
+  // nova vigência: se o tipo/esporte mudou, a meta antiga não seria substituída sozinha, então encerra ela aqui
+  const encerrarAntiga = !meta.ate || meta.ate >= periodoDe(meta.periodo, hoje).inicio ? [{ id: meta.id, ate: somarDias(periodoDe(meta.periodo, hoje).inicio, -1) }] : [];
+  return salvarMetaDeProgressao({ uid, metas, hoje, entrada: { ...entrada, esportes: esportesFinal, inicio: hoje }, ajustesExtras: encerrarAntiga });
 }
 
 /** Encerra a meta recorrente ao fim do período atual: os seguintes deixam de ter esse objetivo. */

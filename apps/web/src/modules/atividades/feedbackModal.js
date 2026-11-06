@@ -8,7 +8,7 @@ import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarDuracao } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
-import { listaSuspensa } from '../../utils/listaSuspensa.js';
+import { listaSuspensa, seletor } from '../../utils/listaSuspensa.js';
 import { abrirModal, confirmar } from '../../utils/modal.js';
 import { analisarAtividadeLthr, montarResultadoLthr } from '../configuracao/resultadoLthr.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE } from './textos.js';
@@ -99,7 +99,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
 
     // ---------- nome e esporte (ficam no cabeçalho) ----------
     const campoTitulo = h('input', { type: 'text', class: 'fb-nome', maxLength: TITULO_MAX, value: a.titulo ?? '', placeholder: nomePadrao, 'aria-label': 'Nome da atividade', title: 'Nome da atividade (em branco, volta ao nome padrão)' });
-    const campoEsporte = h('select', { class: 'fb-esporte-seletor', 'aria-label': 'Esporte', title: 'Esporte (duração, distância e FC vêm do arquivo e não mudam)' }, ...OPCOES_ESPORTE.map((o) => h('option', { value: o.valor, selected: o.valor === a.esporte }, o.rotulo)));
+    const campoEsporte = seletor({ classe: 'fb-esporte-seletor', rotulo: 'Esporte', opcoes: OPCOES_ESPORTE, valor: a.esporte });
 
     // ---------- cabeçalho ----------
     const resumo = [formatarData(a.data), a.duracaoS ? formatarDuracao(a.duracaoS) : null, a.distanciaM ? formatarDistancia(a.distanciaM) : null].filter(Boolean);

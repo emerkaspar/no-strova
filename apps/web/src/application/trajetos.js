@@ -1,0 +1,68 @@
+import { parciaisDoTrecho, passagensDoTrajeto, perfilDaPassagem, podioDoTrajeto, resumoDoTrajeto, rotaValida } from '@no-strova/domain';
+import { ajustarTrechoDaAtividade, definirRotaDoTrajeto } from '../core/functions.js';
+import { lerSerieDetalhe } from '../infrastructure/atividadesRepo.js';
+
+/**
+ * Evolução por trajeto: junta os trajetos e as atividades vinculadas e usa as regras de `@no-strova/domain`
+ * (evolucaoTrajeto.js e trechoDoTrajeto.js). O trecho de cada atividade é detectado no servidor e já vem gravado nela.
+ */
+
+/**
+ * Trajetos do esporte com suas passagens (da mais antiga para a mais nova), resumo e pódio. Trajetos sem passagem entram
+ * com a lista vazia.
+ * @returns {Array<{ trajeto: object, passagens: object[], resumo: object|null, podio: Map<string,string>, rota: object|null }>}
+ */
+export function montarTrajetos(trajetos, atividades, esporte) {
+  return trajetos
+    .filter((t) => t.esporte === esporte)
+    .map((trajeto) => {
+      const passagens = passagensDoTrajeto(atividades, trajeto.id);
+      return {
+        trajeto,
+        passagens,
+        resumo: resumoDoTrajeto(passagens),
+        podio: podioDoTrajeto(passagens),
+        rota: rotaValida(trajeto.rota) ? trajeto.rota : null,
+      };
+    });
+}
+
+const series = new Map(); // série detalhada por atividade: a tela redesenha a cada snapshot e não deve reler
+
+/** Série detalhada da atividade (com cache da sessão), ou null. */
+async function serieDaAtividade(id) {
+  if (!series.has(id)) series.set(id, lerSerieDetalhe(id).catch(() => null));
+  return series.get(id);
+}
+
+/**
+ * Perfil (trecho do trajeto ou atividade inteira) e parciais por km de cada passagem, lidos sob demanda.
+ * @returns {Promise<Map<string, { perfil: object|null, parciais: object[] }>>} sem série, `perfil` é null
+ */
+export async function carregarDetalhes(passagens) {
+  const lidas = await Promise.all(passagens.map((p) => serieDaAtividade(p.id)));
+  return new Map(
+    passagens.map((p, k) => {
+      const serie = lidas[k];
+      const perfil = perfilDaPassagem(serie, p);
+      return [p.id, { perfil, parciais: perfil ? parciaisDoTrecho(serie, perfil.i0, perfil.i1) : [] }];
+    }),
+  );
+}
+
+/**
+ * Define a rota do trajeto a partir de uma atividade (inteira ou da faixa `iniKm`..`fimKm`) e refaz o trecho das
+ * atividades do trajeto no servidor.
+ * @returns {Promise<{ total: number, comTrecho: number, semGps: number, semCorrespondencia: number, preservadas: number }>}
+ */
+export async function definirRota({ trajetoId, atividadeId, iniKm = null, fimKm = null }) {
+  const faixa = iniKm !== null && fimKm !== null ? { iniM: Math.round(iniKm * 1000), fimM: Math.round(fimKm * 1000) } : {};
+  const r = await definirRotaDoTrajeto({ trajetoId, atividadeId, ...faixa });
+  return { total: r.total, comTrecho: r.comTrecho, semGps: r.semGps, semCorrespondencia: r.semCorrespondencia, preservadas: r.preservadas };
+}
+
+/** Ajuste manual do trecho de uma atividade: `modo` 'auto' (pela rota), 'inteira' ou 'faixa' (com `iniKm` e `fimKm`). */
+export async function ajustarTrecho({ atividadeId, modo, iniKm = null, fimKm = null }) {
+  const faixa = modo === 'faixa' ? { iniM: Math.round(iniKm * 1000), fimM: Math.round(fimKm * 1000) } : {};
+  return ajustarTrechoDaAtividade({ atividadeId, modo, ...faixa });
+}

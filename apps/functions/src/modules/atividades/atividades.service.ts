@@ -30,6 +30,7 @@ import { db } from "../../shared/firebase";
 import { ALERTAS, type ResultadoProcessamento } from "./atividades.types";
 import { calcularCalorias, calcularEstresse } from "./estresse";
 import { ArquivoInvalidoError, type Extensao, lerArquivo } from "./parsers";
+import { trechoParaAtividadeNova } from "./trajetos.service";
 
 export const TAMANHO_MAXIMO_BYTES = 15 * 1024 * 1024;
 /** Limite de atividades criadas por usuário por dia (arquivo + manual), contra abuso. */
@@ -410,7 +411,9 @@ export async function excluirTrajeto(uid: string, trajetoId: unknown): Promise<{
   const marcadas = await db.collection("atividades").where("userId", "==", uid).where("trajetoId", "==", trajetoId).get();
   for (let i = 0; i < marcadas.docs.length; i += 400) {
     const lote = db.batch();
-    for (const doc of marcadas.docs.slice(i, i + 400)) lote.update(doc.ref, { trajetoId: FieldValue.delete() });
+    for (const doc of marcadas.docs.slice(i, i + 400)) {
+      lote.update(doc.ref, { trajetoId: FieldValue.delete(), trajetoTrecho: FieldValue.delete() });
+    }
     await lote.commit();
   }
   await ref.delete();
@@ -476,9 +479,15 @@ export async function salvarEdicaoDaAtividade(uid: string, atividadeId: string, 
     if (dados.trajeto === null) {
       trajeto = null;
       alteracoes.trajetoId = FieldValue.delete();
+      alteracoes.trajetoTrecho = FieldValue.delete();
     } else {
       trajeto = await resolverTrajeto(uid, esporte, dados.trajeto);
       alteracoes.trajetoId = trajeto.id;
+      // trajeto diferente: o trecho é detectado de novo (junto com o trajetoId, para acordar o gatilho de estresse uma vez só)
+      if (trajeto.id !== snap.get("trajetoId")) {
+        const trecho = await trechoParaAtividadeNova(snap, trajeto.id, () => carregarConfigs(uid));
+        alteracoes.trajetoTrecho = trecho ?? FieldValue.delete();
+      }
     }
   } else if ("esporte" in dados && typeof snap.get("trajetoId") === "string") {
     // o trajeto é de um esporte só: se a atividade mudou de esporte, a ligação sai
@@ -486,6 +495,7 @@ export async function salvarEdicaoDaAtividade(uid: string, atividadeId: string, 
     if (!atual.exists || atual.get("esporte") !== esporte) {
       trajeto = null;
       alteracoes.trajetoId = FieldValue.delete();
+      alteracoes.trajetoTrecho = FieldValue.delete();
     }
   }
   if (Object.keys(alteracoes).length === 0) throw new HttpsError("invalid-argument", "Nada para salvar.");

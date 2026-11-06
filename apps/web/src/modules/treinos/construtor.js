@@ -10,6 +10,7 @@ import {
 } from '@no-strova/domain';
 import { salvarModeloProprio } from '../../application/treinos.js';
 import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
+import { seletor } from '../../utils/listaSuspensa.js';
 import { h } from '../../utils/dom.js';
 import { lerDuracao, textoDeDuracao } from '../../utils/duracao.js';
 import { formatarNumero } from '../../utils/formatters.js';
@@ -31,8 +32,7 @@ function treinoInicial() {
   ];
 }
 
-const opcoes = (valores, rotulos = {}, atual) =>
-  valores.map((v) => h('option', { value: v, selected: v === atual }, rotulos[v] ?? v));
+const opcoes = (valores, rotulos = {}) => valores.map((v) => ({ valor: v, rotulo: rotulos[v] ?? v }));
 
 /**
  * Construtor de treinos intervalados próprios. Com \`base\` de outro usuário ou do catálogo, abre uma cópia para editar;
@@ -82,7 +82,7 @@ export function criarConstrutor({ uid, base, config, esporteInicial, aoSalvar, a
   }
 
   function campoZona(objeto, rotulo) {
-    const select = h('select', { 'aria-label': rotulo }, ...opcoes(ZONAS, {}, objeto.zona));
+    const select = seletor({ rotulo, opcoes: opcoes(ZONAS), valor: objeto.zona });
     select.addEventListener('change', () => {
       objeto.zona = select.value;
       atualizarPrevia();
@@ -132,7 +132,7 @@ export function criarConstrutor({ uid, base, config, esporteInicial, aoSalvar, a
         controles,
       );
     }
-    const papel = h('select', { 'aria-label': `Tipo do passo ${i + 1}` }, ...opcoes(PAPEIS_DO_BLOCO, ROTULO_PAPEL, passo.papel));
+    const papel = seletor({ rotulo: `Tipo do passo ${i + 1}`, opcoes: opcoes(PAPEIS_DO_BLOCO, ROTULO_PAPEL), valor: passo.papel });
     papel.addEventListener('change', () => {
       passo.papel = papel.value;
       atualizarPrevia();
@@ -168,11 +168,11 @@ export function criarConstrutor({ uid, base, config, esporteInicial, aoSalvar, a
   // ---- dados gerais ----
   const nome = h('input', { id: 'tm-nome', type: 'text', value: rascunho.nome, maxlength: 60, placeholder: 'Ex.: 6 × 4 min no limiar' });
   nome.addEventListener('input', () => (rascunho.nome = nome.value));
-  const esporte = h('select', { id: 'tm-esporte' }, ...opcoes(ESPORTES_TREINO, ROTULO_ESPORTE, rascunho.esporte));
+  const esporte = seletor({ id: 'tm-esporte', rotulo: 'Esporte', opcoes: opcoes(ESPORTES_TREINO, ROTULO_ESPORTE), valor: rascunho.esporte });
   esporte.addEventListener('change', () => (rascunho.esporte = esporte.value));
-  const foco = h('select', { id: 'tm-foco' }, ...opcoes(Object.keys(FOCOS), Object.fromEntries(Object.entries(FOCOS).map(([k, v]) => [k, v.rotulo])), rascunho.foco));
+  const foco = seletor({ id: 'tm-foco', rotulo: 'Foco', opcoes: opcoes(Object.keys(FOCOS), Object.fromEntries(Object.entries(FOCOS).map(([k, v]) => [k, v.rotulo]))), valor: rascunho.foco });
   foco.addEventListener('change', () => (rascunho.foco = foco.value));
-  const nivel = h('select', { id: 'tm-nivel' }, ...opcoes(Object.keys(NIVEIS), NIVEIS, rascunho.nivel));
+  const nivel = seletor({ id: 'tm-nivel', rotulo: 'Nível', opcoes: opcoes(Object.keys(NIVEIS), NIVEIS), valor: rascunho.nivel });
   nivel.addEventListener('change', () => (rascunho.nivel = nivel.value));
   const descricao = h('textarea', { id: 'tm-descricao', rows: 3, maxlength: 500, placeholder: 'Como executar, o que sentir…' });
   descricao.value = rascunho.descricao;

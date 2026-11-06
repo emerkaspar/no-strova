@@ -251,16 +251,21 @@
   font-size: 0.85rem;
 }
 
+/* seletor de esporte do cabeçalho: versão compacta (pílula) da lista suspensa */
 .fb-esporte-seletor {
-  padding: 2px 6px;
-  color: var(--text-primary);
-  font: inherit;
+  width: auto;
+}
+
+.fb-esporte-seletor .ls-botao {
+  gap: 6px;
+  padding: 2px 8px 2px 12px;
   font-size: 0.8rem;
-  font-weight: 600;
   background: var(--surface-light);
-  border: 1px solid var(--border);
   border-radius: 999px;
-  cursor: pointer;
+}
+
+.fb-esporte-seletor .ls-lista {
+  min-width: 150px;
 }
 
 .fb-fechar {
@@ -672,15 +677,17 @@
 }
 
 .ativ-pendente {
+  display: inline-flex;
   flex: none;
-  padding: 2px 9px;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   color: var(--primary);
-  font-size: 0.7rem;
-  font-weight: 700;
-  white-space: nowrap;
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  opacity: 0.75;
   border: 1px dashed color-mix(in srgb, var(--primary) 55%, transparent);
-  border-radius: 999px;
+  border-radius: 50%;
+  transition: opacity 0.15s ease, background 0.15s ease;
 }
 
 .fb-cartao {
@@ -790,9 +797,11 @@
   cursor: pointer;
 }
 
-.ativ-como-foi:hover .ativ-pendente {
-  background: color-mix(in srgb, var(--primary) 20%, transparent);
+.ativ-como-foi:hover .ativ-pendente,
+.ativ-como-foi:focus-visible .ativ-pendente {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
   border-style: solid;
+  opacity: 1;
 }
 
 .ativ-como-foi:hover .ativ-sensacao {
@@ -1224,4 +1233,53 @@
   .ls-seta {
     transition: none;
   }
+}
+
+/* edição de meta de progressão: o formulário já tem a moldura do modal */
+.modal-meta {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.modal-meta .prog-form {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+/* filtro de ano da lista de atividades: pílula no mesmo estilo dos chips de período */
+.ativ-ano-ls {
+  width: auto;
+}
+
+.ativ-ano-ls .ls-botao {
+  gap: 6px;
+  padding: 7px 10px 7px 14px;
+  font-size: 0.88rem;
+  background: var(--surface-light);
+  border-radius: 999px;
+}
+
+.ativ-ano-ls.ativo .ls-botao {
+  color: var(--primary-contrast, #fff);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.ativ-ano-ls.ativo .ls-seta {
+  color: inherit;
+}
+
+.ls-lista {
+  min-width: 120px;
+}
+
+/* seletor de quantidade por página: compacto */
+.ativ-pag-tamanho .ls {
+  display: inline-block;
+  min-width: 84px;
+}
+
+.ativ-pag-tamanho .ls-botao {
+  padding: 6px 10px;
 }

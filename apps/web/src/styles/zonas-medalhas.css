@@ -445,7 +445,11 @@
 .ativ-celula-nome {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+}
+
+.ativ-celula-nome .medalha-selo {
+  flex-shrink: 0;
 }
 
 .ativ-celula-nome .ativ-data {
