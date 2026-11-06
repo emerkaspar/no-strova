@@ -17,6 +17,7 @@ import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
+import { abrirSugestaoDeTreinoDoDia } from './sugestaoTreinoDia.js';
 import { contarPendencias, criarCartaoAcompanhamento } from './acompanhamento.js';
 import { desenharCalendario } from './calendario.js';
 import { criarEditor } from './editor.js';
@@ -38,8 +39,8 @@ function rotuloDoPeriodo(visao, ancora) {
 }
 
 const ABAS = [
-  { id: 'calendario', rotulo: 'Calendário' },
   { id: 'projecao', rotulo: 'Projeção' },
+  { id: 'calendario', rotulo: 'Calendário' },
   { id: 'provas', rotulo: 'Provas' },
   { id: 'acompanhamento', rotulo: 'Acompanhamento' },
 ];
@@ -311,7 +312,12 @@ Os treinos já realizados e o de hoje não são afetados.`,
             porDia: agruparPorDia(dados.treinos, dados.atividades),
             metaDaSemana,
             aoEditar: (t) => abrirEditor(t, t.data),
-            aoNovo: (data) => abrirEditor(null, data),
+            comIa: temRecurso(obterSessao().perfil, RECURSOS.IA),
+            aoNovo: (data, modo) => {
+              if (modo !== 'ia') return abrirEditor(null, data);
+              mensagem.limpar();
+              abrirSugestaoDeTreinoDoDia({ uid: sessao.uid, data, configs: dados.configs, aoAceitar: (texto) => mensagem.mostrar(texto, 'ok') });
+            },
             aoMover: (id, data) => {
               const t = dados.treinos.find((x) => x.id === id);
               if (!t || t.data === data) return;

@@ -16,6 +16,21 @@ import { ROTULO_ESPORTE } from '../atividades/textos.js';
 /** Id do treino sendo arrastado (HTML5 drag and drop). */
 let arrastandoId = null;
 
+/** Menu do "+" aberto no momento (só um por vez); fecha ao clicar fora ou apertar Esc. */
+let menuNovoAberto = null;
+function fecharMenuNovo() {
+  if (!menuNovoAberto) return;
+  menuNovoAberto.classList.remove('aberto');
+  menuNovoAberto.querySelector('.cal-novo')?.setAttribute('aria-expanded', 'false');
+  menuNovoAberto = null;
+}
+document.addEventListener('click', (e) => {
+  if (menuNovoAberto && !menuNovoAberto.contains(e.target)) fecharMenuNovo();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') fecharMenuNovo();
+});
+
 const ROTULO_ESTADO = { feito: 'feito', pulado: 'pulado', atrasado: 'não realizado', planejado: 'plano' };
 
 function estadoDoTreino(t, hoje) {
@@ -87,11 +102,11 @@ function chipAtividade(a) {
  * @param {{
  *   visao: 'semana'|'mes', ancora: string, hoje: string, configs: any[],
  *   porDia: Map<string, { treinos: any[], atividades: any[] }>,
- *   aoEditar: (treino: any) => void, aoNovo: (data: string) => void, aoMover: (id: string, data: string) => void,
+ *   aoEditar: (treino: any) => void, aoNovo: (data: string, modo: 'manual'|'ia') => void, comIa?: boolean, aoMover: (id: string, data: string) => void,
  *   aoExcluir: (id: string) => void
  * }} p
  */
-export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = null, porDia, metaDaSemana = () => null, aoEditar, aoNovo, aoMover, aoExcluir }) {
+export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = null, porDia, metaDaSemana = () => null, comIa = false, aoEditar, aoNovo, aoMover, aoExcluir }) {
   /**
    * Coluna "Esforço planejado" de uma semana (segunda a domingo): soma do que já foi feito com os treinos previstos, comparada à
    * meta do plano anual (quando a semana está nele). Atingida a meta com o que foi feito, ganha o badge de conquista.
@@ -195,6 +210,34 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
     return el;
   }
 
+  /** Botão "+" do dia: com IA liberada abre dois ícones (manual e IA); sem IA, vai direto para o formulário manual. */
+  function botaoNovo(data) {
+    const rotulo = formatarData(data);
+    if (!comIa) return h('button', { type: 'button', class: 'cal-novo', 'aria-label': `Novo treino em ${rotulo}`, onClick: () => aoNovo(data, 'manual') }, '+');
+    const escolher = (modo) => {
+      fecharMenuNovo();
+      aoNovo(data, modo);
+    };
+    const mais = h('button', { type: 'button', class: 'cal-novo', 'aria-label': `Novo treino em ${rotulo}`, 'aria-haspopup': 'true', 'aria-expanded': 'false' }, '+');
+    const menu = h(
+      'div',
+      { class: 'cal-novo-menu', role: 'group', 'aria-label': 'Como criar o treino' },
+      h('button', { type: 'button', class: 'cal-novo-opcao', title: 'Manual', 'aria-label': `Criar treino manualmente em ${rotulo}`, onClick: () => escolher('manual') }, icone('lapis', 16)),
+      h('button', { type: 'button', class: 'cal-novo-opcao', title: 'Sugestão da IA', 'aria-label': `Pedir um treino à IA para ${rotulo}`, onClick: () => escolher('ia') }, icone('ia', 16)),
+    );
+    const wrap = h('div', { class: 'cal-novo-wrap' }, mais, menu);
+    mais.addEventListener('click', () => {
+      const abrir = menuNovoAberto !== wrap;
+      fecharMenuNovo();
+      if (abrir) {
+        wrap.classList.add('aberto');
+        mais.setAttribute('aria-expanded', 'true');
+        menuNovoAberto = wrap;
+      }
+    });
+    return wrap;
+  }
+
   function celula(data, indice, { doMes = true, compacta = false } = {}) {
     const dia = porDia.get(data) ?? { treinos: [], atividades: [] };
     const treinos = [...dia.treinos].sort((a, b) => String(a.id).localeCompare(String(b.id)));
@@ -218,7 +261,7 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
         { class: 'cal-topo' },
         h('span', { class: 'cal-rotulo' }, compacta ? String(numero) : `${ROTULOS_DIA[indice]} ${numero}`),
         itens.length > 0 && compacta ? h('span', { class: 'cal-contagem', 'aria-hidden': 'true' }, String(itens.length)) : null,
-        h('button', { type: 'button', class: 'cal-novo', 'aria-label': `Novo treino em ${formatarData(data)}`, onClick: () => aoNovo(data) }, '+'),
+        botaoNovo(data),
       ),
       h('div', { class: 'cal-itens' }, ...visiveis, itens.length > limite ? h('span', { class: 'cal-mais' }, `+${itens.length - limite}`) : null),
       !compacta && (planejado > 0 || realizado > 0)

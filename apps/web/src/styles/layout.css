@@ -1418,6 +1418,49 @@ textarea {
   border-color: var(--text-secondary);
 }
 
+.cal-novo-wrap {
+  position: relative;
+}
+
+.cal-novo-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  display: none;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.cal-novo-wrap.aberto .cal-novo-menu {
+  display: flex;
+}
+
+.cal-novo-opcao {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.cal-novo-opcao:hover,
+.cal-novo-opcao:focus-visible {
+  color: var(--primary-contrast);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
 .cal-itens {
   display: flex;
   flex-direction: column;
@@ -1834,6 +1877,7 @@ textarea {
   }
 
   .cal-compacta .cal-itens,
+  .cal-compacta .cal-novo-wrap,
   .cal-compacta .cal-novo {
     display: none;
   }

@@ -1,4 +1,4 @@
-import { decidirRascunho, iaChamadasRestantes, sugerirTreinos } from '../core/functions.js';
+import { decidirRascunho, iaChamadasRestantes, sugerirTreinos, sugerirTreinoUnico } from '../core/functions.js';
 import { adicionarVariosAoPlano } from './treinos.js';
 
 /** Quantas sugestões de IA ainda restam hoje. */
@@ -10,6 +10,11 @@ export async function restantesDaIa() {
 /** Pede à IA os treinos das próximas semanas. Retorna { rascunhoId, restantes, saida }. Lança Error em português. */
 export function pedirTreinosDaIa(entrada) {
   return sugerirTreinos(entrada);
+}
+
+/** Pede à IA um único treino para o dia (pela carga e pelo sentimento recente). Retorna { rascunhoId, restantes, saida }. */
+export function pedirTreinoUnicoDaIa({ data }) {
+  return sugerirTreinoUnico({ data });
 }
 
 /**
