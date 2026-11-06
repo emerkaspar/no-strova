@@ -87,11 +87,11 @@ export function sugerirTreinos({ hoje, esporte, nivel, treinos = [], forma = nul
   }
   if (intensosPermitidos <= 0 && !(forma !== null && forma < R.formaCarregada)) avisos.push('A semana já tem treinos intensos suficientes.');
 
-  // candidatos: nível e esporte do atleta; sem os usados nas últimas semanas nem os recusados
+  // candidatos: nível (sem nível, vale qualquer um) e esporte do atleta; sem os usados nas últimas semanas nem os recusados
   const usadosRecentes = new Set(
     treinos.filter((t) => t.modeloId && t.data >= somarDias(hoje, -R.diasSemRepetirModelo)).map((t) => t.modeloId),
   );
-  const todos = [...modelosDoCatalogo({ esporte, nivel }), ...(incluirProprios ? proprios.filter((m) => m.esporte === esporte && m.nivel === nivel) : [])];
+  const todos = [...modelosDoCatalogo({ esporte, nivel }), ...(incluirProprios ? proprios.filter((m) => m.esporte === esporte && (!nivel || m.nivel === nivel)) : [])];
   const candidatos = todos.filter((m) => !usadosRecentes.has(m.id) && !excluir.includes(m.id));
   if (candidatos.length === 0) return { sugestoes: [], avisos: [...avisos, 'Não há mais treinos novos para este nível e esporte: mude o nível ou recuse menos sugestões.'] };
 

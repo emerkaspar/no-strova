@@ -14,23 +14,17 @@ import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { criarCartaoTreino } from './cartaoTreino.js';
 import { criarConstrutor } from './construtor.js';
 import { criarDetalheTreino } from './detalhe.js';
-import { criarAbaSugestoes } from './sugestoes.js';
-import { estadoTreinos } from './state.js';
-import { criarAbaTrajetos } from './trajetos/aba.js';
+import { criarSecaoSugestoes } from './sugestoes.js';
+import { estadoTreinos, salvarRecolhidas } from './state.js';
+import { criarSecaoTrajetos } from './trajetos/aba.js';
 
 /** Quantos dias de histórico a sugestão considera (o suficiente para a regra de não repetir em 6 semanas). */
 const DIAS_DE_HISTORICO = 45;
 
-const ABAS = [
-  { id: 'sugestoes', rotulo: 'Sugestões' },
-  { id: 'biblioteca', rotulo: 'Biblioteca' },
-  { id: 'meus', rotulo: 'Meus treinos' },
-  { id: 'trajetos', rotulo: 'Trajetos' },
-];
-
 /**
- * Treinos intervalados: sugestões para a semana (por regras), biblioteca do sistema (ciclismo e corrida, por foco e
- * nível) e os treinos próprios do usuário, com construtor. Cada treino pode ir para o plano ou para o relógio (.fit).
+ * Treinos, numa página só: sugestões para a semana (por regras), a evolução nos trajetos do usuário, a biblioteca do sistema
+ * (ciclismo e corrida, por foco e nível) e os treinos próprios, com construtor. As seções podem ser recolhidas (o app lembra)
+ * e um índice fixo leva a cada uma. Cada treino pode ir para o plano ou para o relógio (.fit).
  */
 export function render(raiz, sessao) {
   const hoje = hojeIso();
@@ -42,17 +36,17 @@ export function render(raiz, sessao) {
   const nivel = () => dados.preferencias?.nivelTreinos ?? 'intermediario';
   const proprios = () => modelosProprios(dados.modelos);
   const mensagem = areaMensagem();
-  /** Aba Trajetos (com os próprios listeners): existe só enquanto a aba está aberta. */
-  let abaTrajetos = null;
-  const descartarAbaTrajetos = () => {
-    abaTrajetos?.destruir();
-    abaTrajetos = null;
-  };
+  /** Seção Trajetos: criada uma vez (tem os próprios listeners) e reaproveitada a cada redesenho da página. */
+  const trajetos = criarSecaoTrajetos({ uid: sessao.uid, esporte: estadoTreinos.esporte });
+  cancelar.push(() => trajetos.destruir());
 
   const cabecalho = h('section', { class: 'card' });
+  const controles = h('div', { class: 'treinos-controles' });
+  /** Barra fixa com os controles (esporte e nível), sempre à mão ao rolar. */
+  const barra = h('div', { class: 'treinos-barra' }, controles);
   const aberto = h('div');
-  const conteudo = h('div', { class: 'pilha' });
-  raiz.replaceChildren(h('div', { class: 'pilha' }, cabecalho, aberto, conteudo));
+  const secoes = h('div', { class: 'pilha' });
+  raiz.replaceChildren(h('div', { class: 'pilha' }, cabecalho, barra, aberto, secoes));
 
   function segmentado(rotulo, itens, atual, aoEscolher) {
     return h(
@@ -82,11 +76,51 @@ export function render(raiz, sessao) {
     aberto.firstChild?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }
 
+  // ---------- seções recolhíveis e índice ----------
+
+  const estaRecolhida = (id) => estadoTreinos.recolhidas.includes(id);
+
+  function definirRecolhida(id, recolher) {
+    const sem = estadoTreinos.recolhidas.filter((x) => x !== id);
+    estadoTreinos.recolhidas = recolher ? [...sem, id] : sem;
+    salvarRecolhidas(estadoTreinos.recolhidas);
+  }
+
+  /**
+   * Seção da página: um cartão com título (que recolhe e abre), ações à direita e o corpo; `fora` é o que fica logo abaixo do
+   * cartão (o painel de um trajeto), e some junto quando a seção é recolhida.
+   */
+  function secao(id, { titulo, acoes = null, corpo, fora = null }) {
+    const recolhida = estaRecolhida(id);
+    const corpoId = `treinos-corpo-${id}`;
+    const botao = h(
+      'button',
+      {
+        class: 'treinos-secao-titulo',
+        type: 'button',
+        'aria-expanded': String(!recolhida),
+        'aria-controls': corpoId,
+        onClick: () => {
+          definirRecolhida(id, !recolhida);
+          desenhar();
+          raiz.querySelector(`#treinos-${id} .treinos-secao-titulo`)?.focus();
+        },
+      },
+      h('h2', null, titulo),
+      h('span', { class: 'treinos-secao-seta', 'aria-hidden': 'true' }, '▾'),
+    );
+    if (fora) fora.hidden = recolhida;
+    return h(
+      'section',
+      { class: 'treinos-secao pilha', id: `treinos-${id}`, 'data-recolhida': String(recolhida) },
+      h('div', { class: 'card' }, h('div', { class: 'bloco-topo' }, botao, acoes), h('div', { class: 'treinos-secao-corpo', id: corpoId, hidden: recolhida }, corpo)),
+      fora,
+    );
+  }
+
+  // ---------- partes da página ----------
+
   function desenharAberto() {
-    if (estadoTreinos.aba === 'trajetos') {
-      aberto.replaceChildren();
-      return;
-    }
     if (estadoTreinos.construtor) {
       const { base } = estadoTreinos.construtor;
       aberto.replaceChildren(
@@ -97,7 +131,8 @@ export function render(raiz, sessao) {
           esporteInicial: estadoTreinos.esporte,
           aoSalvar: () => {
             estadoTreinos.construtor = null;
-            estadoTreinos.aba = 'meus';
+            definirRecolhida('meus', false);
+            estadoTreinos.rolarPara = 'meus';
             mensagem.mostrar('Treino salvo em Meus treinos.', 'ok');
             desenhar();
           },
@@ -138,84 +173,95 @@ export function render(raiz, sessao) {
 
   function desenharCabecalho() {
     cabecalho.replaceChildren(
-      h('h1', null, 'Treinos intervalados'),
+      h('h1', null, 'Treinos'),
       h(
         'p',
         { class: 'texto-secundario' },
-        'Uma biblioteca de treinos para ciclismo e corrida, por foco e nível, com sugestões para a semana. Escolha um, leve para o plano ou para o relógio, ou crie o seu.',
-      ),
-      h(
-        'div',
-        { class: 'treinos-controles' },
-        h('div', null, h('p', { class: 'cg-mini-rotulo' }, 'Esporte'), segmentado('Esporte', [['ciclismo', 'Ciclismo'], ['corrida', 'Corrida']], estadoTreinos.esporte, (v) => {
-          estadoTreinos.esporte = v;
-          estadoTreinos.recusados = [];
-          estadoTreinos.desmarcadas = [];
-          desenhar();
-        })),
-        // o nível não se aplica aos trajetos (são do usuário, não da biblioteca)
-        estadoTreinos.aba === 'trajetos'
-          ? null
-          : h('div', null, h('p', { class: 'cg-mini-rotulo' }, 'Nível'), segmentado('Nível', Object.entries(NIVEIS), nivel(), (v) => {
-              dados.preferencias = { ...(dados.preferencias ?? {}), nivelTreinos: v };
-              estadoTreinos.recusados = [];
-              estadoTreinos.desmarcadas = [];
-              desenhar();
-              salvarNivelDosTreinos(sessao.uid, v).catch(() => mensagem.mostrar('Não foi possível salvar o nível.'));
-            })),
+        'Sugestões para a semana, a sua evolução em cada trajeto e uma biblioteca de treinos intervalados para ciclismo e corrida, por foco e nível. Escolha um treino, leve para o plano ou para o relógio, ou crie o seu.',
       ),
       mensagem.el,
-      h('div', { class: 'treinos-abas', role: 'tablist', 'aria-label': 'Seções' }, ...ABAS.map((a) =>
-        h('button', { class: 'treinos-aba', type: 'button', role: 'tab', 'aria-selected': String(estadoTreinos.aba === a.id), onClick: () => {
-          estadoTreinos.aba = a.id;
-          mensagem.limpar();
-          desenhar();
-        } }, a.rotulo),
-      )),
     );
   }
 
-  function grade(modelos, acoes = () => []) {
+  /** Esporte, na barra fixa. Vale para a página inteira. */
+  function desenharControles() {
+    controles.replaceChildren(
+      h('div', { class: 'treinos-controle' }, h('span', { class: 'treinos-controle-rotulo' }, 'Esporte'), segmentado('Esporte', [['ciclismo', 'Ciclismo'], ['corrida', 'Corrida']], estadoTreinos.esporte, (v) => {
+        estadoTreinos.esporte = v;
+        estadoTreinos.recusados = [];
+        estadoTreinos.desmarcadas = [];
+        desenhar();
+      })),
+    );
+  }
+
+  /**
+   * Nível de um bloco: 'todos' ou um dos níveis. Cada bloco (Esta semana e Biblioteca) tem o seu, na sessão; sem escolha, vale o
+   * nível salvo nas preferências. "Todos" nunca é salvo (as regras só aceitam os três níveis).
+   * @param {'nivelSemana'|'nivelBiblioteca'} chave
+   */
+  const nivelDoBloco = (chave) => estadoTreinos[chave] ?? nivel();
+  /** O nível que as regras recebem: vazio quer dizer todos. */
+  const nivelParaRegras = (chave) => (nivelDoBloco(chave) === 'todos' ? undefined : nivelDoBloco(chave));
+
+  function seletorDeNivel(chave) {
+    return h(
+      'div',
+      { class: 'treinos-controle' },
+      h('span', { class: 'treinos-controle-rotulo' }, 'Nível'),
+      segmentado('Nível', [['todos', 'Todos'], ...Object.entries(NIVEIS)], nivelDoBloco(chave), (v) => {
+        estadoTreinos[chave] = v;
+        if (chave === 'nivelSemana') {
+          estadoTreinos.recusados = [];
+          estadoTreinos.desmarcadas = [];
+          // o nível das sugestões fica salvo, para a próxima visita
+          if (v !== 'todos') {
+            dados.preferencias = { ...(dados.preferencias ?? {}), nivelTreinos: v };
+            salvarNivelDosTreinos(sessao.uid, v).catch(() => mensagem.mostrar('Não foi possível salvar o nível.'));
+          }
+        }
+        desenhar();
+      }),
+    );
+  }
+
+  function grade(modelos) {
     const config = dados.configs[0] ?? null;
     return modelos.length === 0
       ? h('p', { class: 'vazio-curto' }, 'Nenhum treino com esses filtros.')
-      : h('div', { class: 'treinos-grade' }, ...modelos.map((m) => criarCartaoTreino({ modelo: m, config, acoes: acoes(m), aoAbrir: abrirDetalhe })));
+      : h('div', { class: 'treinos-grade' }, ...modelos.map((m) => criarCartaoTreino({ modelo: m, config, acoes: [], aoAbrir: abrirDetalhe })));
   }
 
-  function desenharConteudo() {
-    if (estadoTreinos.aba === 'trajetos') {
-      if (!abaTrajetos) abaTrajetos = criarAbaTrajetos({ uid: sessao.uid, esporte: estadoTreinos.esporte });
-      else abaTrajetos.definirEsporte(estadoTreinos.esporte);
-      if (conteudo.firstChild !== abaTrajetos.el || conteudo.childNodes.length !== 1) conteudo.replaceChildren(abaTrajetos.el);
-      return;
-    }
-    descartarAbaTrajetos();
-    const pronto = Object.values(carregou).every(Boolean);
-    if (!pronto) {
-      conteudo.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
-      return;
-    }
+  function desenharSecoes() {
     const esporte = estadoTreinos.esporte;
-    if (estadoTreinos.aba === 'sugestoes') {
+    const nomeEsporte = (ROTULO_ESPORTE[esporte] ?? esporte).toLowerCase();
+    trajetos.definirEsporte(esporte);
+    const pronto = Object.values(carregou).every(Boolean);
+    const carregando = h('p', { class: 'vazio', role: 'status' }, 'Carregando…');
+
+    // Esta semana
+    let corpoSemana = carregando;
+    if (pronto) {
       const serie = montarSerie(dados.dias, hoje);
       const forma = serie.length > 0 ? serie[serie.length - 1].forma : null;
-      conteudo.replaceChildren(
-        criarAbaSugestoes({
-          uid: sessao.uid,
-          hoje,
-          esporte,
-          nivel: nivel(),
-          treinos: dados.treinos,
-          configs: dados.configs,
-          proprios: proprios(),
-          forma,
-          aoVer: abrirDetalhe,
-          aoMudar: desenhar,
-        }),
-      );
-      return;
+      corpoSemana = criarSecaoSugestoes({
+        uid: sessao.uid,
+        hoje,
+        esporte,
+        nivel: nivelParaRegras('nivelSemana'),
+        treinos: dados.treinos,
+        configs: dados.configs,
+        proprios: proprios(),
+        forma,
+        aoVer: abrirDetalhe,
+        aoMudar: desenhar,
+      });
     }
-    if (estadoTreinos.aba === 'biblioteca') {
+
+    // Biblioteca
+    let corpoBiblioteca = carregando;
+    let acoesBiblioteca = null;
+    if (pronto) {
       const foco = seletor({
         id: 'filtro-foco',
         rotulo: 'Foco',
@@ -226,35 +272,53 @@ export function render(raiz, sessao) {
         estadoTreinos.foco = foco.value;
         desenhar();
       });
-      const lista = modelosDoCatalogo({ esporte, nivel: nivel(), foco: estadoTreinos.foco || undefined });
-      conteudo.replaceChildren(
-        h(
-          'section',
-          { class: 'card' },
-          h('div', { class: 'bloco-topo' }, h('h2', null, 'Biblioteca'), foco),
-          h('p', { class: 'texto-secundario' }, `${lista.length} treino${lista.length === 1 ? '' : 's'} ${(NIVEIS[nivel()] ?? '').toLowerCase()}${lista.length === 1 ? '' : 's'} de ${(ROTULO_ESPORTE[esporte] ?? esporte).toLowerCase()}. Mude o nível acima para ver os outros.`),
-          grade(lista),
-        ),
+      const lista = modelosDoCatalogo({ esporte, nivel: nivelParaRegras('nivelBiblioteca'), foco: estadoTreinos.foco || undefined });
+      acoesBiblioteca = h('div', { class: 'treinos-secao-acoes' }, seletorDeNivel('nivelBiblioteca'), foco);
+      const nomeNivel = nivelParaRegras('nivelBiblioteca') ? ` ${NIVEIS[nivelDoBloco('nivelBiblioteca')].toLowerCase()}${lista.length === 1 ? '' : 's'}` : '';
+      corpoBiblioteca = h(
+        'div',
+        { class: 'pilha' },
+        h('p', { class: 'texto-secundario' }, `${lista.length} treino${lista.length === 1 ? '' : 's'}${nomeNivel} de ${nomeEsporte}${nivelParaRegras('nivelBiblioteca') ? '' : ', de todos os níveis'}.`),
+        grade(lista),
       );
-      return;
     }
-    const meus = proprios().filter((m) => m.esporte === esporte);
-    conteudo.replaceChildren(
-      h(
-        'section',
-        { class: 'card' },
-        h('div', { class: 'bloco-topo' }, h('h2', null, 'Meus treinos'), h('button', { class: 'btn', type: 'button', onClick: () => abrirConstrutor(null) }, 'Criar treino')),
+
+    // Meus treinos
+    let corpoMeus = carregando;
+    if (pronto) {
+      const meus = proprios().filter((m) => m.esporte === esporte);
+      corpoMeus = h(
+        'div',
+        { class: 'pilha' },
         h('p', { class: 'texto-secundario' }, 'Os seus treinos aparecem também nas sugestões, no mesmo nível e esporte. Dá para duplicar e editar qualquer treino da biblioteca.'),
-        meus.length === 0 ? h('p', { class: 'vazio-curto' }, `Você ainda não criou treinos de ${(ROTULO_ESPORTE[esporte] ?? esporte).toLowerCase()}.`) : grade(meus),
-      ),
+        meus.length === 0 ? h('p', { class: 'vazio-curto' }, `Você ainda não criou treinos de ${nomeEsporte}.`) : grade(meus),
+      );
+    }
+
+    secoes.replaceChildren(
+      secao('trajetos', { titulo: 'Meus trajetos', corpo: trajetos.el, fora: trajetos.painelEl }),
+      secao('semana', { titulo: 'Esta semana', acoes: pronto ? h('div', { class: 'treinos-secao-acoes' }, seletorDeNivel('nivelSemana')) : null, corpo: corpoSemana }),
+      secao('biblioteca', { titulo: 'Biblioteca', acoes: acoesBiblioteca, corpo: corpoBiblioteca }),
+      secao('meus', {
+        titulo: 'Meus treinos',
+        acoes: h('div', { class: 'treinos-secao-acoes' }, h('button', { class: 'btn', type: 'button', onClick: () => abrirConstrutor(null) }, 'Criar treino')),
+        corpo: corpoMeus,
+      }),
     );
   }
 
   function desenhar() {
     if (!ativa) return;
     desenharCabecalho();
+    desenharControles();
     desenharAberto();
-    desenharConteudo();
+    desenharSecoes();
+    // pedido de rolagem (vindo do detalhe da atividade ou do construtor): vale uma vez só
+    const destino = estadoTreinos.rolarPara;
+    if (destino) {
+      estadoTreinos.rolarPara = null;
+      requestAnimationFrame(() => raiz.querySelector(`#treinos-${destino}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }));
+    }
   }
   desenhar();
 
@@ -275,7 +339,6 @@ export function render(raiz, sessao) {
 
   return () => {
     ativa = false;
-    descartarAbaTrajetos();
     cancelar.forEach((fn) => fn());
   };
 }

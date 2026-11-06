@@ -1,0 +1,117 @@
+/* Página de Treinos: barra fixa de esporte e nível, e seções que se recolhem. Só variáveis de tema. */
+
+/* ---------- barra fixa: esporte e nível ---------- */
+.treinos-barra {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 28px;
+  padding: 10px 0;
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border);
+}
+
+.treinos-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  margin: 0;
+}
+
+.treinos-controle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.treinos-controle-rotulo {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* em telas menores os dois grupos empilham e ocupariam muito da tela: a barra rola com a página */
+@media (max-width: 900px) {
+  .treinos-barra {
+    position: static;
+    padding: 0;
+    border-bottom: 0;
+  }
+}
+
+/* ---------- seções ---------- */
+.treinos-secao {
+  /* a barra fixa de esporte e nível cobre o topo da rolagem */
+  scroll-margin-top: 64px;
+}
+
+.treinos-secao .bloco-topo {
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 4px;
+}
+
+.treinos-secao-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.treinos-secao-titulo h2 {
+  margin: 0;
+}
+
+.treinos-secao-titulo:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.treinos-secao-seta {
+  color: var(--text-secondary);
+  transition: transform 0.15s;
+}
+
+.treinos-secao[data-recolhida='true'] .treinos-secao-seta {
+  transform: rotate(-90deg);
+}
+
+.treinos-secao-corpo {
+  margin-top: 12px;
+}
+
+.treinos-secao-corpo[hidden] {
+  display: none;
+}
+
+.treinos-secao-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+/* o painel do trajeto (cartões) ocupa a largura da seção e some quando não há trajeto aberto */
+.traj-painel:empty {
+  display: none;
+}
+
+/* sem a barra fixa nas telas menores, a rolagem para uma seção não precisa de folga no topo */
+@media (max-width: 900px) {
+  .treinos-secao {
+    scroll-margin-top: 12px;
+  }
+}

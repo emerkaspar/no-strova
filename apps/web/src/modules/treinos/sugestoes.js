@@ -13,14 +13,14 @@ import { confirmar } from '../../utils/modal.js';
 const chave = (s) => `${s.data}|${s.modelo.id}`;
 
 /**
- * Aba "Sugestões": os treinos que o app indica para os próximos 7 dias (por regras), com "Trocar" em cada um e
+ * Corpo da seção "Esta semana" (o cartão e o título são da tela): os treinos que o app indica para os próximos 7 dias (por regras), com "Trocar" em cada um e
  * "Montar minha semana" para adicionar os selecionados ao plano de uma vez, com a aprovação do usuário.
  * @param {{
  *   uid: string, hoje: string, esporte: string, nivel: string, treinos: any[], configs: any[], proprios: any[],
  *   forma: number|null, aoVer: (modelo: any) => void, aoMudar: () => void
  * }} p `aoMudar` pede para a tela se redesenhar depois de trocar, sugerir outras ou adicionar
  */
-export function criarAbaSugestoes({ uid, hoje, esporte, nivel, treinos, configs, proprios, forma, aoVer, aoMudar }) {
+export function criarSecaoSugestoes({ uid, hoje, esporte, nivel, treinos, configs, proprios, forma, aoVer, aoMudar }) {
   const config = configs[0] ?? null;
   const mensagem = areaMensagem();
   const { sugestoes, avisos } = sugerirTreinos({
@@ -101,13 +101,12 @@ export function criarAbaSugestoes({ uid, hoje, esporte, nivel, treinos, configs,
   );
 
   return h(
-    'section',
-    { class: 'card', id: 'sugestoes' },
-    h('h2', null, 'Montar minha semana'),
+    'div',
+    { class: 'pilha', id: 'sugestoes' },
     h(
       'p',
       { class: 'texto-secundario' },
-      `Treinos ${(NIVEIS[nivel] ?? nivel).toLowerCase()}s de ${(ROTULO_ESPORTE[esporte] ?? esporte).toLowerCase()} para os próximos 7 dias. O app gira o foco, evita repetir treinos e respeita a sua carga: no máximo 2 treinos intensos por semana, com 48 h entre eles${forma === null ? '' : `. Sua Forma hoje: ${formatarForma(forma, 1)}`}. Nada entra no plano sem a sua aprovação.`,
+      `Treinos ${nivel ? `${(NIVEIS[nivel] ?? nivel).toLowerCase()}s` : 'de todos os níveis'} de ${(ROTULO_ESPORTE[esporte] ?? esporte).toLowerCase()} para os próximos 7 dias. O app gira o foco, evita repetir treinos e respeita a sua carga: no máximo 2 treinos intensos por semana, com 48 h entre eles${forma === null ? '' : `. Sua Forma hoje: ${formatarForma(forma, 1)}`}. Nada entra no plano sem a sua aprovação.`,
     ),
     ...avisos.map((a) => h('p', { class: 'mensagem mensagem-aviso' }, a)),
     sugestoes.length > 0

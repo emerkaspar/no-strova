@@ -10,11 +10,12 @@ import { criarPainel } from './painel.js';
 import { textoDeVariacao } from './textos.js';
 
 /**
- * Aba "Trajetos" de Treinos: cada trajeto do esporte é um badge; ao escolher um, aparece a evolução dele.
- * Tem os próprios listeners (só existem enquanto a aba está aberta) e se redesenha sozinha a cada mudança nos dados.
- * @returns {{ el: HTMLElement, definirEsporte: (esporte: string) => void, destruir: () => void }}
+ * Seção "Trajetos" de Treinos: cada trajeto do esporte é um badge; ao escolher um, a evolução dele abre logo abaixo.
+ * Tem os próprios listeners e se redesenha sozinha a cada mudança nos dados. Devolve dois nós: `el` (o texto e os badges,
+ * que vão dentro do cartão da seção) e `painelEl` (o painel, que fica logo abaixo do cartão).
+ * @returns {{ el: HTMLElement, painelEl: HTMLElement, definirEsporte: (esporte: string) => void, destruir: () => void }}
  */
-export function criarAbaTrajetos({ uid, esporte: esporteInicial }) {
+export function criarSecaoTrajetos({ uid, esporte: esporteInicial }) {
   const estado = estadoTreinos.trajetos;
   let esporte = esporteInicial;
   let ativa = true;
@@ -23,10 +24,12 @@ export function criarAbaTrajetos({ uid, esporte: esporteInicial }) {
   let erro = null;
   let painel = null;
   const raiz = h('div', { class: 'pilha' });
+  const painelEl = h('div', { class: 'traj-painel' });
 
   function fecharPainel() {
     painel?.destruir();
     painel = null;
+    painelEl.replaceChildren();
   }
 
   function desenhar() {
@@ -44,14 +47,7 @@ export function criarAbaTrajetos({ uid, esporte: esporteInicial }) {
     const itens = montarTrajetos(dados.trajetos, dados.atividades, esporte);
     const nomeEsporte = (ROTULO_ESPORTE[esporte] ?? esporte).toLowerCase();
     if (itens.length === 0) {
-      raiz.replaceChildren(
-        h(
-          'section',
-          { class: 'card' },
-          h('h2', null, 'Trajetos'),
-          estadoVazio(`Você ainda não tem trajetos de ${nomeEsporte}. Crie um no “Como foi?” de uma atividade e escolha o mesmo trajeto nas próximas.`, { href: '#/atividades', rotulo: 'Ir para Atividades' }),
-        ),
-      );
+      raiz.replaceChildren(estadoVazio(`Você ainda não tem trajetos de ${nomeEsporte}. Crie um no “Como foi?” de uma atividade e escolha o mesmo trajeto nas próximas.`, { href: '#/atividades', rotulo: 'Ir para Atividades' }));
       return;
     }
 
@@ -73,7 +69,7 @@ export function criarAbaTrajetos({ uid, esporte: esporteInicial }) {
             estado.aberto = aberto ? null : i.trajeto.id;
             estado.comparadas = [];
             desenhar();
-            if (!aberto) raiz.querySelector('.traj-painel')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+            if (!aberto) painelEl.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
           },
         },
         h('span', { class: 'badge-nome' }, i.trajeto.nome),
@@ -83,25 +79,23 @@ export function criarAbaTrajetos({ uid, esporte: esporteInicial }) {
       );
     });
 
-    const conteudo = [
-      h(
-        'section',
-        { class: 'card pilha' },
-        h('h2', null, 'Trajetos'),
-        h('p', { class: 'texto-secundario' }, `Escolha um trajeto de ${nomeEsporte} para ver como você evoluiu nele: ritmo, eficiência, comparação entre passagens e mais.`),
-        h('div', { class: 'badges traj-badges' }, ...badges),
-      ),
-    ];
+    raiz.replaceChildren(
+      h('p', { class: 'texto-secundario' }, `Escolha um trajeto de ${nomeEsporte} para ver como você evoluiu nele: ritmo, eficiência, comparação entre passagens e mais.`),
+      h('div', { class: 'badges traj-badges' }, ...badges),
+    );
     if (escolhido) {
       painel = criarPainel({ item: escolhido, esporte, estado, aoMudar: desenhar });
-      conteudo.push(h('div', { class: 'traj-painel' }, painel.el));
+      painelEl.replaceChildren(painel.el);
     }
-    raiz.replaceChildren(...conteudo);
   }
   desenhar();
 
-  const aoErro = () => {
-    erro = 'Não foi possível carregar os trajetos. Tente recarregar a página.';
+  const aoErro = (err) => {
+    // o console mostra o motivo real (por exemplo, índice ausente, com o link para criá-lo)
+    console.error('Trajetos:', err);
+    erro = err?.code === 'failed-precondition'
+      ? 'Falta publicar o índice de trajetos no Firebase (deploy das regras e índices). Veja o console do navegador.'
+      : 'Não foi possível carregar os trajetos. Tente recarregar a página.';
     desenhar();
   };
   const cancelar = [
@@ -127,6 +121,7 @@ export function criarAbaTrajetos({ uid, esporte: esporteInicial }) {
 
   return {
     el: raiz,
+    painelEl,
     definirEsporte(novo) {
       if (novo === esporte) return;
       esporte = novo;
