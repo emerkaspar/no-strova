@@ -19,6 +19,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
+import { conferirLthrNoIntervals } from '../configuracao/lthrIntervals.js';
 
 const ABREV = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const NOMES = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -263,7 +264,11 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
         dados,
         entrada: { sexo: estado.sexo, pesoKg: estado.pesoKg, alturaCm: estado.alturaCm, fcMax: estado.fcMax, fcRepouso: estado.fcRepouso, lthr: estado.lthr },
       });
-      if (r.alterou) estado.configAlterada = true;
+      if (r.alterou) {
+        estado.configAlterada = true;
+        // para quem envia treinos ao Garmin pelo intervals.icu: confere o LTHR de lá e oferece atualizar
+        await conferirLthrNoIntervals();
+      }
     },
   };
 

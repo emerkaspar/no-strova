@@ -1,9 +1,10 @@
 import { inicioDaSemana, primeiroDoMes, somarDias, somarMeses } from '@no-strova/domain';
-import { intervalsAtualizarLthr, intervalsConectar, intervalsDesconectar, intervalsEnviarTreinos, intervalsLthr, intervalsSituacao } from '../../core/functions.js';
+import { intervalsConectar, intervalsDesconectar, intervalsEnviarTreinos, intervalsLthr, intervalsSituacao } from '../../core/functions.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
 import { confirmar } from '../../utils/modal.js';
+import { confirmarEAtualizarLthr, detalheDoLthrDiferente, esportesComLthrDiferente } from '../configuracao/lthrIntervals.js';
 
 const PERIODOS = [
   { valor: 'proximos7', rotulo: 'Próximos 7 dias' },
@@ -24,14 +25,6 @@ function intervaloDe(periodo, { hoje, ancora }) {
     return { de: inicio, ate: somarDias(somarMeses(inicio, 1), -1) };
   }
   return { de: hoje, ate: somarDias(hoje, 6) };
-}
-
-const ROTULO_ESPORTE_LTHR = { ciclismo: 'Ciclismo', corrida: 'Corrida' };
-
-/** Esportes em que o LTHR do intervals.icu existe e é diferente do No Strova. */
-export function esportesComLthrDiferente(s) {
-  if (!Number.isFinite(s?.nostrova)) return [];
-  return Object.keys(ROTULO_ESPORTE_LTHR).filter((e) => Number.isFinite(s[e]) && s[e] !== s.nostrova);
 }
 
 const plural = (n, singular, pluralTexto) => `${n} ${n === 1 ? singular : pluralTexto}`;
@@ -117,22 +110,11 @@ export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar }) {
       }
       const msg = areaMensagem();
       const botaoAtualizar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Atualizar no intervals.icu');
-      const detalhe = diferentes.map((e) => `${ROTULO_ESPORTE_LTHR[e]}: ${s[e]} bpm`).join(' · ');
+      const detalhe = detalheDoLthrDiferente(s);
       botaoAtualizar.addEventListener('click', () =>
         executarComBotao(botaoAtualizar, msg, async () => {
-          const ok = await confirmar({
-            titulo: 'Atualizar o LTHR no intervals.icu?',
-            mensagem: [
-              ...diferentes.map((e) => `${ROTULO_ESPORTE_LTHR[e]}: ${s[e]} → ${s.nostrova} bpm`),
-              '',
-              'As zonas de FC que você ajustou no intervals.icu não são recalculadas. Os treinos enviados usam % do LTHR, então já refletem o novo valor.',
-            ].join('\n'),
-            confirmarTexto: 'Atualizar',
-            tipo: 'info',
-            icone: 'configuracao',
-          });
-          if (!ok) return;
-          desenharLthr(await intervalsAtualizarLthr({ esportes: diferentes }));
+          const novo = await confirmarEAtualizarLthr(s);
+          if (novo) desenharLthr(novo);
         }),
       );
       lthrArea.replaceChildren(
@@ -142,7 +124,10 @@ export function criarPainelEnviarGarmin({ hoje, obterAncora, aoFechar }) {
       );
     }
 
-    intervalsLthr().then(desenharLthr).catch(() => {});
+    // falha na conferência não atrapalha o envio, mas o motivo aparece (discreto) para dar para investigar
+    intervalsLthr()
+      .then(desenharLthr)
+      .catch((err) => lthrArea.replaceChildren(h('p', { class: 'texto-secundario' }, `Não consegui conferir o LTHR no intervals.icu: ${err?.message || 'erro desconhecido'}`)));
 
     async function desconectar() {
       const ok = await confirmar({
