@@ -9,6 +9,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { criarCartaoGarmin } from './garmin.js';
+import { secaoRecolhivel } from './secaoRecolhivel.js';
 import { editar, estadoConfiguracao } from './state.js';
 import { confirmar } from '../../utils/modal.js';
 
@@ -43,7 +44,7 @@ function cartaoDadosPessoais(sessao) {
     mensagem.el,
     botao,
   );
-  return h('section', { class: 'card' }, h('h2', null, 'Seus dados'), form);
+  return secaoRecolhivel({ id: 'dados', titulo: 'Seus dados', corpo: [form] });
 }
 
 
@@ -246,24 +247,26 @@ export function render(raiz, sessao) {
     h('div', { class: 'pilha' },
       cartaoDadosPessoais(sessao),
       temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoGarmin().raiz : null,
-      h(
-        'section',
-        { class: 'card' },
-        h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Configuração do atleta'), botaoNovaVigencia),
-        h('p', { class: 'texto-secundario' }, 'FC máxima, FC de repouso, LTHR, sexo, peso e altura, cada conjunto com a data em que passa a valer. É a base do cálculo do HRSS. Atividades anteriores à primeira vigência ficam sem HRSS.'),
-        mensagemTabela.el,
-        corpoTabela,
-        areaForm,
-      ),
+      secaoRecolhivel({
+        id: 'atleta',
+        titulo: 'Configuração do atleta',
+        acoes: botaoNovaVigencia,
+        corpo: [
+          h('p', { class: 'texto-secundario' }, 'FC máxima, FC de repouso, LTHR, sexo, peso e altura, cada conjunto com a data em que passa a valer. É a base do cálculo do HRSS. Atividades anteriores à primeira vigência ficam sem HRSS.'),
+          mensagemTabela.el,
+          corpoTabela,
+          areaForm,
+          h(
+            'div',
+            { class: 'config-recalculo' },
+            h('h3', null, 'Recalcular histórico'),
+            h('p', { class: 'texto-secundario' }, 'Depois de mudar a configuração (ou de cadastrá-la pela primeira vez, inclusive pelo Teste de LTHR), recalcule o HRSS e as calorias estimadas das atividades já registradas.'),
+            mensagemRecalculo.el,
+            botaoRecalculo,
+          ),
+        ],
+      }),
       testeLthr.raiz,
-      h(
-        'section',
-        { class: 'card' },
-        h('h2', null, 'Recalcular histórico'),
-        h('p', { class: 'texto-secundario' }, 'Depois de mudar a configuração (ou de cadastrá-la pela primeira vez), recalcule o HRSS e as calorias estimadas das atividades já registradas.'),
-        mensagemRecalculo.el,
-        botaoRecalculo,
-      ),
       areaCalibracao,
     ),
   );

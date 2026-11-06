@@ -2791,6 +2791,122 @@ textarea {
 }
 
 
+/* Configuração: seções recolhíveis (mesmo padrão da tela de Treinos) */
+.config-secao .bloco-topo {
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 4px;
+}
+
+.config-secao-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.config-secao-titulo h2 {
+  margin: 0;
+}
+
+.config-secao-titulo:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.config-secao-seta {
+  color: var(--text-secondary);
+  transition: transform 0.15s;
+}
+
+.config-secao[data-recolhida='true'] .config-secao-seta {
+  transform: rotate(-90deg);
+}
+
+.config-secao-corpo {
+  margin-top: 12px;
+}
+
+.config-secao-corpo[hidden] {
+  display: none;
+}
+
+.config-recalculo {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* "Refazer a calibração": saída de emergência, discreta de propósito */
+.cal-refazer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-top: 16px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.cal-refazer-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cal-refazer-link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cal-refazer-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.cal-refazer .mensagem {
+  flex-basis: 100%;
+}
+
+/* Calibração: popover de cada coluna */
+.cal-coluna {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+
+.cal-coluna:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.dia-pop .cal-pop-texto {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.dia-pop .cal-pop-exemplo {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
 /* Configuração: teste de LTHR e calibração das estimativas */
 .mensagem-aviso {
   border-color: var(--primary);

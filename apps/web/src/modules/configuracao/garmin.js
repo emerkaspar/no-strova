@@ -2,6 +2,7 @@ import { garminConectar, garminDesconectar, garminSincronizar, garminSituacao } 
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
+import { secaoRecolhivel } from './secaoRecolhivel.js';
 
 const VALIDADES = [
   { valor: '30', rotulo: '30 dias' },
@@ -194,13 +195,14 @@ export function criarCartaoGarmin() {
     mensagem.mostrar('Não foi possível carregar o estado da conexão com o Garmin.');
   });
 
-  const raiz = h(
-    'section',
-    { class: 'card' },
-    h('h2', null, 'Garmin Connect'),
-    h('p', { class: 'texto-secundario' }, 'Traga as atividades da sua conta Garmin sem exportar arquivos. A sincronização é feita só quando você clica no botão. Esportes que não são corrida nem ciclismo entram como “outro”.'),
-    mensagem.el,
-    corpo,
-  );
+  const raiz = secaoRecolhivel({
+    id: 'garmin',
+    titulo: 'Garmin Connect',
+    corpo: [
+      h('p', { class: 'texto-secundario' }, 'Traga as atividades da sua conta Garmin sem exportar arquivos. A sincronização é feita só quando você clica no botão. Esportes que não são corrida nem ciclismo entram como “outro”.'),
+      mensagem.el,
+      corpo,
+    ],
+  });
   return { raiz };
 }

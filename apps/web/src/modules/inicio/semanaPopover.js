@@ -157,7 +157,7 @@ export function criarControlePopover() {
     temporizador = setTimeout(fechar, ATRASO_FECHAR_MS);
   }
 
-  function abrir(coluna, montar, { fixar = false } = {}) {
+  function abrir(coluna, montar, { fixar = false, rotulo = 'Detalhe do dia' } = {}) {
     clearTimeout(temporizador);
     if (colunaAtual === coluna && cartao) {
       fixado = fixado || fixar;
@@ -167,7 +167,7 @@ export function criarControlePopover() {
     if (jaAberto) cartao.remove();
     colunaAtual = coluna;
     fixado = fixar;
-    cartao = h('div', { class: 'dia-pop', role: 'dialog', 'aria-label': 'Detalhe do dia' }, ...montar().filter(Boolean));
+    cartao = h('div', { class: 'dia-pop', role: 'dialog', 'aria-label': rotulo }, ...montar().filter(Boolean));
     cartao.addEventListener('mouseenter', () => clearTimeout(temporizador));
     cartao.addEventListener('mouseleave', agendarFechar);
     document.body.append(cartao);

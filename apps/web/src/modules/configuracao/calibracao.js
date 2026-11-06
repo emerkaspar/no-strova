@@ -7,6 +7,8 @@ import { seletor } from '../../utils/listaSuspensa.js';
 import { formatarData, formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { analisarAtividadeLthr, montarResultadoLthr } from './resultadoLthr.js';
+import { criarControlePopover } from '../inicio/semanaPopover.js';
+import { secaoRecolhivel } from './secaoRecolhivel.js';
 
 const ZONAS_EM_ORDEM = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 
@@ -23,6 +25,7 @@ function separarChave(chave) {
  */
 export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }) {
   const ativa = preferencias?.calibracaoAtiva !== false;
+  controlePopover.fechar(); // o cartão é redesenhado a cada atualização: não deixa popover órfão
   const mensagem = areaMensagem();
   const config = configs[0] ?? null; // a mais recente
 
@@ -59,7 +62,15 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
     );
   });
 
-  const botaoRefazer = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Refazer a calibração');
+  const botaoRefazer = h(
+    'button',
+    {
+      class: 'cal-refazer-link',
+      type: 'button',
+      title: 'Lê todas as suas atividades de novo e monta esta tabela do zero. Não altera nenhuma atividade. Depois de mudar a configuração ou o LTHR, o “Recalcular histórico” já faz isso junto.',
+    },
+    'Refazer a calibração',
+  );
   botaoRefazer.addEventListener('click', () =>
     executarComBotao(botaoRefazer, mensagem, async () => {
       const r = await reconstruirCalibracao();
@@ -67,16 +78,7 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
     }),
   );
 
-  return h(
-    'section',
-    { class: 'card', id: 'calibracao' },
-    h('h2', null, 'Calibração das estimativas'),
-    h(
-      'p',
-      { class: 'texto-secundario' },
-      'A estimativa de HRSS dos treinos planejados parte de uma fórmula (a FC média típica de cada zona). Com a calibração, o app aprende com as suas atividades já feitas, com FC real, quanto HRSS por hora você de fato faz em cada esporte e zona, e mistura isso com a fórmula: quanto mais atividades, mais peso para o seu histórico. Atualiza sozinha a cada importação.',
-    ),
-    h('label', { class: 'opcao', for: 'cal-ativa' }, caixa, ' Usar a calibração nas estimativas dos treinos planejados'),
+  const tabela =
     chaves.length === 0
       ? h('p', { class: 'vazio-curto' }, 'Ainda sem dados suficientes: cada esporte e zona precisa de pelo menos 3 atividades com FC de 20 minutos ou mais.')
       : h(
@@ -85,14 +87,106 @@ export function criarCartaoCalibracao({ uid, configs, calibracao, preferencias }
           h(
             'table',
             { class: 'tabela tabela-compacta' },
-            h('thead', null, h('tr', null, ...['Esporte', 'Zona', 'Atividades', 'Seu HRSS/h', 'Fórmula (HRSS/h)', 'Peso da calibração'].map((t) => h('th', { scope: 'col' }, t)))),
+            h(
+              'thead',
+              null,
+              h('tr', null, ...GUIA_DAS_COLUNAS.map((item) => cabecalho(item))),
+            ),
             h('tbody', null, ...linhas),
           ),
-        ),
-    mensagem.el,
-    botaoRefazer,
-  );
+        );
+
+  return secaoRecolhivel({
+    id: 'calibracao',
+    titulo: 'Calibração das estimativas',
+    corpo: [
+      h(
+        'p',
+        { class: 'texto-secundario' },
+        'A estimativa de HRSS dos treinos planejados parte de uma fórmula (a FC média típica de cada zona). Com a calibração, o app aprende com as suas atividades já feitas, com FC real, quanto HRSS por hora você de fato faz em cada esporte e zona, e mistura isso com a fórmula: quanto mais atividades, mais peso para o seu histórico. Atualiza sozinha a cada importação.',
+      ),
+      h('label', { class: 'opcao', for: 'cal-ativa' }, caixa, ' Usar a calibração nas estimativas dos treinos planejados'),
+      tabela,
+      chaves.length > 0 ? h('p', { class: 'dica' }, 'Passe o mouse (ou toque) no nome de uma coluna para ver o que ela significa.') : null,
+      h(
+        'div',
+        { class: 'cal-refazer' },
+        h('span', null, 'A tabela se atualiza sozinha. Algo parece errado ou desatualizado?'),
+        botaoRefazer,
+        mensagem.el,
+      ),
+    ],
+  });
 }
+
+const controlePopover = criarControlePopover();
+
+/** Cabeçalho de coluna que abre um popover explicativo ao passar o mouse, focar (teclado) ou tocar (celular). */
+function cabecalho(item) {
+  const th = h('th', { scope: 'col', class: 'cal-coluna', tabIndex: 0 }, item.coluna);
+  const conteudo = () => [
+    h('p', { class: 'dia-pop-titulo' }, item.coluna),
+    ...item.paragrafos.map((p) => h('p', { class: 'cal-pop-texto' }, p)),
+    item.exemplo ? h('p', { class: 'cal-pop-exemplo' }, h('strong', null, 'Exemplo: '), item.exemplo) : null,
+  ];
+  const abrir = (opcoes) => controlePopover.abrir(th, conteudo, { rotulo: item.coluna, ...opcoes });
+  th.addEventListener('mouseenter', () => abrir());
+  th.addEventListener('mouseleave', controlePopover.agendarFechar);
+  th.addEventListener('focus', () => abrir());
+  th.addEventListener('click', () => {
+    if (controlePopover.coluna() === th && controlePopover.fixado()) controlePopover.fechar();
+    else abrir({ fixar: true });
+  });
+  return th;
+}
+
+/** Explicação de cada coluna da tabela, com exemplos genéricos (números inventados, não são os do usuário). */
+const GUIA_DAS_COLUNAS = [
+  {
+    coluna: 'Esporte',
+    paragrafos: ['O esporte das atividades usadas no cálculo. Ciclismo e corrida são calibrados separadamente, porque a mesma zona de FC rende um HRSS diferente em cada um.'],
+  },
+  {
+    coluna: 'Zona',
+    paragrafos: [
+      'A zona de frequência cardíaca, de Z1 (bem leve) a Z5 (máximo). Ela vem do seu LTHR vigente na data de cada atividade, e cada atividade entra na zona em que passou mais tempo.',
+      'É a mesma zona dos treinos planejados: um treino em Z2 usa a linha “Z2” do esporte dele.',
+    ],
+  },
+  {
+    coluna: 'Atividades',
+    paragrafos: [
+      'Quantas atividades suas já feitas alimentam aquela linha. Só contam as de 20 minutos ou mais e com frequência cardíaca real; treinos curtos ou sem FC ficam de fora.',
+      'O app guarda as 30 mais recentes de cada esporte e zona, então a calibração acompanha a sua forma atual.',
+    ],
+    exemplo: 'quatro pedaladas em Z2, todas com mais de 20 minutos e com FC, aparecem como 4.',
+  },
+  {
+    coluna: 'Seu HRSS/h',
+    paragrafos: [
+      'O HRSS (estresse do treino) que você realmente acumula por hora naquele esporte e zona. É a mediana, isto é, o valor do meio, então um dia fora do normal não distorce o resultado.',
+      'Acima da fórmula: o mesmo treino pesa mais para você do que o previsto. Abaixo: pesa menos.',
+    ],
+    exemplo: 'três atividades fizeram 40, 50 e 90 HRSS por hora. A mediana é 50 (o 90 isolado não puxa o número).',
+  },
+  {
+    coluna: 'Fórmula (HRSS/h)',
+    paragrafos: [
+      'O HRSS por hora que o app estima sem olhar o seu histórico. Ela usa a FC média típica da zona e a sua configuração de atleta (LTHR, FC máxima, FC de repouso e sexo).',
+      'É o ponto de partida: com poucas atividades, a estimativa fica perto desse valor.',
+    ],
+    exemplo: 'a fórmula diz que uma hora em Z2 dá 60 de HRSS.',
+  },
+  {
+    coluna: 'Peso da calibração',
+    paragrafos: [
+      'Quanto a estimativa confia no seu histórico em vez da fórmula. O cálculo é atividades ÷ (atividades + 5): 3 atividades dão 38%, 5 dão 50%, 10 dão 67% e 30 dão 86%. Nunca chega a 100%.',
+      'Com menos de 3 atividades a calibração ainda não entra (“precisa de N a mais”) e vale só a fórmula.',
+      'A estimativa final por hora é: peso × seu HRSS/h + (1 − peso) × fórmula.',
+    ],
+    exemplo: 'com 5 atividades o peso é 50%. Se o seu HRSS/h é 80 e a fórmula diz 60, a estimativa é 0,5 × 80 + 0,5 × 60 = 70.',
+  },
+];
 
 const ROTEIRO_DO_TESTE = [
   'Escolha um trecho plano e constante, sem semáforos e sem cruzamentos (ou uma pista), e pedale ou corra sozinho, sem pegar vácuo.',
@@ -144,22 +238,23 @@ export function criarCartaoTesteLthr({ uid }) {
     }),
   );
 
-  const raiz = h(
-    'section',
-    { class: 'card', id: 'teste-lthr' },
-    h('h2', null, 'Teste de LTHR'),
-    h(
-      'p',
-      { class: 'texto-secundario' },
-      'O LTHR (a FC no seu limiar) define as zonas e o HRSS de tudo. Um valor errado desloca todos os cálculos, então vale medir. O teste de 30 minutos, de Joe Friel, é o mais usado: o LTHR é a FC média dos últimos 20 minutos de um esforço máximo sustentável de 30.',
-    ),
-    h('ol', { class: 'roteiro' }, ...ROTEIRO_DO_TESTE.map((passo) => h('li', null, passo))),
-    h('p', { class: 'texto-secundario' }, 'Se você pedala e corre, faça o teste no esporte que mais treina: o LTHR na corrida costuma ser alguns bpm maior que no pedal.'),
-    h('div', { class: 'campo' }, h('label', { for: 'teste-atividade' }, 'Atividade do teste'), select, dicaSemOpcoes),
-    mensagem.el,
-    botaoAnalisar,
-    resultado,
-  );
+  const raiz = secaoRecolhivel({
+    id: 'teste-lthr',
+    titulo: 'Teste de LTHR',
+    corpo: [
+      h(
+        'p',
+        { class: 'texto-secundario' },
+        'O LTHR (a FC no seu limiar) define as zonas e o HRSS de tudo. Um valor errado desloca todos os cálculos, então vale medir. O teste de 30 minutos, de Joe Friel, é o mais usado: o LTHR é a FC média dos últimos 20 minutos de um esforço máximo sustentável de 30.',
+      ),
+      h('ol', { class: 'roteiro' }, ...ROTEIRO_DO_TESTE.map((passo) => h('li', null, passo))),
+      h('p', { class: 'texto-secundario' }, 'Se você pedala e corre, faça o teste no esporte que mais treina: o LTHR na corrida costuma ser alguns bpm maior que no pedal.'),
+      h('div', { class: 'campo' }, h('label', { for: 'teste-atividade' }, 'Atividade do teste'), select, dicaSemOpcoes),
+      mensagem.el,
+      botaoAnalisar,
+      resultado,
+    ],
+  });
   atualizarOpcoes();
 
   return {
