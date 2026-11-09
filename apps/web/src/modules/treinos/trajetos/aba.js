@@ -15,7 +15,7 @@ import { textoDeVariacao } from './textos.js';
  * que vão dentro do cartão da seção) e `painelEl` (o painel, que fica logo abaixo do cartão).
  * @returns {{ el: HTMLElement, painelEl: HTMLElement, definirEsporte: (esporte: string) => void, destruir: () => void }}
  */
-export function criarSecaoTrajetos({ uid, esporte: esporteInicial }) {
+export function criarSecaoTrajetos({ uid, esporte: esporteInicial, nivel = () => 'intermediario', aoCriarTreino = null }) {
   const estado = estadoTreinos.trajetos;
   let esporte = esporteInicial;
   let ativa = true;
@@ -84,7 +84,7 @@ export function criarSecaoTrajetos({ uid, esporte: esporteInicial }) {
       h('div', { class: 'badges traj-badges' }, ...badges),
     );
     if (escolhido) {
-      painel = criarPainel({ item: escolhido, esporte, estado, aoMudar: desenhar });
+      painel = criarPainel({ item: escolhido, esporte, estado, aoMudar: desenhar, uid, nivelInicial: nivel(), aoCriarTreino });
       painelEl.replaceChildren(painel.el);
     }
   }

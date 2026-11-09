@@ -201,7 +201,8 @@ export function validarPassos(entrada) {
 
 /**
  * Valida o treino estruturado (modelo próprio do usuário).
- * @returns {{ valido: boolean, erros: string[], valores: { nome: string, esporte: string, foco: string, nivel: string, descricao: string, passos: any[] }|null }}
+ * Opcionais: `trajetoId` e `trajetoNome` (o treino foi adaptado ao terreno desse trajeto).
+ * @returns {{ valido: boolean, erros: string[], valores: { nome: string, esporte: string, foco: string, nivel: string, descricao: string, passos: any[], trajetoId?: string, trajetoNome?: string }|null }}
  */
 export function validarTreinoEstruturado(entrada) {
   const erros = [];
@@ -213,10 +214,21 @@ export function validarTreinoEstruturado(entrada) {
   if (!NIVEIS[entrada?.nivel]) erros.push('Escolha o nível do treino.');
   const descricao = String(entrada?.descricao ?? '').trim();
   if (descricao.length > L.descricao.max) erros.push(`A descrição pode ter até ${L.descricao.max} caracteres.`);
+  // tag opcional do trajeto de onde o treino foi adaptado (ver treinoPorTrajeto.js)
+  const trajetoId = typeof entrada?.trajetoId === 'string' ? entrada.trajetoId.trim() : '';
+  const trajetoNome = typeof entrada?.trajetoNome === 'string' ? entrada.trajetoNome.trim().slice(0, L.nome.max) : '';
+  if (trajetoId && (trajetoId.length > 128 || trajetoId.includes('/'))) erros.push('Trajeto inválido.');
   const passos = validarPassos(entrada?.passos);
   erros.push(...passos.erros);
   if (erros.length > 0) return { valido: false, erros, valores: null };
-  return { valido: true, erros, valores: { nome, esporte: entrada.esporte, foco: entrada.foco, nivel: entrada.nivel, descricao, passos: passos.passos } };
+  return {
+    valido: true,
+    erros,
+    valores: {
+      nome, esporte: entrada.esporte, foco: entrada.foco, nivel: entrada.nivel, descricao, passos: passos.passos,
+      ...(trajetoId ? { trajetoId, trajetoNome: trajetoNome || 'Trajeto' } : {}),
+    },
+  };
 }
 
 /** Os esportes do treino estruturado precisam existir no app. */

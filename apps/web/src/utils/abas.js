@@ -23,11 +23,12 @@ const guardarAba = (chave, id) => {
 /**
  * Abas (ARIA tablist) com um painel por aba: só o da aba ativa aparece, a última aba aberta fica lembrada no navegador
  * (`chave`) e as setas, Home e End trocam de aba. Abas nulas são ignoradas.
- * @param {{ chave: string, rotuloAria: string, abas: Array<null | { id: string, nome: string, titulo?: string, icone: string, ponto?: boolean, painel: HTMLElement }> }} opcoes
+ * `aoSelecionar(id)` (opcional) é chamado a cada troca de aba, inclusive a inicial.
+ * @param {{ chave: string, rotuloAria: string, aoSelecionar?: (id: string) => void, abas: Array<null | { id: string, nome: string, titulo?: string, icone: string, ponto?: boolean, painel: HTMLElement }> }} opcoes
  * `ponto`: mostra o pontinho de "tem novidade" na aba. `painel` é o conteúdo da aba (a função só liga os atributos de acessibilidade).
  * @returns {{ lista: HTMLElement, paineis: HTMLElement[], selecionar: (id: string) => void }}
  */
-export function criarAbas({ abas, chave, rotuloAria }) {
+export function criarAbas({ abas, chave, rotuloAria, aoSelecionar = null }) {
   const uteis = abas.filter(Boolean);
   const botoes = new Map();
   const paineis = new Map();
@@ -41,6 +42,7 @@ export function criarAbas({ abas, chave, rotuloAria }) {
       paineis.get(k).hidden = !ligada;
     }
     guardarAba(chave, id);
+    aoSelecionar?.(id);
     const alvo = botoes.get(id);
     if (foco) alvo.focus();
     alvo.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });

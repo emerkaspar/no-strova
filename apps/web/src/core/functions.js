@@ -46,6 +46,7 @@ export const reconstruirCalibracao = callable('reconstruirCalibracao');
 export const sugerirTreinos = callable('sugerirTreinos');
 export const sugerirPlanoAnual = callable('sugerirPlanoAnual');
 export const sugerirTreinoUnico = callable('sugerirTreinoUnico');
+export const sugerirTreinoDoTrajeto = callable('sugerirTreinoDoTrajeto');
 export const calcularMelhoresEsforcos = callable('calcularMelhoresEsforcos');
 export const marcarConquistasComoVistas = callable('marcarConquistasComoVistas');
 export const marcarNotificacoesComoLidas = callable('marcarNotificacoesComoLidas');

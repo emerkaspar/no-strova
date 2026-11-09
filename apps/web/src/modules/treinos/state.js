@@ -3,9 +3,8 @@
  * Os níveis ficam nas preferências do usuário; o resto é só da sessão (menos as seções recolhidas, guardadas no navegador).
  */
 
-/** Seções da página, na ordem em que aparecem. */
+/** Seções recolhíveis da aba "Treinos", na ordem em que aparecem. ("Meus trajetos" tem aba própria.) */
 export const SECOES = Object.freeze([
-  { id: 'trajetos', rotulo: 'Meus trajetos' },
   { id: 'semana', rotulo: 'Esta semana' },
   { id: 'biblioteca', rotulo: 'Biblioteca' },
   { id: 'meus', rotulo: 'Meus treinos' },
@@ -54,6 +53,8 @@ export const estadoTreinos = {
   desmarcadas: [],
   /** ids das seções recolhidas */
   recolhidas: lerRecolhidas(),
+  /** aba aberta ('treinos' ou 'trajetos'); null segue a última aba lembrada no navegador */
+  aba: null,
   /** seção para onde a tela deve rolar ao abrir (uma vez) */
   rolarPara: null,
   /** seção Trajetos: o trajeto aberto, a métrica do gráfico, as passagens marcadas para comparar (até 2), o filtro de clima e a ordem da tabela */
@@ -68,7 +69,7 @@ function novoEstadoDosTrajetos() {
 export function prepararEvolucaoDoTrajeto({ esporte, trajetoId }) {
   estadoTreinos.esporte = esporte;
   estadoTreinos.trajetos = { ...novoEstadoDosTrajetos(), aberto: trajetoId };
-  estadoTreinos.recolhidas = estadoTreinos.recolhidas.filter((id) => id !== 'trajetos');
+  estadoTreinos.aba = 'trajetos';
   estadoTreinos.rolarPara = 'trajetos';
 }
 
@@ -83,6 +84,7 @@ export function reiniciarEstadoTreinos() {
     semente: null,
     recusados: [],
     desmarcadas: [],
+    aba: null,
     rolarPara: null,
     trajetos: novoEstadoDosTrajetos(),
   });

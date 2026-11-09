@@ -115,8 +115,9 @@ service cloud.firestore {
     // estes documentos; o cliente valida os passos (validarTreinoEstruturado) e ignora os inválidos ao ler.
     function modeloTreinoValido() {
       let m = request.resource.data;
-      return m.keys().hasOnly(['userId', 'nome', 'esporte', 'foco', 'nivel', 'descricao', 'passos', 'criadoEm'])
+      return m.keys().hasOnly(['userId', 'nome', 'esporte', 'foco', 'nivel', 'descricao', 'passos', 'trajetoId', 'trajetoNome', 'criadoEm'])
         && m.keys().hasAll(['userId', 'nome', 'esporte', 'foco', 'nivel', 'passos'])
+        && (!('trajetoId' in m) || (m.trajetoId is string && m.trajetoId.size() >= 1 && m.trajetoId.size() <= 128 && m.trajetoNome is string && m.trajetoNome.size() >= 1 && m.trajetoNome.size() <= 60))
         && m.userId == request.auth.uid
         && m.nome is string && m.nome.size() >= 3 && m.nome.size() <= 60
         && m.esporte in ['ciclismo', 'corrida']

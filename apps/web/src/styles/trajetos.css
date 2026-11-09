@@ -429,6 +429,117 @@
   width: 100%;
 }
 
+/* ---------- treino adaptado ao terreno ---------- */
+.chip-trajeto {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.modal-terreno {
+  width: min(680px, calc(100vw - 24px));
+}
+
+.terreno-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.terreno-previa {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.terreno-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.traj-terreno {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.traj-terreno-area {
+  opacity: 0.88;
+}
+
+.traj-terreno-linha {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.traj-terreno-eixo {
+  stroke: var(--border);
+}
+
+.traj-terreno-rotulo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.terreno-trechos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.terreno-trecho {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.terreno-trecho div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.terreno-zona {
+  flex: none;
+  min-width: 38px;
+  padding: 3px 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  border-radius: 8px;
+}
+
+.perfil-fundo-z1 { background: var(--zhr-z1); }
+.perfil-fundo-z2 { background: var(--zhr-z2); }
+.perfil-fundo-z3 { background: var(--zhr-z3); }
+.perfil-fundo-z4 { background: var(--zhr-z4); }
+.perfil-fundo-z5 { background: var(--zhr-z5); }
+
+.traj-treino-acao {
+  margin-top: 12px;
+}
+
 @media (max-width: 768px) {
   .traj-stat {
     flex-basis: 100%;

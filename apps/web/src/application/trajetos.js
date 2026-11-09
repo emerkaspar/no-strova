@@ -1,6 +1,7 @@
 import { parciaisDoTrecho, passagensDoTrajeto, perfilDaPassagem, podioDoTrajeto, resumoDoTrajeto, rotaValida } from '@no-strova/domain';
-import { ajustarTrechoDaAtividade, definirRotaDoTrajeto } from '../core/functions.js';
+import { ajustarTrechoDaAtividade, definirRotaDoTrajeto, sugerirTreinoDoTrajeto } from '../core/functions.js';
 import { lerSerieDetalhe } from '../infrastructure/atividadesRepo.js';
+import { salvarModeloProprio } from './treinos.js';
 
 /**
  * Evolução por trajeto: junta os trajetos e as atividades vinculadas e usa as regras de `@no-strova/domain`
@@ -65,4 +66,18 @@ export async function definirRota({ trajetoId, atividadeId, iniKm = null, fimKm 
 export async function ajustarTrecho({ atividadeId, modo, iniKm = null, fimKm = null }) {
   const faixa = modo === 'faixa' ? { iniM: Math.round(iniKm * 1000), fimM: Math.round(fimKm * 1000) } : {};
   return ajustarTrechoDaAtividade({ atividadeId, modo, ...faixa });
+}
+
+/**
+ * Treino adaptado ao terreno do trajeto: o servidor lê a altimetria da rota de referência e devolve o treino sugerido
+ * (pela IA, ou pelas regras da estratégia quando `usarIa` é false). Nada é gravado até `salvarTreinoDoTrajeto`.
+ * Lança Error em português.
+ */
+export function gerarTreinoDoTrajeto({ trajetoId, foco, nivel, estrategia, observacao, usarIa }) {
+  return sugerirTreinoDoTrajeto({ trajetoId, foco, nivel, estrategia, observacao: observacao || undefined, usarIa });
+}
+
+/** Salva o treino gerado em "Meus treinos", com a tag do trajeto. Retorna o id do modelo. */
+export function salvarTreinoDoTrajeto({ uid, treino, trajeto }) {
+  return salvarModeloProprio({ uid, entrada: { ...treino, trajetoId: trajeto.id, trajetoNome: trajeto.nome } });
 }

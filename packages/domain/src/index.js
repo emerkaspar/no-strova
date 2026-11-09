@@ -35,6 +35,7 @@ export * from './frasesDoTreino.js';
 export * from './semana.js';
 export * from './sugestaoTreinos.js';
 export * from './treinosEstruturados.js';
+export * from './treinoPorTrajeto.js';
 export * from './comparacaoTreino.js';
 export * from './usuarios.js';
 export * from './medalhas.js';

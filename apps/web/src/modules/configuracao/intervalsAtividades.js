@@ -1,7 +1,8 @@
-import { intervalsSincronizarAtividades, intervalsSituacao } from '../../core/functions.js';
+import { intervalsDesconectar, intervalsSincronizarAtividades, intervalsSituacao } from '../../core/functions.js';
 import { areaMensagem, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
+import { confirmar } from '../../utils/modal.js';
 import { criarCampoDaChave, criarGuiaConector } from '../plano/conexaoIntervals.js';
 import { PERIODOS, plural, resumoSincronizacao, semNovidades } from './garmin.js';
 import { secaoRecolhivel } from './secaoRecolhivel.js';
@@ -58,6 +59,27 @@ export function criarCartaoIntervalsAtividades() {
     );
   }
 
+  /** Botão "Desconectar", com confirmação em modal. Apaga a chave guardada; o que já foi importado continua no app. */
+  function criarBotaoDesconectar() {
+    const botao = h('button', { class: 'btn btn-perigo', type: 'button' }, 'Desconectar');
+    botao.addEventListener('click', async () => {
+      const ok = await confirmar({
+        titulo: 'Desconectar o intervals.icu?',
+        mensagem: 'A chave guardada será apagada e as atividades deixam de chegar sozinhas. O que já foi importado continua no app, e os treinos já enviados continuam no intervals.icu e no Garmin.',
+        confirmarTexto: 'Desconectar',
+        tipo: 'aviso',
+        icone: 'lixeira',
+      });
+      if (!ok) return;
+      executarComBotao(botao, mensagem, async () => {
+        await intervalsDesconectar();
+        mensagem.limpar();
+        desenhar({ conectado: false });
+      });
+    });
+    return botao;
+  }
+
   /** A chave foi recusada: a sincronização automática parou até o usuário reconectar com uma chave válida. */
   function desenharChaveRecusada(s) {
     corpo.replaceChildren(
@@ -70,6 +92,7 @@ export function criarCartaoIntervalsAtividades() {
           desenhar(await intervalsSituacao());
           mensagem.mostrar('intervals.icu reconectado. A sincronização automática voltou.', 'ok');
         },
+        botoesExtras: [criarBotaoDesconectar()],
       }),
     );
   }
@@ -118,7 +141,7 @@ export function criarCartaoIntervalsAtividades() {
         'Sincronizando…',
       );
     });
-    corpo.replaceChildren(status, h('div', { class: 'grid' }, periodo.raiz), progresso, h('div', { class: 'linha-botoes' }, botao));
+    corpo.replaceChildren(status, h('div', { class: 'grid' }, periodo.raiz), progresso, h('div', { class: 'linha-botoes' }, botao, criarBotaoDesconectar()));
   }
 
   function desenhar(s) {

@@ -1,6 +1,7 @@
 import { estimarEstresseEstruturado, FOCOS, formatarSegundos, NIVEIS, resumirTreino } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarNumero } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
 import { perfilDoTreino } from '../../utils/perfilTreino.js';
 
 /** Linha de resumo: duração, zona predominante e HRSS estimado (quando há configuração de FC). */
@@ -26,6 +27,7 @@ export function criarCartaoTreino({ modelo, config, acoes = [], aoAbrir }) {
       h('span', { class: `chip-foco chip-foco-${foco?.intensidade ?? 'moderada'}` }, foco?.rotulo ?? modelo.foco),
     ),
     perfilDoTreino(modelo.passos),
+    modelo.trajetoNome ? h('p', null, h('span', { class: 'chip-trajeto', title: 'Treino adaptado à altimetria deste trajeto' }, icone('rota', 13), ` ${modelo.trajetoNome}`)) : null,
     h('p', { class: 'treino-resumo' }, textoResumo(modelo, config)),
     h(
       'div',

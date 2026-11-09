@@ -3,6 +3,7 @@ import { adicionarModeloAoPlano } from '../../application/treinos.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
 import { baixarArquivo, perfilDoTreino } from '../../utils/perfilTreino.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { confirmar } from '../../utils/modal.js';
@@ -132,6 +133,7 @@ export function criarDetalheTreino({ uid, modelo, configs, hoje, aoFechar, aoEdi
       { class: 'texto-secundario' },
       `${ROTULO_ESPORTE[modelo.esporte] ?? modelo.esporte} · ${FOCOS[modelo.foco]?.rotulo ?? modelo.foco} · ${NIVEIS[modelo.nivel] ?? modelo.nivel}${proprio ? ' · seu treino' : ''}`,
     ),
+    modelo.trajetoNome ? h('p', null, h('span', { class: 'chip-trajeto', title: 'Treino adaptado à altimetria deste trajeto' }, icone('rota', 13), ` Trajeto: ${modelo.trajetoNome}`)) : null,
     modelo.descricao ? h('p', null, modelo.descricao) : null,
     perfilDoTreino(modelo.passos, { altura: 90 }),
     h(

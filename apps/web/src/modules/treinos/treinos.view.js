@@ -6,6 +6,7 @@ import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarModelos } from '../../infrastructure/modelosRepo.js';
 import { observarTreinos } from '../../infrastructure/planoRepo.js';
 import { observarPreferencias } from '../../infrastructure/calibracaoRepo.js';
+import { criarAbas } from '../../utils/abas.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { seletor } from '../../utils/listaSuspensa.js';
@@ -37,7 +38,19 @@ export function render(raiz, sessao) {
   const proprios = () => modelosProprios(dados.modelos);
   const mensagem = areaMensagem();
   /** Seção Trajetos: criada uma vez (tem os próprios listeners) e reaproveitada a cada redesenho da página. */
-  const trajetos = criarSecaoTrajetos({ uid: sessao.uid, esporte: estadoTreinos.esporte });
+  const trajetos = criarSecaoTrajetos({
+    uid: sessao.uid,
+    esporte: estadoTreinos.esporte,
+    nivel,
+    // treino adaptado salvo: leva o usuário a "Meus treinos", onde ele já aparece com a tag do trajeto
+    aoCriarTreino: () => {
+      estadoTreinos.aba = 'treinos';
+      definirRecolhida('meus', false);
+      estadoTreinos.rolarPara = 'meus';
+      mensagem.mostrar('Treino salvo em Meus treinos, com o nome do trajeto.', 'ok');
+      desenhar();
+    },
+  });
   cancelar.push(() => trajetos.destruir());
 
   const cabecalho = h('section', { class: 'card' });
@@ -295,8 +308,9 @@ export function render(raiz, sessao) {
       );
     }
 
-    secoes.replaceChildren(
-      secao('trajetos', { titulo: 'Meus trajetos', corpo: trajetos.el, fora: trajetos.painelEl }),
+    const painelTreinos = h(
+      'div',
+      { class: 'pilha' },
       secao('semana', { titulo: 'Esta semana', acoes: pronto ? h('div', { class: 'treinos-secao-acoes' }, seletorDeNivel('nivelSemana')) : null, corpo: corpoSemana }),
       secao('biblioteca', { titulo: 'Biblioteca', acoes: acoesBiblioteca, corpo: corpoBiblioteca }),
       secao('meus', {
@@ -305,6 +319,27 @@ export function render(raiz, sessao) {
         corpo: corpoMeus,
       }),
     );
+    // "Meus trajetos" fica na própria aba; o painel do trajeto escolhido abre logo abaixo dos badges
+    const painelTrajetos = h(
+      'div',
+      { class: 'pilha' },
+      h('section', { class: 'treinos-secao pilha', id: 'treinos-trajetos' }, h('div', { class: 'card' }, h('h2', null, 'Meus trajetos'), trajetos.el), trajetos.painelEl),
+    );
+
+    // a aba em uso vem do estado da sessão; um pedido de rolagem leva à aba onde a seção está
+    const anterior = estadoTreinos.aba;
+    const abas = criarAbas({
+      chave: 'ns:treinos:aba',
+      rotuloAria: 'Treinos e trajetos',
+      aoSelecionar: (id) => { estadoTreinos.aba = id; },
+      abas: [
+        { id: 'treinos', nome: 'Treinos', icone: 'treinos', painel: painelTreinos },
+        { id: 'trajetos', nome: 'Trajetos', icone: 'rota', painel: painelTrajetos },
+      ],
+    });
+    const desejada = estadoTreinos.rolarPara ? (estadoTreinos.rolarPara === 'trajetos' ? 'trajetos' : 'treinos') : anterior;
+    if (desejada === 'treinos' || desejada === 'trajetos') abas.selecionar(desejada);
+    secoes.replaceChildren(abas.lista, ...abas.paineis);
   }
 
   function desenhar() {
