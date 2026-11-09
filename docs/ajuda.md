@@ -81,7 +81,11 @@ A calibração é uma lista de cartões, um por esporte e zona. Como ler cada da
 - **Fórmula (HRSS/h)**: o que a fórmula prevê sem olhar o histórico (FC média típica da zona + a sua configuração de atleta).
 - **Peso da calibração**: quanto a estimativa confia no seu histórico, atividades ÷ (atividades + 5): 38% com 3, 50% com 5, 67% com 10, 86% com 30. Com menos de 3, aparece "precisa de N a mais" e vale só a fórmula. A estimativa final é peso × seu HRSS/h + (1 − peso) × fórmula.
 
-Na tela de **Configuração**, cada bloco (Configuração do atleta, Teste de LTHR, Calibração, Garmin) começa recolhido e abre clicando no título (enquanto você estiver na tela, o que abriu continua aberto).
+### Zonas de frequência cardíaca
+
+Logo abaixo da calibração, o quadro **Zonas de frequência cardíaca** mostra, em bpm, as faixas que o app está usando: **Z1** (azul, recuperação), **Z2** (verde, aeróbico), **Z3** (amarelo, tempo), **Z4** (laranja, limiar) e **Z5** (vermelho, VO2máx), cada uma com ícone, a faixa, o percentual do LTHR, como o esforço é sentido e a FC média presumida usada nas estimativas. As zonas **não são estimadas pelas atividades**: vêm só do seu **LTHR** (faixas de Joe Friel, com o topo limitado pela FC máxima). Elas mudam quando você cria uma **nova vigência** com outro LTHR (por exemplo, depois de um Teste de LTHR); cada atividade usa a vigência da data dela, e o **Recalcular histórico** aplica as zonas novas às atividades já importadas. A FC abaixo da Z1 conta na Z1 e a acima da Z5 conta na Z5. Com mais de uma vigência, os botões acima do quadro deixam ver as zonas de cada uma.
+
+Na tela de **Configuração**, cada bloco (Configuração do atleta, Teste de LTHR, Calibração, Zonas de FC, Garmin) começa recolhido e abre clicando no título (enquanto você estiver na tela, o que abriu continua aberto).
 
 ## Atividades
 

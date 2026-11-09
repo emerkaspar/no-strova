@@ -8260,3 +8260,167 @@ a.rec-card-quando:hover {
     flex-basis: 72px;
   }
 }
+
+/* ---------- Configuração: quadro das zonas de frequência cardíaca (cores --zona-1…5: azul, verde, amarelo, laranja, vermelho) ---------- */
+.zfc-base {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.zfc-vigencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.zfc-aba {
+  padding: 4px 12px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.zfc-aba:hover {
+  border-color: var(--primary);
+}
+
+.zfc-aba-ativa {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: var(--primary);
+}
+
+.zfc-regua {
+  display: flex;
+  gap: 3px;
+  height: 30px;
+  margin: 0 0 16px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.zfc-trecho {
+  display: flex;
+  flex-basis: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  color: #0b0b0b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: var(--c);
+}
+
+.zfc-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.zfc-cartao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 14px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--c) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--c) 35%, var(--border));
+  border-radius: 14px;
+}
+
+.zfc-cartao::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--c);
+}
+
+.zfc-topo {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.zfc-icone {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  border-radius: 50%;
+}
+
+.zfc-ident {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.zfc-zona {
+  color: var(--c);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.zfc-nome {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.zfc-faixa {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.zfc-bpm {
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.zfc-unidade {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.zfc-meta,
+.zfc-sensacao,
+.zfc-media {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.zfc-meta {
+  font-weight: 600;
+}
+
+.zfc-sensacao {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.zfc-media {
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--c) 25%, var(--border));
+  font-size: 0.78rem;
+}

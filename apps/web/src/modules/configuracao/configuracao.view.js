@@ -9,6 +9,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { criarCartaoGarmin } from './garmin.js';
+import { criarCartaoZonasDeFc } from './zonasDeFc.js';
 import { linhaCartao, metricaCartao } from './linhaCartao.js';
 import { reiniciarSecoes, secaoRecolhivel } from './secaoRecolhivel.js';
 import { editar, estadoConfiguracao } from './state.js';
@@ -44,8 +45,14 @@ export function render(raiz, sessao) {
   const areaCalibracao = h('div');
   const testeLthr = criarCartaoTesteLthr({ uid: sessao.uid });
 
+  const areaZonas = h('div');
+
   function desenharCalibracao() {
     areaCalibracao.replaceChildren(criarCartaoCalibracao({ uid: sessao.uid, configs, ...dadosCalibracao }));
+  }
+
+  function desenharZonas() {
+    areaZonas.replaceChildren(criarCartaoZonasDeFc({ configs }));
   }
 
   /** A primeira vigência deve começar antes da atividade mais antiga; as demais, hoje. */
@@ -228,6 +235,7 @@ export function render(raiz, sessao) {
       }),
       testeLthr.raiz,
       areaCalibracao,
+      areaZonas,
     ),
   );
   corpoTabela.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));
@@ -256,6 +264,7 @@ export function render(raiz, sessao) {
         configs = lista;
         testeLthr.atualizar({ configs, atividades: atividadesLista });
         desenharCalibracao();
+        desenharZonas();
         desenharTabela();
         // Só recria o formulário quando ele precisa mudar (não apaga o que o usuário está digitando).
         const editando = configs.some((c) => c.id === estadoConfiguracao.editandoId) ? estadoConfiguracao.editandoId : null;

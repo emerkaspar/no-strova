@@ -45,7 +45,7 @@ export const LIMITES_TREINO_ESTRUTURADO = Object.freeze({
 const ZONAS_VALIDAS = Object.keys(ZONAS);
 
 /** Fronteiras das zonas, em fração do LTHR (as faixas de Friel): Z1 60–80%, Z2 80–89%, Z3 89–94,5%, Z4 94,5–100%, Z5 100–110%. */
-const FAIXAS_LTHR = Object.freeze({ Z1: [0.6, 0.8], Z2: [0.8, 0.89], Z3: [0.89, 0.945], Z4: [0.945, 1], Z5: [1, 1.1] });
+export const FAIXAS_LTHR = Object.freeze({ Z1: [0.6, 0.8], Z2: [0.8, 0.89], Z3: [0.89, 0.945], Z4: [0.945, 1], Z5: [1, 1.1] });
 
 /** Faixa de FC (bpm) de uma zona para o atleta; o topo nunca passa da FC máxima. Null sem configuração. */
 export function faixaDeFcDaZona(zona, config) {
