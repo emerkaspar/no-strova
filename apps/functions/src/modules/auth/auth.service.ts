@@ -231,6 +231,7 @@ const COLECOES_DO_USUARIO = [
   "metasForma",
   "metasCondicionamento",
   "provas",
+  "medidas",
   "metasPeso",
   "metasProgressao",
   "pesagens",

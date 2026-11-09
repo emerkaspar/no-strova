@@ -29,6 +29,7 @@ export * from './serieDetalhe.js';
 export * from './progressao.js';
 export * from './ia.js';
 export * from './peso.js';
+export * from './medidas.js';
 export * from './recordesAtividades.js';
 export * from './frasesDoTreino.js';
 export * from './semana.js';

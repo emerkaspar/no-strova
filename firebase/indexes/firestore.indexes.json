@@ -135,6 +135,20 @@
       ]
     },
     {
+      "collectionGroup": "medidas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "pesagens",
       "queryScope": "COLLECTION",
       "fields": [

@@ -48,6 +48,10 @@ Diferenciais em relação ao Elevate:
 
 - `pesagens`: data e peso (manual). Tendência com média móvel (7 dias).
 - Indicadores: peso atual, tendência semanal, e metas (`metas`: peso-alvo e data).
+- **Medidas corporais** (`medidas`, fita métrica): pescoço, tórax, cintura, abdômen, quadril, braço, coxa e panturrilha (lado direito), em cm, todas opcionais (ao menos uma por registro). Uma medição por dia. A tela (seção na aba Peso) tem as abas **Resumo, Evolução, Registrar, Como medir** (desenhos em SVG com a fita no ponto de cada medida) e **Histórico**.
+  - **% de gordura** pelo método da Marinha dos EUA (altura + pescoço + abdômen no homem; altura + pescoço + cintura + quadril na mulher), com faixas do ACE por sexo. **Massa gorda e magra** = % × o peso da pesagem mais recente até a data da medição. São estimativas (erro de alguns pontos percentuais): servem para a tendência.
+  - **Cintura/quadril** (risco aumentado acima de 0,90 no homem e 0,85 na mulher, OMS) e **cintura/altura** (abaixo de 0,5 adequado, 0,5–0,59 atenção, 0,6 ou mais risco alto).
+  - **Veredito da evolução** (primeira contra a última medição): cruza a variação da cintura (queda ou alta de 1 cm ou mais) com a da massa magra estimada (ou, sem ela, a média de braço, coxa e panturrilha). Lógica em `packages/domain/src/medidas.js`.
 - Cruzar peso com carga de treino no gráfico (eixo secundário, opcional).
 - Gasto calórico de treino: usar as calorias do arquivo quando existirem; senão estimar por FC, peso e duração (documentar a fórmula escolhida).
 - **Sugestão de meta com Gemini:** dado peso atual, peso-alvo, data e carga de treino, sugere ritmo semanal, tempo, distância e calorias para fechar o déficit, distribuídos no plano.
@@ -63,7 +67,7 @@ Diferenciais em relação ao Elevate:
 
 ## Privacidade (LGPD)
 
-- Peso e FC são dados de saúde: leitura/escrita somente pelo dono. Nem o admin lê pesagens. O treinador (futuro) lê apenas via vínculo aceito pelo atleta.
+- Peso, medidas corporais e FC são dados de saúde: leitura/escrita somente pelo dono. Nem o admin lê pesagens nem medidas. O treinador (futuro) lê apenas via vínculo aceito pelo atleta.
 - Dados de IA enviados ao Gemini: somente o necessário, sem nome nem e-mail.
 
 ## Regras gerais
@@ -114,6 +118,7 @@ Coleções na raiz, todas com `userId` (exceto `users`). Não há coleção púb
 | `metasCondicionamento/{id}` | `condicionamentoAlvo` (1–250), `condicionamentoInicial?` (o Condicionamento de quando a meta foi criada; informativo), `dataAlvo`, `ativa`, `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `provas/{id}` | evento-alvo (o nome da coleção continua `provas`): `nome` (3–60), `data`, `esporte` (`ciclismo`/`corrida`/`outro`), `prioridade` (`A`/`B`/`C`), e, opcionais (nulos se vazios), `distanciaKm` (0,1–1000), `metaTempoS` (60 s a 48 h), `local` (até 80), `formaAlvo` (−60 a 60), `criadoEm` | Dono (as regras validam; testadas no emulador em `firebase/tests/`) |
 | `pesagens/{id}` | `data`, `pesoKg` (20–400), `criadoEm`. **Uma por dia**: o id é `uid_yyyymmdd`, então regravar a data substitui | Dono (as regras validam campos e faixa) |
+| `medidas/{id}` | `data`, até 8 medidas opcionais em cm (`pescocoCm`, `toraxCm`, `cinturaCm`, `abdomenCm`, `quadrilCm`, `bracoCm`, `coxaCm`, `panturrilhaCm`; cada uma de 10 a 250), `criadoEm`. **Uma por dia**: o id é `uid_yyyymmdd`, então regravar a data substitui | Dono (as regras validam campos e faixas; nem o admin lê) |
 | `metasPeso/{id}` | `pesoAlvoKg` (20–400), `pesoInicialKg?` (o peso de quando a meta foi criada, base do progresso), `dataAlvo`, `status` (`ativa`/`anterior`), `criadoEm` | Dono (as regras validam; uma ativa por vez) |
 | `iaRascunhos/{id}` | `tipo` (`treino`/`peso`), `entradaResumo`, `saida`, `status` (`pendente`/`aceito`/`descartado`), `criadoEm` | Somente callable |
 | `iaUso/{uid_yyyymmdd}` | `chamadas` | Admin SDK |
@@ -186,7 +191,7 @@ Replica o Elevate (`appcore/modules/shared/sync/compute/activity-computer.ts`), 
 - **Limites:** até 200 atividades por sincronização. As atividades do Garmin (campo `fonte: "garmin"`) não entram na cota de 30 por dia do envio manual.
 - O formato do JSON da listagem não é documentado publicamente: o código lê `activityId` de cada item e registra um aviso no log se a lista vier com itens sem esse campo.
 
-**Índices compostos:** `atividades` (`userId`, `data` desc), (`userId`, `esporte`, `data` desc) e (`userId`, `trajetoId`, para a evolução por trajeto); `estresseDiario` (`userId`, `data`); `treinosPlanejados` (`userId`, `data`) e (`userId`, `status`, `data`); `configsAtleta` (`userId`, `vigenteDesde` desc); `provas` (`userId`, `data`); `pesagens` (`userId`, `data`); `metasPeso` (`userId`, `status`); `iaRascunhos` (`userId`, `criadoEm` desc); `users` (`aprovado`, `criadoEm`).
+**Índices compostos:** `atividades` (`userId`, `data` desc), (`userId`, `esporte`, `data` desc) e (`userId`, `trajetoId`, para a evolução por trajeto); `estresseDiario` (`userId`, `data`); `treinosPlanejados` (`userId`, `data`) e (`userId`, `status`, `data`); `configsAtleta` (`userId`, `vigenteDesde` desc); `provas` (`userId`, `data`); `pesagens` (`userId`, `data`); `medidas` (`userId`, `data`); `metasPeso` (`userId`, `status`); `iaRascunhos` (`userId`, `criadoEm` desc); `users` (`aprovado`, `criadoEm`).
 
 ## Papéis e permissões
 - `admin`: aprova, bloqueia e gerencia usuários (CRUD na aba Usuários da Administração: callables `listarUsuarios`, `criarUsuarioAdmin`, `atualizarUsuarioAdmin`, `excluirUsuarioAdmin`; a exclusão apaga Auth, perfil, dados de negócio e arquivos) e libera ou retira funcionalidades por usuário (`users/{uid}.recursos`; `exigirRecurso` nas callables de IA e Garmin, e a UI esconde o que não está liberado). Não tem acesso especial a dados de saúde; para treinar, é também um `atleta` com os próprios dados.

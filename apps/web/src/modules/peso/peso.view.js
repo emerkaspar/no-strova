@@ -3,13 +3,15 @@ import { salvarMetaDePeso, salvarPesagem } from '../../application/peso.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
+import { observarMedidas } from '../../infrastructure/medidasRepo.js';
 import { excluirMetaPeso, excluirPesagem, idDaPesagem, observarMetasPeso, observarPesagens } from '../../infrastructure/pesoRepo.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
-import { icone } from '../../utils/icones.js';
+import { cartao } from './cartaoIndicador.js';
 import { criarGraficoPeso, PERIODOS_DO_PESO } from './graficoPeso.js';
+import { criarSecaoMedidas } from './medidas.view.js';
 
 const DIAS_DE_TREINO = 70;
 
@@ -32,21 +34,6 @@ export function textoDaAvaliacaoPeso(a) {
 }
 
 const ROTULO_ESTADO = Object.freeze({ atingida: 'Atingida', 'no-ritmo': 'No ritmo', atrasada: 'Atrasada', adiantada: 'Adiantada' });
-
-/**
- * Cartão de indicador (mesmo estilo dos recordes): ícone, rótulo, valor grande e uma nota no rodapé. `gravidade`
- * (ok, atencao, alerta) colore a faixa lateral e o valor; `classeNota` colore a nota; `extra` entra entre o valor e o rodapé.
- */
-function cartao({ rotulo, nomeIcone, valor, nota = null, classeNota = '', gravidade = '', extra = null, largo = false }) {
-  return h(
-    'article',
-    { class: `ativ-recorde${largo ? ' ativ-recorde-largo' : ''}${gravidade ? ` peso-${gravidade}-cartao` : ''}` },
-    h('div', { class: 'ativ-recorde-topo' }, h('span', { class: 'ativ-recorde-icone' }, icone(nomeIcone, 18)), h('span', { class: 'ativ-recorde-rotulo' }, rotulo)),
-    h('strong', { class: `ativ-recorde-valor${gravidade ? ` peso-${gravidade}` : ''}` }, valor),
-    extra,
-    nota ? h('div', { class: 'ativ-recorde-rodape' }, h('span', { class: `ativ-recorde-quando ${classeNota}` }, nota)) : null,
-  );
-}
 
 const TEXTO_DA_SITUACAO = Object.freeze({ dentro: 'Dentro da faixa saudável', acima: 'acima do limite superior', abaixo: 'abaixo do limite inferior' });
 
@@ -82,7 +69,7 @@ function barraDaFaixa({ faixa, pesoKg, metaKg, situacao }) {
 /** Peso e metas: registro de pesagens, indicadores, gráfico, meta de peso e resumo semanal com o treino. */
 export function render(raiz, sessao) {
   const hoje = hojeIso();
-  const dados = { pesagens: [], metas: [], configs: [], dias: [], atividades: [] };
+  const dados = { pesagens: [], metas: [], configs: [], dias: [], atividades: [], medidas: [] };
   const carregou = { pesagens: false, metas: false };
   let periodoId = '90d';
   const cancelar = [];
@@ -96,6 +83,12 @@ export function render(raiz, sessao) {
 
   const metaAtiva = () => dados.metas.find((m) => m.status === 'ativa') ?? null;
   const alturaCm = () => configVigenteEm(dados.configs, hoje)?.alturaCm ?? dados.configs[dados.configs.length - 1]?.alturaCm ?? null;
+
+  const sexo = () => {
+    const vigente = configVigenteEm(dados.configs, hoje) ?? dados.configs[dados.configs.length - 1] ?? null;
+    return vigente?.sexo ?? null;
+  };
+  const medidas = criarSecaoMedidas({ sessao, dados, hoje, perfil: () => ({ sexo: sexo(), alturaCm: alturaCm() }), erroGeral });
 
   // ---- registro de pesagem
   const dataCampo = campo({ id: 'peso-data', rotulo: 'Data', tipo: 'date', value: hoje, max: hoje });
@@ -352,6 +345,7 @@ export function render(raiz, sessao) {
     desenharMeta();
     desenharSemanal();
     desenharHistorico();
+    medidas.atualizar();
   }
 
   raiz.replaceChildren(
@@ -366,6 +360,7 @@ export function render(raiz, sessao) {
       metaCartao,
       semanalCartao,
       historicoCartao,
+      medidas.el,
     ),
   );
   desenhar();
@@ -396,8 +391,17 @@ export function render(raiz, sessao) {
         dados.configs = lista;
         desenharTiles();
         desenharMeta();
+        medidas.atualizar();
       },
       () => {},
+    ),
+    observarMedidas(
+      sessao.uid,
+      (lista) => {
+        dados.medidas = lista;
+        medidas.desenhar();
+      },
+      aoErro,
     ),
     observarEstresseDiario(
       sessao.uid,
@@ -417,5 +421,8 @@ export function render(raiz, sessao) {
       () => {},
     ),
   );
-  return () => cancelar.forEach((fn) => fn());
+  return () => {
+    cancelar.forEach((fn) => fn());
+    medidas.fechar();
+  };
 }

@@ -15,7 +15,7 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 
 - **Cabeçalho (todas as telas):** o logo (leva ao Início), a data por extenso, a saudação ("Bom dia", "Boa tarde" ou "Boa noite"), uma frase de brincadeira que muda quando você troca de página (citação inventada atribuída a um grande nome da história; passe o mouse sobre ela para ver a dica) e, à direita, o menu **Início, Atividades, Plano, Progressão, Treinos, Peso e Configuração** (a Configuração é só a engrenagem) (**Administração** só aparece para administradores), o botão laranja **Importar arquivo** e o círculo com a sua inicial, que abre o menu da conta (**Perfil de treino**, a **Administração** para administradores, e **Sair**). Em telas pequenas o menu vira uma **barra de abas no rodapé**.
 - **Importar arquivo:** abre a tela de Atividades já com o painel de importação aberto.
-- **Plano** é onde você planeja os treinos (veja abaixo). **Peso** ainda está em construção e mostra só um aviso.
+- **Plano** é onde você planeja os treinos (veja abaixo). Em **Peso** você registra o peso e as medidas do corpo (veja abaixo).
 
 ## Início
 
@@ -205,6 +205,17 @@ Em **Peso**, registre o seu peso (**uma pesagem por dia**: se registrar de novo 
 - **Peso e treino por semana:** o peso médio, a carga (HRSS) e o gasto calórico dos treinos de cada uma das últimas 8 semanas.
 - No **Início**, o gráfico principal mostra o peso e a meta, e o cartão **Peso** resume o peso atual, a tendência e o progresso.
 - O peso não substitui orientação de médico, nutricionista ou treinador.
+
+### Medidas corporais
+O peso sozinho não mostra se você perde gordura ou ganha músculo. Na seção **Medidas corporais** (no fim da tela de Peso), com uma fita métrica e a balança, o app acompanha o seu corpo além do peso. Ela tem cinco abas:
+
+- **Como medir:** um desenho do corpo com a fita no ponto exato de cada uma das 8 medidas (pescoço, tórax, cintura, abdômen, quadril, braço, coxa e panturrilha), mais as regras gerais: fita flexível, de manhã e em jejum, em pé e relaxado, fita rente sem apertar, sempre o lado direito, duas leituras por medida. O ícone de ajuda ao lado de cada campo em **Registrar** leva direto ao desenho.
+- **Registrar:** preencha só o que mediu (em cm). Registrar de novo na mesma data substitui o anterior. Meça a cada 2 a 4 semanas, sempre nas mesmas condições.
+- **Resumo:** o **% de gordura**, a **massa gorda** e a **massa magra** estimados, a relação **cintura/quadril** e a **cintura/altura**, a última leitura de cada medida com a variação desde a anterior e desde a primeira, e um texto que diz se você está evoluindo (por exemplo, perdendo gordura e preservando músculo). Toque em um cartão para ver o que o número significa.
+- **Evolução:** gráfico de cada medida (ou do % de gordura e da massa magra) ao longo do tempo.
+- **Histórico:** todas as medições, com exclusão.
+
+Para estimar a gordura são necessários o sexo e a altura (na **Configuração**), uma pesagem e as medidas de **pescoço e abdômen** (homens) ou **pescoço, cintura e quadril** (mulheres). Sem isso, o Resumo avisa o que falta. Os percentuais são estimativas pela fita (erro de alguns pontos percentuais): servem para acompanhar a tendência, não para diagnóstico. Os dados de medidas são só seus: nem o administrador os vê.
 
 ## Plano de treino
 

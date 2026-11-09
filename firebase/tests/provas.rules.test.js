@@ -1,5 +1,6 @@
 // Regras da coleção `provas`. Roda no emulador do Firestore:
-//   npx firebase emulators:exec --only firestore --project demo-nostrova "npx vitest run firebase/tests"
+//   npx firebase emulators:exec --only firestore --project demo-nostrova "npx vitest run --no-file-parallelism firebase/tests"
+// (sem paralelismo entre arquivos: todos usam o mesmo emulador e o beforeEach limpa o banco)
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
