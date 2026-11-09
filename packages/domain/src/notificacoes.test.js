@@ -70,7 +70,7 @@ describe('marcoAtingido', () => {
 
 describe('montarNotificacao', () => {
   it('cobre todos os tipos do catálogo com grupo coerente', () => {
-    const ctx = { data: '2026-11-09', atividadeId: 'a1', quantidade: 2, nome: 'Maratona', dias: 7, provaId: 'p1', metaId: 'm1', dataAlvo: '2026-12-01', rotuloMeta: 'Meta de peso', conquistaId: 'c1', falhas: 2, expiraEm: '2026-11-16', referencia: 'r', rascunhoId: 'd1', novoUid: 'u2' };
+    const ctx = { data: '2026-11-09', atividadeId: 'a1', quantidade: 2, nome: 'Maratona', dias: 7, provaId: 'p1', metaId: 'm1', dataAlvo: '2026-12-01', rotuloMeta: 'Meta de peso', conquistaId: 'c1', falhas: 2, expiraEm: '2026-11-16', referencia: 'r', rascunhoId: 'd1', novoUid: 'u2', dia: '2026-11-09' };
     for (const [tipo, def] of Object.entries(TIPOS_NOTIFICACAO)) {
       const n = montarNotificacao(tipo, ctx);
       expect(n, tipo).not.toBeNull();

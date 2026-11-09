@@ -176,6 +176,27 @@ export async function baixarArquivoOriginal(
   return conteudo;
 }
 
+export type ExtensaoArquivo = "fit" | "gpx" | "tcx";
+
+/**
+ * Reconhece o arquivo original pelo conteúdo: FIT (puro ou dentro de um ZIP), GPX ou TCX. O intervals.icu devolve o arquivo como
+ * foi enviado, então pode não ser .fit. `obterFit` é injetado para este módulo não depender do cliente do Garmin.
+ * @returns o conteúdo e a extensão, ou null se não for um formato aceito
+ */
+export function identificarArquivo(
+  conteudo: Buffer,
+  limiteBytes: number,
+  obterFit: (c: Buffer, limite: number) => Buffer | null,
+): { conteudo: Buffer; extensao: ExtensaoArquivo } | null {
+  const fit = obterFit(conteudo, limiteBytes);
+  if (fit) return { conteudo: fit, extensao: "fit" };
+  const inicio = conteudo.toString("utf8", 0, 1024).replace(/^﻿/, "").trimStart();
+  if (!inicio.startsWith("<")) return null;
+  if (/<gpx[\s>]/i.test(inicio)) return { conteudo, extensao: "gpx" };
+  if (/<TrainingCenterDatabase[\s>]/i.test(inicio)) return { conteudo, extensao: "tcx" };
+  return null;
+}
+
 export async function atualizarEvento(chave: string, eventoId: string, evento: EventoIntervals, requisitor: Requisitor = requisitorPadrao): Promise<void> {
   await chamar(chave, "PUT", `/athlete/0/events/${encodeURIComponent(eventoId)}`, evento, requisitor);
 }

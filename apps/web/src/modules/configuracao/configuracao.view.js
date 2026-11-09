@@ -215,8 +215,9 @@ export function render(raiz, sessao) {
 
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
+      // o intervals.icu é o conector oficial e vale para todos; o cartão do Garmin continua dependendo do recurso liberado pelo admin
+      criarCartaoIntervalsAtividades().raiz,
       temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoGarmin().raiz : null,
-      temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoIntervalsAtividades().raiz : null,
       secaoRecolhivel({
         id: 'atleta',
         titulo: 'Configuração do atleta',

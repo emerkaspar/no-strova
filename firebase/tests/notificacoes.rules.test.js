@@ -57,6 +57,20 @@ describe('notificacoes', () => {
   });
 });
 
+describe('intervalsConexoes (estado da conexão com o intervals.icu)', () => {
+  it('nem o dono nem o admin leem ou escrevem pelo cliente: só o Admin SDK', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc('intervalsConexoes/ana').set({ status: 'ativa' });
+    });
+    await assertFails(como('ana').doc('intervalsConexoes/ana').get());
+    await assertFails(como('adm').doc('intervalsConexoes/ana').get());
+    await assertFails(como('ana').doc('intervalsConexoes/ana').set({ status: 'ativa' }));
+    await assertFails(como('ana').doc('intervalsConexoes/ana').update({ status: 'chaveInvalida' }));
+    await assertFails(como('ana').doc('intervalsConexoes/ana').delete());
+    await assertFails(como('ana').collection('intervalsConexoes').get());
+  });
+});
+
 describe('preferências de notificação', () => {
   const prefs = (notificacoes) => ({ userId: 'ana', notificacoes });
 
@@ -66,6 +80,10 @@ describe('preferências de notificação', () => {
         .doc('preferencias/ana')
         .set(prefs({ tipos: { pesar: false, medidas: true }, intervaloPesoDias: 7, intervaloMedidasDias: 30, intervaloLthrSemanas: 8 })),
     );
+  });
+
+  it('aceita o tipo de aviso da chave do intervals.icu', async () => {
+    await assertSucceeds(como('ana').doc('preferencias/ana').set(prefs({ tipos: { intervalsChaveInvalida: false } })));
   });
 
   it('segue aceitando preferências sem o campo de notificações', async () => {

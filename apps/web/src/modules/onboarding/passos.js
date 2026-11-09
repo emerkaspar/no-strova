@@ -22,7 +22,7 @@ import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js
 import { icone } from '../../utils/icones.js';
 import { confirmar } from '../../utils/modal.js';
 import { conferirLthrNoIntervals } from '../configuracao/lthrIntervals.js';
-import { criarCampoDaChave, criarGuiaIntervals } from '../plano/conexaoIntervals.js';
+import { criarCampoDaChave, criarGuiaConector, criarGuiaIntervals } from '../plano/conexaoIntervals.js';
 
 const ABREV = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const NOMES = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -476,6 +476,44 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
     },
   };
 
+  // ---------- intervals.icu: o conector oficial das atividades (vale para todos, independente do Garmin; dá para pular) ----------
+  const detalheIntervals = h('div', { class: 'wz-garmin-detalhe', 'aria-live': 'polite' });
+  const mensagemIntervals = areaMensagem();
+  let situacaoIntervals = null; // usado no resumo do passo "Pronto"
+  async function desenharDetalheIntervals() {
+    detalheIntervals.replaceChildren(h('p', { class: 'wz-nota', role: 'status' }, 'Verificando a conexão…'));
+    try {
+      situacaoIntervals = await intervalsSituacao();
+    } catch {
+      situacaoIntervals = { conectado: false };
+    }
+    if (situacaoIntervals.conectado && situacaoIntervals.status !== 'chaveInvalida') {
+      detalheIntervals.replaceChildren(
+        h('p', { class: 'mensagem mensagem-ok' }, `Conectado ao intervals.icu${situacaoIntervals.atleta ? ` como ${situacaoIntervals.atleta}` : ''}. As atividades chegam sozinhas, todo dia; em Atividades dá para forçar uma atualização.`),
+      );
+      return;
+    }
+    detalheIntervals.replaceChildren(
+      ...(situacaoIntervals.conectado ? [h('p', { class: 'mensagem mensagem-erro', role: 'alert' }, 'O intervals.icu recusou a chave guardada. Gere a API Key de novo e cole abaixo.')] : []),
+      h('p', { class: 'wz-nota' }, 'Configuração, uma vez só (leva uns 5 minutos):'),
+      criarGuiaConector(),
+      criarCampoDaChave({ mensagem: mensagemIntervals, aoConectado: desenharDetalheIntervals, idCampo: 'wz-intervals-chave', comoFormulario: false }),
+      mensagemIntervals.el,
+      h('p', { class: 'wz-nota' }, 'Dá para pular e conectar depois, em Configuração. Sem a conexão, as atividades só entram por arquivo.'),
+    );
+  }
+  const intervals = {
+    id: 'intervals',
+    rotulo: 'intervals.icu',
+    eyebrow: 'Suas atividades',
+    titulo: 'Atividades chegando sozinhas',
+    subtitulo: 'O intervals.icu (um site gratuito) reúne o que você grava no aparelho, seja IGPSPORT, Garmin ou outro, e o No Strova traz tudo para cá automaticamente, sem exportar arquivos.',
+    raiz: h('div', { class: 'wz-campos' }, detalheIntervals),
+    entrar() {
+      desenharDetalheIntervals();
+    },
+  };
+
   // ---------- Garmin (opcional, mas importante para quem treina com relógio) ----------
   const ROTULO_USO_GARMIN = { sim: 'Uso o Garmin', nao: 'Não uso', depois: 'Decido depois' };
   const liberadoGarmin = temRecurso(sessao.perfil, RECURSOS.GARMIN);
@@ -577,6 +615,12 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
           estado.dias.size === 0 ? '—' : [...estado.dias].sort((a, b) => a - b).map((d) => ABREV[d]).join(' · '),
           `${formatarNumero(estado.horas, estado.horas % 1 === 0 ? 0 : 1)} h${estado.longao === null ? '' : ` · longão de ${NOMES[estado.longao]}`}`,
         ],
+        [
+          'intervals',
+          'intervals.icu',
+          situacaoIntervals === null ? '—' : situacaoIntervals.conectado ? 'Conectado' : 'Não conectado',
+          situacaoIntervals?.conectado ? 'Atividades automáticas, todo dia' : 'Conecte em Configuração para trazer as atividades sozinhas',
+        ],
         ['garmin', 'Garmin', ROTULO_USO_GARMIN[estado.usoGarmin] ?? '—', estado.usoGarmin === 'sim' ? 'Envio de treinos pelo intervals.icu' : 'Dá para configurar depois'],
         ['meta', 'Meta de peso', estado.querMeta && estado.metaPeso ? `${estado.metaPeso} kg` : 'Sem meta', estado.querMeta && estado.metaData ? `até ${formatarData(estado.metaData)}` : 'Dá para definir depois'],
       ];
@@ -597,5 +641,5 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
     continuar: concluir,
   };
 
-  return [boasVindas, voce, corpo, coracao, nivel, semana, garmin, meta, pronto];
+  return [boasVindas, voce, corpo, coracao, nivel, semana, intervals, garmin, meta, pronto];
 }

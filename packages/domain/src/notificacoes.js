@@ -29,6 +29,7 @@ export const TIPOS_NOTIFICACAO = Object.freeze({
   recorde: { grupo: 'metas', rotulo: 'Recorde pessoal', padrao: true },
   garminExpirando: { grupo: 'integracoes', rotulo: 'Chave do Garmin expirando', padrao: true },
   envioFalhou: { grupo: 'integracoes', rotulo: 'Falha no envio de treinos', padrao: true },
+  intervalsChaveInvalida: { grupo: 'integracoes', rotulo: 'Chave do intervals.icu recusada', padrao: true },
   contaAprovada: { grupo: 'conta', rotulo: 'Conta aprovada', padrao: true },
   aguardandoAprovacao: { grupo: 'conta', rotulo: 'Usuário aguardando aprovação', padrao: true, soAdmin: true },
   rascunhoIa: { grupo: 'conta', rotulo: 'Rascunho da IA pendente', padrao: true },
@@ -245,6 +246,14 @@ export function montarNotificacao(tipo, ctx = {}) {
         mensagem: `${ctx.falhas} ${plural(ctx.falhas, 'treino não foi enviado', 'treinos não foram enviados')} ao Garmin. Tente de novo.`,
         rota: '#/plano',
         referencia: ctx.referencia,
+      };
+    case 'intervalsChaveInvalida':
+      return {
+        ...base,
+        titulo: 'O intervals.icu recusou a sua chave',
+        mensagem: 'As atividades pararam de chegar. Gere a chave de API de novo (Settings → Developer Settings) e reconecte em Configuração.',
+        rota: '#/configuracao',
+        referencia: ctx.dia,
       };
     case 'contaAprovada':
       return {

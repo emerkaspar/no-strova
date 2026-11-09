@@ -21,6 +21,33 @@ export function criarGuiaIntervals({ comCampo = true } = {}) {
 }
 
 /**
+ * Passo a passo do intervals.icu como conector oficial de atividades (independente do Garmin): cria a conta, liga o aparelho ao
+ * intervals.icu e copia a chave de API. Usado no cadastro (wizard) e no cartão de Configuração.
+ */
+export function criarGuiaConector() {
+  return h(
+    'ol',
+    { class: 'guia-intervals' },
+    h('li', null, 'Crie uma conta gratuita em ', LINK('intervals.icu', 'https://intervals.icu'), '.'),
+    h(
+      'li',
+      null,
+      'Ligue o seu aparelho ao intervals.icu. ',
+      h('strong', null, 'IGPSPORT:'),
+      ' no app da IGPSPORT (celular), abra ',
+      h('strong', null, 'Meu → Vincular com outros aplicativos'),
+      ' e autorize o intervals.icu; só os pedais feitos depois de vincular são enviados. ',
+      h('strong', null, 'Garmin, Wahoo, Coros, Zwift e outros:'),
+      ' no intervals.icu, em ',
+      h('strong', null, 'Settings → Connections'),
+      '.',
+    ),
+    h('li', null, 'Ainda em Settings, em ', h('strong', null, 'Developer Settings'), ', gere e copie a ', h('strong', null, 'API Key'), '.'),
+    h('li', null, 'Cole a chave abaixo. Ela fica guardada com criptografia e só serve para ler as suas atividades e criar treinos no seu calendário.'),
+  );
+}
+
+/**
  * Campo da chave de API + botão Conectar. No painel do Plano é um formulário de verdade; no wizard (que já é um formulário,
  * e formulário dentro de formulário faria o Enter avançar o passo) é uma caixa comum e o Enter só conecta.
  * @param {{

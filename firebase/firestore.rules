@@ -238,7 +238,7 @@ service cloud.firestore {
 
     function tiposNotificacaoValidos(t) {
       return t is map
-        && t.keys().hasOnly(['treinoHoje', 'treinoOntem', 'comoFoi', 'conflitoTreinos', 'pesar', 'medidas', 'testeLthr', 'provaChegando', 'prazoMeta', 'conquista', 'recorde', 'garminExpirando', 'envioFalhou', 'contaAprovada', 'aguardandoAprovacao', 'rascunhoIa'])
+        && t.keys().hasOnly(['treinoHoje', 'treinoOntem', 'comoFoi', 'conflitoTreinos', 'pesar', 'medidas', 'testeLthr', 'provaChegando', 'prazoMeta', 'conquista', 'recorde', 'garminExpirando', 'envioFalhou', 'intervalsChaveInvalida', 'contaAprovada', 'aguardandoAprovacao', 'rascunhoIa'])
         && tipoNotifOk(t, 'treinoHoje')
         && tipoNotifOk(t, 'treinoOntem')
         && tipoNotifOk(t, 'comoFoi')
@@ -252,6 +252,7 @@ service cloud.firestore {
         && tipoNotifOk(t, 'recorde')
         && tipoNotifOk(t, 'garminExpirando')
         && tipoNotifOk(t, 'envioFalhou')
+        && tipoNotifOk(t, 'intervalsChaveInvalida')
         && tipoNotifOk(t, 'contaAprovada')
         && tipoNotifOk(t, 'aguardandoAprovacao')
         && tipoNotifOk(t, 'rascunhoIa');
@@ -414,7 +415,8 @@ service cloud.firestore {
 
     // iaUso e vinculosTreinador: sem acesso direto (somente Admin SDK).
     // users/{uid}/segredos/garmin e /segredos/intervals (chaves pessoais, cifradas) e users/{uid}/intervalsEnvio (registro dos
-    // treinos enviados ao intervals.icu): sem regra, logo negados ao cliente. A regra de
+    // treinos enviados ao intervals.icu) e intervalsConexoes/{uid} (estado da conexão e da sincronização automática de
+    // atividades do intervals.icu): sem regra, logo negados ao cliente. A regra de
     // /users/{uid} não vale para subcoleções. Não crie um `match` curinga em users/{uid}/{document=**}.
   }
 }

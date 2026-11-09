@@ -48,6 +48,9 @@
 
 .notif-aba,
 .chip-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -64,9 +67,32 @@
   background: var(--surface-light);
 }
 
-.badge-ok {
-  border-color: var(--success);
+/* contador da aba "Não lidas" e selo "Resolvido" (não usam .badge: essa classe é o cartão das medalhas) */
+.notif-contagem,
+.notif-selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.notif-contagem {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.notif-selo {
+  margin-left: 8px;
+  padding: 3px 8px;
+  border: 1px solid var(--success);
   color: var(--success);
+  vertical-align: middle;
 }
 
 .notif-lista {

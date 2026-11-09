@@ -14,6 +14,7 @@ import {
   baixarArquivoOriginal,
   criarEvento,
   type EsporteIntervals,
+  identificarArquivo,
   IntervalsErroApi,
   listarAtividades,
   obterAtleta,
@@ -26,11 +27,24 @@ import { enviarTreinos, motivoDaFalha, type RegistroEnvio, type ResultadoEnvio, 
 export const MAXIMO_DIAS = 62;
 export const MAXIMO_TREINOS = 60;
 
+/** `ativa`: a sincronização automática roda; `chaveInvalida`: o intervals.icu recusou a chave e o usuário precisa reconectar. */
+export type StatusConexao = "ativa" | "chaveInvalida";
+
+export interface ResultadoAutomatico {
+  importadas: number;
+  semFc: number;
+  semArquivo: number;
+  falhas: number;
+}
+
 export interface SituacaoIntervals {
   conectado: boolean;
   atleta: string | null;
-  /** Última sincronização de atividades (ISO), ou null. */
+  status: StatusConexao | null;
+  /** Última sincronização de atividades concluída (ISO), manual ou automática; ou null. */
   ultimaSincronizacao: string | null;
+  /** Resultado da última rodada automática (ISO + totais), ou null enquanto ela não rodou. */
+  ultimaAutomatica: { em: string; resultado: ResultadoAutomatico } | null;
 }
 
 /** LTHR do No Strova e o de cada esporte no intervals.icu (null: sem LTHR configurado lá). */
@@ -53,6 +67,9 @@ export interface RespostaEnvio extends ResultadoEnvio {
 // A chave de API (cifrada) fica em users/{uid}/segredos/intervals, que nenhuma regra libera: só o Admin SDK lê e escreve.
 // O registro do que já foi enviado fica em users/{uid}/intervalsEnvio/{treinoId} (também só Admin SDK).
 const docChave = (uid: string) => db.doc(`users/${uid}/segredos/intervals`);
+// Estado da conexão (status, última sincronização, resultado da rodada automática): `intervalsConexoes/{uid}`, também só Admin SDK.
+// É por ele que a sincronização automática descobre quem está conectado, sem varrer as subcoleções de segredos.
+export const docConexao = (uid: string) => db.doc(`intervalsConexoes/${uid}`);
 const docRegistro = (uid: string, treinoId: string) => db.doc(`users/${uid}/intervalsEnvio/${treinoId}`);
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
@@ -97,25 +114,50 @@ export async function conectar(uid: string, chaveBruta: unknown, segredo: string
   } catch (erro) {
     throw traduzirErro(erro);
   }
-  // merge: reconectar com outra chave preserva a data da última sincronização de atividades
-  await docChave(uid).set({ chaveCifrada: criptografar(chave, segredo), atleta: atleta.name ?? atleta.id, criadaEm: Timestamp.now() }, { merge: true });
+  await docChave(uid).set({ chaveCifrada: criptografar(chave, segredo), atleta: atleta.name ?? atleta.id, criadaEm: Timestamp.now() });
+  // merge: reconectar (por exemplo, com uma chave nova) preserva a data da última sincronização e volta o status para "ativa"
+  await docConexao(uid).set({ status: "ativa", conectadaEm: Timestamp.now(), falhasSeguidas: 0 }, { merge: true });
   return situacao(uid);
 }
 
 export async function situacao(uid: string): Promise<SituacaoIntervals> {
-  const snap = await docChave(uid).get();
-  if (!snap.exists || typeof snap.get("chaveCifrada") !== "string") return { conectado: false, atleta: null, ultimaSincronizacao: null };
-  const atleta = snap.get("atleta");
-  const ultima = snap.get("ultimaSincronizacao");
+  const [chave, conexao] = await Promise.all([docChave(uid).get(), docConexao(uid).get()]);
+  if (!chave.exists || typeof chave.get("chaveCifrada") !== "string") {
+    return { conectado: false, atleta: null, status: null, ultimaSincronizacao: null, ultimaAutomatica: null };
+  }
+  if (!conexao.exists) {
+    // quem conectou antes de existir o estado da conexão: cria agora, para a sincronização automática passar a incluí-lo
+    const criadaEm = chave.get("criadaEm");
+    await docConexao(uid).set({ status: "ativa", conectadaEm: criadaEm instanceof Timestamp ? criadaEm : Timestamp.now(), falhasSeguidas: 0 }, { merge: true });
+  }
+  const atleta = chave.get("atleta");
+  const ultima = conexao.get("ultimaSincronizacao");
+  const automatica = conexao.get("ultimoResultado");
+  const quando = conexao.get("ultimaAutomaticaEm");
   return {
     conectado: true,
     atleta: typeof atleta === "string" ? atleta : null,
+    status: conexao.get("status") === "chaveInvalida" ? "chaveInvalida" : "ativa",
     ultimaSincronizacao: ultima instanceof Timestamp ? ultima.toDate().toISOString() : null,
+    ultimaAutomatica:
+      quando instanceof Timestamp && automatica && typeof automatica === "object"
+        ? { em: quando.toDate().toISOString(), resultado: automatica as ResultadoAutomatico }
+        : null,
   };
 }
 
 export async function desconectar(uid: string): Promise<void> {
-  await docChave(uid).delete();
+  await Promise.all([docChave(uid).delete(), docConexao(uid).delete()]);
+}
+
+/** O intervals.icu recusou a chave: a sincronização automática para de tentar até o usuário reconectar. */
+export async function marcarChaveInvalida(uid: string): Promise<void> {
+  await docConexao(uid).set({ status: "chaveInvalida", ultimaTentativa: FieldValue.serverTimestamp() }, { merge: true });
+}
+
+/** Falha que não é da chave (rede, limite, erro do servidor): só conta, para o log e para quem acompanha. */
+export async function registrarFalhaDeSincronizacao(uid: string): Promise<void> {
+  await docConexao(uid).set({ falhasSeguidas: FieldValue.increment(1), ultimaTentativa: FieldValue.serverTimestamp() }, { merge: true });
 }
 
 async function chaveDoUsuario(uid: string, segredo: string): Promise<string> {
@@ -214,10 +256,10 @@ export async function sincronizarAtividades(
 ): Promise<ResultadoSincronizacao> {
   const inicio = posicaoDoLote(entrada.inicio);
   const agora = Date.now();
-  const snapChave = await docChave(uid).get();
+  const [snapChave, snapConexao] = await Promise.all([docChave(uid).get(), docConexao(uid).get()]);
   const cifrada = snapChave.get("chaveCifrada");
   if (typeof cifrada !== "string") throw new HttpsError("failed-precondition", "Conecte o intervals.icu antes de sincronizar as atividades.");
-  const ultima = snapChave.get("ultimaSincronizacao");
+  const ultima = snapConexao.get("ultimaSincronizacao");
   const dias = diasDaSincronizacao(entrada.dias, ultima instanceof Timestamp ? ultima.toMillis() : null, agora);
 
   const resultado: ResultadoSincronizacao = { importadas: 0, novasIds: [], jaExistiam: 0, semFc: 0, falhas: 0, semArquivo: 0, problemas: [], proximo: inicio, terminou: false, limitado: false };
@@ -235,6 +277,7 @@ export async function sincronizarAtividades(
   try {
     lista = await listarAtividades(chave, { de: diaNoFuso(agora - dias * DIA_MS), ate: diaNoFuso(agora + DIA_MS) }, requisitor);
   } catch (erro) {
+    if (erro instanceof IntervalsErroApi && (erro.status === 401 || erro.status === 403)) await marcarChaveInvalida(uid);
     throw traduzirErro(erro);
   }
   const limite = Math.min(ATIVIDADES_POR_LOTE, LIMITE_POR_SINCRONIZACAO - inicio);
@@ -253,17 +296,18 @@ export async function sincronizarAtividades(
       resultado.semArquivo += 1;
       continue;
     }
-    const caminho = caminhoDoArquivo(uid, atividadeId, "fit");
+    let caminho = caminhoDoArquivo(uid, atividadeId, "fit");
     try {
       const baixado = await baixarArquivoOriginal(chave, item.id, TAMANHO_MAXIMO_BYTES, requisitor);
-      const fit = baixado ? obterFit(baixado, TAMANHO_MAXIMO_BYTES) : null;
-      if (!fit) {
-        // sem arquivo original (atividade criada à mão no intervals.icu, por exemplo) ou formato que não é .fit
+      const arquivo = baixado ? identificarArquivo(baixado, TAMANHO_MAXIMO_BYTES, obterFit) : null;
+      if (!arquivo) {
+        // sem arquivo original (atividade criada à mão no intervals.icu, por exemplo) ou formato que o app não lê
         resultado.semArquivo += 1;
         continue;
       }
-      await getStorage().bucket().file(caminho).save(fit, { resumable: false, contentType: "application/octet-stream" });
-      const pedido: PedidoArquivo = { atividadeId, extensao: "fit", esporte: null, zona: null, fonte: FONTE_INTERVALS };
+      caminho = caminhoDoArquivo(uid, atividadeId, arquivo.extensao);
+      await getStorage().bucket().file(caminho).save(arquivo.conteudo, { resumable: false, contentType: "application/octet-stream" });
+      const pedido: PedidoArquivo = { atividadeId, extensao: arquivo.extensao, esporte: null, zona: null, fonte: FONTE_INTERVALS };
       const r = await processarArquivo(uid, dataNascimento, pedido);
       if (r.jaExistia) resultado.jaExistiam += 1;
       else {
@@ -271,7 +315,11 @@ export async function sincronizarAtividades(
         if (resultado.novasIds.length < IDS_NOVAS_MAX) resultado.novasIds.push(atividadeId);
       }
     } catch (err) {
-      if (err instanceof IntervalsErroApi && [401, 403, 429].includes(err.status)) throw traduzirErro(err); // vale para todas: interrompe
+      if (err instanceof IntervalsErroApi && [401, 403, 429].includes(err.status)) {
+        // vale para todas as atividades: interrompe a rodada
+        if (err.status !== 429) await marcarChaveInvalida(uid);
+        throw traduzirErro(err);
+      }
       if (err instanceof HttpsError && err.code === "already-exists") {
         resultado.jaExistiam += 1; // a mesma atividade já veio por outro caminho (arquivo enviado ou Garmin)
       } else if (err instanceof HttpsError && err.code === "failed-precondition" && (err.details as { codigo?: string })?.codigo === "sem-fc") {
@@ -293,8 +341,50 @@ export async function sincronizarAtividades(
     resultado.terminou = true;
     resultado.limitado = true;
   }
-  if (resultado.terminou) await docChave(uid).set({ ultimaSincronizacao: FieldValue.serverTimestamp() }, { merge: true });
+  if (resultado.terminou) {
+    // uma rodada completa (manual ou automática) também desfaz um "chave inválida" antigo: a chave voltou a funcionar
+    await docConexao(uid).set(
+      { status: "ativa", falhasSeguidas: 0, ultimaSincronizacao: FieldValue.serverTimestamp(), ultimaTentativa: FieldValue.serverTimestamp() },
+      { merge: true },
+    );
+  }
   return resultado;
+}
+
+/** Totais de uma sincronização completa de um usuário (todas as rodadas de lotes). */
+export type TotaisSincronizacao = ResultadoAutomatico & { jaExistiam: number; limitado: boolean };
+
+/** Dias da primeira sincronização automática de quem nunca sincronizou. */
+export const DIAS_PRIMEIRA_SINCRONIZACAO = 30;
+
+/**
+ * Sincroniza tudo de uma vez para um usuário (usado pela rotina automática): repete os lotes até terminar e grava o resultado da
+ * rodada. Sem `dias`, traz o que é novo desde a última sincronização; sem nenhuma sincronização anterior, os últimos 30 dias.
+ * Falhas da chave ou do intervals.icu sobem como HttpsError (quem chama decide o que fazer); falhas de atividades isoladas
+ * entram na contagem.
+ */
+export async function sincronizarUsuario(uid: string, segredo: string, requisitor?: Requisitor, dias?: number): Promise<TotaisSincronizacao> {
+  const [perfil, conexao] = await Promise.all([db.doc(`users/${uid}`).get(), docConexao(uid).get()]);
+  const dataNascimento = typeof perfil.get("dataNascimento") === "string" ? (perfil.get("dataNascimento") as string) : null;
+  const periodo = dias ?? (conexao.get("ultimaSincronizacao") instanceof Timestamp ? undefined : DIAS_PRIMEIRA_SINCRONIZACAO);
+
+  const totais: TotaisSincronizacao = { importadas: 0, semFc: 0, semArquivo: 0, falhas: 0, jaExistiam: 0, limitado: false };
+  let inicio = 0;
+  for (;;) {
+    const r = await sincronizarAtividades(uid, dataNascimento, { inicio, ...(periodo === undefined ? {} : { dias: periodo }) }, segredo, requisitor);
+    for (const k of ["importadas", "semFc", "semArquivo", "falhas", "jaExistiam"] as const) totais[k] += r[k];
+    totais.limitado = r.limitado;
+    inicio = r.proximo;
+    if (r.terminou) break;
+  }
+  await docConexao(uid).set(
+    {
+      ultimaAutomaticaEm: FieldValue.serverTimestamp(),
+      ultimoResultado: { importadas: totais.importadas, semFc: totais.semFc, semArquivo: totais.semArquivo, falhas: totais.falhas },
+    },
+    { merge: true },
+  );
+  return totais;
 }
 
 /** Envia ao intervals.icu os treinos planejados do período (que o intervals.icu repassa ao Garmin Connect). */

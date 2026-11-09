@@ -3,7 +3,7 @@ import { montarSerie } from '../../application/forma.js';
 import { obterSessao } from '../../application/sessao.js';
 import { completarAtividades } from '../../application/completarAtividades.js';
 import { guardarAtividadesParaMedalhas } from '../../application/medalhas.js';
-import { garminSituacao } from '../../core/functions.js';
+import { garminSituacao, intervalsSituacao } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
@@ -12,6 +12,7 @@ import { observarTrajetos } from '../../infrastructure/trajetosRepo.js';
 import { avisoDispensavel } from '../../utils/avisoDispensavel.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { resumoSincronizacao, semNovidades, sincronizarGarmin } from '../configuracao/garmin.js';
+import { resumoDoIntervals, sincronizarIntervals } from '../configuracao/intervalsAtividades.js';
 import { criarAbas, colunasDe } from '../../utils/abas.js';
 import { h } from '../../utils/dom.js';
 import { seletor } from '../../utils/listaSuspensa.js';
@@ -154,6 +155,7 @@ export function render(raiz, sessao) {
   const mensagem = areaMensagem();
   const aviso = h('p', { class: 'mensagem', hidden: true });
   const mensagemGarmin = avisoDispensavel();
+  const mensagemIntervals = avisoDispensavel();
   const corpo = h('div', { class: 'ativ-lista-wrap' });
   const paineis = h('div');
   const contagem = h('span', { class: 'texto-secundario' });
@@ -495,6 +497,55 @@ export function render(raiz, sessao) {
   }
 
   /**
+   * Sincroniza com o intervals.icu (o conector oficial: reúne IGPSPORT, Garmin e outros) sem sair da tela. Vale para qualquer
+   * usuário, sem depender do recurso do Garmin. Fora o botão, a sincronização também roda sozinha todo dia. Sem a conexão feita,
+   * em vez do botão aparece um lembrete para conectar. A lista se atualiza sozinha (onSnapshot).
+   */
+  const botaoIntervals = h('button', {
+    class: 'btn-garmin btn-intervals',
+    type: 'button',
+    hidden: true,
+    title: 'Sincronizar agora com o intervals.icu',
+    'aria-label': 'Sincronizar agora com o intervals.icu',
+  }, icone('atualizar', 22));
+  botaoIntervals.addEventListener('click', async () => {
+    botaoIntervals.disabled = true;
+    botaoIntervals.classList.add('carregando');
+    mensagemIntervals.limpar();
+    try {
+      const situacao = await intervalsSituacao();
+      if (!situacao.conectado) {
+        botaoIntervals.hidden = true;
+        mensagemIntervals.mostrar('O intervals.icu não está mais conectado. Conecte de novo em Configuração.');
+        return;
+      }
+      mensagemIntervals.mostrar('Sincronizando com o intervals.icu…', 'carregando');
+      const primeira = !situacao.ultimaSincronizacao;
+      const { total, limitado } = await sincronizarIntervals({ dias: primeira ? 30 : undefined });
+      mensagemIntervals.mostrar(resumoDoIntervals(total, limitado), semNovidades(total) && !total.semArquivo ? 'info' : 'ok');
+      // uma única atividade nova: já pergunta como foi (com várias, ficam com o selo "Como foi?" na tabela)
+      if (total.importadas === 1 && total.novasIds.length === 1) abrirFeedbackPorId(total.novasIds[0], { primeiraVez: true }).catch(() => {});
+    } catch (err) {
+      mensagemIntervals.mostrar(err.message || 'Não foi possível sincronizar com o intervals.icu.');
+    } finally {
+      botaoIntervals.disabled = false;
+      botaoIntervals.classList.remove('carregando');
+    }
+  });
+
+  intervalsSituacao().then(
+    (situacao) => {
+      botaoIntervals.hidden = !situacao.conectado;
+      if (!situacao.conectado) {
+        mensagemIntervals.mostrar('Conecte o intervals.icu em Configuração para trazer suas atividades (IGPSPORT, Garmin e outros) automaticamente, sem exportar arquivos.', 'info');
+      } else if (situacao.status === 'chaveInvalida') {
+        mensagemIntervals.mostrar('O intervals.icu recusou a sua chave e as atividades pararam de chegar. Gere a chave de novo e reconecte em Configuração.');
+      }
+    },
+    () => {}, // sem o estado da conexão, não mostra botão nem lembrete
+  );
+
+  /**
    * Badges da atividade, na faixa abaixo do título. Para um badge novo: acrescente a entrada em `BADGES` (badges.js) e devolva-o aqui;
    * a ordem e o "+N" são da faixa.
    */
@@ -700,12 +751,14 @@ export function render(raiz, sessao) {
         h(
           'div',
           { class: 'linha-botoes' },
+          botaoIntervals,
           botaoGarmin,
           h('button', { class: 'btn', type: 'button', onClick: () => mostrarPainel('importar', abrirImportar) }, 'Importar arquivo'),
           h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => mostrarPainel('manual', abrirManual) }, 'Registrar manualmente'),
         ),
       ),
       mensagemGarmin.el,
+      mensagemIntervals.el,
       aviso,
       paineis,
       filtros,

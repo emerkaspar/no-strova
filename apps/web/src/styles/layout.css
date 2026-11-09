@@ -6243,6 +6243,20 @@ textarea {
   display: none;
 }
 
+/* Variante do botão de sincronização para o intervals.icu: usa a cor primária do tema em vez do azul da Garmin */
+.btn-intervals,
+.btn-intervals:hover:not(:disabled),
+.btn-intervals:focus-visible {
+  border-color: var(--primary);
+  background: var(--primary);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.btn-intervals:hover:not(:disabled),
+.btn-intervals:focus-visible {
+  filter: brightness(0.9);
+}
+
 /* Aviso em faixa (utils/avisoDispensavel.js): ícone, texto e botão de fechar; a cor do tipo vem de --aviso */
 .aviso-faixa {
   --aviso: var(--text-secondary);

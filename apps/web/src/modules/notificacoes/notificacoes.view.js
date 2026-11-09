@@ -65,7 +65,7 @@ export function render(raiz, sessao) {
           'p',
           { class: 'notif-titulo' },
           n.titulo,
-          n.resolvida ? h('span', { class: 'badge badge-ok' }, 'Resolvido') : null,
+          n.resolvida ? h('span', { class: 'notif-selo' }, 'Resolvido') : null,
           n.lida ? null : h('span', { class: 'sr-only' }, ' (não lida)'),
         ),
         h('p', { class: 'notif-mensagem' }, n.mensagem),
@@ -82,14 +82,15 @@ export function render(raiz, sessao) {
 
   function desenhar() {
     const visiveis = itensVisiveis();
-    const abrir = (id, rotulo, total) =>
+    const abrir = (id, rotulo, nomeIcone, total) =>
       h(
         'button',
         { class: 'notif-aba', type: 'button', role: 'tab', 'aria-selected': String(aba === id), onClick: () => { aba = id; desenhar(); } },
-        rotulo,
-        total > 0 ? h('span', { class: 'badge' }, String(total)) : null,
+        icone(nomeIcone, 18),
+        h('span', null, rotulo),
+        total > 0 ? h('span', { class: 'notif-contagem' }, String(total)) : null,
       );
-    abas.replaceChildren(abrir('nao-lidas', 'Não lidas', dados.naoLidas.length), abrir('todas', 'Todas', 0));
+    abas.replaceChildren(abrir('nao-lidas', 'Não lidas', 'sino', dados.naoLidas.length), abrir('todas', 'Todas', 'atividades', 0));
 
     const grupos = Object.entries({ todos: 'Todos', ...GRUPOS_NOTIFICACAO });
     filtros.replaceChildren(

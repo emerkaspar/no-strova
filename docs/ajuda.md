@@ -38,16 +38,17 @@ O app abre no **tema escuro**. Para alternar, clique no **círculo com a sua ini
 
 ## Perfil de treino (o passo a passo inicial)
 
-No primeiro acesso depois da aprovação, o app abre um **passo a passo** em tela cheia para você preencher tudo o que entra nos cálculos. São oito etapas, com barra de progresso:
+No primeiro acesso depois da aprovação, o app abre um **passo a passo** em tela cheia para você preencher tudo o que entra nos cálculos. São nove etapas, com barra de progresso:
 
 1. **Você:** nome e data de nascimento.
 2. **Corpo:** sexo, peso e altura (mostra o IMC na hora).
 3. **Coração:** FC de repouso, FC máxima e LTHR. Não sabe? **Não sei: estimar pra mim** preenche a FC máxima pela idade (208 − 0,7 × idade) e o LTHR com 90% dela. São estimativas: o **Teste de LTHR** (em Configuração) acerta bem mais. As suas **cinco zonas de FC** aparecem conforme você digita.
 4. **Nível:** iniciante, intermediário ou avançado, e o esporte principal. As sugestões de treino usam o nível.
 5. **Semana:** os dias em que dá para treinar, o **dia do longão** e as **horas por semana**. A **Sugestão de treinos com IA** (no Plano) já abre com essa rotina.
-6. **Garmin (opcional, mas importante para quem treina com relógio):** você diz se **usa o Garmin**, **não usa** ou **decide depois**. Quem usa vê, na própria tela, o passo a passo para ligar o Garmin ao app pelo intervals.icu (criar a conta gratuita, conectar o Garmin e marcar *Upload planned workouts*, copiar a *API Key*) e já cola a chave ali mesmo para conectar; o passo também lembra de conferir se o LTHR do intervals.icu é o mesmo do seu perfil. Esse recurso precisa ser liberado pelo administrador: sem a liberação, o passo explica isso e o guia, e a sua escolha fica salva. Quem marcar "uso" ou "decido depois" e ainda não tiver conectado vê um lembrete discreto no Plano, com **Configurar agora** e **Não uso**.
-7. **Meta de peso (opcional):** peso desejado e data. O app avisa se o ritmo passa de 1% do peso por semana e recusa metas que levem o IMC abaixo de 18,5.
-8. **Pronto:** resumo com **Editar** em cada item. Se você já tem atividades importadas e mudou os números, há o botão **Recalcular o meu histórico agora** (com confirmação).
+6. **intervals.icu (as suas atividades chegando sozinhas):** o intervals.icu é o **conector oficial** do No Strova e vale para **todos**, tenha ou não Garmin. Ele reúne o que você grava no aparelho (IGPSPORT, Garmin, Wahoo, Coros, Zwift e outros) e o app traz tudo para cá todo dia. O passo mostra o passo a passo (criar a conta gratuita, ligar o aparelho, copiar a *API Key*) e já cola a chave ali mesmo. **Dá para pular:** quem pula vê um lembrete na tela Atividades até conectar (e, em Configuração, o cartão do intervals.icu).
+7. **Garmin (opcional, mas importante para quem treina com relógio):** você diz se **usa o Garmin**, **não usa** ou **decide depois**. Quem usa vê, na própria tela, o passo a passo para ligar o Garmin ao app pelo intervals.icu (criar a conta gratuita, conectar o Garmin e marcar *Upload planned workouts*, copiar a *API Key*) e já cola a chave ali mesmo para conectar; o passo também lembra de conferir se o LTHR do intervals.icu é o mesmo do seu perfil. Esse recurso precisa ser liberado pelo administrador: sem a liberação, o passo explica isso e o guia, e a sua escolha fica salva. Quem marcar "uso" ou "decido depois" e ainda não tiver conectado vê um lembrete discreto no Plano, com **Configurar agora** e **Não uso**.
+8. **Meta de peso (opcional):** peso desejado e data. O app avisa se o ritmo passa de 1% do peso por semana e recusa metas que levem o IMC abaixo de 18,5.
+9. **Pronto:** resumo com **Editar** em cada item. Se você já tem atividades importadas e mudou os números, há o botão **Recalcular o meu histórico agora** (com confirmação).
 
 - **Cada etapa salva ao continuar:** se você sair no meio, o que já foi feito fica guardado.
 - **Dá para preencher depois:** **Preencher depois** (ou Esc) fecha o passo a passo. Enquanto o perfil não estiver completo, o **Início** mostra uma faixa **Completar perfil**.
@@ -114,18 +115,21 @@ Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin 
 - Cada sincronização traz até 200 atividades; se chegar ao limite, sincronize de novo.
 - A chave expira na validade que você escolheu (o app avisa quando faltam 7 dias). Aí é só apagar a chave no Garmin Connect, criar outra e conectar de novo. **Desconectar** apaga a chave guardada; as atividades já importadas continuam.
 
-### Sincronizar com o intervals.icu (IGPSPORT e outros)
-Quem treina com um aparelho **IGPSPORT** pode trazer os pedais para o app pelo [intervals.icu](https://intervals.icu), que tem integração oficial com a IGPSPORT (desde 28/10/2026) e recebe os pedais sozinho. Vale também para qualquer outro serviço que envie atividades ao intervals.icu. Precisa da mesma liberação do administrador do Garmin. Em **Configuração → intervals.icu · atividades**:
+### Atividades pelo intervals.icu (o conector oficial)
+O [intervals.icu](https://intervals.icu) é o conector oficial do No Strova: tudo que chega a ele (aparelhos **IGPSPORT**, Garmin, Wahoo, Coros, Zwift e outros) vem para o app **sozinho, todo dia de manhã**, e você pode **forçar uma atualização** quando quiser. Vale para **qualquer usuário**: não depende de ter o Garmin liberado. O Garmin continua funcionando à parte, como antes (sincronização direta e envio de treinos). Em **Configuração → intervals.icu · conector de atividades** (ou no passo do Perfil de treino):
 
-1. Crie uma conta gratuita no intervals.icu e, no app da **IGPSPORT** (celular, Android ou iPhone), abra **Meu → Vincular com outros aplicativos** e conecte o intervals.icu. Os pedais passam a ser enviados a ele automaticamente, mas só os feitos **depois** de vincular (os antigos precisam ser enviados à mão).
-2. No intervals.icu, em **Settings → Developer Settings**, gere e copie a **API Key** (a mesma chave do envio de treinos ao Garmin; se já conectou lá, o cartão já abre conectado).
-3. Cole a chave, clique em **Conectar**, escolha o período e clique em **Sincronizar agora**. A sincronização só acontece quando você clica.
+1. Crie uma conta gratuita no intervals.icu e ligue o seu aparelho a ele. **IGPSPORT:** no app da IGPSPORT (celular, Android ou iPhone), abra **Meu → Vincular com outros aplicativos** e autorize o intervals.icu. Só os pedais feitos **depois** de vincular são enviados (os antigos precisam entrar por arquivo). **Garmin, Wahoo, Coros, Zwift e outros:** no intervals.icu, em **Settings → Connections**.
+2. No intervals.icu, em **Settings → Developer Settings**, gere e copie a **API Key** (é a mesma chave do envio de treinos ao Garmin; se já conectou lá, o cartão já abre conectado).
+3. Cole a chave e clique em **Conectar**. Pronto: a partir daí a sincronização é automática.
 
+- **Automático:** todo dia, às 5h (horário de São Paulo), o app traz o que é novo desde a última vez. O cartão mostra a última sincronização e o resultado da última rodada automática.
+- **Forçar atualização:** em Configuração, escolha o período (só o que é novo, ou os últimos 30, 60, 90 dias ou 6 meses) e clique em **Forçar atualização agora**. Na tela **Atividades** há também o botão de setas girando, ao lado de **Importar arquivo**, que sincroniza sem sair da tela. Quando chega uma única atividade nova, abre o **Como foi?**.
+- **Chave recusada:** se o intervals.icu deixar de aceitar a chave (por exemplo, você a gerou de novo), a sincronização automática **para** e você recebe um aviso (sino) e um alerta no cartão. Gere a chave de novo, cole no cartão e reconecte: a rotina volta sozinha.
 - Atividade já importada (ou igual a uma que você enviou à mão ou trouxe do Garmin) não é duplicada.
-- Atividade **sem frequência cardíaca** fica de fora; o resumo avisa quantas. Atividades **vindas do Strava** não são entregues pelo intervals.icu e também ficam de fora.
+- Atividade **sem frequência cardíaca** fica de fora; o resumo avisa quantas (para essas, use **Importar arquivo** e informe a zona). Atividades **vindas do Strava** não são entregues pelo intervals.icu e também ficam de fora. O arquivo pode ser FIT, GPX ou TCX.
 - Cada sincronização traz até 200 atividades; se chegar ao limite, sincronize de novo.
 - O card da atividade mostra a origem **intervals.icu** (na orelha do canto superior direito).
-- Este envio de pedais é só das **atividades**. Enviar treinos do plano ao aparelho IGPSPORT não está disponível.
+- Este caminho traz só as **atividades**. Enviar treinos do plano ao aparelho IGPSPORT não está disponível.
 
 ### Como foi? (sensação e esforço)
 Depois de **importar um arquivo**, **registrar uma atividade manualmente** ou **sincronizar o Garmin** pelo botão da tela Atividades e trazer **uma única** atividade nova, abre a janela **Como foi?** para você contar como foi o treino:

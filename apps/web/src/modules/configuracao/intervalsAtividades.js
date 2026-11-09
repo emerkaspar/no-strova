@@ -2,11 +2,9 @@ import { intervalsSincronizarAtividades, intervalsSituacao } from '../../core/fu
 import { areaMensagem, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
-import { criarCampoDaChave } from '../plano/conexaoIntervals.js';
+import { criarCampoDaChave, criarGuiaConector } from '../plano/conexaoIntervals.js';
 import { PERIODOS, plural, resumoSincronizacao, semNovidades } from './garmin.js';
 import { secaoRecolhivel } from './secaoRecolhivel.js';
-
-const LINK = (texto, href) => h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, texto);
 
 /** Texto final: o resumo comum (importadas, sem FC, falhas) mais as atividades que o intervals.icu não consegue entregar. */
 export function resumoDoIntervals(total, limitado) {
@@ -48,14 +46,7 @@ export function criarCartaoIntervalsAtividades() {
 
   function desenharDesconectado() {
     corpo.replaceChildren(
-      h(
-        'ol',
-        { class: 'texto-secundario' },
-        h('li', null, 'Crie uma conta gratuita em ', LINK('intervals.icu', 'https://intervals.icu'), '.'),
-        h('li', null, 'No app da IGPSPORT (celular), abra ', h('strong', null, 'Meu → Vincular com outros aplicativos'), ' e conecte o intervals.icu. Só os pedais feitos depois de vincular são enviados.'),
-        h('li', null, 'No intervals.icu, em ', h('strong', null, 'Settings → Developer Settings'), ', gere e copie a ', h('strong', null, 'API Key'), '.'),
-        h('li', null, 'Cole a chave abaixo. Ela fica guardada com criptografia.'),
-      ),
+      criarGuiaConector(),
       criarCampoDaChave({
         mensagem,
         idCampo: 'int-ativ-chave',
@@ -67,17 +58,46 @@ export function criarCartaoIntervalsAtividades() {
     );
   }
 
+  /** A chave foi recusada: a sincronização automática parou até o usuário reconectar com uma chave válida. */
+  function desenharChaveRecusada(s) {
+    corpo.replaceChildren(
+      h('p', { class: 'mensagem mensagem-erro', role: 'alert' }, `O intervals.icu recusou a chave${s.atleta ? ` de ${s.atleta}` : ''}. A sincronização automática está parada.`),
+      h('p', { class: 'texto-secundario' }, 'No intervals.icu, em Settings → Developer Settings, gere a API Key de novo e cole abaixo para reconectar.'),
+      criarCampoDaChave({
+        mensagem,
+        idCampo: 'int-ativ-chave',
+        aoConectado: async () => {
+          desenhar(await intervalsSituacao());
+          mensagem.mostrar('intervals.icu reconectado. A sincronização automática voltou.', 'ok');
+        },
+      }),
+    );
+  }
+
+  function textoDaRodadaAutomatica(auto) {
+    const r = auto.resultado;
+    const partes = [plural(r.importadas ?? 0, 'atividade importada', 'atividades importadas')];
+    if (r.semFc > 0) partes.push(`${r.semFc} sem frequência cardíaca`);
+    if (r.falhas > 0) partes.push(`${plural(r.falhas, 'falha', 'falhas')}`);
+    return ` Última rodada automática em ${formatarData(auto.em.slice(0, 10))}: ${partes.join(', ')}.`;
+  }
+
   function desenharConectado(s) {
+    if (s.status === 'chaveInvalida') {
+      desenharChaveRecusada(s);
+      return;
+    }
     const status = h(
       'p',
       { class: 'texto-secundario' },
-      `Conectado${s.atleta ? ` como ${s.atleta}` : ''}.`,
+      `Conectado${s.atleta ? ` como ${s.atleta}` : ''}. A sincronização é automática: roda todo dia de manhã e traz o que chegou ao intervals.icu.`,
       s.ultimaSincronizacao ? ` Última sincronização em ${formatarData(s.ultimaSincronizacao.slice(0, 10))}.` : ' Ainda não sincronizou.',
+      s.ultimaAutomatica ? textoDaRodadaAutomatica(s.ultimaAutomatica) : '',
     );
     const opcoes = s.ultimaSincronizacao ? [{ valor: '', rotulo: 'Só o que é novo desde a última vez' }, ...PERIODOS] : PERIODOS;
     const periodo = selecao({ id: 'int-ativ-periodo', rotulo: 'Período', valor: s.ultimaSincronizacao ? '' : '30', opcoes });
     const progresso = h('p', { class: 'texto-secundario', role: 'status' });
-    const botao = h('button', { class: 'btn', type: 'button' }, 'Sincronizar agora');
+    const botao = h('button', { class: 'btn', type: 'button' }, 'Forçar atualização agora');
     botao.addEventListener('click', () => {
       executarComBotao(
         botao,
@@ -114,12 +134,12 @@ export function criarCartaoIntervalsAtividades() {
 
   const raiz = secaoRecolhivel({
     id: 'intervals-atividades',
-    titulo: 'intervals.icu · atividades (IGPSPORT e outros)',
+    titulo: 'intervals.icu · conector de atividades',
     corpo: [
       h(
         'p',
         { class: 'texto-secundario' },
-        'Traga os pedais que chegam ao seu intervals.icu, como os gravados no aparelho IGPSPORT. A sincronização é feita só quando você clica no botão. Atividades do Strava não são entregues pelo intervals.icu.',
+        'O intervals.icu é o conector oficial do No Strova: tudo que chega a ele (aparelhos IGPSPORT, Garmin, Wahoo, Coros, Zwift e outros) vem para cá sozinho, todo dia, e você pode forçar uma atualização quando quiser. Atividades do Strava não são entregues pelo intervals.icu.',
       ),
       mensagem.el,
       corpo,

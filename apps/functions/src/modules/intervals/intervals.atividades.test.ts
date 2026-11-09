@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
-import { baixarArquivoOriginal, IntervalsErroApi, listarAtividades, type Requisitor } from "./intervals.cliente";
+import { baixarArquivoOriginal, identificarArquivo, IntervalsErroApi, listarAtividades, type Requisitor } from "./intervals.cliente";
 import { atividadeIdDoIntervals } from "./intervals.service";
 
 const resposta = (status: number, corpo: unknown, bytes?: Buffer): Awaited<ReturnType<Requisitor>> => ({
@@ -75,6 +75,22 @@ describe("baixarArquivoOriginal", () => {
     await expect(baixarArquivoOriginal("chave", "i1", 10, async () => resposta(200, null, fit()))).rejects.toMatchObject({ status: 413 });
     await expect(baixarArquivoOriginal("chave", "../x", 1024, async () => resposta(200, null, fit()))).rejects.toBeInstanceOf(IntervalsErroApi);
     await expect(baixarArquivoOriginal("chave", "i1", 1024, async () => resposta(429, null))).rejects.toMatchObject({ status: 429 });
+  });
+});
+
+describe("identificarArquivo", () => {
+  const limite = 1024;
+  const obterFit = (c: Buffer) => (c.toString("latin1", 8, 12) === ".FIT" ? c : null);
+
+  it("reconhece FIT, GPX e TCX pelo conteúdo", () => {
+    expect(identificarArquivo(fit(), limite, obterFit)?.extensao).toBe("fit");
+    expect(identificarArquivo(Buffer.from('<?xml version="1.0"?><gpx version="1.1"></gpx>'), limite, obterFit)?.extensao).toBe("gpx");
+    expect(identificarArquivo(Buffer.from('﻿<?xml version="1.0"?>\n<TrainingCenterDatabase xmlns="x"></TrainingCenterDatabase>'), limite, obterFit)?.extensao).toBe("tcx");
+  });
+
+  it("recusa o que não é um formato aceito", () => {
+    expect(identificarArquivo(Buffer.from("nada a ver"), limite, obterFit)).toBeNull();
+    expect(identificarArquivo(Buffer.from("<html><body>erro</body></html>"), limite, obterFit)).toBeNull();
   });
 });
 
