@@ -24,6 +24,8 @@ export function pedirTreinoUnicoDaIa({ data }) {
  */
 export async function aceitarTreinosDaIa({ uid, rascunhoId, itens, configs }) {
   if (itens.length === 0) throw new Error('Marque pelo menos um treino.');
+  // um treino próprio sugerido pode ter sido excluído depois do pedido
+  if (itens.some((i) => !i.modelo)) throw new Error('Um dos treinos sugeridos não existe mais entre os seus treinos. Peça uma nova sugestão.');
   await adicionarVariosAoPlano({ uid, itens, configs });
   await decidirRascunho({ rascunhoId, decisao: 'aceito' });
 }

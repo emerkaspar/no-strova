@@ -1,5 +1,6 @@
 import { CATALOGO_TREINOS, modeloPorId } from './catalogoTreinos.js';
 import { diasEntre, somarDias } from './forma.js';
+import { propriosParaIa } from './ia.js';
 import { estresseDoTreino } from './planejamento.js';
 import { diasDoRascunho, FASES, itemDeAtivacao, REGRAS_RASCUNHO } from './planoAnual.js';
 import { diaDaSemana } from './semana.js';
@@ -34,9 +35,11 @@ export function limitesDoTreinoDeBase(treino, esporte) {
 /**
  * O que a IA pode escolher: o catálogo do esporte (até o nível do atleta, sem o teste de LTHR), com a duração e o estresse
  * estimado de cada treino, e os treinos de base, em que a IA escolhe a duração (estresse por minuto aproximado).
- * @param {{ esporte: string, nivel: string, configEm: (data: string) => any|null, hoje: string }} p
+ * Os treinos próprios do usuário (`proprios`, já validados) vão numa lista à parte, `proprios`, com o `trajeto` quando o treino foi
+ * adaptado a um.
+ * @param {{ esporte: string, nivel: string, configEm: (data: string) => any|null, hoje: string, proprios?: any[] }} p
  */
-export function menuParaIa({ esporte, nivel, configEm, hoje }) {
+export function menuParaIa({ esporte, nivel, configEm, hoje, proprios = [] }) {
   const config = configEm(somarDias(hoje, 1));
   const teto = ORDEM_DE_NIVEL[nivel] ?? ORDEM_DE_NIVEL.intermediario;
   const catalogo = CATALOGO_TREINOS.filter((m) => m.esporte === esporte && (ORDEM_DE_NIVEL[m.nivel] ?? 0) <= teto && FOCOS[m.foco]?.intensidade !== 'teste').map((m) => ({
@@ -54,7 +57,12 @@ export function menuParaIa({ esporte, nivel, configEm, hoje }) {
     const estresse = estimarEstresseEstruturado({ passos: t.passos(referencia), config }) ?? 0;
     return { id: t.id, nome: t.nome, tipo: t.tipo, minMin: min, maxMin: max, estresseNaReferencia: arredondar(estresse), minutosDaReferencia: referencia, recuperacao: t.recuperacao === true };
   });
-  return { catalogo, base };
+  // os treinos do próprio usuário (qualquer nível, os mais recentes), com o estresse estimado como os do catálogo
+  const meus = propriosParaIa(proprios, esporte).map((m) => {
+    const modelo = proprios.find((p) => p.id === m.id);
+    return { ...m, estresse: estimarEstresseEstruturado({ passos: modelo.passos, config }) ?? 0 };
+  });
+  return { catalogo, base, proprios: meus };
 }
 
 /**
@@ -84,21 +92,22 @@ const ehZonaIntensa = (zona) => zona === 'Z4' || zona === 'Z5';
  * Confere a resposta da IA contra as regras e devolve o rascunho no formato do rascunho por regras. O que violar uma regra é
  * **descartado** (com um aviso em português), e a duração dos treinos de base é ajustada para dentro dos limites:
  *  - só os dias livres de treino do atleta, um treino por dia, e nada na semana da prova (lá vale só a soltura da véspera);
- *  - só treinos do catálogo do esporte, até o nível do atleta e sem o teste de LTHR; treinos de base com a duração limitada
+ *  - só treinos do catálogo do esporte, até o nível do atleta e sem o teste de LTHR, ou treinos do próprio usuário (qualquer nível); treinos de base com a duração limitada
  *    (rodagem de 45 min no pedal e 30 na corrida, longão de 2 h a 5 h) e o longão só no dia de longão do perfil;
  *  - semana de recuperação e de polimento sem treino forte; até 2 fortes por semana, com 48 h entre eles;
  *  - a carga de cada semana fica no máximo 25% acima da meta (treino de base é encurtado; o do catálogo, descartado);
  *  - o mesmo treino do catálogo não se repete em 14 dias.
- * @param {{ treinos?: Array<{ data: string, origem: 'catalogo'|'base', id: string, duracaoMin?: number, motivo?: string }> }|null} saida
+ * @param {{ treinos?: Array<{ data: string, origem: 'catalogo'|'base'|'proprio', id: string, duracaoMin?: number, motivo?: string }> }|null} saida
  * @param {{
  *   plano: any, prova: { data: string }, hoje: string, esporte: 'ciclismo'|'corrida', nivel: string,
  *   configEm: (data: string) => any|null, treinos?: any[], configs?: any[], calibracao?: any,
- *   diasTreino?: number[]|null, diaLongao?: number|null, semanas?: number
- * }} ctx `treinos`: os já planejados ou realizados (ocupam o dia, contam na carga e na variedade)
+ *   diasTreino?: number[]|null, diaLongao?: number|null, semanas?: number, proprios?: any[]
+ * }} ctx `treinos`: os já planejados ou realizados (ocupam o dia, contam na carga e na variedade); `proprios`: os treinos do
+ *   usuário que a IA pôde escolher (origem 'proprio')
  * @returns {{ itens: any[], avisos: string[], porSemana: Array<{ inicio: string, cargaAlvo: number, rascunho: number, existente: number }> }}
  */
 export function validarRascunhoAnualDaIa(saida, ctx) {
-  const { plano, prova, hoje, esporte, nivel, configEm, treinos = [], configs = [], calibracao = null, diasTreino = null, diaLongao = null } = ctx;
+  const { plano, prova, hoje, esporte, nivel, configEm, treinos = [], configs = [], calibracao = null, diasTreino = null, diaLongao = null, proprios = [] } = ctx;
   const R = REGRAS_RASCUNHO;
   const avisos = [];
   const itens = [];
@@ -118,7 +127,7 @@ export function validarRascunhoAnualDaIa(saida, ctx) {
   const diasIntensos = ativos
     .filter((t) => t.data >= somarDias(hoje, -R.espacoEntreIntensos))
     .filter((t) => {
-      const m = t.modeloId ? modeloPorId(t.modeloId) : null;
+      const m = t.modeloId ? modeloPorId(t.modeloId, proprios) : null;
       return m ? FOCOS[m.foco]?.intensidade === 'alta' : ehZonaIntensa(t.zona);
     })
     .map((t) => t.data);
@@ -188,13 +197,15 @@ export function validarRascunhoAnualDaIa(saida, ctx) {
       estresse = e;
       intensidade = 'baixa';
       tipo = base.tipo;
-    } else if (t.origem === 'catalogo') {
-      const m = typeof t.id === 'string' ? modeloPorId(t.id) : null;
-      if (!m || m.origem !== 'catalogo') {
-        descartar(t, 'o treino não existe no catálogo');
+    } else if (t.origem === 'catalogo' || t.origem === 'proprio') {
+      // treino do catálogo ou do próprio usuário (este vale de qualquer nível: foi ele quem o criou)
+      const meu = t.origem === 'proprio';
+      const m = typeof t.id === 'string' ? (meu ? proprios.find((p) => p.id === t.id) : modeloPorId(t.id)) : null;
+      if (!m || (!meu && m.origem !== 'catalogo')) {
+        descartar(t, meu ? 'o treino não existe entre os seus treinos' : 'o treino não existe no catálogo');
         continue;
       }
-      if (m.esporte !== esporte || (ORDEM_DE_NIVEL[m.nivel] ?? 0) > (ORDEM_DE_NIVEL[nivel] ?? 1) || FOCOS[m.foco]?.intensidade === 'teste') {
+      if (m.esporte !== esporte || (!meu && (ORDEM_DE_NIVEL[m.nivel] ?? 0) > (ORDEM_DE_NIVEL[nivel] ?? 1)) || FOCOS[m.foco]?.intensidade === 'teste') {
         descartar(t, `“${m.nome}” não serve para o seu esporte ou nível`);
         continue;
       }

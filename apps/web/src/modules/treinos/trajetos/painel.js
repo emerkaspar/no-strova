@@ -1,8 +1,7 @@
 import { contextoDaPassagem, ROTULOS_DO_CONTEXTO, tendenciaLinear } from '@no-strova/domain';
 import { h } from '../../../utils/dom.js';
 import { formatarData, formatarDuracaoCurta, formatarNumero } from '../../../utils/formatters.js';
-import { icone } from '../../../utils/icones.js';
-import { abrirTreinoAdaptado } from './treinoAdaptado.js';
+import { criarHeroDoTrajeto } from './hero.js';
 import { criarComparacao } from './comparacao.js';
 import { graficoEvolucao } from './graficos.js';
 import { abrirAjusteDeTrecho, criarCartaoRota } from './rota.js';
@@ -53,24 +52,9 @@ export function criarPainel({ item, esporte, estado, aoMudar, uid, nivelInicial,
   const idsDoTrajeto = new Set(passagens.map((p) => p.id));
   estado.comparadas = estado.comparadas.filter((id) => idsDoTrajeto.has(id));
 
-  const temRotaDeReferencia = Boolean(trajeto.rotaAtividadeId);
-  const botaoTreino = h(
-    'button',
-    { class: 'btn traj-treino-acao', type: 'button', disabled: !temRotaDeReferencia, 'aria-describedby': temRotaDeReferencia ? null : 'traj-treino-dica' },
-    icone('ia', 16),
-    ' Criar treino adaptado ao trajeto',
-  );
-  botaoTreino.addEventListener('click', async () => {
-    const r = await abrirTreinoAdaptado({ uid, trajeto: { id: trajeto.id, nome: trajeto.nome }, esporte, nivelInicial });
-    if (r?.salvo) aoCriarTreino?.(r);
-  });
-  const cabecalho = h(
-    'section',
-    { class: 'card' },
-    h('h2', null, trajeto.nome),
-    h('p', { class: 'texto-secundario' }, passagens.length === 0 ? 'Nenhuma atividade neste trajeto ainda.' : `${passagens.length} ${passagens.length === 1 ? 'passagem' : 'passagens'}${rota ? ', medidas no trecho que acompanha a rota de referência' : ', medidas na atividade inteira (defina a rota de referência para medir só o trecho)'}.`),
-    h('div', { class: 'traj-treino' }, botaoTreino, temRotaDeReferencia ? h('small', { class: 'dica' }, 'Monta um treino intervalado que acompanha as subidas e descidas deste trajeto.') : h('small', { class: 'dica', id: 'traj-treino-dica' }, 'Defina a rota de referência do trajeto (abaixo) para criar um treino adaptado ao terreno.')),
-  );
+  const hero = criarHeroDoTrajeto({ trajeto, passagens, rota, esporte, uid, nivelInicial, aoCriarTreino });
+  destrutores.push(hero.destruir);
+  const cabecalho = hero.el;
   const cartaoRota = criarCartaoRota({ trajeto, passagens, rota });
   destrutores.push(cartaoRota.destruir);
 

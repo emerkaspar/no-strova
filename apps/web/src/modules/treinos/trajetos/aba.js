@@ -3,11 +3,44 @@ import { observarAtividadesComTrajeto } from '../../../infrastructure/atividades
 import { observarTrajetos } from '../../../infrastructure/trajetosRepo.js';
 import { h } from '../../../utils/dom.js';
 import { estadoVazio } from '../../../utils/estadoVazio.js';
+import { icone } from '../../../utils/icones.js';
 import { ROTULO_ESPORTE } from '../../atividades/textos.js';
 import { estadoTreinos } from '../state.js';
 import { miniTendencia } from './graficos.js';
+import { carregarTerrenoDoTrajeto } from '../../../application/trajetos.js';
+import { descreverSegmento, ROTULOS_DO_TERRENO } from '@no-strova/domain';
+import { classeDaInclinacao, miniPerfilDoTerreno } from './perfilTerreno.js';
 import { criarPainel } from './painel.js';
-import { textoDeVariacao } from './textos.js';
+import { formatarData, formatarDuracaoCurta } from '../../../utils/formatters.js';
+import { kmTexto, textoDeVariacao } from './textos.js';
+
+/** Uma métrica do cartão: rótulo pequeno em cima (com ícone) e o valor em destaque embaixo. */
+function metrica(nomeIcone, rotulo, valor, classe = '', dica = '') {
+  const valorEl = h('strong', { class: 'traj-metrica-valor' }, valor);
+  const el = h('span', { class: `traj-metrica ${classe}`.trim(), title: dica || null }, h('span', { class: 'traj-metrica-rotulo' }, icone(nomeIcone, 13), rotulo), valorEl);
+  return { el, definir: (texto) => { valorEl.textContent = texto; } };
+}
+
+/**
+ * Altimetria do trajeto no cartão: curva suave com degradê, a faixa de subida, plano e descida e a escala de altitude. O espaço
+ * fica reservado enquanto a rota é lida; some se ela não tem altimetria. `aoLer` recebe o terreno lido (para o ganho de altitude).
+ */
+function altimetria(trajeto, aoLer) {
+  const el = h('span', { class: 'traj-badge-alt' }, h('span', { class: 'traj-badge-alt-vazio', 'aria-hidden': 'true' }));
+  carregarTerrenoDoTrajeto(trajeto).then((terreno) => {
+    if (!terreno) {
+      el.hidden = true;
+      return;
+    }
+    aoLer(terreno);
+    el.replaceChildren(
+      miniPerfilDoTerreno({ perfil: terreno.perfil }),
+      h('span', { class: 'traj-faixa-terreno', 'aria-hidden': 'true' }, ...terreno.segmentos.map((seg) => h('span', { class: classeDaInclinacao(seg.gradienteMedio), style: `flex: ${seg.distanciaM}`, title: `${ROTULOS_DO_TERRENO[seg.tipo]}: ${descreverSegmento(seg)}` }))),
+      h('span', { class: 'traj-badge-escala' }, h('span', null, `${terreno.altMin.toFixed(0)} m`), h('span', null, `${terreno.altMax.toFixed(0)} m`)),
+    );
+  });
+  return el;
+}
 
 /**
  * Seção "Trajetos" de Treinos: cada trajeto do esporte é um badge; ao escolher um, a evolução dele abre logo abaixo.
@@ -59,6 +92,7 @@ export function criarSecaoTrajetos({ uid, esporte: esporteInicial, nivel = () =>
       const n = i.passagens.length;
       const mini = n >= 2 ? miniTendencia(i.passagens.map((p) => p.velocidadeKmh), false) : null;
       const melhora = i.resumo?.inicioRecente?.velocidade ?? null;
+      const ganho = metrica('setaCima', 'Ganho', '—', 'traj-metrica-sobe', 'Ganho de altitude na rota de referência');
       return h(
         'button',
         {
@@ -72,10 +106,28 @@ export function criarSecaoTrajetos({ uid, esporte: esporteInicial, nivel = () =>
             if (!aberto) painelEl.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
           },
         },
-        h('span', { class: 'badge-nome' }, i.trajeto.nome),
-        h('span', { class: 'badge-meta' }, n === 0 ? 'Sem passagens' : `${n} ${n === 1 ? 'passagem' : 'passagens'}`),
-        mini,
-        melhora !== null ? h('span', { class: `traj-delta ${melhora > 0 ? 'traj-melhor' : melhora < 0 ? 'traj-pior' : ''}` }, `${textoDeVariacao(melhora)} desde o início`) : null,
+        h('span', { class: 'traj-badge-topo' },
+          h('span', { class: 'traj-badge-icone' }, icone('rota', 18)),
+          h('span', { class: 'traj-badge-textos' },
+            h('span', { class: 'badge-nome' }, i.trajeto.nome),
+            h('span', { class: 'badge-meta' }, n === 0 ? 'Sem passagens' : `${n} ${n === 1 ? 'passagem' : 'passagens'}`),
+          ),
+          aberto ? h('span', { class: 'traj-badge-aberto', 'aria-hidden': 'true' }, icone('ok', 18)) : null,
+        ),
+        i.trajeto.rotaAtividadeId ? altimetria(i.trajeto, (terreno) => ganho.definir(`${Math.round(terreno.resumo.ganhoTotalM)} m`)) : null,
+        i.resumo
+          ? h('span', { class: 'traj-badge-metricas' },
+              metrica('distancia', 'Distância', kmTexto(i.resumo.distanciaTipicaM), '', 'Distância usual do trajeto').el,
+              ganho.el,
+              metrica('medalha', 'Melhor tempo', formatarDuracaoCurta(i.resumo.melhor.tempoS), 'traj-metrica-ouro', `Melhor tempo: ${formatarData(i.resumo.melhor.data)}`).el,
+            )
+          : null,
+        mini || melhora !== null
+          ? h('span', { class: 'traj-badge-rodape' },
+              h('span', { class: 'traj-badge-evolucao' }, mini, h('span', { class: 'traj-metrica-rotulo' }, 'Evolução')),
+              melhora !== null ? h('span', { class: `traj-delta traj-delta-pilula ${melhora > 0 ? 'traj-melhor' : melhora < 0 ? 'traj-pior' : ''}` }, `${textoDeVariacao(melhora)} desde o início`) : null,
+            )
+          : null,
       );
     });
 

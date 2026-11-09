@@ -424,7 +424,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
             aoNovo: (data, modo) => {
               if (modo !== 'ia') return abrirEditor(null, data);
               mensagem.limpar();
-              abrirSugestaoDeTreinoDoDia({ uid: sessao.uid, data, configs: dados.configs, aoAceitar: (texto) => mensagem.mostrar(texto, 'ok') });
+              abrirSugestaoDeTreinoDoDia({ uid: sessao.uid, data, configs: dados.configs, modelos: modelosProprios(dados.modelos), aoAceitar: (texto) => mensagem.mostrar(texto, 'ok') });
             },
             aoMover: (id, data) => {
               const t = dados.treinos.find((x) => x.id === id);
@@ -516,7 +516,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
 
   // A IA só aparece para quem o administrador liberou (o servidor confere de novo em cada pedido).
   const comIa = temRecurso(obterSessao().perfil, RECURSOS.IA);
-  const painelIa = comIa ? criarPainelIa({ uid: sessao.uid, hoje, obterContexto: () => ({ configs: dados.configs, calibracao: dados.calibracao, provas: dados.provas }) }) : null;
+  const painelIa = comIa ? criarPainelIa({ uid: sessao.uid, hoje, obterContexto: () => ({ configs: dados.configs, calibracao: dados.calibracao, provas: dados.provas, modelos: modelosProprios(dados.modelos) }) }) : null;
   const botaoIa = comIa
     ? h('button', { class: 'btn btn-secundario', type: 'button', 'aria-expanded': 'false', 'aria-controls': 'plano-ia' }, icone('esporte', 16), 'Sugerir com IA')
     : null;

@@ -9,9 +9,10 @@ import { abrirModal } from '../../utils/modal.js';
 /**
  * "+" do calendário → IA: pede UM treino para o dia (a IA olha a carga e o sentimento recente) e mostra o resultado num modal,
  * onde o usuário aceita (entra no plano) ou descarta.
- * @param {{ uid: string, data: string, configs: any[], aoAceitar?: (texto: string) => void }} p
+ * A IA também pode escolher entre os treinos próprios do usuário (`modelos`).
+ * @param {{ uid: string, data: string, configs: any[], modelos?: any[], aoAceitar?: (texto: string) => void }} p
  */
-export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, aoAceitar = () => {} }) {
+export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos = [], aoAceitar = () => {} }) {
   const mensagem = areaMensagem();
   const corpo = h('div', { class: 'ia-resultado' });
   const rodape = h('div', { class: 'linha-botoes' });
@@ -29,7 +30,7 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, aoAceitar
     const botaoDescartar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Descartar');
     botaoAceitar.addEventListener('click', () =>
       executarComBotao(botaoAceitar, mensagem, async () => {
-        await aceitarTreinosDaIa({ uid, rascunhoId: id, itens: [{ modelo: modeloPorId(it.modeloId), data: it.data }], configs });
+        await aceitarTreinosDaIa({ uid, rascunhoId: id, itens: [{ modelo: modeloPorId(it.modeloId, modelos), data: it.data }], configs });
         rascunhoId = null;
         aoAceitar(`${it.nome} adicionado ao plano em ${formatarData(it.data)}.`);
         fecharModal();

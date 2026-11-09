@@ -89,10 +89,40 @@ export function validarEntradaDeTreinos(entrada) {
 
 const ORDEM_DE_NIVEL = Object.freeze({ iniciante: 0, intermediario: 1, avancado: 2 });
 
-/** Catálogo enxuto para a IA escolher: só id, nome, esporte, foco, intensidade, nível e duração. `nivelMaximo` corta os treinos acima do nível do atleta. */
-export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado') {
+/** No máximo quantos treinos próprios do usuário entram no cardápio da IA (os mais recentes), para o pedido não crescer sem limite. */
+export const MAXIMO_DE_PROPRIOS_NA_IA = 40;
+
+/**
+ * Treinos próprios do usuário como a IA os enxerga: o mesmo formato enxuto do catálogo, com `proprio: true` e, nos treinos
+ * adaptados a um trajeto, o `trajeto` (eles só fazem sentido para quem vai fazer aquele trajeto). Valem os do esporte pedido,
+ * de qualquer nível (foi o próprio usuário quem os criou), sem o teste de LTHR; entram os mais recentes, até o máximo.
+ * @param {any[]} proprios modelos próprios já validados (`{ id, nome, esporte, foco, nivel, passos, trajetoNome? }`), do mais recente ao mais antigo
+ * @param {string} [esporte] 'ciclismo', 'corrida' ou 'ambos'
+ */
+export function propriosParaIa(proprios, esporte = 'ambos') {
+  return (proprios ?? [])
+    .filter((m) => m?.id && Array.isArray(m.passos) && m.passos.length > 0 && (esporte === 'ambos' || m.esporte === esporte) && FOCOS[m.foco]?.intensidade !== 'teste')
+    .slice(0, MAXIMO_DE_PROPRIOS_NA_IA)
+    .map((m) => ({
+      id: m.id,
+      nome: m.nome,
+      esporte: m.esporte,
+      foco: m.foco,
+      intensidade: FOCOS[m.foco]?.intensidade ?? 'moderada',
+      nivel: m.nivel,
+      duracaoMin: resumirTreino(m.passos).duracaoMin,
+      proprio: true,
+      ...(m.trajetoNome ? { trajeto: m.trajetoNome } : {}),
+    }));
+}
+
+/**
+ * Catálogo enxuto para a IA escolher: só id, nome, esporte, foco, intensidade, nível e duração. `nivelMaximo` corta os treinos
+ * do catálogo acima do nível do atleta. Os treinos próprios do usuário (`proprios`) entram junto, marcados com `proprio: true`.
+ */
+export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado', proprios = []) {
   const teto = ORDEM_DE_NIVEL[nivelMaximo] ?? ORDEM_DE_NIVEL.avancado;
-  return modelosDoCatalogo({})
+  const doCatalogo = modelosDoCatalogo({})
     .filter((m) => esporte === 'ambos' || m.esporte === esporte)
     .filter((m) => (ORDEM_DE_NIVEL[m.nivel] ?? 0) <= teto)
     .filter((m) => FOCOS[m.foco]?.intensidade !== 'teste') // o teste de LTHR é só da biblioteca
@@ -105,6 +135,7 @@ export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado') {
       nivel: m.nivel,
       duracaoMin: resumirTreino(m.passos).duracaoMin,
     }));
+  return [...doCatalogo, ...propriosParaIa(proprios, esporte)];
 }
 
 /**
@@ -141,16 +172,18 @@ export function cargaBaseSemanal(dias, hoje, perfil = {}) {
  * @param {{
  *   hoje: string, entrada: ReturnType<typeof validarEntradaDeTreinos>['valores'],
  *   ocupados?: string[], intensosAnteriores?: string[], cargaBase: number, estimarEstresse: (modelo: any) => number,
- *   estresseJaPlanejadoPorSemana?: Record<string, number>, nivel?: string
- * }} ctx `ocupados`: datas que já têm treino; `intensosAnteriores`: datas de treinos intensos já no plano ou recentes
+ *   estresseJaPlanejadoPorSemana?: Record<string, number>, nivel?: string, proprios?: any[]
+ * }} ctx `ocupados`: datas que já têm treino; `intensosAnteriores`: datas de treinos intensos já no plano ou recentes;
+ *   `proprios`: os treinos próprios do usuário que a IA pôde escolher (o mesmo cardápio dado a ela)
  * @returns {{ itens: any[], avisos: string[], cargaPorSemana: Record<string, number> }}
  */
 export function validarSugestaoDeTreinos(saida, ctx) {
-  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {}, nivel = 'intermediario' } = ctx;
+  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {}, nivel = 'intermediario', proprios = [] } = ctx;
   const avisos = [];
   const diasEscolhidos = new Set(entrada.diasDaSemana);
-  const catalogo = new Map(catalogoParaIa(entrada.esporte, nivel).map((m) => [m.id, m]));
-  const modelos = new Map(modelosDoCatalogo({}).map((m) => [m.id, m]));
+  const catalogo = new Map(catalogoParaIa(entrada.esporte, nivel, proprios).map((m) => [m.id, m]));
+  // o id de um treino próprio nunca sobrescreve o do catálogo
+  const modelos = new Map([...proprios.map((m) => [m.id, m]), ...modelosDoCatalogo({}).map((m) => [m.id, m])]);
   const primeiro = somarDias(hoje, 1);
   const ultimo = somarDias(hoje, 7 * entrada.semanas);
   const primeiraSegunda = inicioDaSemana(primeiro);
@@ -168,7 +201,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   for (const t of brutos) {
     const ref = catalogo.get(t?.modeloId);
     if (!ref) {
-      avisos.push(`Um treino sugerido ("${String(t?.modeloId ?? '').slice(0, 40)}") não existe no catálogo (ou é acima do seu nível) e foi descartado.`);
+      avisos.push(`Um treino sugerido ("${String(t?.modeloId ?? '').slice(0, 40)}") não existe no catálogo nem entre os seus treinos (ou o catálogo o tem acima do seu nível) e foi descartado.`);
       continue;
     }
     if (!dataIsoValida(t.data) || t.data < primeiro || t.data > ultimo) {
@@ -217,7 +250,8 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   const leves = (esporte, inicio) => {
     const semana = estadoDaSemana(inicio);
     return [...catalogo.values()]
-      .filter((m) => m.esporte === esporte && m.intensidade !== 'alta' && semana.minutos + m.duracaoMin <= limiteMin)
+      // o código também completa dias vazios e trocar por um treino leve: um treino de trajeto só entra se a IA o escolheu
+      .filter((m) => m.esporte === esporte && m.intensidade !== 'alta' && !m.trajeto && semana.minutos + m.duracaoMin <= limiteMin)
       .map((m) => ({ ref: m, estresse: estimar(m.id) }))
       .filter((m) => m.estresse > 0);
   };

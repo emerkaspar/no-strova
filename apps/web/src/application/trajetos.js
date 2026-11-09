@@ -1,4 +1,4 @@
-import { parciaisDoTrecho, passagensDoTrajeto, perfilDaPassagem, podioDoTrajeto, resumoDoTrajeto, rotaValida } from '@no-strova/domain';
+import { parciaisDoTrecho, passagensDoTrajeto, perfilDaPassagem, perfilDoTrajeto, podioDoTrajeto, resumoDoTrajeto, rotaValida, segmentarTerreno } from '@no-strova/domain';
 import { ajustarTrechoDaAtividade, definirRotaDoTrajeto, sugerirTreinoDoTrajeto } from '../core/functions.js';
 import { lerSerieDetalhe } from '../infrastructure/atividadesRepo.js';
 import { salvarModeloProprio } from './treinos.js';
@@ -80,4 +80,38 @@ export function gerarTreinoDoTrajeto({ trajetoId, foco, nivel, estrategia, obser
 /** Salva o treino gerado em "Meus treinos", com a tag do trajeto. Retorna o id do modelo. */
 export function salvarTreinoDoTrajeto({ uid, treino, trajeto }) {
   return salvarModeloProprio({ uid, entrada: { ...treino, trajetoId: trajeto.id, trajetoNome: trajeto.nome } });
+}
+
+/** Altimetria por trajeto, guardada na sessão (a tela redesenha o painel a cada mudança nos dados). */
+const cacheDoTerreno = new Map();
+
+/**
+ * Terreno do trajeto (perfil de elevação e trechos de subida, plano e descida), lido da atividade de referência.
+ * @returns {Promise<null | { perfil: { dM: number[], alt: number[] }, segmentos: object[], resumo: object, altMin: number, altMax: number }>}
+ *   null sem rota de referência, sem altimetria ou sem pontos suficientes
+ */
+export function carregarTerrenoDoTrajeto(trajeto) {
+  if (!trajeto?.rotaAtividadeId) return Promise.resolve(null);
+  const chave = `${trajeto.id}|${trajeto.rotaAtividadeId}|${trajeto.rotaIniM ?? ''}|${trajeto.rotaFimM ?? ''}`;
+  if (!cacheDoTerreno.has(chave)) {
+    cacheDoTerreno.set(
+      chave,
+      lerSerieDetalhe(trajeto.rotaAtividadeId)
+        .then((serie) => {
+          if (!serie?.alt || !serie.dist) return null;
+          const ultima = [...serie.dist].reverse().find((d) => typeof d === 'number' && Number.isFinite(d));
+          const iniM = Number.isFinite(trajeto.rotaIniM) ? trajeto.rotaIniM : 0;
+          const fimM = Number.isFinite(trajeto.rotaFimM) ? trajeto.rotaFimM : (ultima ?? 0) * 1000;
+          const perfil = perfilDoTrajeto(serie, iniM, fimM);
+          if (!perfil) return null;
+          const { segmentos, resumo, perfil: amostrado } = segmentarTerreno(perfil);
+          return { perfil: amostrado, segmentos, resumo, altMin: Math.min(...amostrado.alt), altMax: Math.max(...amostrado.alt) };
+        })
+        .catch(() => {
+          cacheDoTerreno.delete(chave); // tenta de novo na próxima vez
+          return null;
+        }),
+    );
+  }
+  return cacheDoTerreno.get(chave);
 }

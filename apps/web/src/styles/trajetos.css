@@ -625,3 +625,535 @@
     border-radius: 20px 20px 0 0;
   }
 }
+
+/* ---------- cartões dos trajetos ---------- */
+.traj-badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 340px));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.badge.traj-badge {
+  position: relative;
+  align-items: stretch;
+  gap: 12px;
+  max-width: none;
+  padding: 16px 16px 14px 20px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.badge.traj-badge::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  content: '';
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.badge.traj-badge:hover,
+.badge.traj-badge[aria-pressed='true'] {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.badge.traj-badge:hover::before,
+.badge.traj-badge[aria-pressed='true']::before {
+  background: var(--primary);
+}
+
+.traj-badge-topo {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.traj-badge-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-radius: 12px;
+}
+
+.traj-badge-textos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.traj-badge .badge-nome {
+  margin-top: 0;
+  font-size: 0.95rem;
+}
+
+.traj-badge-aberto {
+  flex: none;
+  color: var(--primary);
+}
+
+.traj-badge-rodape {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.traj-delta-pilula {
+  padding: 3px 9px;
+  background: color-mix(in srgb, currentcolor 12%, transparent);
+  border-radius: 999px;
+}
+
+/* ---------- cabeçalho do trajeto (hero) ---------- */
+.traj-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%),
+    var(--surface);
+}
+
+.traj-hero-topo {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.traj-hero-marca {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: var(--primary-contrast);
+  background: linear-gradient(140deg, var(--primary), var(--primary-hover));
+  border-radius: 14px;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.traj-hero-titulo {
+  min-width: 0;
+}
+
+.traj-hero-titulo h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.traj-hero-titulo p {
+  margin: 2px 0 0;
+}
+
+.traj-hero-perfil {
+  padding: 12px 12px 8px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.traj-hero-vazio {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  padding: 18px 8px;
+  color: var(--text-secondary);
+}
+
+.traj-hero-carregando {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: traj-giro 0.8s linear infinite;
+}
+
+@keyframes traj-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .traj-hero-carregando {
+    animation: none;
+  }
+}
+
+/* subida, plano e descida (o fill pinta o gráfico; o background, a legenda) */
+.terreno-subida {
+  fill: var(--primary);
+  background: var(--primary);
+}
+
+.terreno-plano {
+  fill: color-mix(in srgb, var(--text-secondary) 55%, transparent);
+  background: color-mix(in srgb, var(--text-secondary) 55%, transparent);
+}
+
+.terreno-descida {
+  fill: var(--traj-b);
+  background: var(--traj-b);
+}
+
+.traj-ponto {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+.traj-terreno-grade {
+  stroke: var(--border);
+  stroke-dasharray: 3 4;
+}
+
+.traj-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.traj-chips:empty {
+  display: none;
+}
+
+.traj-chip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.traj-chip p {
+  margin: 0;
+}
+
+.traj-chip-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
+  border-radius: 10px;
+}
+
+.traj-chip-rotulo {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.traj-chip-valor {
+  font-weight: 700;
+}
+
+.traj-chip-subida .traj-chip-icone {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.traj-chip-descida .traj-chip-icone {
+  color: var(--traj-b);
+  background: color-mix(in srgb, var(--traj-b) 16%, transparent);
+}
+
+.traj-chip-destaque {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+}
+
+/* ---------- botão em destaque: criar treino adaptado ---------- */
+.traj-cta {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  padding: 18px 22px;
+  overflow: hidden;
+  font: inherit;
+  color: var(--primary-contrast);
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(120deg, var(--primary), var(--primary-hover));
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--primary) 38%, transparent);
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+
+.traj-cta::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background: radial-gradient(60% 140% at 100% 0%, rgb(255 255 255 / 28%), transparent 60%);
+}
+
+.traj-cta:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--primary) 46%, transparent);
+  transform: translateY(-2px);
+}
+
+.traj-cta:focus-visible {
+  outline: 3px solid var(--text-primary);
+  outline-offset: 3px;
+}
+
+.traj-cta:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.9);
+  opacity: 0.5;
+}
+
+.traj-cta-icone {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: color-mix(in srgb, var(--primary-contrast) 18%, transparent);
+  border-radius: 50%;
+}
+
+.traj-cta-texto {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.traj-cta-texto strong {
+  font-size: 1.1rem;
+}
+
+.traj-cta-texto small {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.traj-cta-seta {
+  position: relative;
+  flex: none;
+  transition: transform 0.15s;
+}
+
+.traj-cta:hover:not(:disabled) .traj-cta-seta {
+  transform: translateX(4px);
+}
+
+@media (max-width: 560px) {
+  .traj-cta {
+    padding: 14px 16px;
+  }
+
+  .traj-cta-icone {
+    width: 44px;
+    height: 44px;
+  }
+
+  .traj-cta-seta {
+    display: none;
+  }
+}
+
+/* ---------- cartão do trajeto: altimetria, métricas e evolução ---------- */
+.badge.traj-badge {
+  gap: 14px;
+}
+
+.traj-badge-alt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 96px;
+}
+
+.traj-badge-alt[hidden] {
+  display: none;
+}
+
+.traj-badge-alt-vazio {
+  display: block;
+  height: 64px;
+  background: linear-gradient(90deg, var(--surface-light), var(--border), var(--surface-light));
+  border-radius: 10px;
+  opacity: 0.45;
+}
+
+.traj-mini-altimetria {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+
+.traj-terreno-curva {
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.traj-mini-curva {
+  stroke-width: 1.75;
+}
+
+.traj-terreno-pico {
+  fill: var(--surface);
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+/* faixa fina: onde é subida (laranja), plano (cinza) e descida (azul) */
+.traj-faixa-terreno {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+}
+
+.traj-faixa-terreno > span {
+  min-width: 2px;
+  border-radius: 3px;
+}
+
+.traj-badge-escala {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* grade de métricas: rótulo pequeno em cima, valor embaixo */
+.traj-badge-metricas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.traj-metrica {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.traj-metrica:first-child {
+  padding-left: 0;
+}
+
+.traj-metrica + .traj-metrica {
+  border-left: 1px solid var(--border);
+}
+
+.traj-metrica-rotulo {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.traj-metrica-valor {
+  font-size: 1.02rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.traj-metrica-sobe .traj-metrica-rotulo {
+  color: var(--primary);
+}
+
+.traj-metrica-ouro .traj-metrica-rotulo {
+  color: var(--medalha-ouro, #e0ad00);
+}
+
+.traj-badge-rodape {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.traj-badge-evolucao {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+/* ---------- cores da inclinação (descida azul, plano verde, subida de amarelo a vermelho) ---------- */
+.inclina-0 { --inc: #2563eb; }
+.inclina-1 { --inc: #38bdf8; }
+.inclina-2 { --inc: #22c55e; }
+.inclina-3 { --inc: #eab308; }
+.inclina-4 { --inc: #f97316; }
+.inclina-5 { --inc: #ef4444; }
+.inclina-6 { --inc: #b91c1c; }
+
+.traj-inclinacao {
+  stroke: var(--inc);
+  stroke-width: 2.75;
+  stroke-linecap: round;
+}
+
+.traj-mini-curva {
+  stroke-width: 2;
+}
+
+.traj-inclinacao-faixa {
+  fill: var(--inc);
+}
+
+.traj-faixa-terreno > span {
+  background: var(--inc);
+}
+
+.traj-legenda-inclinacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: center;
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+}
+
+.traj-legenda-titulo {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.traj-legenda-inclinacao .traj-ponto {
+  background: var(--inc);
+}

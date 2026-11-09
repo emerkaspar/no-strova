@@ -16,7 +16,7 @@ const rotuloDaData = (iso) => `${DIAS[new Date(`${iso}T12:00:00Z`).getUTCDay()]}
  * Painel único de IA do plano: o usuário escolhe o horizonte — "próximas semanas" (dias, longão e horas; a IA escolhe treinos
  * do catálogo) ou "até a prova" (a IA monta as primeiras semanas rumo ao evento escolhido) — e o resultado é um rascunho que ele
  * revisa, marca e aceita ou descarta. O servidor confere os limites de segurança; as duas formas consomem a mesma cota diária.
- * @param {{ uid: string, hoje: string, obterContexto: () => { configs: any[], calibracao: any, provas: any[] }, aoAceitar?: () => void }} p
+ * @param {{ uid: string, hoje: string, obterContexto: () => { configs: any[], calibracao: any, provas: any[], modelos?: any[] }, aoAceitar?: () => void }} p
  *   O painel é criado uma vez (guarda o formulário e o rascunho aberto); `atualizar()` relê as provas.
  */
 export function criarPainelIa({ uid, hoje, obterContexto, aoAceitar = () => {} }) {
@@ -149,7 +149,7 @@ export function criarPainelIa({ uid, hoje, obterContexto, aoAceitar = () => {} }
 
     botaoAceitar.addEventListener('click', () =>
       executarComBotao(botaoAceitar, msgDecisao, async () => {
-        const escolhidos = itens.filter((_, i) => marcados.has(i)).map((it) => ({ modelo: modeloPorId(it.modeloId), data: it.data }));
+        const escolhidos = itens.filter((_, i) => marcados.has(i)).map((it) => ({ modelo: modeloPorId(it.modeloId, obterContexto().modelos ?? []), data: it.data }));
         await aceitarTreinosDaIa({ uid, rascunhoId, itens: escolhidos, configs: obterContexto().configs });
         resultado.replaceChildren(h('p', { class: 'mensagem mensagem-ok', role: 'status' }, `${escolhidos.length} treino${escolhidos.length === 1 ? '' : 's'} adicionado${escolhidos.length === 1 ? '' : 's'} ao plano.`));
         aoAceitar();
