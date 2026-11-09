@@ -9,6 +9,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { criarCartaoGarmin } from './garmin.js';
+import { criarCartaoNotificacoes } from './notificacoes.js';
 import { criarCartaoZonasDeFc } from './zonasDeFc.js';
 import { linhaCartao, metricaCartao } from './linhaCartao.js';
 import { reiniciarSecoes, secaoRecolhivel } from './secaoRecolhivel.js';
@@ -236,6 +237,7 @@ export function render(raiz, sessao) {
       testeLthr.raiz,
       areaCalibracao,
       areaZonas,
+      criarCartaoNotificacoes({ uid: sessao.uid, admin: sessao.admin }).raiz,
     ),
   );
   corpoTabela.replaceChildren(h('p', { class: 'vazio', role: 'status' }, 'Carregando…'));

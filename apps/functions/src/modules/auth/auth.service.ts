@@ -9,8 +9,10 @@ import {
 } from "@no-strova/domain";
 import { FieldValue, type Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { logger } from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
 import { auth, db } from "../../shared/firebase";
+import { criarNotificacao } from "../notificacoes/notificacoes.service";
 import type { PerfilResumo, UsuarioAdmin, UsuarioPendente } from "./auth.types";
 
 function perfilInicial(email: string) {
@@ -282,6 +284,13 @@ async function carregarAlvo(uid: string) {
 export async function definirAprovacao(uid: string, aprovado: boolean): Promise<void> {
   const ref = await carregarAlvo(uid);
   await ref.update({ aprovado });
+  if (aprovado) {
+    try {
+      await criarNotificacao(uid, "contaAprovada", {});
+    } catch (err) {
+      logger.error("Falha ao notificar a aprovação da conta", { uid, erro: String(err) });
+    }
+  }
 }
 
 /** Bloqueia ou libera a conta: atualiza users/{uid} e o Auth (desabilita login e revoga sessões). */

@@ -2,6 +2,7 @@ import { avaliarObjetivo, calcularSerieForma, diaNoFuso, idDaConquista, instanci
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { db } from "../../shared/firebase";
+import { criarNotificacao } from "../notificacoes/notificacoes.service";
 
 /**
  * Concede a badge de cada objetivo atingido que ainda não tem conquista. Metas de semana e de mês são recorrentes: cada
@@ -9,7 +10,7 @@ import { db } from "../../shared/firebase";
  * reexecutar (retentativa do trigger) nunca duplica nada, e ela continua valendo mesmo que a atividade seja apagada depois.
  * Quem grava é só o servidor: as regras negam escrita ao cliente.
  *
- * `notificadaEm` fica nulo de propósito: é o ponto de partida da futura notificação de objetivo concluído.
+ * `notificadaEm` nasce nulo e é preenchido quando a notificação "Objetivo concluído" é criada.
  * @returns quantidade de conquistas novas
  */
 export async function concederConquistasDoUsuario(uid: string): Promise<number> {
@@ -63,6 +64,12 @@ export async function concederConquistasDoUsuario(uid: string): Promise<number> 
         notificadaEm: null,
       });
       novas += 1;
+      try {
+        await criarNotificacao(uid, "conquista", { conquistaId: id });
+        await db.doc(`conquistas/${id}`).update({ notificadaEm: FieldValue.serverTimestamp() });
+      } catch (errNotif) {
+        logger.error("Falha ao notificar a conquista", { uid, conquista: id, erro: String(errNotif) });
+      }
     } catch (err) {
       // já existia (corrida entre duas execuções): nada a fazer
       if ((err as { code?: number }).code !== 6) logger.error("Falha ao conceder conquista", { uid, conquista: id, erro: String(err) });

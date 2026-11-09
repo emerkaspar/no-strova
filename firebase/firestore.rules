@@ -217,6 +217,46 @@ service cloud.firestore {
       allow update: if acessoLiberado() && donoDoRegistro() && pesagemValida();
     }
 
+    // Preferências de notificação (dentro de preferencias/{uid}): tipos ligados/desligados e intervalos dos lembretes.
+    // Os tipos e os limites espelham TIPOS_NOTIFICACAO e LIMITES_INTERVALO em packages/domain/src/notificacoes.js.
+    function tipoNotifOk(t, campo) {
+      return !(campo in t) || t[campo] is bool;
+    }
+
+    function intervaloNotifOk(n, campo, min, max) {
+      return !(campo in n) || (n[campo] is int && n[campo] >= min && n[campo] <= max);
+    }
+
+    function preferenciasNotificacaoValidas(n) {
+      return n is map
+        && n.keys().hasOnly(['tipos', 'intervaloPesoDias', 'intervaloMedidasDias', 'intervaloLthrSemanas'])
+        && intervaloNotifOk(n, 'intervaloPesoDias', 1, 90)
+        && intervaloNotifOk(n, 'intervaloMedidasDias', 7, 365)
+        && intervaloNotifOk(n, 'intervaloLthrSemanas', 2, 52)
+        && (!('tipos' in n) || tiposNotificacaoValidos(n.tipos));
+    }
+
+    function tiposNotificacaoValidos(t) {
+      return t is map
+        && t.keys().hasOnly(['treinoHoje', 'treinoOntem', 'comoFoi', 'conflitoTreinos', 'pesar', 'medidas', 'testeLthr', 'provaChegando', 'prazoMeta', 'conquista', 'recorde', 'garminExpirando', 'envioFalhou', 'contaAprovada', 'aguardandoAprovacao', 'rascunhoIa'])
+        && tipoNotifOk(t, 'treinoHoje')
+        && tipoNotifOk(t, 'treinoOntem')
+        && tipoNotifOk(t, 'comoFoi')
+        && tipoNotifOk(t, 'conflitoTreinos')
+        && tipoNotifOk(t, 'pesar')
+        && tipoNotifOk(t, 'medidas')
+        && tipoNotifOk(t, 'testeLthr')
+        && tipoNotifOk(t, 'provaChegando')
+        && tipoNotifOk(t, 'prazoMeta')
+        && tipoNotifOk(t, 'conquista')
+        && tipoNotifOk(t, 'recorde')
+        && tipoNotifOk(t, 'garminExpirando')
+        && tipoNotifOk(t, 'envioFalhou')
+        && tipoNotifOk(t, 'contaAprovada')
+        && tipoNotifOk(t, 'aguardandoAprovacao')
+        && tipoNotifOk(t, 'rascunhoIa');
+    }
+
     // Medidas corporais (fita métrica): um registro por dia (id uid_yyyymmdd). Cada medida é opcional, de 10 a 250 cm.
     // Dado de saúde: só o dono lê e grava (nem o admin).
     function medidaOk(m, campo) {
@@ -288,6 +328,13 @@ service cloud.firestore {
     }
 
     // Conquistas (badges de objetivos atingidos): o dono lê; só o servidor concede e atualiza (Admin SDK).
+    // Central de notificações: o servidor cria e resolve; o dono só lê. "Marcar como lida" passa por callable
+    // (marcarNotificacoesComoLidas), para o cliente nunca alterar o conteúdo de uma notificação.
+    match /notificacoes/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+    }
+
     match /conquistas/{id} {
       allow read: if acessoLiberado() && donoDoRegistro();
       allow write: if false;
@@ -328,7 +375,7 @@ service cloud.firestore {
       allow read: if acessoLiberado() && request.auth.uid == uid;
       allow create, update: if acessoLiberado()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding', 'usoGarmin'])
+        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding', 'usoGarmin', 'notificacoes'])
         && request.resource.data.keys().hasAll(['userId'])
         && request.resource.data.userId == request.auth.uid
         && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
@@ -342,7 +389,8 @@ service cloud.firestore {
           && request.resource.data.horasSemana >= 1 && request.resource.data.horasSemana <= 25))
         && (!('esportePrincipal' in request.resource.data) || request.resource.data.esportePrincipal in ['ciclismo', 'corrida', 'ambos'])
         && (!('onboarding' in request.resource.data) || request.resource.data.onboarding in ['concluido', 'pulado'])
-        && (!('usoGarmin' in request.resource.data) || request.resource.data.usoGarmin in ['sim', 'nao', 'depois']);
+        && (!('usoGarmin' in request.resource.data) || request.resource.data.usoGarmin in ['sim', 'nao', 'depois'])
+        && (!('notificacoes' in request.resource.data) || preferenciasNotificacaoValidas(request.resource.data.notificacoes));
       allow delete: if false;
     }
 

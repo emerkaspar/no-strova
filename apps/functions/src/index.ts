@@ -28,3 +28,14 @@ export {
 export { onAtividadeWrite, reconstruirEstresseDiario } from "./modules/estresse/estresse.functions";
 export { decidirRascunho, iaChamadasRestantes, sugerirPlanoAnual, sugerirTreinos, sugerirTreinoUnico } from "./modules/ia/ia.functions";
 export { marcarConquistasComoVistas, onMetaProgressaoWrite } from "./modules/objetivos/objetivos.functions";
+export {
+  avisarNovoUsuarioPendente,
+  avisarRotinaDiaria,
+  avisarTreinosDaManha,
+  avisarTreinosDaTarde,
+  marcarNotificacoesComoLidas,
+  marcarTodasNotificacoesComoLidas,
+  resolverAvisoDeLthr,
+  resolverAvisoDeMedidas,
+  resolverAvisoDePesagem,
+} from "./modules/notificacoes/notificacoes.functions";

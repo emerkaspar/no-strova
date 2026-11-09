@@ -4,6 +4,7 @@ import { onCall } from "firebase-functions/v2/https";
 import { REGIAO } from "../../shared/config";
 import { exigirAcesso } from "../../shared/guards";
 import { aplicarMudancaDeAtividade } from "../calibracao/calibracao.service";
+import { reagirAAtividade } from "../notificacoes/notificacoes.service";
 import { concederConquistasDoUsuario } from "../objetivos/objetivos.service";
 import { recalcularDia, reconstruirTudo } from "./estresse.service";
 
@@ -54,6 +55,11 @@ export const onAtividadeWrite = onDocumentWritten({ document: "atividades/{id}",
       await concederConquistasDoUsuario(uid);
     } catch (err) {
       logger.error("Falha ao conferir os objetivos do usuário", err);
+    }
+    try {
+      await reagirAAtividade(uid, event.params.id, antes, depois);
+    } catch (err) {
+      logger.error("Falha ao atualizar as notificações da atividade", err);
     }
   }
 });

@@ -6,6 +6,7 @@ import { logosCabecalho } from '../../utils/marca.js';
 import { fraseAleatoria, LIMITE_FRASE, textoExibido } from '../../utils/frases.js';
 import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { pedirImportacao } from '../atividades/state.js';
+import { aoMudarNaoLidas, totalNaoLidas } from '../notificacoes/state.js';
 import { abrirWizard } from '../onboarding/wizard.js';
 
 function inicialDe(sessao) {
@@ -69,8 +70,8 @@ function criarFrase() {
 }
 
 /**
- * Cabeçalho de todas as telas: logo, data por extenso e saudação, menu em pílula, e à direita três ícones: importar
- * arquivo, tema (claro/escuro) e o avatar, cujo menu tem o Perfil de treino (o wizard), a Administração (só para admin) e Sair. Abaixo de 768 px o menu
+ * Cabeçalho de todas as telas: logo, data por extenso e saudação, menu em pílula, e à direita quatro ícones: importar
+ * arquivo, notificações (sino com contador), tema (claro/escuro) e o avatar, cujo menu tem o Perfil de treino (o wizard), a Administração (só para admin) e Sair. Abaixo de 768 px o menu
  * vira barra de abas no rodapé (os dois menus ficam no DOM; o CSS mostra um por vez).
  * @param {{ perfil?: any, email?: string, admin?: boolean }} sessao
  * @param {Array<{ caminho: string, rotulo: string, icone: string }>} itens
@@ -100,6 +101,19 @@ export function criarCabecalho(sessao, itens) {
     { class: 'btn-icone btn-icone-primario', type: 'button', 'aria-label': 'Importar arquivo', title: 'Importar arquivo', onClick: pedirImportacao },
     icone('importar', 22),
   );
+
+  // --- sino de notificações: link para a central, com o contador de não lidas ---
+  const contador = h('span', { class: 'sino-contador', 'aria-hidden': 'true', hidden: true });
+  const sino = h('a', { class: 'btn-icone sino', href: '#/notificacoes', 'data-caminho': '#/notificacoes' }, icone('sino', 22), contador);
+  function rotularSino(n) {
+    const texto = n > 0 ? `Notificações: ${n} ${n === 1 ? 'não lida' : 'não lidas'}` : 'Notificações';
+    contador.textContent = n > 99 ? '99+' : String(n);
+    contador.hidden = n === 0;
+    sino.setAttribute('aria-label', texto);
+    sino.title = texto;
+  }
+  rotularSino(totalNaoLidas());
+  const pararSino = aoMudarNaoLidas(rotularSino);
 
   // --- tema: ícone sempre visível (sol no tema escuro, lua no claro) ---
   const botaoTema = h('button', { class: 'btn-icone', type: 'button' });
@@ -154,6 +168,8 @@ export function criarCabecalho(sessao, itens) {
       else link.removeAttribute('aria-current');
     }
     // Administração mora no menu da conta: na tela dela, o avatar fica destacado
+    if (caminho === '#/notificacoes') sino.setAttribute('aria-current', 'page');
+    else sino.removeAttribute('aria-current');
     const naAdmin = caminho === '#/admin';
     avatar.classList.toggle('avatar-ativo', naAdmin);
     if (naAdmin) itemAdmin?.setAttribute('aria-current', 'page');
@@ -191,7 +207,7 @@ export function criarCabecalho(sessao, itens) {
       'div',
       { class: 'container topo-wrap' },
       // grade de 2 linhas: logo e faixa nas duas; data e saudação, menu e ações na 1ª; a frase na 2ª (ver layout.css)
-      h('div', { class: 'topo-card' }, logoLink, faixa, titulo, pilula, h('div', { class: 'topo-acoes' }, importar, botaoTema, h('div', { class: 'conta' }, avatar, menu)), frase.el),
+      h('div', { class: 'topo-card' }, logoLink, faixa, titulo, pilula, h('div', { class: 'topo-acoes' }, importar, sino, botaoTema, h('div', { class: 'conta' }, avatar, menu)), frase.el),
     ),
   );
 
@@ -203,6 +219,7 @@ export function criarCabecalho(sessao, itens) {
     novaFrase: () => frase.trocar(),
     destruir() {
       frase.parar();
+      pararSino();
       document.removeEventListener('pointerdown', foraDoMenu, true);
       document.removeEventListener('keydown', teclas);
     },

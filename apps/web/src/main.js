@@ -17,6 +17,7 @@ import './styles/onboarding.css';
 import './styles/plano-anual.css';
 import './styles/zonas-medalhas.css';
 import './styles/trajetos.css';
+import './styles/notificacoes.css';
 import './styles/treinos.css';
 import { aplicarTemaSalvo } from './utils/tema.js';
 

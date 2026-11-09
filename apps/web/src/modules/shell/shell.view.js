@@ -1,6 +1,7 @@
 import { situacaoDoPerfilDeTreino } from '@no-strova/domain';
 import { observarPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
+import { observarNaoLidas } from '../../infrastructure/notificacoesRepo.js';
 import { h } from '../../utils/dom.js';
 import { render as renderAdmin } from '../admin/admin.view.js';
 import { render as renderDetalhe } from '../atividades/detalhe.view.js';
@@ -8,6 +9,8 @@ import { render as renderAtividades } from '../atividades/lista.view.js';
 import { render as renderConfiguracao } from '../configuracao/configuracao.view.js';
 import { render as renderForma } from '../forma/forma.view.js';
 import { render as renderInicio } from '../inicio/inicio.view.js';
+import { render as renderNotificacoes } from '../notificacoes/notificacoes.view.js';
+import { definirNaoLidas } from '../notificacoes/state.js';
 import { render as renderPeso } from '../peso/peso.view.js';
 import { render as renderPlano } from '../plano/plano.view.js';
 import { render as renderProgressao } from '../progressao/progressao.view.js';
@@ -48,6 +51,8 @@ function resolverRota(hash, admin) {
       return { menu: hash, render: renderPeso, params: {} };
     case '#/configuracao':
       return { menu: hash, render: renderConfiguracao, params: {} };
+    case '#/notificacoes':
+      return { menu: hash, render: renderNotificacoes, params: {} };
     case '#/admin':
       if (admin) return { menu: hash, render: renderAdmin, params: {} };
       break;
@@ -109,6 +114,8 @@ export function render(raiz, sessao) {
       },
       () => {},
     ),
+    // contador do sino: vale em todas as telas e zera quando o usuário sai
+    observarNaoLidas(sessao.uid, (itens) => definirNaoLidas(itens.length), () => {}),
   ];
 
   function desenharRota(evento) {
@@ -131,6 +138,7 @@ export function render(raiz, sessao) {
     window.removeEventListener('hashchange', desenharRota);
     cabecalho.destruir();
     cancelarPerfil.forEach((fn) => fn());
+    definirNaoLidas(0);
     destruirRota?.();
   };
 }
