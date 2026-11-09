@@ -3,9 +3,23 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
 import { db } from "../../shared/firebase";
-import { carregarConfigs } from "../atividades/atividades.service";
+import { getStorage } from "firebase-admin/storage";
+import { caminhoDoArquivo, carregarConfigs, FONTE_INTERVALS, type PedidoArquivo, processarArquivo, TAMANHO_MAXIMO_BYTES } from "../atividades/atividades.service";
+import { obterFit } from "../garmin/garmin.cliente";
 import { criptografar, descriptografar } from "../garmin/garmin.cripto";
-import { atualizarEvento, atualizarLthr, criarEvento, type EsporteIntervals, IntervalsErroApi, obterAtleta, obterLthr, type Requisitor } from "./intervals.cliente";
+import { ATIVIDADES_POR_LOTE, diasDaSincronizacao, LIMITE_POR_SINCRONIZACAO, type ResultadoLote } from "../garmin/garmin.service";
+import {
+  atualizarEvento,
+  atualizarLthr,
+  baixarArquivoOriginal,
+  criarEvento,
+  type EsporteIntervals,
+  IntervalsErroApi,
+  listarAtividades,
+  obterAtleta,
+  obterLthr,
+  type Requisitor,
+} from "./intervals.cliente";
 import { enviarTreinos, motivoDaFalha, type RegistroEnvio, type ResultadoEnvio, type TreinoPlano } from "./intervals.envio";
 
 /** Máximo de dias do período e de treinos por envio. */
@@ -15,6 +29,8 @@ export const MAXIMO_TREINOS = 60;
 export interface SituacaoIntervals {
   conectado: boolean;
   atleta: string | null;
+  /** Última sincronização de atividades (ISO), ou null. */
+  ultimaSincronizacao: string | null;
 }
 
 /** LTHR do No Strova e o de cada esporte no intervals.icu (null: sem LTHR configurado lá). */
@@ -81,15 +97,21 @@ export async function conectar(uid: string, chaveBruta: unknown, segredo: string
   } catch (erro) {
     throw traduzirErro(erro);
   }
-  await docChave(uid).set({ chaveCifrada: criptografar(chave, segredo), atleta: atleta.name ?? atleta.id, criadaEm: Timestamp.now() });
-  return { conectado: true, atleta: atleta.name ?? atleta.id };
+  // merge: reconectar com outra chave preserva a data da última sincronização de atividades
+  await docChave(uid).set({ chaveCifrada: criptografar(chave, segredo), atleta: atleta.name ?? atleta.id, criadaEm: Timestamp.now() }, { merge: true });
+  return situacao(uid);
 }
 
 export async function situacao(uid: string): Promise<SituacaoIntervals> {
   const snap = await docChave(uid).get();
-  if (!snap.exists || typeof snap.get("chaveCifrada") !== "string") return { conectado: false, atleta: null };
+  if (!snap.exists || typeof snap.get("chaveCifrada") !== "string") return { conectado: false, atleta: null, ultimaSincronizacao: null };
   const atleta = snap.get("atleta");
-  return { conectado: true, atleta: typeof atleta === "string" ? atleta : null };
+  const ultima = snap.get("ultimaSincronizacao");
+  return {
+    conectado: true,
+    atleta: typeof atleta === "string" ? atleta : null,
+    ultimaSincronizacao: ultima instanceof Timestamp ? ultima.toDate().toISOString() : null,
+  };
 }
 
 export async function desconectar(uid: string): Promise<void> {
@@ -147,6 +169,132 @@ export async function atualizarLthrNoIntervals(uid: string, esportes: string[], 
     throw traduzirErro(erro);
   }
   return situacaoDoLthr(uid, segredo, requisitor);
+}
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+const IDS_NOVAS_MAX = 5;
+
+export interface ResultadoSincronizacao extends ResultadoLote {
+  /** Atividades que o intervals.icu não tem como entregar (arquivo original ausente, como as vindas do Strava). */
+  semArquivo: number;
+}
+
+/** Identificador determinístico: sincronizar de novo a mesma atividade nunca a duplica. */
+export function atividadeIdDoIntervals(idIntervals: string): string {
+  return `intervals_${idIntervals}`;
+}
+
+function posicaoDoLote(valor: unknown): number {
+  if (valor === undefined || valor === null) return 0;
+  if (typeof valor !== "number" || !Number.isInteger(valor) || valor < 0) throw new HttpsError("invalid-argument", "Posição inválida.");
+  return valor;
+}
+
+function motivoDaFalhaNoArquivo(erro: unknown): string {
+  if (erro instanceof HttpsError) {
+    const mensagem = erro.message.replace(/\.$/, "");
+    return mensagem.charAt(0).toLowerCase() + mensagem.slice(1);
+  }
+  if (erro instanceof IntervalsErroApi) {
+    return erro.status === 0 ? "o intervals.icu não respondeu ao baixar o arquivo" : `o intervals.icu recusou o download (erro ${erro.status})`;
+  }
+  return "erro inesperado ao ler o arquivo";
+}
+
+/**
+ * Traz um lote de atividades do intervals.icu (inclusive as que a IGPSPORT envia a ele): lista o período, baixa o arquivo original de
+ * cada atividade nova e a processa pelo mesmo caminho do envio manual. O cliente repete a chamada, com `proximo`, até `terminou`.
+ */
+export async function sincronizarAtividades(
+  uid: string,
+  dataNascimento: string | null,
+  entrada: Record<string, unknown>,
+  segredo: string,
+  requisitor?: Requisitor,
+): Promise<ResultadoSincronizacao> {
+  const inicio = posicaoDoLote(entrada.inicio);
+  const agora = Date.now();
+  const snapChave = await docChave(uid).get();
+  const cifrada = snapChave.get("chaveCifrada");
+  if (typeof cifrada !== "string") throw new HttpsError("failed-precondition", "Conecte o intervals.icu antes de sincronizar as atividades.");
+  const ultima = snapChave.get("ultimaSincronizacao");
+  const dias = diasDaSincronizacao(entrada.dias, ultima instanceof Timestamp ? ultima.toMillis() : null, agora);
+
+  const resultado: ResultadoSincronizacao = { importadas: 0, novasIds: [], jaExistiam: 0, semFc: 0, falhas: 0, semArquivo: 0, problemas: [], proximo: inicio, terminou: false, limitado: false };
+  if (inicio >= LIMITE_POR_SINCRONIZACAO) return { ...resultado, terminou: true, limitado: true };
+
+  let chave: string;
+  try {
+    chave = descriptografar(cifrada, segredo);
+  } catch (err) {
+    logger.error("Não foi possível descriptografar a chave do intervals.icu", err);
+    throw new HttpsError("failed-precondition", "Conecte o intervals.icu de novo.");
+  }
+
+  let lista;
+  try {
+    lista = await listarAtividades(chave, { de: diaNoFuso(agora - dias * DIA_MS), ate: diaNoFuso(agora + DIA_MS) }, requisitor);
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+  const limite = Math.min(ATIVIDADES_POR_LOTE, LIMITE_POR_SINCRONIZACAO - inicio);
+  const lote = lista.slice(inicio, inicio + limite);
+
+  const existentes = lote.length ? await db.getAll(...lote.map((a) => db.doc(`atividades/${atividadeIdDoIntervals(a.id)}`))) : [];
+  const jaImportadas = new Set(existentes.filter((d) => d.exists && d.get("userId") === uid).map((d) => d.id));
+
+  for (const item of lote) {
+    const atividadeId = atividadeIdDoIntervals(item.id);
+    if (jaImportadas.has(atividadeId)) {
+      resultado.jaExistiam += 1;
+      continue;
+    }
+    if (!item.temArquivo) {
+      resultado.semArquivo += 1;
+      continue;
+    }
+    const caminho = caminhoDoArquivo(uid, atividadeId, "fit");
+    try {
+      const baixado = await baixarArquivoOriginal(chave, item.id, TAMANHO_MAXIMO_BYTES, requisitor);
+      const fit = baixado ? obterFit(baixado, TAMANHO_MAXIMO_BYTES) : null;
+      if (!fit) {
+        // sem arquivo original (atividade criada à mão no intervals.icu, por exemplo) ou formato que não é .fit
+        resultado.semArquivo += 1;
+        continue;
+      }
+      await getStorage().bucket().file(caminho).save(fit, { resumable: false, contentType: "application/octet-stream" });
+      const pedido: PedidoArquivo = { atividadeId, extensao: "fit", esporte: null, zona: null, fonte: FONTE_INTERVALS };
+      const r = await processarArquivo(uid, dataNascimento, pedido);
+      if (r.jaExistia) resultado.jaExistiam += 1;
+      else {
+        resultado.importadas += 1;
+        if (resultado.novasIds.length < IDS_NOVAS_MAX) resultado.novasIds.push(atividadeId);
+      }
+    } catch (err) {
+      if (err instanceof IntervalsErroApi && [401, 403, 429].includes(err.status)) throw traduzirErro(err); // vale para todas: interrompe
+      if (err instanceof HttpsError && err.code === "already-exists") {
+        resultado.jaExistiam += 1; // a mesma atividade já veio por outro caminho (arquivo enviado ou Garmin)
+      } else if (err instanceof HttpsError && err.code === "failed-precondition" && (err.details as { codigo?: string })?.codigo === "sem-fc") {
+        resultado.semFc += 1;
+        resultado.problemas.push({ atividade: item.rotulo, motivo: "não tem frequência cardíaca" });
+        await getStorage().bucket().file(caminho).delete({ ignoreNotFound: true });
+      } else {
+        resultado.falhas += 1;
+        resultado.problemas.push({ atividade: item.rotulo, motivo: motivoDaFalhaNoArquivo(err) });
+        logger.error("Falha ao importar atividade do intervals.icu", { atividadeId, err });
+        await getStorage().bucket().file(caminho).delete({ ignoreNotFound: true }).catch(() => undefined);
+      }
+    }
+  }
+
+  resultado.proximo = inicio + lote.length;
+  resultado.terminou = resultado.proximo >= lista.length;
+  if (!resultado.terminou && resultado.proximo >= LIMITE_POR_SINCRONIZACAO) {
+    resultado.terminou = true;
+    resultado.limitado = true;
+  }
+  if (resultado.terminou) await docChave(uid).set({ ultimaSincronizacao: FieldValue.serverTimestamp() }, { merge: true });
+  return resultado;
 }
 
 /** Envia ao intervals.icu os treinos planejados do período (que o intervals.icu repassa ao Garmin Connect). */

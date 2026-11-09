@@ -192,6 +192,14 @@ Replica o Elevate (`appcore/modules/shared/sync/compute/activity-computer.ts`), 
 - **Limites:** até 200 atividades por sincronização. As atividades do Garmin (campo `fonte: "garmin"`) não entram na cota de 30 por dia do envio manual.
 - O formato do JSON da listagem não é documentado publicamente: o código lê `activityId` de cada item e registra um aviso no log se a lista vier com itens sem esse campo.
 
+### Sincronização de atividades pelo intervals.icu (IGPSPORT e outros)
+- **Motivo:** a IGPSPORT não tem API pública de leitura de atividades (a plataforma aberta é por OAuth, com acesso mediante pedido por e-mail). Desde 28/10/2026 o intervals.icu tem integração oficial com a IGPSPORT, só de atividades concluídas. O No Strova lê as atividades do intervals.icu com a **mesma chave de API** já guardada no envio de treinos (`users/{uid}/segredos/intervals`, cifrada com `GARMIN_CHAVE_CRIPTO`).
+- **API do intervals.icu:** `GET /athlete/0/activities?oldest=&newest=` (lista) e `GET /activity/{id}/file` (arquivo original, às vezes em gzip; o cliente descompacta). **Ponto a validar em homolog:** que o arquivo original das atividades da IGPSPORT é entregue por esse endpoint. Atividades do Strova (`source: STRAVA` ou com `_note`) e as sem arquivo (404) não são entregues: contadas em `semArquivo`.
+- **Callable** `intervalsSincronizarAtividades` (`exigirRecurso(GARMIN)`, mesmo recurso do Garmin; decisão pendente se vira um recurso próprio). Mesmo contrato da `garminSincronizar`: lote de 10, `proximo`/`terminou`, teto de 200 por rodada, período de 30/60/90/180 dias ou "só o novo" (`diasDaSincronizacao`). A listagem do intervals.icu não é paginada, então cada chamada lista o período e fatia por `inicio`, ordenado por início e id.
+- Cada atividade nova vira `atividades/{uid}/intervals_{id}/original.fit` e passa por `processarArquivo` (`fonte: "intervals"`, fora da cota de 30 por dia). Id determinístico: não duplica. Igual a uma atividade enviada à mão ou trazida do Garmin (hash, ou início + duração) conta como "já existia". Sem FC: fica de fora. Erro 401/403/429 interrompe a rodada com mensagem em português.
+- `ultimaSincronizacao` fica no mesmo documento da chave; `situacao` a devolve ao app.
+- **Envio de treinos ao aparelho IGPSPORT:** não implementado (sem API oficial; só a ferramenta comunitária intervalssync, que loga na conta IGPSPORT do usuário).
+
 **Índices compostos:** `atividades` (`userId`, `data` desc), (`userId`, `esporte`, `data` desc) e (`userId`, `trajetoId`, para a evolução por trajeto); `estresseDiario` (`userId`, `data`); `treinosPlanejados` (`userId`, `data`) e (`userId`, `status`, `data`); `configsAtleta` (`userId`, `vigenteDesde` desc); `provas` (`userId`, `data`); `pesagens` (`userId`, `data`); `medidas` (`userId`, `data`); `metasPeso` (`userId`, `status`); `iaRascunhos` (`userId`, `criadoEm` desc); `users` (`aprovado`, `criadoEm`).
 
 ## Papéis e permissões

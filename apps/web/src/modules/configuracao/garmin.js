@@ -10,14 +10,14 @@ const VALIDADES = [
   { valor: '180', rotulo: '180 dias' },
   { valor: '365', rotulo: '1 ano' },
 ];
-const PERIODOS = [
+export const PERIODOS = [
   { valor: '30', rotulo: 'Últimos 30 dias' },
   { valor: '60', rotulo: 'Últimos 60 dias' },
   { valor: '90', rotulo: 'Últimos 90 dias' },
   { valor: '180', rotulo: 'Últimos 6 meses' },
 ];
 
-function plural(n, singular, pluralTexto) {
+export function plural(n, singular, pluralTexto) {
   return `${n} ${n === 1 ? singular : pluralTexto}`;
 }
 

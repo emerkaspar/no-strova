@@ -114,6 +114,19 @@ Em vez de exportar arquivos, você pode trazer as atividades direto do **Garmin 
 - Cada sincronização traz até 200 atividades; se chegar ao limite, sincronize de novo.
 - A chave expira na validade que você escolheu (o app avisa quando faltam 7 dias). Aí é só apagar a chave no Garmin Connect, criar outra e conectar de novo. **Desconectar** apaga a chave guardada; as atividades já importadas continuam.
 
+### Sincronizar com o intervals.icu (IGPSPORT e outros)
+Quem treina com um aparelho **IGPSPORT** pode trazer os pedais para o app pelo [intervals.icu](https://intervals.icu), que tem integração oficial com a IGPSPORT (desde 28/10/2026) e recebe os pedais sozinho. Vale também para qualquer outro serviço que envie atividades ao intervals.icu. Precisa da mesma liberação do administrador do Garmin. Em **Configuração → intervals.icu · atividades**:
+
+1. Crie uma conta gratuita no intervals.icu e, no app da **IGPSPORT** (celular, Android ou iPhone), abra **Meu → Vincular com outros aplicativos** e conecte o intervals.icu. Os pedais passam a ser enviados a ele automaticamente, mas só os feitos **depois** de vincular (os antigos precisam ser enviados à mão).
+2. No intervals.icu, em **Settings → Developer Settings**, gere e copie a **API Key** (a mesma chave do envio de treinos ao Garmin; se já conectou lá, o cartão já abre conectado).
+3. Cole a chave, clique em **Conectar**, escolha o período e clique em **Sincronizar agora**. A sincronização só acontece quando você clica.
+
+- Atividade já importada (ou igual a uma que você enviou à mão ou trouxe do Garmin) não é duplicada.
+- Atividade **sem frequência cardíaca** fica de fora; o resumo avisa quantas. Atividades **vindas do Strava** não são entregues pelo intervals.icu e também ficam de fora.
+- Cada sincronização traz até 200 atividades; se chegar ao limite, sincronize de novo.
+- O card da atividade mostra a origem **intervals.icu** (na orelha do canto superior direito).
+- Este envio de pedais é só das **atividades**. Enviar treinos do plano ao aparelho IGPSPORT não está disponível.
+
 ### Como foi? (sensação e esforço)
 Depois de **importar um arquivo**, **registrar uma atividade manualmente** ou **sincronizar o Garmin** pelo botão da tela Atividades e trazer **uma única** atividade nova, abre a janela **Como foi?** para você contar como foi o treino:
 

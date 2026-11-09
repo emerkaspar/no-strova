@@ -60,5 +60,6 @@ export const intervalsSituacao = callable('intervalsSituacao');
 export const intervalsConectar = callable('intervalsConectar');
 export const intervalsDesconectar = callable('intervalsDesconectar');
 export const intervalsEnviarTreinos = callable('intervalsEnviarTreinos');
+export const intervalsSincronizarAtividades = callable('intervalsSincronizarAtividades');
 export const intervalsLthr = callable('intervalsLthr');
 export const intervalsAtualizarLthr = callable('intervalsAtualizarLthr');

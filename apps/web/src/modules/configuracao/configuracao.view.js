@@ -9,6 +9,7 @@ import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { criarCartaoGarmin } from './garmin.js';
+import { criarCartaoIntervalsAtividades } from './intervalsAtividades.js';
 import { criarCartaoNotificacoes } from './notificacoes.js';
 import { criarCartaoZonasDeFc } from './zonasDeFc.js';
 import { linhaCartao, metricaCartao } from './linhaCartao.js';
@@ -215,6 +216,7 @@ export function render(raiz, sessao) {
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
       temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoGarmin().raiz : null,
+      temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoIntervalsAtividades().raiz : null,
       secaoRecolhivel({
         id: 'atleta',
         titulo: 'Configuração do atleta',

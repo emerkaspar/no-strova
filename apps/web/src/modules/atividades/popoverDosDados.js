@@ -77,7 +77,9 @@ export function guiaDoDado(id, a, extras = {}) {
         paragrafos: [
           extras.fonte?.id === 'garmin'
             ? 'A atividade veio da sincronização com o Garmin Connect.'
-            : 'A atividade veio de um arquivo que você importou (.fit, .gpx ou .tcx).',
+            : extras.fonte?.id === 'intervals'
+              ? 'A atividade veio da sincronização com o intervals.icu (por exemplo, pedais gravados no aparelho IGPSPORT).'
+              : 'A atividade veio de um arquivo que você importou (.fit, .gpx ou .tcx).',
         ],
       };
     default:

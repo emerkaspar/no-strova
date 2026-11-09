@@ -39,6 +39,9 @@ export const TAMANHO_MAXIMO_BYTES = 15 * 1024 * 1024;
 export const LIMITE_CADASTROS_POR_DIA = 30;
 /** Valor do campo `fonte` das atividades trazidas pela sincronização com o Garmin. */
 export const FONTE_GARMIN = "garmin";
+/** Valor do campo `fonte` das atividades trazidas do intervals.icu (por exemplo, as que chegam da IGPSPORT). */
+export const FONTE_INTERVALS = "intervals";
+export type FonteExterna = typeof FONTE_GARMIN | typeof FONTE_INTERVALS;
 const ID_ATIVIDADE = /^[A-Za-z0-9_-]{8,40}$/;
 const ZONAS_VALIDAS = Object.keys(ZONAS);
 
@@ -73,14 +76,14 @@ async function exigirCotaDiaria(uid: string): Promise<void> {
     .count()
     .get();
   if (agregado.data().count < LIMITE_CADASTROS_POR_DIA) return;
-  // Atividades sincronizadas do Garmin têm limite próprio e não consomem a cota de quem cadastra à mão.
+  // Atividades sincronizadas (Garmin, intervals.icu) têm limite próprio e não consomem a cota de quem cadastra à mão.
   const doDia = await db
     .collection("atividades")
     .where("userId", "==", uid)
     .where("criadoEm", ">=", inicioDoDia)
     .select("fonte")
     .get();
-  if (doDia.docs.filter((d) => d.get("fonte") !== FONTE_GARMIN).length >= LIMITE_CADASTROS_POR_DIA) {
+  if (doDia.docs.filter((d) => d.get("fonte") !== FONTE_GARMIN && d.get("fonte") !== FONTE_INTERVALS).length >= LIMITE_CADASTROS_POR_DIA) {
     throw new HttpsError(
       "resource-exhausted",
       `Limite de ${LIMITE_CADASTROS_POR_DIA} atividades por dia atingido. Tente novamente amanhã.`,
@@ -110,7 +113,7 @@ export interface PedidoArquivo {
   esporte: string | null;
   zona: string | null;
   /** Origem externa do arquivo (sincronização); ela tem limite próprio e não consome a cota diária. */
-  fonte?: typeof FONTE_GARMIN;
+  fonte?: FonteExterna;
 }
 
 export function lerPedidoArquivo(dados: Record<string, unknown>, extensao: Extensao): PedidoArquivo {

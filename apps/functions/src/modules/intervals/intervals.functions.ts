@@ -26,6 +26,16 @@ export const intervalsDesconectar = onCall({ region: REGIAO }, async (request) =
   return { ok: true };
 });
 
+/** Traz as atividades do intervals.icu (inclusive as da IGPSPORT) em lotes; o app repete a chamada com `proximo` até `terminou`. */
+export const intervalsSincronizarAtividades = onCall(
+  { region: REGIAO, memory: "512MiB", timeoutSeconds: 300, secrets: [GARMIN_CHAVE_CRIPTO] },
+  async (request) => {
+    const { uid, perfil } = await exigirRecurso(request, RECURSOS.GARMIN);
+    const dataNascimento = typeof perfil.dataNascimento === "string" ? perfil.dataNascimento : null;
+    return servico.sincronizarAtividades(uid, dataNascimento, lerObjeto(request.data), GARMIN_CHAVE_CRIPTO.value());
+  },
+);
+
 /** Só leitura: compara o LTHR do No Strova com o do intervals.icu. */
 export const intervalsLthr = onCall({ region: REGIAO, secrets: [GARMIN_CHAVE_CRIPTO] }, async (request) => {
   const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);
