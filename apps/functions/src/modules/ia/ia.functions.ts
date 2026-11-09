@@ -33,8 +33,13 @@ export const sugerirTreinoUnico = onCall(opcoes, async (request) => {
  * intensidade de cada trecho; sem IA (`usarIa: false`) valem as regras da estratégia. Não grava nada. Cota: 1 chamada de IA, só quando usa a IA.
  */
 export const sugerirTreinoDoTrajeto = onCall(opcoes, async (request) => {
-  const { uid } = await exigirRecurso(request, RECURSOS.IA);
   const dados = lerObjeto(request.data);
+  // "Zerar o trajeto" não usa IA: basta o acesso liberado, sem cota e sem chave do Gemini
+  if (dados.estrategia === "recorde") {
+    const { uid } = await exigirAcesso(request);
+    return sugerirTreinoDoTrajetoDoUsuario(uid, dados, null);
+  }
+  const { uid } = await exigirRecurso(request, RECURSOS.IA);
   return sugerirTreinoDoTrajetoDoUsuario(uid, dados, dados.usarIa === false ? null : chave());
 });
 

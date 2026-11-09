@@ -139,7 +139,7 @@ Depois de **importar um arquivo**, **registrar uma atividade manualmente** ou **
 - **Quão duro foi?** (opcional): esforço percebido de 1 a 10.
 - **O que marcou o treino?** (opcional): etiquetas como calor, sono ruim, perna pesada ou dor (com o local), e **notas** livres.
 - **Teste de LTHR:** se aquele treino foi o seu teste de 30 minutos, ligue a chave **Foi um teste de LTHR?**. Ao salvar, o app analisa a sua frequência cardíaca e mostra o LTHR sugerido; se quiser, clique em **Criar nova vigência com este LTHR** (o app pede confirmação, porque o LTHR muda o HRSS de tudo). Só vale para atividade importada de arquivo, com frequência cardíaca e de pelo menos 30 minutos; nas outras a chave fica desligada e explica o motivo. Em **Configuração → Teste de LTHR**, as atividades marcadas aparecem primeiro.
-- **Trajeto de treino:** escolha o percurso do treino na lista ou crie um novo pelo nome (por exemplo, "Volta da Lagoa"). O trajeto serve para comparar o seu esforço em treinos feitos no mesmo caminho: veja **Treinos → Trajetos**. Cada trajeto é de um esporte, e uma atividade tem um só. Para tirar um trajeto da lista, escolha-o e clique na **lixeira** ao lado: ele é excluído e as atividades que o usavam ficam sem trajeto.
+- **Trajeto de treino:** escolha o percurso do treino na lista ou crie um novo pelo nome (por exemplo, "Volta da Lagoa"). O trajeto serve para comparar o seu esforço em treinos feitos no mesmo caminho: veja **Treinos → Trajetos de Treino**. Cada trajeto é de um esporte, e uma atividade tem um só. Para tirar um trajeto da lista, escolha-o e clique na **lixeira** ao lado: ele é excluído e as atividades que o usavam ficam sem trajeto.
 - **Nome e esporte:** no topo da janela, o nome da atividade é um campo que você edita na hora (em branco, volta ao nome padrão) e o esporte é uma lista pequena ao lado do resumo. Os dados do arquivo (duração, distância, FC) não mudam.
 
 Você pode **pular** e responder depois: a atividade fica com o badge **Como foi?** na lista. Na lista, clique no badge **Como foi?** abaixo do nome (ou no ícone da sensação, se já respondeu) para abrir a janela e editar; clicar na linha abre a atividade; na página da atividade há o cartão **Como foi?** com o botão **Editar**. Quando você importa vários arquivos de uma vez ou a sincronização traz várias atividades, a janela não abre sozinha.
@@ -199,7 +199,7 @@ Há uma sugestão feita por IA (Gemini), disponível para quem o administrador l
 
 ## Treinos intervalados
 
-Em **Treinos** você encontra uma biblioteca de treinos intervalados para **ciclismo e corrida**, de vários focos (VO2máx, limiar, tempo, over-under, pirâmides, fartlek, sprints, progressivos e subidas) e três níveis. Tudo fica numa página só: escolha o **esporte** no alto da tela e, em **Esta semana** e **Biblioteca**, o **nível** (iniciante, intermediário, avançado ou **Todos**, em cada um) e use as abas **Treinos** (seções **Esta semana**, **Biblioteca** e **Meus treinos**) e **Trajetos**. Dá para **recolher** qualquer seção clicando no título; o app lembra o que você deixou recolhido.
+Em **Treinos** você encontra uma biblioteca de treinos intervalados para **ciclismo e corrida**, de vários focos (VO2máx, limiar, tempo, over-under, pirâmides, fartlek, sprints, progressivos e subidas) e três níveis. Tudo fica numa página só: escolha o **esporte** no alto da tela e, em **Esta semana** e **Biblioteca**, o **nível** (iniciante, intermediário, avançado ou **Todos**, em cada um) e use as abas **Treinos** (seções **Esta semana**, **Biblioteca** e **Meus treinos**) e **Trajetos de Treino**. Dá para **recolher** qualquer seção clicando no título; o app lembra o que você deixou recolhido.
 
 - **Esta semana (sugestões):** o app indica treinos para os próximos 7 dias, em dias livres do seu plano. Ele gira o foco, não repete treinos recentes e respeita a sua carga: **no máximo 2 treinos intensos por semana, com 48 horas entre eles**, e nenhum treino intenso se a sua Forma estiver na sobrecarga. Cada sugestão tem **Ver** e **Trocar**; marque as que quiser e use **Adicionar ao plano**. Nada entra no plano sem a sua aprovação. **Sugerir outras** refaz a lista.
 - **Biblioteca:** os treinos do esporte e do nível escolhidos (ou de todos os níveis), com filtro por foco. O **perfil** em barras mostra o treino de relance: a largura é o tempo, e a altura e a cor são a zona (de azul, Z1, a vermelho, Z5).
@@ -210,8 +210,8 @@ Em **Treinos** você encontra uma biblioteca de treinos intervalados para **cicl
 - **No plano:** o treino aparece no calendário com o nome e a duração. Ao abri-lo, você vê o perfil e os passos; a duração e a zona vêm dos passos.
 - **Esforços curtos não têm faixa de FC:** a frequência cardíaca leva de 30 a 60 segundos para reagir, então num tiro de 20 ou 30 segundos ela nem chega à faixa antes de ele acabar. Por isso, todo passo com **menos de 1 minuto** aparece como "sem alvo de FC" (no detalhe do treino, no relógio e no comparador) e é guiado pelo esforço descrito no treino. Passos de 1 minuto ou mais continuam com a faixa de FC. Se você já tinha esse treino no Plano, reenvie-o pelo Garmin para o relógio parar de cobrar a faixa nos tiros.
 
-### Evolução por trajeto (Treinos → Trajetos)
-Em **Treinos**, a aba **Trajetos** mostra como você evolui em cada trajeto que criou no "Como foi?". Escolha o esporte no alto e clique no **badge** do trajeto: a evolução abre logo abaixo.
+### Evolução por trajeto (Treinos → Trajetos de Treino)
+Em **Treinos**, a aba **Trajetos de Treino** mostra como você evolui em cada trajeto que criou no "Como foi?". Escolha o esporte no alto e clique no **badge** do trajeto: a evolução abre logo abaixo.
 
 - **Resumo:** quantas vezes você passou, a melhor passagem, quanto melhorou do início para as últimas passagens (velocidade e **eficiência**), a constância e a tendência por mês.
 - **Eficiência:** mede quantos metros você anda por minuto para cada batimento do coração. Se ela sobe, você está andando mais rápido com o mesmo esforço, sinal de melhor condicionamento. Compare passagens em condições parecidas.
@@ -222,12 +222,13 @@ Em **Treinos**, a aba **Trajetos** mostra como você evolui em cada trajeto que 
 - Atividades manuais ou sem GPS valem como atividade inteira. Na tela de uma atividade que está em um trajeto também há o link **Ver a evolução em…**.
 
 ### Treino adaptado ao trajeto
-O terreno importa: o esforço forte rende mais na subida, e a descida é boa para recuperar. Em **Treinos → Trajetos**, escolha um trajeto e clique em **Criar treino adaptado ao trajeto** para o app montar um treino intervalado que acompanha as subidas, os planos e as descidas dele.
+O terreno importa: o esforço forte rende mais na subida, e a descida é boa para recuperar. Em **Treinos → Trajetos de Treino**, escolha um trajeto e clique em **Criar treino adaptado ao trajeto** para o app montar um treino intervalado que acompanha as subidas, os planos e as descidas dele.
 
 - **Precisa da rota de referência** do trajeto (veja acima), porque é nela que o app lê a altimetria. Trajetos muito curtos ou planos não rendem um treino adaptado.
 - **Escolha o foco** (limiar, VO2máx, fartlek…), o **nível** e a **estratégia**: esforço nas subidas (o padrão), esforço nas descidas e planos, ou equilibrada. A observação é opcional.
 - **Gerar com IA** pede à IA a intensidade de cada trecho (conta uma sugestão da cota diária; se falhar, a tentativa não é descontada). **Montar sem IA** usa só as regras da estratégia e não gasta a cota.
 - **Confira a prévia:** o perfil de elevação aparece colorido pela zona de cada trecho, com a lista de trechos e o motivo de cada escolha. Você pode mudar o nome e então **Salvar em Meus treinos**: o treino fica com o nome do trajeto, no cartão e no detalhe, e funciona como qualquer outro (plano, relógio e intervals.icu).
+- **Zerar o trajeto:** é uma opção única, para tentar **bater o seu recorde** no trajeto. Ao escolhê-la, o foco, o nível e a observação somem e aparecem só as instruções. O app pega a sua passagem mais rápida (sem contar as de distância muito diferente), refaz o terreno e a FC que você teve em cada trecho, e monta blocos com a **meta de tempo e de ritmo de cada trecho** para fechar o trajeto cerca de 1% mais rápido (no mínimo 5 segundos). **Não usa IA** e não gasta as sugestões do dia. Precisa que a atividade do seu recorde tenha GPS com altimetria.
 - **Cuidado com o ritmo:** o treino é por tempo. Cada bloco dura o que você levou naquele trecho na atividade de referência. Se hoje você andar bem mais rápido ou mais devagar, os blocos vão sair um pouco do ponto certo do terreno. Faça o aquecimento antes e comece o treino no ponto de partida do trajeto.
 
 ## Peso

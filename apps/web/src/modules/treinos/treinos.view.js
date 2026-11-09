@@ -278,7 +278,7 @@ export function render(raiz, sessao) {
       const foco = seletor({
         id: 'filtro-foco',
         rotulo: 'Foco',
-        opcoes: [{ valor: '', rotulo: 'Todos os focos' }, ...Object.entries(FOCOS).map(([id, f]) => ({ valor: id, rotulo: f.rotulo }))],
+        opcoes: [{ valor: '', rotulo: 'Todos os focos' }, ...Object.entries(FOCOS).filter(([id]) => id !== 'recorde').map(([id, f]) => ({ valor: id, rotulo: f.rotulo }))],
         valor: estadoTreinos.foco ?? '',
       });
       foco.addEventListener('change', () => {
@@ -319,11 +319,11 @@ export function render(raiz, sessao) {
         corpo: corpoMeus,
       }),
     );
-    // "Meus trajetos" fica na própria aba; o painel do trajeto escolhido abre logo abaixo dos badges
+    // "Trajetos de Treino" fica na própria aba; o painel do trajeto escolhido abre logo abaixo dos badges
     const painelTrajetos = h(
       'div',
       { class: 'pilha' },
-      h('section', { class: 'treinos-secao pilha', id: 'treinos-trajetos' }, h('div', { class: 'card' }, h('h2', null, 'Meus trajetos'), trajetos.el), trajetos.painelEl),
+      h('section', { class: 'treinos-secao pilha', id: 'treinos-trajetos' }, h('div', { class: 'card' }, h('h2', null, 'Trajetos de Treino'), trajetos.el), trajetos.painelEl),
     );
 
     // a aba em uso vem do estado da sessão; um pedido de rolagem leva à aba onde a seção está
@@ -334,7 +334,7 @@ export function render(raiz, sessao) {
       aoSelecionar: (id) => { estadoTreinos.aba = id; },
       abas: [
         { id: 'treinos', nome: 'Treinos', icone: 'treinos', painel: painelTreinos },
-        { id: 'trajetos', nome: 'Trajetos', icone: 'rota', painel: painelTrajetos },
+        { id: 'trajetos', nome: 'Trajetos de Treino', icone: 'rota', painel: painelTrajetos },
       ],
     });
     const desejada = estadoTreinos.rolarPara ? (estadoTreinos.rolarPara === 'trajetos' ? 'trajetos' : 'treinos') : anterior;

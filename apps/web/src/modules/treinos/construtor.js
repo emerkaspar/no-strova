@@ -170,7 +170,7 @@ export function criarConstrutor({ uid, base, config, esporteInicial, aoSalvar, a
   nome.addEventListener('input', () => (rascunho.nome = nome.value));
   const esporte = seletor({ id: 'tm-esporte', rotulo: 'Esporte', opcoes: opcoes(ESPORTES_TREINO, ROTULO_ESPORTE), valor: rascunho.esporte });
   esporte.addEventListener('change', () => (rascunho.esporte = esporte.value));
-  const foco = seletor({ id: 'tm-foco', rotulo: 'Foco', opcoes: opcoes(Object.keys(FOCOS), Object.fromEntries(Object.entries(FOCOS).map(([k, v]) => [k, v.rotulo]))), valor: rascunho.foco });
+  const foco = seletor({ id: 'tm-foco', rotulo: 'Foco', opcoes: opcoes(Object.keys(FOCOS).filter((k) => k !== 'recorde' || rascunho.foco === 'recorde'), Object.fromEntries(Object.entries(FOCOS).map(([k, v]) => [k, v.rotulo]))), valor: rascunho.foco });
   foco.addEventListener('change', () => (rascunho.foco = foco.value));
   const nivel = seletor({ id: 'tm-nivel', rotulo: 'Nível', opcoes: opcoes(Object.keys(NIVEIS), NIVEIS), valor: rascunho.nivel });
   nivel.addEventListener('change', () => (rascunho.nivel = nivel.value));

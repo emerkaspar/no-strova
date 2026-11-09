@@ -7,7 +7,12 @@ import {
   contextoDasSemanas,
   dataIsoValida,
   diasEntre,
+  distanciaTipica,
   ESTRATEGIAS_TRAJETO,
+  fcMediaPorSegmento,
+  montarTreinoRecorde,
+  passagemDestoante,
+  passagensDoTrajeto,
   faixaDeFcDaZona,
   FOCOS_PARA_TRAJETO,
   modelosDoCatalogo,
@@ -397,7 +402,7 @@ const schemaTreinoDoTrajeto = z.object({
 
 export interface TreinoDoTrajeto {
   trajeto: { id: string; nome: string };
-  origem: "ia" | "regras";
+  origem: "ia" | "regras" | "recorde";
   restantes: number | null;
   avisos: string[];
   aviso: string | null;
@@ -405,6 +410,9 @@ export interface TreinoDoTrajeto {
   perfil: { dM: number[]; alt: number[] };
   segmentos: unknown[];
   treino: unknown;
+  /** só em "Zerar o trajeto": o recorde, a meta e as melhores marcas do trajeto */
+  recorde?: { data: string; atividadeId: string; velocidadeKmh: number; recordeS: number; metaS: number; ganhoS: number; semFc: boolean };
+  melhores?: Array<{ data: string; tempoS: number; distanciaM: number; velocidadeKmh: number }>;
 }
 
 /**
@@ -419,6 +427,7 @@ export async function sugerirTreinoDoTrajetoDoUsuario(uid: string, bruto: Record
   const trajetoId = typeof bruto.trajetoId === "string" ? bruto.trajetoId : "";
   const foco = String(bruto.foco ?? "");
   const estrategia = String(bruto.estrategia ?? "");
+  if (estrategia === "recorde") return treinoRecordeDoTrajetoDoUsuario(uid, bruto);
   const usarIa = bruto.usarIa !== false;
   const observacao = typeof bruto.observacao === "string" ? bruto.observacao.trim().replace(/\s+/g, " ").slice(0, 300) : "";
   if (!trajetoId || trajetoId.length > 128 || trajetoId.includes("/")) throw new HttpsError("invalid-argument", "Escolha o trajeto.");
@@ -518,6 +527,84 @@ export async function sugerirTreinoDoTrajetoDoUsuario(uid: string, bruto: Record
     perfil: terreno.perfil,
     segmentos: montado.segmentos,
     treino: montado.treino,
+  };
+}
+
+/**
+ * "Zerar o trajeto": treino para bater o recorde do usuário no trajeto. Sem IA e sem cota: o código acha a melhor marca
+ * (maior velocidade, ignorando passagens de distância destoante), refaz o terreno e a FC por trecho dessa passagem e monta
+ * blocos com a meta de ritmo de cada trecho (trajeto inteiro cerca de 1% mais rápido). Nada é gravado.
+ */
+export async function treinoRecordeDoTrajetoDoUsuario(uid: string, bruto: Record<string, unknown>): Promise<TreinoDoTrajeto> {
+  const hoje = diaNoFuso(Date.now());
+  const trajetoId = typeof bruto.trajetoId === "string" ? bruto.trajetoId : "";
+  if (!trajetoId || trajetoId.length > 128 || trajetoId.includes("/")) throw new HttpsError("invalid-argument", "Escolha o trajeto.");
+
+  const [trajetoDoc, prefSnap, configs, atividadesSnap] = await Promise.all([
+    db.doc(`trajetos/${trajetoId}`).get(),
+    db.doc(`preferencias/${uid}`).get(),
+    carregarConfigs(uid),
+    db.collection("atividades").where("userId", "==", uid).where("trajetoId", "==", trajetoId).limit(1000).get(),
+  ]);
+  const trajeto = trajetoDoc.data();
+  if (!trajetoDoc.exists || !trajeto || trajeto.userId !== uid) throw new HttpsError("not-found", "Trajeto não encontrado.");
+  if (trajeto.esporte !== "ciclismo" && trajeto.esporte !== "corrida") throw new HttpsError("failed-precondition", "O treino adaptado existe para trajetos de ciclismo e de corrida.");
+  const pref = prefSnap.data() ?? {};
+  const nivel: string = pref.nivelTreinos === "iniciante" || pref.nivelTreinos === "avancado" ? pref.nivelTreinos : "intermediario";
+
+  const atividades = atividadesSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const passagens = passagensDoTrajeto(atividades, trajetoId) as Array<{ id: string; data: string; tempoS: number; distanciaM: number; velocidadeKmh: number; soTrecho: boolean }>;
+  if (passagens.length === 0) throw new HttpsError("failed-precondition", "Este trajeto ainda não tem passagens. Faça o trajeto e escolha-o no \"Como foi?\" da atividade para ter um recorde.");
+
+  // passagem de distância muito diferente da usual (desvio de percurso) não vale como recorde
+  const tipica = distanciaTipica(passagens);
+  let candidatas = passagens.filter((p) => !passagemDestoante(p, tipica));
+  if (candidatas.length === 0) candidatas = passagens;
+  const ordem = [...candidatas].sort((a, b) => b.velocidadeKmh - a.velocidadeKmh || (a.data < b.data ? -1 : 1));
+  const recorde = ordem[0];
+  const atividade = atividades.find((a) => a.id === recorde.id) ?? {};
+
+  const serieDoc = await db.doc(`atividades/${recorde.id}`).collection("series").doc("detalhe").get();
+  const serie = serieDoc.exists ? (serieDoc.data() as { t: number[]; dist?: Array<number | null>; alt?: Array<number | null>; fc?: Array<number | null> }) : null;
+  const dataBr = String(recorde.data).split("-").reverse().join("/");
+  if (!serie?.alt || !serie.dist) throw new HttpsError("failed-precondition", `A atividade do seu recorde (${dataBr}) não tem GPS com altimetria, então não dá para refazer o terreno dela.`);
+
+  const trecho = recorde.soTrecho ? (atividade.trajetoTrecho as { iniM?: number; fimM?: number } | undefined) : undefined;
+  const ultimaDistM = [...serie.dist].reverse().find((d): d is number => typeof d === "number" && Number.isFinite(d));
+  const iniM = Number.isFinite(trecho?.iniM) ? Number(trecho?.iniM) : 0;
+  const fimM = Number.isFinite(trecho?.fimM) ? Number(trecho?.fimM) : (ultimaDistM ?? 0) * 1000;
+  const perfil = perfilDoTrajeto(serie, iniM, fimM);
+  if (!perfil) throw new HttpsError("failed-precondition", `Não foi possível ler a altimetria da atividade do seu recorde (${dataBr}).`);
+  const terreno = segmentarTerreno(perfil);
+
+  const config = configVigenteEm(configs, hoje);
+  const montado = montarTreinoRecorde(terreno.segmentos, {
+    esporte: String(trajeto.esporte),
+    nivel,
+    trajetoNome: String(trajeto.nome ?? "Trajeto"),
+    recordeS: recorde.tempoS,
+    recordeData: recorde.data,
+    fcPorSegmento: fcMediaPorSegmento(serie, perfil, terreno.segmentos),
+    lthr: config?.lthr ?? null,
+  });
+  if (!montado.valido || !montado.meta) throw new HttpsError("failed-precondition", montado.erros[0] ?? "Não foi possível montar o treino deste trajeto.");
+
+  const avisos: string[] = [];
+  if (montado.meta.semFc) avisos.push("Faltou a FC da passagem do recorde (ou a sua configuração de FC); as zonas dos trechos sem FC foram estimadas pelo terreno.");
+  if (passagens.length === 1) avisos.push("Você tem uma só passagem neste trajeto, então o recorde é ela mesma.");
+
+  return {
+    trajeto: { id: trajetoDoc.id, nome: String(trajeto.nome ?? "") },
+    origem: "recorde",
+    restantes: null,
+    avisos,
+    aviso: null,
+    resumoDoTerreno: terreno.resumo,
+    perfil: terreno.perfil,
+    segmentos: montado.segmentos,
+    treino: montado.treino,
+    recorde: { data: recorde.data, atividadeId: recorde.id, velocidadeKmh: recorde.velocidadeKmh, ...montado.meta },
+    melhores: ordem.slice(0, 3).map((p) => ({ data: p.data, tempoS: p.tempoS, distanciaM: p.distanciaM, velocidadeKmh: p.velocidadeKmh })),
   };
 }
 

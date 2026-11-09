@@ -3,7 +3,7 @@
  * Os níveis ficam nas preferências do usuário; o resto é só da sessão (menos as seções recolhidas, guardadas no navegador).
  */
 
-/** Seções recolhíveis da aba "Treinos", na ordem em que aparecem. ("Meus trajetos" tem aba própria.) */
+/** Seções recolhíveis da aba "Treinos", na ordem em que aparecem. ("Trajetos de Treino" tem aba própria.) */
 export const SECOES = Object.freeze([
   { id: 'semana', rotulo: 'Esta semana' },
   { id: 'biblioteca', rotulo: 'Biblioteca' },

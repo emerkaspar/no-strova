@@ -10,14 +10,18 @@ import { ESPORTES_TREINO, FOCOS, LIMITES_TREINO_ESTRUTURADO, NIVEIS, formatarSeg
 export const TIPOS_DE_TERRENO = Object.freeze(['subida', 'plano', 'descida']);
 export const ROTULOS_DO_TERRENO = Object.freeze({ subida: 'Subida', plano: 'Plano', descida: 'Descida' });
 
+/** Estratégia única: o treino é montado a partir da melhor marca do usuário no trajeto (sem IA, sem foco, sem nível). */
+export const ESTRATEGIA_RECORDE = 'recorde';
+
 export const ESTRATEGIAS_TRAJETO = Object.freeze({
+  [ESTRATEGIA_RECORDE]: { rotulo: 'Zerar o trajeto', descricao: 'Bater o seu recorde neste trajeto.' },
   subidas: { rotulo: 'Esforço nas subidas', descricao: 'Forte nas subidas; recuperação no plano e na descida.' },
   descidas_planos: { rotulo: 'Esforço nas descidas e planos', descricao: 'Forte onde o terreno ajuda (descida e plano); subida mais leve.' },
   equilibrada: { rotulo: 'Equilibrada', descricao: 'Forte na subida, ritmo firme no plano e recuperação na descida.' },
 });
 
 /** Focos que fazem sentido num trajeto (o teste de LTHR não é adaptado ao terreno). */
-export const FOCOS_PARA_TRAJETO = Object.freeze(Object.keys(FOCOS).filter((f) => FOCOS[f].intensidade !== 'teste'));
+export const FOCOS_PARA_TRAJETO = Object.freeze(Object.keys(FOCOS).filter((f) => FOCOS[f].intensidade !== 'teste' && f !== 'recorde'));
 
 export const PARAMETROS_DO_TERRENO = Object.freeze({
   passoM: 25, // reamostragem do perfil
@@ -46,7 +50,8 @@ const arredondar = (v, casas = 1) => Math.round(v * 10 ** casas) / 10 ** casas;
  * @param {{ t: number[], dist?: Array<number|null>, alt?: Array<number|null> }} serie série detalhada da atividade de referência (dist em km)
  * @param {number} iniM início do trecho, em metros da atividade
  * @param {number} fimM fim do trecho, em metros da atividade
- * @returns {null | { dM: number[], alt: number[], tS: number[] }} null sem distância, altitude ou tempo suficientes
+ * @returns {null | { dM: number[], alt: number[], tS: number[], origemM: number }} null sem distância, altitude ou tempo suficientes
+ *   (`origemM`: a distância, na atividade, onde o perfil começa)
  */
 export function perfilDoTrajeto(serie, iniM, fimM) {
   if (!serie?.t || !serie.dist || !serie.alt || !finito(iniM) || !finito(fimM) || !(fimM > iniM)) return null;
@@ -75,7 +80,7 @@ export function perfilDoTrajeto(serie, iniM, fimM) {
     for (let j = i + 1; j < bruto.length && dM[j] - dM[i] <= raio; j++) { soma += bruto[j].a; n++; }
     return soma / n;
   });
-  return { dM, alt, tS };
+  return { dM, alt, tS, origemM: d0 };
 }
 
 /** Valor de `ys` na distância `x`, por interpolação linear (`xs` crescente). */
@@ -267,7 +272,7 @@ const formatarMetros = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Mat
 function descreverBloco(segs) {
   if (segs.length === 1) {
     const s = segs[0];
-    return `${ROTULOS_DO_TERRENO[s.tipo]} de ${formatarDistancia(s.distanciaM)} (${formatarMetros(s.ganhoM)})`.slice(0, 120);
+    return `${ROTULOS_DO_TERRENO[s.tipo]} de ${formatarDistancia(s.distanciaM)} (${formatarMetros(s.ganhoM)})${s.meta ? ` · meta ${s.meta}` : ''}`.slice(0, 120);
   }
   const tipos = [...new Set(segs.map((s) => ROTULOS_DO_TERRENO[s.tipo].toLowerCase()))];
   const distancia = segs.reduce((t, s) => t + s.distanciaM, 0);
@@ -285,7 +290,7 @@ function montarPassos(segmentos, decisoes, foco) {
   for (const s of segmentos) {
     const d = porId.get(s.id);
     const ultimo = blocos[blocos.length - 1];
-    if (ultimo && ultimo.zona === d.zona && ultimo.papel === d.papel) {
+    if (ultimo && ultimo.zona === d.zona && ultimo.papel === d.papel && !s.meta) {
       ultimo.duracaoS += s.duracaoS;
       ultimo.segs.push(s);
     } else {
@@ -336,19 +341,126 @@ export function montarTreinoDoTerreno(segmentos, decisoes, contexto) {
   if (erros.length > 0) return { valido: false, erros, treino: null, segmentos: [] };
 
   const finais = normalizarDecisoes(segmentos, decisoes, { estrategia, foco });
+  return finalizarTreino(segmentos, finais, { esporte, foco, nivel, trajetoNome, nome: contexto.nome, descricao: contexto.descricao });
+}
+
+const GUIA_DE_INICIO = 'Comece no ponto de partida do trajeto, depois de aquecer 10 a 15 min em Z1–Z2 (o treino cobre só o percurso). Os tempos seguem o seu ritmo nesse trajeto.';
+
+/** Monta os passos das decisões já conferidas e valida o treino. */
+function finalizarTreino(segmentos, finais, { esporte, foco, nivel, trajetoNome, nome: nomeEscolhido, descricao: descricaoEscolhida }) {
   const passos = montarPassos(segmentos, finais, foco);
   const porId = new Map(finais.map((d) => [d.segmentoId, d]));
   const segmentosDecididos = segmentos.map((s) => ({ ...s, zona: porId.get(s.id).zona, papel: porId.get(s.id).papel, motivo: porId.get(s.id).motivo }));
 
   const L = LIMITES_TREINO_ESTRUTURADO;
   const nomePadrao = `${FOCOS[foco].rotulo} · ${trajetoNome ?? 'Trajeto'}`;
-  const nome = String(contexto.nome ?? '').trim().slice(0, L.nome.max) || nomePadrao.slice(0, L.nome.max);
-  const guia = 'Comece no ponto de partida do trajeto, depois de aquecer 10 a 15 min em Z1–Z2 (o treino cobre só o percurso). Os tempos seguem o seu ritmo nesse trajeto.';
-  const descricao = [String(contexto.descricao ?? '').trim(), guia].filter(Boolean).join(' ').slice(0, L.descricao.max);
+  const nome = String(nomeEscolhido ?? '').trim().slice(0, L.nome.max) || nomePadrao.slice(0, L.nome.max);
+  const descricao = [String(descricaoEscolhida ?? '').trim(), GUIA_DE_INICIO].filter(Boolean).join(' ').slice(0, L.descricao.max);
 
   const validacao = validarTreinoEstruturado({ nome, esporte, foco, nivel, descricao, passos });
   if (!validacao.valido) return { valido: false, erros: validacao.erros, treino: null, segmentos: segmentosDecididos };
   return { valido: true, erros: [], treino: validacao.valores, segmentos: segmentosDecididos };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Zerar o trajeto: bater o recorde do usuário
+// ---------------------------------------------------------------------------------------------------------------
+
+/** A meta é ficar 1% mais rápido que o recorde, e nunca menos de 5 s. */
+export const META_DO_RECORDE = Object.freeze({ fracao: 0.01, minimoS: 5 });
+
+/** Tempo-meta (s) para bater o recorde. */
+export function metaDoRecorde(recordeS) {
+  return Math.max(1, Math.round(recordeS - Math.max(META_DO_RECORDE.minimoS, recordeS * META_DO_RECORDE.fracao)));
+}
+
+/** Zona de FC (Z1–Z5) de uma FC, pelas faixas de % do LTHR. Null sem FC ou sem LTHR. */
+export function zonaPelaFc(fc, lthr) {
+  if (!finito(fc) || !finito(lthr) || lthr <= 0) return null;
+  const f = fc / lthr;
+  return f < 0.8 ? 'Z1' : f < 0.89 ? 'Z2' : f < 0.945 ? 'Z3' : f < 1 ? 'Z4' : 'Z5';
+}
+
+/** FC média de cada segmento na série da atividade (null onde faltam dados). */
+export function fcMediaPorSegmento(serie, perfil, segmentos) {
+  if (!serie?.fc || !serie.dist) return segmentos.map(() => null);
+  const base = perfil.origemM ?? 0;
+  return segmentos.map((s) => {
+    const valores = [];
+    for (let i = 0; i < serie.dist.length; i++) {
+      const d = serie.dist[i] * 1000;
+      if (finito(d) && d >= base + s.iniM && d <= base + s.fimM && finito(serie.fc[i])) valores.push(serie.fc[i]);
+    }
+    return valores.length >= 3 ? valores.reduce((t, v) => t + v, 0) / valores.length : null;
+  });
+}
+
+/** Ritmo (corrida, "5:12/km") ou velocidade (ciclismo, "28,4 km/h") de um trecho. */
+export function ritmoDoTrecho(esporte, distanciaM, duracaoS) {
+  if (!(distanciaM > 0) || !(duracaoS > 0)) return '';
+  if (esporte === 'corrida') {
+    const s = Math.round(duracaoS / (distanciaM / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}/km`;
+  }
+  return `${((distanciaM / duracaoS) * 3.6).toFixed(1).replace('.', ',')} km/h`;
+}
+
+const dataBr = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(String(iso)) ? String(iso).split('-').reverse().join('/') : '');
+const minutosESegundos = (v) => `${Math.floor(v / 60)}:${String(Math.round(v % 60)).padStart(2, '0')}`;
+
+/**
+ * Treino para bater o recorde do trajeto. Os segmentos são os da própria passagem do recorde (com o tempo dela); cada um
+ * recebe a meta de tempo e de ritmo, em que o trajeto todo fecha cerca de 1% mais rápido (`metaDoRecorde`). A zona de cada
+ * trecho é a FC que o usuário teve nele no recorde (esforço de prova: ao menos Z3, exceto descida em que ele recuperou).
+ * Sem FC, usa Z4 na subida e no plano e Z3 na descida.
+ * @param {object[]} segmentos de `segmentarTerreno`, com a duração do recorde
+ * @param {{ esporte: string, nivel: string, trajetoNome: string, recordeS: number, recordeData?: string,
+ *   fcPorSegmento?: Array<number|null>, lthr?: number|null }} contexto `recordeS`: o tempo do recorde (parado não conta)
+ * @returns mesma forma de `montarTreinoDoTerreno`, mais `meta: { recordeS, metaS, ganhoS, semFc }`
+ */
+export function montarTreinoRecorde(segmentos, contexto) {
+  const { esporte, nivel, trajetoNome, recordeS, recordeData, fcPorSegmento = [], lthr = null } = contexto;
+  const erros = [];
+  if (!ESPORTES_TREINO.includes(esporte)) erros.push('Escolha o esporte (ciclismo ou corrida).');
+  if (!NIVEIS[nivel]) erros.push('Escolha o nível do treino.');
+  if (!Array.isArray(segmentos) || segmentos.length === 0 || !(recordeS > 0)) erros.push('Não há dados do recorde para montar o treino.');
+  if (erros.length > 0) return { valido: false, erros, treino: null, segmentos: [], meta: null };
+
+  const metaS = metaDoRecorde(recordeS);
+  const somaS = segmentos.reduce((t, s) => t + s.duracaoS, 0);
+  let acumulado = 0;
+  let fim = 0;
+  const alvo = segmentos.map((s) => {
+    acumulado += (s.duracaoS * metaS) / somaS;
+    const duracaoS = Math.max(1, Math.round(acumulado) - fim);
+    fim += duracaoS;
+    return { ...s, duracaoS, meta: ritmoDoTrecho(esporte, s.distanciaM, duracaoS) };
+  });
+
+  let semFc = false;
+  const finais = alvo.map((s, i) => {
+    const fc = fcPorSegmento[i];
+    const zonaDaFc = zonaPelaFc(fc, lthr);
+    let zona = zonaDaFc;
+    if (!zona) {
+      semFc = true;
+      zona = s.tipo === 'descida' ? 'Z3' : 'Z4';
+    }
+    const indice = indiceDaZona(zona);
+    const recupera = zonaDaFc !== null && s.tipo === 'descida' && indice <= 1;
+    const origemDaZona = zonaDaFc ? `no recorde a sua FC média foi ${Math.round(fc)} bpm (${zonaDaFc})` : 'sem FC no recorde, zona estimada pelo terreno';
+    return {
+      segmentoId: s.id,
+      zona: recupera ? zona : zonaDoIndice(Math.max(indice, 2)),
+      papel: recupera ? 'recuperacao' : 'principal',
+      motivo: `Meta ${s.meta}: ${origemDaZona}.`,
+    };
+  });
+
+  const data = dataBr(recordeData);
+  const descricao = `Recorde atual: ${minutosESegundos(recordeS)}${data ? ` (${data})` : ''}. Meta: ${minutosESegundos(metaS)}, ${Math.round(recordeS - metaS)} s mais rápido, mantendo o seu esforço de cada trecho e ganhando o tempo no ritmo.`;
+  const montado = finalizarTreino(alvo, finais, { esporte, foco: 'recorde', nivel, trajetoNome, nome: `Zerar o trajeto · ${trajetoNome ?? 'Trajeto'}`, descricao });
+  return { ...montado, meta: { recordeS, metaS, ganhoS: recordeS - metaS, semFc } };
 }
 
 /** Resumo em uma linha de um segmento, para o prompt da IA e para a tela. */

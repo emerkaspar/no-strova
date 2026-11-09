@@ -19,7 +19,9 @@ export function criarCartaoTreino({ modelo, config, acoes = [], aoAbrir }) {
   const foco = FOCOS[modelo.foco];
   return h(
     'article',
-    { class: 'treino-cartao', 'data-id': modelo.id },
+    { class: `treino-cartao${modelo.trajetoNome ? ' treino-cartao-trajeto' : ''}`, 'data-id': modelo.id },
+    // orelha: de qual trajeto o treino foi adaptado
+    modelo.trajetoNome ? h('div', { class: 'treino-orelha', title: `Treino adaptado à altimetria do trajeto ${modelo.trajetoNome}` }, icone('rota', 14), h('span', null, modelo.trajetoNome)) : null,
     h(
       'div',
       { class: 'treino-cabecalho' },
@@ -27,7 +29,6 @@ export function criarCartaoTreino({ modelo, config, acoes = [], aoAbrir }) {
       h('span', { class: `chip-foco chip-foco-${foco?.intensidade ?? 'moderada'}` }, foco?.rotulo ?? modelo.foco),
     ),
     perfilDoTreino(modelo.passos),
-    modelo.trajetoNome ? h('p', null, h('span', { class: 'chip-trajeto', title: 'Treino adaptado à altimetria deste trajeto' }, icone('rota', 13), ` ${modelo.trajetoNome}`)) : null,
     h('p', { class: 'treino-resumo' }, textoResumo(modelo, config)),
     h(
       'div',

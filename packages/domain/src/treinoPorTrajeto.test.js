@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decisoesPadrao, ESTRATEGIAS_TRAJETO, montarTreinoDoTerreno, normalizarDecisoes, perfilDoTrajeto, segmentarTerreno } from './treinoPorTrajeto.js';
+import { decisoesPadrao, ESTRATEGIAS_TRAJETO, FOCOS_PARA_TRAJETO, fcMediaPorSegmento, metaDoRecorde, montarTreinoDoTerreno, montarTreinoRecorde, normalizarDecisoes, perfilDoTrajeto, ritmoDoTrecho, segmentarTerreno, zonaPelaFc } from './treinoPorTrajeto.js';
 import { duracaoTotalS, expandirPassos } from './treinosEstruturados.js';
 
 /** Série detalhada sintética: pontos a cada 5 s a 3 m/s; `trechos` = [[metros, inclinação em %]]. */
@@ -186,5 +186,71 @@ describe('montarTreinoDoTerreno', () => {
     const curto = segmentarTerreno(perfilDoTrajeto(serieSintetica([[400, 0], [400, 6]], { velocidade: 4 }), 0, 800)).segmentos;
     const r = montarTreinoDoTerreno(curto, null, contexto);
     expect(r.valido).toBe(false);
+  });
+});
+
+describe('zerar o trajeto (recorde)', () => {
+  const serie = serieSintetica(TRAJETO);
+  // FC de quem se esforça mais na subida: 185 na subida (trecho de 1000 a 2000 m), 150 no plano, 130 na descida
+  serie.fc = serie.dist.map((d) => (d < 1 ? 150 : d < 2 ? 185 : d < 3 ? 150 : 130));
+  const perfil = perfilDoTrajeto(serie, 0, 4000);
+  const { segmentos, resumo } = segmentarTerreno(perfil);
+  const fcs = fcMediaPorSegmento(serie, perfil, segmentos);
+  const contexto = { esporte: 'corrida', nivel: 'intermediario', trajetoNome: 'Volta do parque', recordeS: resumo.duracaoS, recordeData: '2026-03-12', fcPorSegmento: fcs, lthr: 170 };
+
+  it('a meta é 1% mais rápida que o recorde, e nunca menos de 5 s', () => {
+    expect(metaDoRecorde(3000)).toBe(2970);
+    expect(metaDoRecorde(300)).toBe(295);
+  });
+
+  it('zona pela FC em % do LTHR', () => {
+    expect(zonaPelaFc(130, 170)).toBe('Z1');
+    expect(zonaPelaFc(150, 170)).toBe('Z2');
+    expect(zonaPelaFc(160, 170)).toBe('Z3');
+    expect(zonaPelaFc(166, 170)).toBe('Z4');
+    expect(zonaPelaFc(172, 170)).toBe('Z5');
+    expect(zonaPelaFc(null, 170)).toBeNull();
+    expect(zonaPelaFc(150, null)).toBeNull();
+  });
+
+  it('ritmo em min/km na corrida e km/h no ciclismo', () => {
+    expect(ritmoDoTrecho('corrida', 1000, 312)).toBe('5:12/km');
+    expect(ritmoDoTrecho('ciclismo', 1000, 120)).toBe('30,0 km/h');
+  });
+
+  it('lê a FC média de cada segmento', () => {
+    expect(fcs).toHaveLength(segmentos.length);
+    expect(fcs[segmentos.findIndex((s) => s.tipo === 'subida')]).toBeGreaterThan(165);
+    expect(fcs[segmentos.findIndex((s) => s.tipo === 'descida')]).toBeLessThan(135);
+  });
+
+  it('fecha o trajeto na meta, com ritmo e zona do recorde em cada trecho', () => {
+    const r = montarTreinoRecorde(segmentos, contexto);
+    expect(r.valido, r.erros.join(' ')).toBe(true);
+    expect(r.treino.foco).toBe('recorde');
+    expect(r.treino.nome).toContain('Zerar o trajeto');
+    expect(duracaoTotalS(r.treino.passos)).toBe(r.meta.metaS);
+    expect(r.meta.metaS).toBeLessThan(r.meta.recordeS);
+    expect(r.treino.descricao).toContain('12/03/2026');
+    const sub = r.segmentos.find((s) => s.tipo === 'subida');
+    const desc = r.segmentos.find((s) => s.tipo === 'descida');
+    expect(sub).toMatchObject({ papel: 'principal', zona: 'Z5' });
+    expect(desc).toMatchObject({ papel: 'recuperacao', zona: 'Z1' });
+    expect(r.treino.passos.some((p) => /meta \d+:\d{2}\/km/.test(p.descricao))).toBe(true);
+    expect(r.meta.semFc).toBe(false);
+  });
+
+  it('sem FC, usa Z4 na subida e no plano e Z3 na descida, e avisa', () => {
+    const r = montarTreinoRecorde(segmentos, { ...contexto, fcPorSegmento: [], lthr: null });
+    expect(r.valido).toBe(true);
+    expect(r.meta.semFc).toBe(true);
+    expect(r.segmentos.find((s) => s.tipo === 'subida').zona).toBe('Z4');
+    expect(r.segmentos.find((s) => s.tipo === 'descida').zona).toBe('Z3');
+  });
+
+  it('recusa dados insuficientes e o foco recorde não é escolhível', () => {
+    expect(montarTreinoRecorde([], contexto).valido).toBe(false);
+    expect(montarTreinoRecorde(segmentos, { ...contexto, recordeS: 0 }).valido).toBe(false);
+    expect(FOCOS_PARA_TRAJETO).not.toContain('recorde');
   });
 });

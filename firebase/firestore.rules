@@ -121,7 +121,7 @@ service cloud.firestore {
         && m.userId == request.auth.uid
         && m.nome is string && m.nome.size() >= 3 && m.nome.size() <= 60
         && m.esporte in ['ciclismo', 'corrida']
-        && m.foco in ['vo2max', 'limiar', 'tempo', 'overunder', 'piramide', 'fartlek', 'sprint', 'progressivo', 'subidas', 'recuperacao', 'resistencia', 'teste']
+        && m.foco in ['vo2max', 'limiar', 'tempo', 'overunder', 'piramide', 'fartlek', 'sprint', 'progressivo', 'subidas', 'recuperacao', 'resistencia', 'teste', 'recorde']
         && m.nivel in ['iniciante', 'intermediario', 'avancado']
         && (!('descricao' in m) || (m.descricao is string && m.descricao.size() <= 500))
         && m.passos is list && m.passos.size() >= 1 && m.passos.size() <= 30

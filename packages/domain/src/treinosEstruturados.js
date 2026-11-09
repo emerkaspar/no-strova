@@ -29,6 +29,8 @@ export const FOCOS = Object.freeze({
   resistencia: { rotulo: 'Resistência', intensidade: 'baixa' },
   // teste de LTHR: só na biblioteca (nunca é sugerido nem escolhido pela IA)
   teste: { rotulo: 'Teste de LTHR', intensidade: 'teste' },
+  // treino de um trajeto para bater o recorde: só nasce do botão "Zerar o trajeto" (treinoPorTrajeto.js), nunca da biblioteca
+  recorde: { rotulo: 'Zerar o trajeto', intensidade: 'alta' },
 });
 
 export const NIVEIS = Object.freeze({ iniciante: 'Iniciante', intermediario: 'Intermediário', avancado: 'Avançado' });
