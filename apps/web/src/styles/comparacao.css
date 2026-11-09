@@ -9,6 +9,121 @@
   margin: 0;
 }
 
+/* Painel de abertura: HRSS em destaque (cor + ícone dizem se ficou acima, abaixo ou dentro do planejado) */
+.cpr-painel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.cpr-card {
+  --tom: var(--text-secondary);
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--tom);
+  border-radius: 14px;
+  background: var(--surface-light);
+}
+
+.cpr-tom-ok { --tom: var(--success); }
+.cpr-tom-acima,
+.cpr-tom-ruim { --tom: var(--danger); }
+.cpr-tom-abaixo { --tom: var(--zona-1); }
+.cpr-tom-meio { --tom: var(--zona-3); }
+
+.cpr-card-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.cpr-card-rotulo .icone { color: var(--tom); }
+
+.cpr-card-valor {
+  font-size: 1.5rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpr-card-hrss {
+  grid-column: 1 / -1;
+  background: color-mix(in srgb, var(--tom) 10%, var(--surface-light));
+  border-color: color-mix(in srgb, var(--tom) 45%, var(--border));
+  border-left-width: 6px;
+}
+
+@media (min-width: 768px) {
+  .cpr-card-hrss { grid-column: span 2; }
+}
+
+.cpr-hrss-valor {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cpr-hrss-valor strong {
+  color: var(--tom);
+  font-size: 2.75rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpr-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: var(--tom);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.cpr-tom-abaixo .cpr-selo { color: #08243a; }
+
+.cpr-barras {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.cpr-barra-linha {
+  display: grid;
+  grid-template-columns: 76px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpr-barra-nome { color: var(--text-secondary); }
+.cpr-barra-valor { text-align: right; font-weight: 600; }
+
+.cpr-barra-trilho {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.cpr-barra {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+}
+
+.cpr-barra-plan { background: var(--text-secondary); opacity: 0.55; }
+.cpr-barra-feito { background: var(--tom); }
+
 .cpr-resumo {
   display: grid;
   gap: 8px;

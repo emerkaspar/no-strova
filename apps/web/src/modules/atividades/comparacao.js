@@ -1,7 +1,11 @@
-import { compararPassos, formatarSegundos, resumirAderencia } from '@no-strova/domain';
+import { compararPassos, duracaoTotalS, estimarEstresseEstruturado, formatarSegundos, resumirAderencia } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarDuracao, formatarNumero } from '../../utils/formatters.js';
 import { caminhoSuave } from '../../utils/graficoAtividade.js';
+import { icone } from '../../utils/icones.js';
+
+/** Até quanto o realizado pode fugir do planejado (em %) e ainda contar como "dentro do planejado". */
+const TOLERANCIA_PCT = 15;
 
 const NS = 'http://www.w3.org/2000/svg';
 const L = 800;
@@ -85,7 +89,82 @@ export function criarComparacao({ atividade, treino, detalhe, voltas, config, ao
     const rotulos = rotulosDosPassos(avaliacoes);
     const origem = linhas[0].alinhado.origem;
 
-    el.append(resumo(avaliacoes, origem), ...(origem === 'tempo' ? [ajuste()] : []), grafico(linhas), tabela(linhas, avaliacoes, rotulos));
+    el.append(painel(avaliacoes), resumo(avaliacoes, origem), ...(origem === 'tempo' ? [ajuste()] : []), grafico(linhas), tabela(linhas, avaliacoes, rotulos));
+  }
+
+  /** Primeira coisa do bloco: HRSS planejado × realizado em destaque, mais duração, esforços e FC. */
+  function painel(avaliacoes) {
+    const r = resumirAderencia(avaliacoes);
+    const hrssPlanejado = estimarEstresseEstruturado({ passos: treino.passos, config }) ?? (Number.isFinite(treino.estresseEstimado) ? treino.estresseEstimado : null);
+    const hrssFeito = Number.isFinite(atividade.hrss) ? atividade.hrss : null;
+    const cartoes = [cartaoHrss(hrssPlanejado, hrssFeito)];
+
+    const durPlan = duracaoTotalS(treino.passos);
+    const durFeita = Number.isFinite(atividade.duracaoS) ? atividade.duracaoS : null;
+    cartoes.push(
+      cartaoComparado({
+        icone: 'duracao',
+        rotulo: 'Duração',
+        feito: durFeita === null ? '—' : formatarDuracao(durFeita),
+        planejado: formatarSegundos(durPlan),
+        desvio: durFeita === null || durPlan <= 0 ? null : ((durFeita - durPlan) / durPlan) * 100,
+      }),
+    );
+
+    const totalEsforcos = r.esforcos;
+    if (totalEsforcos > 0) {
+      const tom = r.cumpridos === totalEsforcos ? 'ok' : r.cumpridos === 0 ? 'ruim' : 'meio';
+      cartoes.push(cartaoSimples({ icone: tom === 'ok' ? 'ok' : 'alerta', rotulo: 'Esforços na zona', valor: `${r.cumpridos}/${totalEsforcos}`, nota: tom === 'ok' ? 'todos cumpridos' : `${totalEsforcos - r.cumpridos} fora da zona`, tom }));
+    } else if (r.tirosComPico > 0) {
+      const tom = r.picosNaZona === r.tirosComPico ? 'ok' : r.picosNaZona === 0 ? 'ruim' : 'meio';
+      cartoes.push(cartaoSimples({ icone: tom === 'ok' ? 'ok' : 'alerta', rotulo: 'Tiros com pico na zona', valor: `${r.picosNaZona}/${r.tirosComPico}`, nota: 'pico de FC até 20 s após o tiro', tom }));
+    }
+
+    if (Number.isFinite(atividade.fcMedia)) cartoes.push(cartaoSimples({ icone: 'fc', rotulo: 'FC média', valor: `${atividade.fcMedia} bpm`, nota: r.fcMediaEsforcos !== null ? `${r.fcMediaEsforcos} bpm nos esforços` : null, tom: 'neutro' }));
+
+    return h('div', { class: 'cpr-painel' }, ...cartoes);
+  }
+
+  function textoDesvio(desvio) {
+    const arred = Math.round(desvio);
+    return `${arred > 0 ? '+' : arred < 0 ? '−' : ''}${Math.abs(arred)}%`;
+  }
+
+  function cartaoHrss(planejado, feito) {
+    const rotulo = h('span', { class: 'cpr-card-rotulo' }, icone('hrss', 18), 'HRSS (estresse do treino)');
+    if (feito === null && planejado === null) {
+      return h('div', { class: 'cpr-card cpr-card-hrss cpr-tom-neutro' }, rotulo, h('p', { class: 'texto-secundario' }, 'Sem HRSS: faltam a FC da atividade e a configuração de FC da data.'));
+    }
+    const desvio = feito !== null && planejado ? ((feito - planejado) / planejado) * 100 : null;
+    const tom = desvio === null ? 'neutro' : Math.abs(desvio) <= TOLERANCIA_PCT ? 'ok' : desvio > 0 ? 'acima' : 'abaixo';
+    const veredito = { ok: 'Dentro do planejado', acima: 'Mais pesado que o planejado', abaixo: 'Mais leve que o planejado', neutro: feito === null ? 'Atividade sem HRSS' : 'Treino sem estimativa de HRSS' }[tom];
+    const iconeVeredito = { ok: 'ok', acima: 'setaCima', abaixo: 'setaBaixo', neutro: 'info' }[tom];
+    const maximo = Math.max(planejado ?? 0, feito ?? 0, 1);
+    const barra = (valor, classe, nome) =>
+      h('div', { class: 'cpr-barra-linha' }, h('span', { class: 'cpr-barra-nome' }, nome), h('div', { class: 'cpr-barra-trilho' }, h('i', { class: `cpr-barra ${classe}`, style: `width:${valor === null ? 0 : Math.max(2, (valor / maximo) * 100)}%` })), h('span', { class: 'cpr-barra-valor' }, valor === null ? '—' : formatarNumero(valor, 1)));
+    return h(
+      'div',
+      { class: `cpr-card cpr-card-hrss cpr-tom-${tom}` },
+      rotulo,
+      h('div', { class: 'cpr-hrss-valor' }, h('strong', null, feito === null ? '—' : formatarNumero(feito, 1)), h('span', { class: 'texto-secundario' }, 'realizado')),
+      h('span', { class: 'cpr-selo' }, icone(iconeVeredito, 16), veredito, desvio !== null ? ` · ${textoDesvio(desvio)}` : ''),
+      h('div', { class: 'cpr-barras' }, barra(planejado, 'cpr-barra-plan', 'Planejado'), barra(feito, 'cpr-barra-feito', 'Realizado')),
+    );
+  }
+
+  function cartaoComparado({ icone: nomeIcone, rotulo, feito, planejado, desvio }) {
+    const tom = desvio === null ? 'neutro' : Math.abs(desvio) <= TOLERANCIA_PCT ? 'ok' : 'meio';
+    return h(
+      'div',
+      { class: `cpr-card cpr-tom-${tom}` },
+      h('span', { class: 'cpr-card-rotulo' }, icone(nomeIcone, 18), rotulo),
+      h('strong', { class: 'cpr-card-valor' }, feito),
+      h('span', { class: 'texto-secundario' }, `planejado ${planejado}`, desvio !== null ? ` · ${textoDesvio(desvio)}` : ''),
+    );
+  }
+
+  function cartaoSimples({ icone: nomeIcone, rotulo, valor, nota, tom }) {
+    return h('div', { class: `cpr-card cpr-tom-${tom}` }, h('span', { class: 'cpr-card-rotulo' }, icone(nomeIcone, 18), rotulo), h('strong', { class: 'cpr-card-valor' }, valor), nota ? h('span', { class: 'texto-secundario' }, nota) : null);
   }
 
   function resumo(avaliacoes, origem) {

@@ -170,7 +170,8 @@ Ao importar ou sincronizar uma atividade, o modal **Como foi?** abre com um cart
 
 ### Planejado × Realizado (treino intervalado)
 Quando a atividade está **vinculada a um treino intervalado** do Plano, o detalhe ganha a seção **Planejado × Realizado**, que mostra se você cumpriu cada passo (aquecimento, cada esforço, cada recuperação):
-- **Resumo no topo:** quantos esforços ficaram dentro da zona (ex.: "6 de 8"), com um quadradinho por esforço (verde = na zona, azul = abaixo, vermelho = acima), a FC média dos esforços e um aviso se a FC subiu ou caiu bastante entre o primeiro e o último esforço.
+- **Painel de abertura:** o primeiro que você vê. O cartão grande é o **HRSS** (estresse do treino) realizado ao lado do planejado, com barras comparativas e um selo: **verde ✓** = dentro do planejado (até 15% de diferença), **vermelho ↑** = mais pesado que o planejado, **azul ↓** = mais leve. Ao lado ficam a duração (feita × planejada), os esforços na zona (ex.: "6/8") e a FC média.
+- **Resumo:** quantos esforços ficaram dentro da zona (ex.: "6 de 8"), com um quadradinho por esforço (verde = na zona, azul = abaixo, vermelho = acima), a FC média dos esforços e um aviso se a FC subiu ou caiu bastante entre o primeiro e o último esforço.
 - **Gráfico:** a sua FC (linha vermelha) sobre a **faixa de FC planejada** de cada passo (faixas coloridas pela zona). Clique num passo, no gráfico ou na tabela, para destacá-lo (e ver o trecho no mapa).
 - **Tabela:** uma linha por passo, com o planejado (duração, zona e faixa em bpm), o feito (tempo, distância, FC média e % do tempo na faixa, ritmo) e o resultado.
 - **Como os passos são encontrados:** se você fez o treino pelo relógio (enviado pelo intervals.icu), o app usa as **voltas gravadas no relógio**. Sem elas, usa o tempo planejado a partir do começo da atividade; se não bater com o que você fez (atraso, pausa), use os botões **±5 s / ±30 s** para deslocar o início.
