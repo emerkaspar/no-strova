@@ -33,7 +33,7 @@ export function render(raiz, sessao) {
   const lista = h('ul', { class: 'notif-lista' });
   const abas = h('div', { class: 'notif-abas', role: 'tablist', 'aria-label': 'Notificações' });
   const filtros = h('div', { class: 'notif-filtros', role: 'group', 'aria-label': 'Filtrar por grupo' });
-  const botaoTodas = h('button', { class: 'btn btn-secundario', type: 'button', onClick: marcarTodas }, 'Marcar todas como lidas');
+  const botaoTodas = h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => marcarTodas() }, 'Marcar todas como lidas');
 
   async function pedir(acao) {
     mensagem.limpar();
