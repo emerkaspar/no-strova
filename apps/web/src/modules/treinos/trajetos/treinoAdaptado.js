@@ -97,7 +97,8 @@ export function abrirTreinoAdaptado({ uid, trajeto, esporte, nivelInicial = 'int
           if (!ok) salvar.focus();
         });
 
-        previa.replaceChildren(
+        // replaceChildren nativo converte null em texto "null": filtra os blocos opcionais
+        previa.replaceChildren(...[
           h('div', { class: 'terreno-resumo' },
             h('span', null, `${formatarNumero(resumo.distanciaM / 1000, 1)} km`),
             h('span', null, `+${formatarNumero(resumo.ganhoTotalM, 0)} m / −${formatarNumero(resumo.perdaTotalM, 0)} m`),
@@ -129,7 +130,7 @@ export function abrirTreinoAdaptado({ uid, trajeto, esporte, nivelInicial = 'int
           h('div', { class: 'campo' }, h('label', { for: 'terreno-nome' }, 'Nome do treino'), nome),
           r.restantes !== null && r.origem === 'ia' ? h('p', { class: 'texto-secundario' }, `Restam ${r.restantes} ${r.restantes === 1 ? 'sugestão' : 'sugestões'} de IA hoje.`) : null,
           h('div', { class: 'modal-acoes' }, salvar),
-        );
+        ].filter(Boolean));
         previa.hidden = false;
         previa.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
       }
