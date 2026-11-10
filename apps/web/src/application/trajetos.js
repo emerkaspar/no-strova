@@ -37,11 +37,25 @@ async function serieDaAtividade(id) {
 }
 
 /**
- * Perfil (trecho do trajeto ou atividade inteira) e parciais por km de cada passagem, lidos sob demanda.
+ * Traçado da atividade inteira (com cache da sessão), para marcar o início e o fim do trajeto no mapa. `dKm` conta a partir
+ * do primeiro ponto com distância, a mesma base em que a rota é gravada.
+ * @returns {Promise<{ lat: Array<number|null>, lon: Array<number|null>, dKm: Array<number|null>, alt: Array<number|null>|null } | null>}
+ */
+export async function carregarTrilhaDaAtividade(id) {
+  const serie = await serieDaAtividade(id);
+  if (!serie?.lat || !serie.lon || !serie.dist) return null;
+  const d0 = serie.dist.find((d) => Number.isFinite(d));
+  if (!Number.isFinite(d0)) return null;
+  return { lat: serie.lat, lon: serie.lon, dKm: serie.dist.map((d) => (Number.isFinite(d) ? d - d0 : null)), alt: serie.alt ?? null };
+}
+
+/**
+ * Perfil (trecho do trajeto ou atividade inteira) e parciais por km de cada passagem, lidos sob demanda. Voltas da mesma
+ * atividade usam a mesma série, cada uma no seu trecho.
  * @returns {Promise<Map<string, { perfil: object|null, parciais: object[] }>>} sem série, `perfil` é null
  */
 export async function carregarDetalhes(passagens) {
-  const lidas = await Promise.all(passagens.map((p) => serieDaAtividade(p.id)));
+  const lidas = await Promise.all(passagens.map((p) => serieDaAtividade(p.atividadeId ?? p.id)));
   return new Map(
     passagens.map((p, k) => {
       const serie = lidas[k];
@@ -54,12 +68,12 @@ export async function carregarDetalhes(passagens) {
 /**
  * Define a rota do trajeto a partir de uma atividade (inteira ou da faixa `iniKm`..`fimKm`) e refaz o trecho das
  * atividades do trajeto no servidor.
- * @returns {Promise<{ total: number, comTrecho: number, semGps: number, semCorrespondencia: number, preservadas: number }>}
+ * @returns {Promise<{ total: number, comTrecho: number, voltas: number, semGps: number, semCorrespondencia: number, preservadas: number }>}
  */
 export async function definirRota({ trajetoId, atividadeId, iniKm = null, fimKm = null }) {
   const faixa = iniKm !== null && fimKm !== null ? { iniM: Math.round(iniKm * 1000), fimM: Math.round(fimKm * 1000) } : {};
   const r = await definirRotaDoTrajeto({ trajetoId, atividadeId, ...faixa });
-  return { total: r.total, comTrecho: r.comTrecho, semGps: r.semGps, semCorrespondencia: r.semCorrespondencia, preservadas: r.preservadas };
+  return { total: r.total, comTrecho: r.comTrecho, voltas: r.voltas ?? 0, semGps: r.semGps, semCorrespondencia: r.semCorrespondencia, preservadas: r.preservadas };
 }
 
 /** Ajuste manual do trecho de uma atividade: `modo` 'auto' (pela rota), 'inteira' ou 'faixa' (com `iniKm` e `fimKm`). */

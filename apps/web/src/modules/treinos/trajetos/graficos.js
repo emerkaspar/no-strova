@@ -67,6 +67,8 @@ export function graficoEvolucao({ passagens, metrica, selecionadas, podio, conte
   const largura = L - MARGEM.esquerda - MARGEM.direita;
   const altura = A - MARGEM.topo - MARGEM.base;
   const px = (v) => MARGEM.esquerda + (xMax === xMin ? 0.5 : (v - xMin) / (xMax - xMin)) * largura;
+  // voltas da mesma atividade caem no mesmo dia: afasta um pouco os pontos para não ficarem um sobre o outro
+  const afastar = (p) => (p.totalVoltas > 1 ? (p.volta - 1 - (p.totalVoltas - 1) / 2) * 12 : 0);
   const frac = (v) => (v - yMin) / (yMax - yMin || 1);
   const py = (v) => MARGEM.topo + (metrica.invertido ? frac(v) : 1 - frac(v)) * altura;
 
@@ -97,7 +99,7 @@ export function graficoEvolucao({ passagens, metrica, selecionadas, podio, conte
     );
   }
   if (pontos.length >= 2) {
-    raiz.append(svg('polyline', { points: pontos.map((q) => `${px(q.x).toFixed(1)},${py(q.y).toFixed(1)}`).join(' '), class: 'grafico-linha traj-linha' }));
+    raiz.append(svg('polyline', { points: pontos.map((q) => `${(px(q.x) + afastar(q.p)).toFixed(1)},${py(q.y).toFixed(1)}`).join(' '), class: 'grafico-linha traj-linha' }));
   }
 
   const dica = criarDica();
@@ -106,9 +108,9 @@ export function graficoEvolucao({ passagens, metrica, selecionadas, podio, conte
     const fatores = contexto.get(p.id) ?? [];
     const sel = selecionadas.has(p.id);
     const classes = ['traj-ponto', medalha ? `traj-ponto-${medalha}` : '', fatores.length ? 'traj-ponto-contexto' : '', sel ? 'traj-ponto-sel' : ''].filter(Boolean).join(' ');
-    const texto = `${formatarData(p.data)} · ${metrica.formatar(y)}${medalha ? ` · ${medalha}` : ''}${fatores.length ? ` · ${fatores.join(', ')}` : ''}`;
+    const texto = `${formatarData(p.data)}${p.totalVoltas > 1 ? ` (volta ${p.volta})` : ''} · ${metrica.formatar(y)}${medalha ? ` · ${medalha}` : ''}${fatores.length ? ` · ${fatores.join(', ')}` : ''}`;
     const ponto = svg('circle', {
-      cx: px(x).toFixed(1),
+      cx: (px(x) + afastar(p)).toFixed(1),
       cy: py(y).toFixed(1),
       r: sel ? 7 : 5.5,
       class: classes,

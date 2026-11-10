@@ -17,8 +17,9 @@ function lerKm(texto) {
 
 const rotuloDaPassagem = (p) => `${formatarData(p.data)} · ${kmTexto(p.distanciaM)}${p.titulo ? ` · ${p.titulo}` : ''}`;
 
-function textoDoResultado(r) {
+export function textoDoResultado(r) {
   const partes = [`${r.comTrecho} de ${r.total} ${r.total === 1 ? 'passagem' : 'passagens'} com o trecho encontrado`];
+  if (r.voltas > 0) partes.push(`${r.voltas} ${r.voltas === 1 ? 'volta a mais encontrada' : 'voltas a mais encontradas'} (cada volta conta como uma passagem)`);
   if (r.semCorrespondencia > 0) partes.push(`${r.semCorrespondencia} não passa${r.semCorrespondencia === 1 ? '' : 'm'} pela rota (vale a atividade inteira)`);
   if (r.semGps > 0) partes.push(`${r.semGps} sem GPS (vale a atividade inteira)`);
   if (r.preservadas > 0) partes.push(`${r.preservadas} ajustada${r.preservadas === 1 ? '' : 's'} por você, mantida${r.preservadas === 1 ? '' : 's'}`);
@@ -33,7 +34,7 @@ function textoDoResultado(r) {
 export function criarCartaoRota({ trajeto, passagens, rota }) {
   const destrutores = [];
   const mensagem = areaMensagem();
-  const candidatas = passagens.filter((p) => p.temArquivo);
+  const candidatas = passagens.filter((p) => p.temArquivo && p.volta === 1);
   const aberto = !rota;
   const el = h('details', { class: 'card traj-rota', open: aberto });
   const resultado = h('p', { class: 'texto-secundario', role: 'status', hidden: true });
@@ -90,7 +91,7 @@ export function criarCartaoRota({ trajeto, passagens, rota }) {
 
   /** Reposiciona os marcadores conforme os campos de km. */
   function aplicarFaixa() {
-    previa.faixa(lerKm(ini.value), lerKm(fim.value), soFaixa.checked);
+    previa.faixa(soFaixa.checked ? lerKm(ini.value) : null, soFaixa.checked ? lerKm(fim.value) : null, soFaixa.checked);
     dicaMapa.hidden = !soFaixa.checked;
   }
 

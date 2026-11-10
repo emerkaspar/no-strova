@@ -145,8 +145,8 @@ export function criarPainel({ item, esporte, estado, aoMudar, uid, nivelInicial,
     return h(
       'tr',
       { class: sel ? 'traj-linha-sel' : '' },
-      h('td', { class: 'traj-col-sel' }, h('input', { type: 'checkbox', checked: sel, 'aria-label': `Comparar a passagem de ${formatarData(p.data)}`, title: cheio ? 'Já há duas passagens: marcar esta troca a mais antiga.' : null, onChange: () => alternar(p.id) })),
-      h('td', null, h('a', { href: `#/atividades/${p.id}` }, formatarData(p.data)), medalha ? h('span', { class: `traj-medalha traj-medalha-${medalha}` }, ROTULO_MEDALHA[medalha]) : null),
+      h('td', { class: 'traj-col-sel' }, h('input', { type: 'checkbox', checked: sel, 'aria-label': `Comparar a passagem de ${formatarData(p.data)}${p.totalVoltas > 1 ? `, volta ${p.volta}` : ''}`, title: cheio ? 'Já há duas passagens: marcar esta troca a mais antiga.' : null, onChange: () => alternar(p.id) })),
+      h('td', null, h('a', { href: `#/atividades/${p.atividadeId ?? p.id}` }, formatarData(p.data)), p.totalVoltas > 1 ? h('span', { class: 'traj-volta', title: 'Esta atividade passou mais de uma vez pelo trajeto: cada volta conta como uma passagem.' }, `Volta ${p.volta}/${p.totalVoltas}`) : null, medalha ? h('span', { class: `traj-medalha traj-medalha-${medalha}` }, ROTULO_MEDALHA[medalha]) : null),
       h('td', null, formatarDuracaoCurta(p.tempoS)),
       h('td', null, kmTexto(p.distanciaM)),
       h('td', null, textoDeDesempenho(p, esporte)),
@@ -156,7 +156,7 @@ export function criarPainel({ item, esporte, estado, aoMudar, uid, nivelInicial,
       h('td', null, p.sensacao === null ? '—' : ROTULO_SENSACAO[p.sensacao] ?? p.sensacao),
       h('td', null, contexto.get(p.id).length ? h('span', { class: 'traj-contexto' }, ...contexto.get(p.id).map((f) => h('span', { class: 'traj-chip-contexto' }, f))) : '—'),
       h('td', null, textoDoTrecho(p, !!rota)),
-      h('td', null, p.temArquivo ? h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onClick: async () => { if (await abrirAjusteDeTrecho({ passagem: p, temRota: !!rota })) aoMudar(); } }, 'Ajustar trecho') : null),
+      h('td', null, p.temArquivo && p.volta === 1 ? h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', title: p.totalVoltas > 1 ? 'Ajustar à mão vale para a atividade toda e deixa de separar as voltas.' : null, onClick: async () => { if (await abrirAjusteDeTrecho({ passagem: p, temRota: !!rota })) aoMudar(); } }, 'Ajustar trecho') : null),
     );
   };
   const tabela = h(

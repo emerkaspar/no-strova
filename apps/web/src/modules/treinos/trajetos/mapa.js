@@ -105,17 +105,28 @@ export function mapaEditorDeFaixa({ rotulo = 'Mapa para marcar o início e o fim
   }) : null;
   observador?.observe(el);
 
-  /** Ponto do traçado mais próximo de `ll`, só entre os índices `de` e `ate`. */
-  function maisProximo(ll, de, ate) {
+  /**
+   * Ponto do traçado para onde o marcador foi arrastado, só entre os índices `de` e `ate`. Onde o traçado passa várias vezes
+   * pelo mesmo lugar (voltas), vale a passagem mais perto do índice `atual`: o marcador segue o caminho em vez de pular de volta.
+   */
+  function maisProximo(ll, de, ate, atual) {
     const k = Math.cos((ll.lat * Math.PI) / 180);
-    let melhor = de;
+    const q = [];
     let menor = Infinity;
     for (let i = de; i <= ate; i++) {
       const dx = (pontos[i].ll[1] - ll.lng) * k;
       const dy = pontos[i].ll[0] - ll.lat;
-      const q = dx * dx + dy * dy;
-      if (q < menor) {
-        menor = q;
+      q[i] = dx * dx + dy * dy;
+      if (q[i] < menor) menor = q[i];
+    }
+    // tolerância de ~16 px no zoom atual: pontos nessa faixa contam como "o mesmo lugar"
+    const tol = (16 * 360) / (256 * 2 ** mapa.getZoom());
+    const limite = Math.max(menor, tol * tol);
+    let melhor = de;
+    let distancia = Infinity;
+    for (let i = de; i <= ate; i++) {
+      if (q[i] <= limite && Math.abs(i - atual) < distancia) {
+        distancia = Math.abs(i - atual);
         melhor = i;
       }
     }
@@ -131,12 +142,12 @@ export function mapaEditorDeFaixa({ rotulo = 'Mapa para marcar o início e o fim
   const avisar = () => escutar({ iniKm: pontos[ini].d, fimKm: pontos[fim].d });
 
   marcaIni.on('drag', (e) => {
-    ini = maisProximo(e.latlng, 0, fim - 1);
+    ini = maisProximo(e.latlng, 0, fim - 1, ini);
     desenhar();
     avisar();
   });
   marcaFim.on('drag', (e) => {
-    fim = maisProximo(e.latlng, ini + 1, pontos.length - 1);
+    fim = maisProximo(e.latlng, ini + 1, pontos.length - 1, fim);
     desenhar();
     avisar();
   });
@@ -181,16 +192,12 @@ export function mapaEditorDeFaixa({ rotulo = 'Mapa para marcar o início e o fim
       marcaFim.addTo(mapa);
       ajustar();
     },
-    /** Posiciona a faixa (em km da atividade). Sem valores, vale a atividade inteira. `editavel` libera o arraste. */
+    /** Posiciona a faixa (em km da atividade). Sem valores, vale a atividade inteira. `podeEditar` libera o arraste. */
     faixa(iniKm, fimKm, podeEditar) {
       if (pontos.length < 2) return;
       editavel = podeEditar;
       let a = Number.isFinite(iniKm) ? indiceDoKm(iniKm) : 0;
       let b = Number.isFinite(fimKm) ? indiceDoKm(fimKm) : pontos.length - 1;
-      if (!podeEditar) {
-        a = 0;
-        b = pontos.length - 1;
-      }
       if (b <= a) {
         a = Math.min(a, pontos.length - 2);
         b = a + 1;

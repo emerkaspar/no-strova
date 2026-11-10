@@ -421,7 +421,7 @@ export async function excluirTrajeto(uid: string, trajetoId: unknown): Promise<{
   for (let i = 0; i < marcadas.docs.length; i += 400) {
     const lote = db.batch();
     for (const doc of marcadas.docs.slice(i, i + 400)) {
-      lote.update(doc.ref, { trajetoId: FieldValue.delete(), trajetoTrecho: FieldValue.delete() });
+      lote.update(doc.ref, { trajetoId: FieldValue.delete(), trajetoTrecho: FieldValue.delete(), trajetoVoltas: FieldValue.delete() });
     }
     await lote.commit();
   }
@@ -489,13 +489,13 @@ export async function salvarEdicaoDaAtividade(uid: string, atividadeId: string, 
       trajeto = null;
       alteracoes.trajetoId = FieldValue.delete();
       alteracoes.trajetoTrecho = FieldValue.delete();
+      alteracoes.trajetoVoltas = FieldValue.delete();
     } else {
       trajeto = await resolverTrajeto(uid, esporte, dados.trajeto);
       alteracoes.trajetoId = trajeto.id;
       // trajeto diferente: o trecho é detectado de novo (junto com o trajetoId, para acordar o gatilho de estresse uma vez só)
       if (trajeto.id !== snap.get("trajetoId")) {
-        const trecho = await trechoParaAtividadeNova(snap, trajeto.id, () => carregarConfigs(uid));
-        alteracoes.trajetoTrecho = trecho ?? FieldValue.delete();
+        Object.assign(alteracoes, await trechoParaAtividadeNova(snap, trajeto.id, () => carregarConfigs(uid)));
       }
     }
   } else if ("esporte" in dados && typeof snap.get("trajetoId") === "string") {
@@ -505,6 +505,7 @@ export async function salvarEdicaoDaAtividade(uid: string, atividadeId: string, 
       trajeto = null;
       alteracoes.trajetoId = FieldValue.delete();
       alteracoes.trajetoTrecho = FieldValue.delete();
+      alteracoes.trajetoVoltas = FieldValue.delete();
     }
   }
   if (Object.keys(alteracoes).length === 0) throw new HttpsError("invalid-argument", "Nada para salvar.");

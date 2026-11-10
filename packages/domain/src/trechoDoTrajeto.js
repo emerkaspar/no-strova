@@ -105,16 +105,16 @@ function pontoNoSegmento(px, py, ax, ay, bx, by) {
 }
 
 /**
- * Acha na série o trecho que acompanha a rota de referência.
+ * Acha na série todas as vezes em que a atividade acompanha a rota de referência (uma por volta), em ordem de tempo.
  * @param {{ t: number[], dist?: Array<number|null>, lat?: Array<number|null>, lon?: Array<number|null> }} serie
  * @param {{ lat: number[], lon: number[], comprimentoM: number }} rota
  * @param {Partial<typeof PARAMETROS_DO_TRECHO>} [opcoes]
- * @returns {null | { i0: number, i1: number, tIniS: number, tFimS: number, iniM: number|null, fimM: number|null, cobertura: number }}
- *   `i0`/`i1` são índices da série (só valem para ela); `tIniS`/`tFimS`/`iniM`/`fimM` são estáveis para gravar.
+ * @returns {Array<{ i0: number, i1: number, tIniS: number, tFimS: number, iniM: number|null, fimM: number|null, cobertura: number }>}
+ *   vazio sem correspondência. `i0`/`i1` são índices da série (só valem para ela); `tIniS`/`tFimS`/`iniM`/`fimM` são estáveis para gravar.
  */
-export function acharTrechoNaSerie(serie, rota, opcoes = {}) {
+export function acharTrechosNaSerie(serie, rota, opcoes = {}) {
   const p = { ...PARAMETROS_DO_TRECHO, ...opcoes };
-  if (!serie?.t || !serie.lat || !serie.lon || !rotaValida(rota)) return null;
+  if (!serie?.t || !serie.lat || !serie.lon || !rotaValida(rota)) return [];
 
   const proj = projetor(rota.lat[0], rota.lon[0]);
   const vertices = rota.lat.map((la, i) => proj(la, rota.lon[i]));
@@ -126,7 +126,7 @@ export function acharTrechoNaSerie(serie, rota, opcoes = {}) {
     acumulado.push(acumulado[k] + c);
   }
   const total = acumulado[acumulado.length - 1];
-  if (!(total > 0)) return null;
+  if (!(total > 0)) return [];
 
   // grade: cada segmento entra nas células que sua caixa, ampliada pela tolerância, cobre; o ponto consulta só a própria célula
   const lado = p.toleranciaM * 2;
@@ -201,13 +201,19 @@ export function acharTrechoNaSerie(serie, rota, opcoes = {}) {
   }
   fechar();
 
-  let melhor = null;
-  for (const c of corridas) {
-    const cobertura = Math.min(1, (c.sUlt - c.sIni) / total);
-    if (cobertura >= p.coberturaMinima && (melhor === null || cobertura > melhor.cobertura)) melhor = { ...c, cobertura };
-  }
-  if (!melhor || !(melhor.i1 > melhor.i0)) return null;
-  return trechoDaSerie(serie, melhor.i0, melhor.i1, Number(melhor.cobertura.toFixed(2)));
+  return corridas
+    .map((c) => ({ ...c, cobertura: Math.min(1, (c.sUlt - c.sIni) / total) }))
+    .filter((c) => c.cobertura >= p.coberturaMinima && c.i1 > c.i0)
+    .map((c) => trechoDaSerie(serie, c.i0, c.i1, Number(c.cobertura.toFixed(2))));
+}
+
+/**
+ * Acha na série o trecho que acompanha a rota de referência. Havendo mais de uma passagem (voltas), vale a de maior cobertura.
+ * @returns {null | ReturnType<typeof acharTrechosNaSerie>[number]}
+ */
+export function acharTrechoNaSerie(serie, rota, opcoes = {}) {
+  const lista = acharTrechosNaSerie(serie, rota, opcoes);
+  return lista.reduce((melhor, t) => (melhor === null || t.cobertura > melhor.cobertura ? t : melhor), null);
 }
 
 function trechoDaSerie(serie, i0, i1, cobertura) {

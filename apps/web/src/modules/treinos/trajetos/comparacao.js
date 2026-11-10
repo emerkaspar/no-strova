@@ -58,8 +58,8 @@ export function criarComparacao({ a, b, esporte, rota, aoLimpar }) {
   const legenda = h(
     'p',
     { class: 'traj-legenda' },
-    h('span', { class: 'traj-chip traj-chip-a' }, `A · ${formatarData(a.data)}`),
-    h('span', { class: 'traj-chip traj-chip-b' }, `B · ${formatarData(b.data)}`),
+    h('span', { class: 'traj-chip traj-chip-a' }, `A · ${formatarData(a.data)}${a.totalVoltas > 1 ? ` (volta ${a.volta})` : ''}`),
+    h('span', { class: 'traj-chip traj-chip-b' }, `B · ${formatarData(b.data)}${b.totalVoltas > 1 ? ` (volta ${b.volta})` : ''}`),
     h('span', { class: 'texto-secundario' }, 'A diferença é B menos A. Verde melhora, vermelho piora.'),
   );
   const tabela = h(
@@ -146,8 +146,8 @@ export function criarComparacao({ a, b, esporte, rota, aoLimpar }) {
       destrutores.push(mapa.destruir);
       const camadas = [];
       if (rota) camadas.push({ lat: rota.lat, lon: rota.lon, cor: cssVar('--text-secondary', '#9a9a9a'), peso: 8, tracejado: true, rotulo: 'Rota de referência' });
-      if (temGps(da?.perfil)) camadas.push({ lat: da.perfil.lat, lon: da.perfil.lon, cor: cssVar('--traj-a', '#ff5200'), peso: 4, rotulo: `A · ${formatarData(a.data)}` });
-      if (temGps(db?.perfil)) camadas.push({ lat: db.perfil.lat, lon: db.perfil.lon, cor: cssVar('--traj-b', '#38bdf8'), peso: 4, rotulo: `B · ${formatarData(b.data)}` });
+      if (temGps(da?.perfil)) camadas.push({ lat: da.perfil.lat, lon: da.perfil.lon, cor: cssVar('--traj-a', '#ff5200'), peso: 4, rotulo: `A · ${formatarData(a.data)}${a.totalVoltas > 1 ? ` (volta ${a.volta})` : ''}` });
+      if (temGps(db?.perfil)) camadas.push({ lat: db.perfil.lat, lon: db.perfil.lon, cor: cssVar('--traj-b', '#38bdf8'), peso: 4, rotulo: `B · ${formatarData(b.data)}${b.totalVoltas > 1 ? ` (volta ${b.volta})` : ''}` });
       secoes.push(h('section', null, h('h3', null, 'Mapa'), mapa.el));
       detalhes.replaceChildren(...secoes);
       mapa.definir(camadas);

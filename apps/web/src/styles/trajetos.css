@@ -1157,3 +1157,116 @@
 .traj-legenda-inclinacao .traj-ponto {
   background: var(--inc);
 }
+
+/* mapa da rota no cabeçalho do trajeto, com início e fim editáveis */
+.traj-hero-mapa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.traj-hero-mapa[hidden] {
+  display: none;
+}
+
+.traj-hero-mapa-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.traj-hero-mapa-leitura {
+  flex: 1 1 200px;
+}
+
+.traj-hero-mapa-editar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.traj-hero-mapa-corte {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.traj-hero-mapa-corte[hidden] {
+  display: none;
+}
+
+.traj-corte {
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.traj-corte-area {
+  fill: var(--text-secondary);
+  opacity: 0.25;
+}
+
+.traj-corte-area-sel {
+  fill: var(--primary);
+  opacity: 0.6;
+}
+
+.traj-corte-linha {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.traj-corte-eixo {
+  stroke: var(--border);
+}
+
+.traj-corte-rotulo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.traj-corte-alca {
+  cursor: ew-resize;
+  outline: none;
+}
+
+.traj-corte-alca line {
+  stroke: var(--success);
+  stroke-width: 3;
+}
+
+.traj-corte-alca circle {
+  fill: var(--success);
+  stroke: #ffffff;
+  stroke-width: 3;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.5));
+}
+
+.traj-corte-fim line {
+  stroke: var(--danger);
+}
+
+.traj-corte-fim circle {
+  fill: var(--danger);
+}
+
+.traj-corte-alca:focus-visible circle,
+.traj-corte-alca.arrastando circle {
+  stroke: var(--primary);
+}
+
+.traj-volta {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}

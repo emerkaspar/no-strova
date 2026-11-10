@@ -589,7 +589,7 @@ export async function treinoRecordeDoTrajetoDoUsuario(uid: string, bruto: Record
   const nivel: string = pref.nivelTreinos === "iniciante" || pref.nivelTreinos === "avancado" ? pref.nivelTreinos : "intermediario";
 
   const atividades = atividadesSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const passagens = passagensDoTrajeto(atividades, trajetoId) as Array<{ id: string; data: string; tempoS: number; distanciaM: number; velocidadeKmh: number; soTrecho: boolean }>;
+  const passagens = passagensDoTrajeto(atividades, trajetoId) as Array<{ id: string; atividadeId: string; data: string; tempoS: number; distanciaM: number; velocidadeKmh: number; soTrecho: boolean; trechoIniM: number | null; trechoFimM: number | null }>;
   if (passagens.length === 0) throw new HttpsError("failed-precondition", "Este trajeto ainda não tem passagens. Faça o trajeto e escolha-o no \"Como foi?\" da atividade para ter um recorde.");
 
   // passagem de distância muito diferente da usual (desvio de percurso) não vale como recorde
@@ -598,14 +598,14 @@ export async function treinoRecordeDoTrajetoDoUsuario(uid: string, bruto: Record
   if (candidatas.length === 0) candidatas = passagens;
   const ordem = [...candidatas].sort((a, b) => b.velocidadeKmh - a.velocidadeKmh || (a.data < b.data ? -1 : 1));
   const recorde = ordem[0];
-  const atividade = atividades.find((a) => a.id === recorde.id) ?? {};
 
-  const serieDoc = await db.doc(`atividades/${recorde.id}`).collection("series").doc("detalhe").get();
+  const serieDoc = await db.doc(`atividades/${recorde.atividadeId}`).collection("series").doc("detalhe").get();
   const serie = serieDoc.exists ? (serieDoc.data() as { t: number[]; dist?: Array<number | null>; alt?: Array<number | null>; fc?: Array<number | null> }) : null;
   const dataBr = String(recorde.data).split("-").reverse().join("/");
   if (!serie?.alt || !serie.dist) throw new HttpsError("failed-precondition", `A atividade do seu recorde (${dataBr}) não tem GPS com altimetria, então não dá para refazer o terreno dela.`);
 
-  const trecho = recorde.soTrecho ? (atividade.trajetoTrecho as { iniM?: number; fimM?: number } | undefined) : undefined;
+  // o recorde pode ser uma volta qualquer da atividade: o trecho vem da própria passagem
+  const trecho = recorde.soTrecho ? { iniM: recorde.trechoIniM ?? undefined, fimM: recorde.trechoFimM ?? undefined } : undefined;
   const ultimaDistM = [...serie.dist].reverse().find((d): d is number => typeof d === "number" && Number.isFinite(d));
   const iniM = Number.isFinite(trecho?.iniM) ? Number(trecho?.iniM) : 0;
   const fimM = Number.isFinite(trecho?.fimM) ? Number(trecho?.fimM) : (ultimaDistM ?? 0) * 1000;

@@ -1,5 +1,9 @@
-import { carregarTerrenoDoTrajeto } from '../../../application/trajetos.js';
+import { carregarTerrenoDoTrajeto, carregarTrilhaDaAtividade, definirRota } from '../../../application/trajetos.js';
+import { areaMensagem, executarComBotao } from '../../../utils/componentes.js';
 import { h } from '../../../utils/dom.js';
+import { mapaEditorDeFaixa } from './mapa.js';
+import { seletorDeFaixa } from './cortador.js';
+import { textoDoResultado } from './rota.js';
 import { formatarNumero } from '../../../utils/formatters.js';
 import { icone } from '../../../utils/icones.js';
 import { FAIXAS_DE_INCLINACAO, perfilDoTerreno } from './perfilTerreno.js';
@@ -53,6 +57,113 @@ export function criarHeroDoTrajeto({ trajeto, passagens, rota, esporte, uid, niv
     });
   }
 
+  // ---- mapa da rota, com início e fim editáveis ----
+  const mapaWrap = h('div', { class: 'traj-hero-mapa', hidden: true });
+  let editor = null;
+  if (temRotaDeReferencia) {
+    carregarTrilhaDaAtividade(trajeto.rotaAtividadeId).then((trilha) => {
+      if (!ativo || !trilha) return;
+      const finitos = trilha.dKm.filter((d) => Number.isFinite(d));
+      const totalKm = finitos[finitos.length - 1] ?? 0;
+      const iniSalvo = Number.isFinite(trajeto.rotaIniM) ? trajeto.rotaIniM / 1000 : null;
+      const fimSalvo = Number.isFinite(trajeto.rotaFimM) ? trajeto.rotaFimM / 1000 : null;
+      let atual = { iniKm: iniSalvo ?? 0, fimKm: fimSalvo ?? totalKm };
+
+      editor = mapaEditorDeFaixa({ rotulo: `Mapa do trajeto ${trajeto.nome}` });
+      editor.definir(trilha);
+      editor.faixa(iniSalvo, fimSalvo, false);
+
+      const mensagem = areaMensagem();
+      const resultado = h('p', { class: 'texto-secundario', role: 'status', hidden: true });
+      const leitura = h('span', { class: 'texto-secundario traj-hero-mapa-leitura' });
+      const dica = h('p', { class: 'dica', hidden: true }, 'Arraste as alças no gráfico (ou os marcadores no mapa) e clique em Salvar. O app refaz o trecho de todas as passagens.');
+      const mostrarLeitura = () => {
+        leitura.textContent = `De ${formatarNumero(atual.iniKm, 2)} km até ${formatarNumero(atual.fimKm, 2)} km (${formatarNumero(atual.fimKm - atual.iniKm, 2)} km)`;
+      };
+      const textoParado = () => {
+        leitura.textContent = `Percurso de ${formatarNumero(atual.fimKm - atual.iniKm, 1)} km (início e fim marcados no mapa)`;
+      };
+      textoParado();
+      // gráfico de corte (como no Strava e no Garmin): alças de início e fim sobre o perfil da atividade inteira.
+      // Escolhe pela distância, então serve também quando o traçado passa duas vezes no mesmo lugar (voltas).
+      const corte = seletorDeFaixa({
+        dKm: trilha.dKm,
+        alt: trilha.alt,
+        totalKm,
+        aoMudar: ({ iniKm, fimKm }) => {
+          atual = { iniKm, fimKm };
+          editor.faixa(iniKm, fimKm, true);
+          mostrarLeitura();
+        },
+      });
+      const sincronizarSliders = () => corte.definir(atual.iniKm, atual.fimKm);
+      const sliders = h(
+        'div',
+        { class: 'traj-hero-mapa-corte', hidden: true },
+        h('p', { class: 'texto-secundario' }, 'Arraste as alças verde (início) e vermelha (fim) no gráfico para cortar o trajeto, como no Strava e no Garmin.'),
+        corte.el,
+      );
+      const botaoEditar = h('button', { class: 'btn traj-hero-mapa-editar', type: 'button' }, icone('lapis', 18), ' Editar início e fim');
+      const botaoSalvar = h('button', { class: 'btn', type: 'button', hidden: true }, 'Salvar');
+      const botaoCancelar = h('button', { class: 'btn btn-secundario', type: 'button', hidden: true }, 'Cancelar');
+      const alternar = (editando) => {
+        botaoEditar.hidden = editando;
+        botaoSalvar.hidden = !editando;
+        botaoCancelar.hidden = !editando;
+        dica.hidden = !editando;
+        sliders.hidden = !editando;
+        resultado.hidden = true;
+        mensagem.limpar?.();
+        editor.faixa(editando ? atual.iniKm : iniSalvo, editando ? atual.fimKm : fimSalvo, editando);
+        if (editando) {
+          sincronizarSliders();
+          mostrarLeitura();
+        }
+        else textoParado();
+      };
+      editor.aoMudar((f) => {
+        atual = f;
+        sincronizarSliders();
+        mostrarLeitura();
+      });
+      botaoEditar.addEventListener('click', () => alternar(true));
+      botaoCancelar.addEventListener('click', () => {
+        atual = { iniKm: iniSalvo ?? 0, fimKm: fimSalvo ?? totalKm };
+        alternar(false);
+      });
+      botaoSalvar.addEventListener('click', async () => {
+        if (!(atual.fimKm > atual.iniKm)) {
+          mensagem.mostrar('O fim precisa ficar depois do início.');
+          return;
+        }
+        let resposta = null;
+        const ok = await executarComBotao(botaoSalvar, mensagem, async () => {
+          resposta = await definirRota({ trajetoId: trajeto.id, atividadeId: trajeto.rotaAtividadeId, iniKm: atual.iniKm, fimKm: atual.fimKm });
+        }, 'Refazendo os trechos…');
+        if (ok && resposta) {
+          resultado.textContent = textoDoResultado(resposta);
+          resultado.hidden = false;
+          botaoEditar.hidden = false;
+          botaoSalvar.hidden = true;
+          botaoCancelar.hidden = true;
+          dica.hidden = true;
+          sliders.hidden = true;
+          editor.faixa(atual.iniKm, atual.fimKm, false);
+          textoParado();
+        }
+      });
+      mapaWrap.replaceChildren(
+        h('div', { class: 'traj-hero-mapa-barra' }, leitura, botaoEditar, botaoCancelar, botaoSalvar),
+        editor.el,
+        sliders,
+        dica,
+        mensagem.el,
+        resultado,
+      );
+      mapaWrap.hidden = false;
+    });
+  }
+
   // ---- botão em destaque ----
   const botao = h(
     'button',
@@ -76,10 +187,11 @@ export function criarHeroDoTrajeto({ trajeto, passagens, rota, esporte, uid, niv
       h('span', { class: 'traj-hero-marca' }, icone('rota', 24)),
       h('div', { class: 'traj-hero-titulo' }, h('h2', null, trajeto.nome), h('p', { class: 'texto-secundario' }, subtitulo)),
     ),
+    mapaWrap,
     perfilEl,
     chips,
     botao,
     temRotaDeReferencia ? null : h('p', { class: 'dica', id: 'traj-cta-dica' }, 'O botão libera quando o trajeto tem uma rota de referência.'),
   );
-  return { el, destruir: () => { ativo = false; } };
+  return { el, destruir: () => { ativo = false; editor?.destruir(); } };
 }

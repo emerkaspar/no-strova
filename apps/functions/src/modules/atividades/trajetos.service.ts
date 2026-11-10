@@ -1,5 +1,5 @@
 import {
-  acharTrechoNaSerie,
+  acharTrechosNaSerie,
   type ConfigAtleta,
   resumoDoTrechoDoTrajeto,
   rotaDeReferencia,
@@ -28,7 +28,7 @@ export interface Rota {
   comprimentoM: number;
 }
 
-type Serie = NonNullable<Parameters<typeof acharTrechoNaSerie>[0]>;
+type Serie = NonNullable<Parameters<typeof acharTrechosNaSerie>[0]>;
 type TrechoGravado = Record<string, unknown>;
 
 function idValido(valor: unknown, rotulo: string): string {
@@ -61,34 +61,57 @@ function configDasZonas(configs: ConfigAtleta[], atividade: FirebaseFirestore.Do
   return typeof atividade.configIdUsada === "string" ? (configs.find((c) => c.id === atividade.configIdUsada) ?? null) : null;
 }
 
-/** Detecta o trecho do trajeto na série e devolve o que se grava na atividade; null se não houver correspondência. */
-function detectar(serie: Serie | null, rota: Rota, atividade: FirebaseFirestore.DocumentData, configs: ConfigAtleta[]): TrechoGravado | null {
-  if (!serie) return null;
-  const achado = acharTrechoNaSerie(serie, rota);
-  if (!achado) return null;
-  return resumoDoTrechoDoTrajeto(serie, achado, String(atividade.esporte), "auto", configDasZonas(configs, atividade));
+/** O que se grava na atividade: o trecho (primeira passagem pelo trajeto) e as voltas seguintes, se houver. */
+export interface TrechosDetectados {
+  trecho: TrechoGravado | null;
+  voltas: TrechoGravado[];
+}
+
+const SEM_TRECHO: TrechosDetectados = { trecho: null, voltas: [] };
+
+/**
+ * Detecta na série todas as passagens pelo trajeto (uma por volta). A primeira vai em `trecho` e as demais em `voltas`;
+ * sem correspondência, `trecho` é null.
+ */
+function detectar(serie: Serie | null, rota: Rota, atividade: FirebaseFirestore.DocumentData, configs: ConfigAtleta[]): TrechosDetectados {
+  if (!serie) return SEM_TRECHO;
+  const zonas = configDasZonas(configs, atividade);
+  const resumos = acharTrechosNaSerie(serie, rota)
+    .map((achado) => resumoDoTrechoDoTrajeto(serie, achado, String(atividade.esporte), "auto", zonas))
+    .filter((r): r is Record<string, unknown> => r !== null);
+  return resumos.length === 0 ? SEM_TRECHO : { trecho: resumos[0], voltas: resumos.slice(1) };
+}
+
+/** Campos de trecho a gravar na atividade (`trajetoVoltas` só existe quando há mais de uma passagem). */
+function camposDoTrecho(achado: TrechosDetectados): Record<string, unknown> {
+  return {
+    trajetoTrecho: achado.trecho ?? FieldValue.delete(),
+    trajetoVoltas: achado.voltas.length > 0 ? achado.voltas : FieldValue.delete(),
+  };
 }
 
 /**
  * Trecho para uma atividade que acabou de ser ligada a um trajeto (usado ao salvar o "Como foi?").
- * @returns o trecho gravável, ou null se o trajeto não tem rota, a atividade não tem GPS ou não passa pela rota
+ * @returns os campos de trecho prontos para gravar (`trajetoTrecho` e `trajetoVoltas`; `FieldValue.delete()` quando não há)
  */
 export async function trechoParaAtividadeNova(
   atividade: FirebaseFirestore.DocumentSnapshot,
   trajetoId: string,
   configs: () => Promise<ConfigAtleta[]>,
-): Promise<TrechoGravado | null> {
+): Promise<Record<string, unknown>> {
   const trajeto = await db.doc(`${TRAJETOS}/${trajetoId}`).get();
   const rota = rotaDoDocumento(trajeto.data());
-  if (!rota) return null;
+  if (!rota) return camposDoTrecho(SEM_TRECHO);
   const serie = await serieDaAtividade(atividade.ref);
-  if (!serie) return null;
-  return detectar(serie, rota, atividade.data() ?? {}, await configs());
+  if (!serie) return camposDoTrecho(SEM_TRECHO);
+  return camposDoTrecho(detectar(serie, rota, atividade.data() ?? {}, await configs()));
 }
 
 export interface ResultadoDaRota {
   total: number;
   comTrecho: number;
+  /** Passagens pelo trajeto achadas além da primeira de cada atividade (voltas). */
+  voltas: number;
   semGps: number;
   semCorrespondencia: number;
   preservadas: number;
@@ -146,9 +169,9 @@ export async function definirRotaDoTrajeto(
 /** Refaz o trecho de todas as atividades do trajeto com a rota dada. Só grava o que mudou (cada gravação acorda o gatilho de estresse). */
 async function refazerTrechos(uid: string, trajetoId: string, rota: Rota, configs: ConfigAtleta[]): Promise<ResultadoDaRota> {
   const snap = await db.collection("atividades").where("userId", "==", uid).where("trajetoId", "==", trajetoId).get();
-  const resultado: ResultadoDaRota = { total: snap.size, comTrecho: 0, semGps: 0, semCorrespondencia: 0, preservadas: 0 };
+  const resultado: ResultadoDaRota = { total: snap.size, comTrecho: 0, voltas: 0, semGps: 0, semCorrespondencia: 0, preservadas: 0 };
 
-  const alteracoes: Array<{ ref: FirebaseFirestore.DocumentReference; trecho: TrechoGravado | null }> = [];
+  const alteracoes: Array<{ ref: FirebaseFirestore.DocumentReference; achado: TrechosDetectados }> = [];
   for (let i = 0; i < snap.docs.length; i += LEITURA_EM_LOTE) {
     const pedaco = snap.docs.slice(i, i + LEITURA_EM_LOTE);
     const detalhes = await db.getAll(...pedaco.map((d) => d.ref.collection("series").doc("detalhe")));
@@ -161,16 +184,21 @@ async function refazerTrechos(uid: string, trajetoId: string, rota: Rota, config
       }
       const serie = detalhes[k].exists ? (detalhes[k].data() as Serie) : null;
       if (!serie?.lat) resultado.semGps += 1;
-      const novo = serie?.lat ? detectar(serie, rota, a, configs) : null;
-      if (novo) resultado.comTrecho += 1;
-      else if (serie?.lat) resultado.semCorrespondencia += 1;
-      if (JSON.stringify(novo ?? null) !== JSON.stringify(atual ?? null)) alteracoes.push({ ref: doc.ref, trecho: novo });
+      const novo = serie?.lat ? detectar(serie, rota, a, configs) : SEM_TRECHO;
+      if (novo.trecho) {
+        resultado.comTrecho += 1;
+        resultado.voltas += novo.voltas.length;
+      } else if (serie?.lat) resultado.semCorrespondencia += 1;
+      const voltasAtuais = (a.trajetoVoltas as TrechoGravado[] | undefined) ?? [];
+      if (JSON.stringify(novo.trecho) !== JSON.stringify(atual ?? null) || JSON.stringify(novo.voltas) !== JSON.stringify(voltasAtuais)) {
+        alteracoes.push({ ref: doc.ref, achado: novo });
+      }
     });
   }
   for (let i = 0; i < alteracoes.length; i += ESCRITA_EM_LOTE) {
     const lote = db.batch();
-    for (const { ref, trecho } of alteracoes.slice(i, i + ESCRITA_EM_LOTE)) {
-      lote.update(ref, { trajetoTrecho: trecho ?? FieldValue.delete() });
+    for (const { ref, achado } of alteracoes.slice(i, i + ESCRITA_EM_LOTE)) {
+      lote.update(ref, camposDoTrecho(achado));
     }
     await lote.commit();
   }
@@ -195,13 +223,13 @@ export async function ajustarTrechoDaAtividade(
 
   if (dados.modo === "inteira") {
     const trecho = { origem: "inteira" };
-    await ref.update({ trajetoTrecho: trecho });
+    await ref.update({ trajetoTrecho: trecho, trajetoVoltas: FieldValue.delete() });
     return { trecho };
   }
   if (dados.modo === "auto") {
-    const trecho = await trechoParaAtividadeNova(atividade, trajetoId, carregarConfigs);
-    await ref.update({ trajetoTrecho: trecho ?? FieldValue.delete() });
-    return { trecho };
+    const campos = await trechoParaAtividadeNova(atividade, trajetoId, carregarConfigs);
+    await ref.update(campos);
+    return { trecho: campos.trajetoTrecho instanceof FieldValue ? null : (campos.trajetoTrecho as TrechoGravado) };
   }
   if (dados.modo !== "faixa") throw new HttpsError("invalid-argument", "Modo inválido.");
 
@@ -215,6 +243,6 @@ export async function ajustarTrechoDaAtividade(
   const configs = await carregarConfigs();
   const trecho = resumoDoTrechoDoTrajeto(serie, faixa, String(atividade.get("esporte")), "manual", configDasZonas(configs, atividade.data() ?? {}));
   if (!trecho) throw new HttpsError("invalid-argument", "Esse trecho é curto demais.");
-  await ref.update({ trajetoTrecho: trecho });
+  await ref.update({ trajetoTrecho: trecho, trajetoVoltas: FieldValue.delete() }); // trecho escolhido à mão: vale uma passagem só
   return { trecho };
 }

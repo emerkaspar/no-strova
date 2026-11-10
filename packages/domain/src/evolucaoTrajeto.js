@@ -2,7 +2,7 @@ import { indicesDoTrecho } from './trechoDoTrajeto.js';
 
 /**
  * Evolução do usuário em um trajeto: cada "passagem" é uma atividade vinculada ao trajeto, medida só no trecho do trajeto
- * quando ele foi detectado (`trajetoTrecho`, ver trechoDoTrajeto.js) e na atividade inteira quando não foi. Funções puras.
+ * quando ele foi detectado (`trajetoTrecho` e `trajetoVoltas`, ver trechoDoTrajeto.js) e na atividade inteira quando não foi. Funções puras.
  *
  * O trajeto é por nome, então a distância varia de uma passagem para outra. Por isso a comparação usa velocidade/ritmo e
  * eficiência, e não o tempo total.
@@ -24,14 +24,32 @@ function mediana(lista) {
 }
 
 /**
- * Passagem a partir de uma atividade. Usa o trecho do trajeto quando existe; senão, a atividade inteira.
- * HRSS, sensação e etiquetas são sempre da atividade inteira.
- * @returns {null | object} null quando a atividade não tem distância e tempo para medir
+ * Passagens de uma atividade no trajeto. Cada vez que a atividade percorre o trecho conta uma passagem: a primeira volta fica em
+ * `trajetoTrecho` e as seguintes em `trajetoVoltas` (só quando o trecho foi detectado pela rota). Sem trecho, é uma só, com a
+ * atividade inteira. HRSS, sensação e etiquetas são da atividade inteira, então só a primeira volta leva o HRSS.
+ * O `id` da primeira volta é o da atividade; as demais usam `<id>#<volta>`. `atividadeId` é sempre o da atividade.
+ * @returns {object[]} vazio quando a atividade não tem distância e tempo para medir
  */
-export function passagemDoTrajeto(atividade) {
-  if (!atividade) return null;
+export function passagensDaAtividade(atividade) {
+  if (!atividade) return [];
   // `origem: 'inteira'` é a escolha do usuário de usar a atividade toda, sem trecho
   const t = atividade.trajetoTrecho && atividade.trajetoTrecho.origem !== 'inteira' ? atividade.trajetoTrecho : null;
+  const extras = t && t.origem === 'auto' && Array.isArray(atividade.trajetoVoltas) ? atividade.trajetoVoltas : [];
+  const lista = [t, ...extras].map((trecho, i) => montarPassagem(atividade, trecho, i + 1)).filter(Boolean);
+  // se a primeira não mede (sem distância e tempo), as seguintes seguem como estão, mas renumeradas na ordem
+  lista.forEach((p, i) => {
+    p.volta = i + 1;
+    p.totalVoltas = lista.length;
+  });
+  return lista;
+}
+
+/** A primeira passagem da atividade no trajeto (ou null); veja `passagensDaAtividade`. */
+export function passagemDoTrajeto(atividade) {
+  return passagensDaAtividade(atividade)[0] ?? null;
+}
+
+function montarPassagem(atividade, t, volta) {
   const base = t ?? atividade;
   const tempoS = finito(base.tempoMovimentoS) ? base.tempoMovimentoS : base.duracaoS;
   const distanciaM = base.distanciaM;
@@ -41,13 +59,18 @@ export function passagemDoTrajeto(atividade) {
   const fcMedia = finito(base.fcMedia) ? base.fcMedia : null;
   const fb = atividade.feedback ?? null;
   return {
-    id: atividade.id,
+    id: volta === 1 ? atividade.id : `${atividade.id}#${volta}`,
+    atividadeId: atividade.id,
+    volta,
+    totalVoltas: 1,
     data: atividade.data,
     titulo: atividade.titulo ?? null,
     esporte: atividade.esporte,
     soTrecho: !!t,
     trecho: t ? { tIniS: t.tIniS, tFimS: t.tFimS } : null,
-    origemDoTrecho: atividade.trajetoTrecho?.origem ?? null,
+    trechoIniM: t && finito(t.iniM) ? t.iniM : null,
+    trechoFimM: t && finito(t.fimM) ? t.fimM : null,
+    origemDoTrecho: t ? (t.origem ?? null) : (atividade.trajetoTrecho?.origem ?? null),
     cobertura: t?.cobertura ?? null,
     tempoS,
     distanciaM,
@@ -58,7 +81,7 @@ export function passagemDoTrajeto(atividade) {
     fcMax: finito(base.fcMax) ? base.fcMax : null,
     eficiencia: eficienciaAerobica(distanciaM, tempoS, fcMedia),
     tempoZonasS: Array.isArray(base.tempoZonasS) && base.tempoZonasS.length === 5 ? base.tempoZonasS : null,
-    hrss: finito(atividade.hrss) ? atividade.hrss : null,
+    hrss: volta === 1 && finito(atividade.hrss) ? atividade.hrss : null,
     sensacao: finito(fb?.sensacao) ? fb.sensacao : null,
     rpe: finito(fb?.rpe) ? fb.rpe : null,
     etiquetas: Array.isArray(fb?.etiquetas) ? fb.etiquetas : [],
@@ -77,13 +100,15 @@ export function eficienciaAerobica(distanciaM, tempoS, fcMedia) {
   return distanciaM / (tempoS / 60) / fcMedia;
 }
 
-/** Passagens do trajeto em ordem de data (a mais antiga primeiro). Atividades sem distância e tempo ficam de fora. */
+/**
+ * Passagens do trajeto em ordem de data (a mais antiga primeiro; no mesmo dia, pela ordem das voltas). Cada volta de uma
+ * atividade conta como uma passagem. Atividades sem distância e tempo ficam de fora.
+ */
 export function passagensDoTrajeto(atividades, trajetoId) {
   return (atividades ?? [])
     .filter((a) => a?.trajetoId === trajetoId)
-    .map(passagemDoTrajeto)
-    .filter(Boolean)
-    .sort((a, b) => (a.data === b.data ? String(a.id).localeCompare(String(b.id)) : a.data < b.data ? -1 : 1));
+    .flatMap(passagensDaAtividade)
+    .sort((a, b) => (a.data === b.data ? String(a.atividadeId).localeCompare(String(b.atividadeId)) || a.volta - b.volta : a.data < b.data ? -1 : 1));
 }
 
 /** Distância típica (mediana, em m) das passagens. */

@@ -8,7 +8,7 @@ import { reagirAAtividade } from "../notificacoes/notificacoes.service";
 import { concederConquistasDoUsuario } from "../objetivos/objetivos.service";
 import { recalcularDia, reconstruirTudo } from "./estresse.service";
 
-const CAMPOS_DO_TRAJETO = new Set(["trajetoId", "trajetoTrecho"]);
+const CAMPOS_DO_TRAJETO = new Set(["trajetoId", "trajetoTrecho", "trajetoVoltas"]);
 
 /** A gravação mexeu só no trajeto da atividade (`trajetoId` e/ou `trajetoTrecho`)? Criar e excluir nunca são só trajeto. */
 function soMudouOTrajeto(antes: FirebaseFirestore.DocumentData | undefined, depois: FirebaseFirestore.DocumentData | undefined): boolean {
