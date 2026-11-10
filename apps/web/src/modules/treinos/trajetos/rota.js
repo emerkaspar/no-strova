@@ -4,7 +4,7 @@ import { h } from '../../../utils/dom.js';
 import { seletor } from '../../../utils/listaSuspensa.js';
 import { formatarData, formatarNumero } from '../../../utils/formatters.js';
 import { abrirModal } from '../../../utils/modal.js';
-import { mapaDeCamadas } from './mapa.js';
+import { mapaDeCamadas, mapaEditorDeFaixa } from './mapa.js';
 import { kmTexto } from './textos.js';
 
 const cssVar = (nome, padrao) => getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || padrao;
@@ -71,43 +71,76 @@ export function criarCartaoRota({ trajeto, passagens, rota }) {
   const ini = h('input', { type: 'text', inputMode: 'decimal', id: `rota-ini-${trajeto.id}`, 'aria-label': 'Início do trecho em km', placeholder: 'ex.: 2,5', size: 6 });
   const fim = h('input', { type: 'text', inputMode: 'decimal', id: `rota-fim-${trajeto.id}`, 'aria-label': 'Fim do trecho em km', placeholder: 'ex.: 8', size: 6 });
   const campos = h('div', { class: 'traj-faixa', hidden: true }, h('label', null, 'De (km)', ini), h('label', null, 'Até (km)', fim));
-  const previa = mapaDeCamadas({ rotulo: 'Prévia da rota escolhida' });
+  const previa = mapaEditorDeFaixa({ rotulo: 'Mapa para marcar o início e o fim do trajeto' });
   destrutores.push(previa.destruir);
-  const previaWrap = h('div', { hidden: true }, previa.el);
+  const dicaMapa = h('p', { class: 'dica', hidden: true }, 'Arraste o marcador verde (início) e o vermelho (fim) sobre o traçado. Os campos de km acompanham.');
+  const previaWrap = h('div', { hidden: true }, previa.el, dicaMapa);
 
+  // já havia uma faixa gravada na atividade de referência: começa nela, para editar em vez de refazer
+  if (trajeto.rotaIniM != null && trajeto.rotaFimM != null && trajeto.rotaAtividadeId && lista.value === trajeto.rotaAtividadeId) {
+    soFaixa.checked = true;
+    campos.hidden = false;
+    ini.value = String(trajeto.rotaIniM / 1000).replace('.', ',');
+    fim.value = String(trajeto.rotaFimM / 1000).replace('.', ',');
+  }
+
+  const kmEmTexto = (km) => String(Math.round(km * 100) / 100).replace('.', ',');
+  let carregada = null; // id da atividade que está desenhada no mapa
   let sequencia = 0;
+
+  /** Reposiciona os marcadores conforme os campos de km. */
+  function aplicarFaixa() {
+    previa.faixa(lerKm(ini.value), lerKm(fim.value), soFaixa.checked);
+    dicaMapa.hidden = !soFaixa.checked;
+  }
+
   async function atualizarPrevia() {
     const id = lista.value;
     const passagem = candidatas.find((p) => p.id === id);
     if (!passagem) return;
+    if (carregada === id) {
+      aplicarFaixa();
+      return;
+    }
     const minha = ++sequencia;
     // a prévia mostra a atividade inteira, não o trecho que o trajeto já tem nela
     const detalhes = await carregarDetalhes([{ ...passagem, trecho: null }]).catch(() => null);
     if (minha !== sequencia) return;
     const perfil = detalhes?.get(id)?.perfil;
-    if (!perfil?.lat) {
+    if (!perfil?.lat || !perfil.dKm) {
       previaWrap.hidden = true;
+      carregada = null;
       return;
     }
-    const camadas = [{ lat: perfil.lat, lon: perfil.lon, cor: cssVar('--text-secondary', '#9a9a9a'), peso: 3 }];
-    const a = lerKm(ini.value);
-    const b = lerKm(fim.value);
-    if (soFaixa.checked && a !== null && b !== null && b > a && perfil.dKm) {
-      const dentro = perfil.dKm.map((d) => (Number.isFinite(d) && d >= a && d <= b ? 1 : 0));
-      camadas.push({ lat: perfil.lat.map((v, i) => (dentro[i] ? v : null)), lon: perfil.lon.map((v, i) => (dentro[i] ? v : null)), cor: cssVar('--primary', '#ff5200'), peso: 5, pontas: true });
-    } else if (!soFaixa.checked) {
-      camadas.push({ lat: perfil.lat, lon: perfil.lon, cor: cssVar('--primary', '#ff5200'), peso: 5, pontas: true });
-    }
+    carregada = id;
     previaWrap.hidden = false;
-    previa.definir(camadas);
+    previa.definir({ lat: perfil.lat, lon: perfil.lon, dKm: perfil.dKm });
+    aplicarFaixa();
   }
+
+  // arrastar um marcador preenche os campos de km
+  previa.aoMudar(({ iniKm, fimKm }) => {
+    ini.value = kmEmTexto(iniKm);
+    fim.value = kmEmTexto(fimKm);
+  });
   soFaixa.addEventListener('change', () => {
     campos.hidden = !soFaixa.checked;
+    if (soFaixa.checked && (lerKm(ini.value) === null || lerKm(fim.value) === null)) {
+      // sem valores ainda: começa com a atividade inteira, para o usuário só arrastar
+      const distanciaM = candidatas.find((p) => p.id === lista.value)?.distanciaM;
+      ini.value = '0';
+      if (distanciaM) fim.value = kmEmTexto(distanciaM / 1000);
+    }
     atualizarPrevia();
   });
-  lista.addEventListener('change', atualizarPrevia);
-  ini.addEventListener('input', atualizarPrevia);
-  fim.addEventListener('input', atualizarPrevia);
+  lista.addEventListener('change', () => {
+    ini.value = '';
+    fim.value = '';
+    carregada = null;
+    atualizarPrevia();
+  });
+  ini.addEventListener('input', aplicarFaixa);
+  fim.addEventListener('input', aplicarFaixa);
 
   const botao = h('button', { class: 'btn', type: 'button', disabled: candidatas.length === 0 }, rota ? 'Trocar rota e refazer trechos' : 'Definir rota e achar os trechos');
   botao.addEventListener('click', async () => {

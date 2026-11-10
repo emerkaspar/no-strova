@@ -4623,6 +4623,30 @@ textarea {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 35%, transparent), 0 2px 8px rgb(0 0 0 / 0.5);
 }
 
+.mapa-alca span {
+  display: block;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.5);
+  cursor: grab;
+  touch-action: none;
+}
+
+.mapa-alca-fim span {
+  background: var(--danger);
+}
+
+.mapa-alca-fixa span {
+  width: 16px;
+  height: 16px;
+  margin: 5px;
+  cursor: default;
+}
+
 .ativ-grafico {
   margin-top: 4px;
   padding: 24px 24px 16px;
