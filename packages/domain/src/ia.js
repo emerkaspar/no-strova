@@ -140,6 +140,48 @@ export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado', prop
   return [...doCatalogo, ...propriosParaIa(proprios, esporte)];
 }
 
+/** Duração mínima e máxima (min) que o usuário pode pedir para um treino único. */
+export const LIMITES_DURACAO_PEDIDA = Object.freeze({ min: 15, max: 360 });
+
+/** Lê a duração pedida (opcional): vazio → null; fora dos limites ou inválida → `undefined` (o chamador recusa). */
+export function lerDuracaoPedida(valor) {
+  if (valor === undefined || valor === null || (typeof valor === 'string' && valor.trim() === '')) return null;
+  const n = numero(valor);
+  if (n === null || !Number.isFinite(n) || n < LIMITES_DURACAO_PEDIDA.min || n > LIMITES_DURACAO_PEDIDA.max) return undefined;
+  return Math.round(n);
+}
+
+/**
+ * Treinos candidatos para o tempo pedido: os que ficam até 25% acima ou abaixo dele (no máximo `maximo`, os mais próximos
+ * primeiro); se nenhum cabe na faixa, só os 3 de duração mais próxima, para a IA não fugir muito do pedido. Empate: menor
+ * estresse, depois o id, para o resultado ser estável.
+ */
+export function maisProximosDaDuracao(lista, duracaoMin, maximo = 12) {
+  const dist = (m) => Math.abs(m.duracaoMin - duracaoMin);
+  const ordenada = [...lista].sort((a, b) => dist(a) - dist(b) || (a.estresse ?? 0) - (b.estresse ?? 0) || (a.id < b.id ? -1 : 1));
+  const naFaixa = ordenada.filter((m) => dist(m) / duracaoMin <= 0.25);
+  return naFaixa.length > 0 ? naFaixa.slice(0, maximo) : ordenada.slice(0, 3);
+}
+
+/**
+ * Avisos em português sobre o treino escolhido: carga alta demais ou baixa demais para o momento do atleta (uma sessão passa de
+ * ~40% da carga semanal ou fica abaixo de ~10%) e, se ele pediu um tempo, o quanto o treino difere dele (a partir de 20%).
+ * @param {{ estresse: number, duracaoMin: number }} treino
+ * @param {{ cargaBase: number, duracaoPedida?: number|null }} ctx
+ * @returns {string[]}
+ */
+export function avisosDaCargaPedida(treino, { cargaBase, duracaoPedida = null }) {
+  const avisos = [];
+  if (duracaoPedida && Math.abs(treino.duracaoMin - duracaoPedida) / duracaoPedida >= 0.2) {
+    avisos.push(`Você pediu ${duracaoPedida} min, mas o treino do catálogo mais próximo tem ${treino.duracaoMin} min.`);
+  }
+  if (cargaBase > 0) {
+    if (treino.estresse > cargaBase * 0.4) avisos.push(`Atenção: a carga deste treino (~${treino.estresse}) é alta demais para o seu momento, perto de ${Math.round((treino.estresse / cargaBase) * 100)}% da sua carga semanal. Considere um treino mais curto ou leve.`);
+    else if (treino.estresse < cargaBase * 0.1) avisos.push(`Atenção: a carga deste treino (~${treino.estresse}) é baixa para o seu momento, só ${Math.round((treino.estresse / cargaBase) * 100)}% da sua carga semanal. Se quiser evoluir, escolha um treino mais longo ou mais forte.`);
+  }
+  return avisos;
+}
+
 /**
  * Base de carga semanal (soma do estresse): média das semanas **com treino** nas últimas 8 semanas completas, com o piso do
  * atleta (`pisoDaCargaBase`: nível e horas por semana) quando há histórico. Semanas sem treino (viagem, descanso) não puxam

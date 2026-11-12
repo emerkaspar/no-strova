@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catalogoParaIa, MAXIMO_DE_PROPRIOS_NA_IA, propriosParaIa, validarEntradaDeTreinos, validarSugestaoDeTreinos } from './ia.js';
+import { avisosDaCargaPedida, catalogoParaIa, lerDuracaoPedida, maisProximosDaDuracao, MAXIMO_DE_PROPRIOS_NA_IA, propriosParaIa, validarEntradaDeTreinos, validarSugestaoDeTreinos } from './ia.js';
 
 const passos = [{ tipo: 'bloco', papel: 'principal', duracaoS: 2400, zona: 'Z2' }];
 const meu = (extra = {}) => ({ id: 'MeuTreinoAbC123', nome: 'Rolê da orla', esporte: 'ciclismo', foco: 'resistencia', nivel: 'avancado', passos, origem: 'proprio', ...extra });
@@ -62,5 +62,32 @@ describe('validarSugestaoDeTreinos com treinos próprios', () => {
     const doTrajeto = meu({ id: 'DoTrajeto', trajetoNome: 'Brochier/Paris' });
     const r = validarSugestaoDeTreinos(sugestao('DoTrajeto'), ctx([doTrajeto]));
     expect(r.itens.find((i) => i.data === '2026-11-05')?.modeloId).toBe('DoTrajeto');
+  });
+});
+
+describe('tempo pedido para o treino único', () => {
+  it('é opcional: vazio vira null, fora de 15 a 360 min ou inválido vira undefined', () => {
+    expect(lerDuracaoPedida(undefined)).toBeNull();
+    expect(lerDuracaoPedida('')).toBeNull();
+    expect(lerDuracaoPedida('60')).toBe(60);
+    expect(lerDuracaoPedida(45.4)).toBe(45);
+    for (const ruim of [5, 400, 'abc', NaN]) expect(lerDuracaoPedida(ruim), String(ruim)).toBeUndefined();
+  });
+
+  it('traz primeiro os treinos de duração mais próxima da pedida', () => {
+    const lista = [{ id: 'a', duracaoMin: 30, estresse: 20 }, { id: 'b', duracaoMin: 58, estresse: 50 }, { id: 'c', duracaoMin: 90, estresse: 80 }, { id: 'd', duracaoMin: 62, estresse: 40 }];
+    expect(maisProximosDaDuracao(lista, 60, 2).map((m) => m.id)).toEqual(['d', 'b']);
+    // só entram os que ficam até 25% do tempo pedido (45 a 75 min); fora da faixa, os 3 mais próximos
+    expect(maisProximosDaDuracao(lista, 60).map((m) => m.id)).toEqual(['d', 'b']);
+    expect(maisProximosDaDuracao(lista, 200).map((m) => m.id)).toEqual(['c', 'd', 'b']);
+  });
+
+  it('avisa quando a carga é alta ou baixa demais e quando o tempo difere muito do pedido', () => {
+    const base = { cargaBase: 200 };
+    expect(avisosDaCargaPedida({ estresse: 100, duracaoMin: 90 }, base).join(' ')).toMatch(/alta demais/);
+    expect(avisosDaCargaPedida({ estresse: 10, duracaoMin: 20 }, base).join(' ')).toMatch(/baixa/);
+    expect(avisosDaCargaPedida({ estresse: 50, duracaoMin: 60 }, base)).toEqual([]);
+    expect(avisosDaCargaPedida({ estresse: 50, duracaoMin: 90 }, { ...base, duracaoPedida: 60 }).join(' ')).toMatch(/pediu 60 min/);
+    expect(avisosDaCargaPedida({ estresse: 500, duracaoMin: 90 }, { cargaBase: 0 })).toEqual([]);
   });
 });
