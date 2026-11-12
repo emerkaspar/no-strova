@@ -135,7 +135,7 @@ O [intervals.icu](https://intervals.icu) é o conector oficial do No Strova: tud
 ### Como foi? (sensação e esforço)
 Depois de **importar um arquivo**, **registrar uma atividade manualmente** ou **sincronizar o Garmin** pelo botão da tela Atividades e trazer **uma única** atividade nova, abre a janela **Como foi?** para você contar como foi o treino:
 
-- **Sensação:** escolha entre Voando, Leve, Normal, Pesado e Destruído (cada um com seu ícone).
+- **Sensação:** escolha entre Sobrando, Bem, No ponto, Puxado e Esgotado (um ícone de bateria para cada nível). Essa resposta ajusta o seu plano: quando você marca Puxado ou Esgotado em treinos seguidos, o app alivia a carga dos próximos treinos.
 - **Quão duro foi?** (opcional): esforço percebido de 1 a 10.
 - **O que marcou o treino?** (opcional): etiquetas como calor, sono ruim, perna pesada ou dor (com o local), e **notas** livres.
 - **Teste de LTHR:** se aquele treino foi o seu teste de 30 minutos, ligue a chave **Foi um teste de LTHR?**. Ao salvar, o app analisa a sua frequência cardíaca e mostra o LTHR sugerido; se quiser, clique em **Criar nova vigência com este LTHR** (o app pede confirmação, porque o LTHR muda o HRSS de tudo). Só vale para atividade importada de arquivo, com frequência cardíaca e de pelo menos 30 minutos; nas outras a chave fica desligada e explica o motivo. Em **Configuração → Teste de LTHR**, as atividades marcadas aparecem primeiro.

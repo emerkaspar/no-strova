@@ -4,13 +4,17 @@
  */
 import { dataIsoValida } from './usuarios.js';
 
-/** Escala de sensação: 1 = ótima, 5 = destruído. O `id` é o nome do ícone em utils/icones.js. */
+/**
+ * Escala de sensação, vista como a "bateria" que sobrou depois do treino: 1 = cheia, 5 = vazia.
+ * O `id` é o nome do ícone em utils/icones.js. O `efeito` diz ao usuário o que isso muda no plano
+ * (espelha `fatorDeCargaPorFeedback`: só reduz a carga, nunca aumenta).
+ */
 export const SENSACOES = Object.freeze([
-  Object.freeze({ valor: 1, id: 'sensacaoFoguete', rotulo: 'Voando', dica: 'Pernas leves, queria mais' }),
-  Object.freeze({ valor: 2, id: 'sensacaoBalao', rotulo: 'Leve', dica: 'Fluiu bem' }),
-  Object.freeze({ valor: 3, id: 'sensacaoXicara', rotulo: 'Normal', dica: 'Nem bem, nem mal' }),
-  Object.freeze({ valor: 4, id: 'sensacaoTartaruga', rotulo: 'Pesado', dica: 'Custou para andar' }),
-  Object.freeze({ valor: 5, id: 'sensacaoCoco', rotulo: 'Destruído', dica: 'Mal consegui terminar' }),
+  Object.freeze({ valor: 1, id: 'sensacaoBateria1', rotulo: 'Sobrando', dica: 'Terminei com energia de sobra', efeito: 'O plano segue como está.' }),
+  Object.freeze({ valor: 2, id: 'sensacaoBateria2', rotulo: 'Bem', dica: 'Fluiu bem', efeito: 'O plano segue como está.' }),
+  Object.freeze({ valor: 3, id: 'sensacaoBateria3', rotulo: 'No ponto', dica: 'Esforço na medida', efeito: 'O plano segue como está.' }),
+  Object.freeze({ valor: 4, id: 'sensacaoBateria4', rotulo: 'Puxado', dica: 'Custou mais do que o normal', efeito: 'Se repetir, o plano alivia a carga dos próximos treinos.' }),
+  Object.freeze({ valor: 5, id: 'sensacaoBateria5', rotulo: 'Esgotado', dica: 'Mal consegui terminar', efeito: 'Se repetir, o plano alivia a carga e dá mais descanso.' }),
 ]);
 
 export const ETIQUETAS = Object.freeze([

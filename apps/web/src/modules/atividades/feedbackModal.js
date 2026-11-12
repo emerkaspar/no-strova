@@ -125,7 +125,11 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
       const s = SENSACOES.find((x) => x.valor === estado.sensacao);
       raiz.style.setProperty('--tom', s ? TOM_DA_SENSACAO[s.valor] : 'var(--primary)');
       raiz.classList.toggle('fb-com-sensacao', Boolean(s));
-      legendaSensacao.replaceChildren(...(s ? [h('strong', null, s.rotulo), ` · ${s.dica}`] : ['Toque no que mais combina com o treino de hoje.']));
+      legendaSensacao.replaceChildren(
+        ...(s
+          ? [h('strong', null, s.rotulo), ` · ${s.dica}. `, h('span', { class: 'fb-legenda-efeito' }, s.efeito)]
+          : ['Pense na energia que sobrou depois do treino e toque na opção que mais combina.']),
+      );
     }
     const sensacao = grupoRadio({
       rotulo: 'Sensação',
@@ -144,6 +148,14 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
         atualizarTom();
       },
     });
+
+    // deixa claro que a resposta não é só um diário: ela entra no cálculo dos próximos treinos
+    const avisoSensacao = h(
+      'p',
+      { class: 'fb-aviso-plano' },
+      h('span', { class: 'fb-aviso-plano-icone', 'aria-hidden': 'true' }, icone('plano', 18)),
+      h('span', null, h('strong', null, 'Isso ajusta o seu plano. '), 'Sua resposta entra no cálculo da carga dos próximos treinos e da próxima semana.'),
+    );
 
     // ---------- esforço percebido ----------
     const legendaEsforco = h('span', { class: 'fb-esforco-valor', 'aria-live': 'polite' });
@@ -372,7 +384,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
         'div',
         { class: 'fb-corpo' },
         criarSecaoTreinoDoDia({ atividade: a, uid }),
-        h('section', { class: 'fb-secao' }, h('h3', { class: 'fb-secao-titulo' }, 'Como você se sentiu?'), sensacao.raiz, legendaSensacao),
+        h('section', { class: 'fb-secao' }, h('h3', { class: 'fb-secao-titulo' }, 'Como você se sentiu?'), avisoSensacao, sensacao.raiz, legendaSensacao),
         h('section', { class: 'fb-secao' }, h('div', { class: 'fb-secao-linha' }, h('h3', { class: 'fb-secao-titulo' }, 'Quão duro foi?'), legendaEsforco), esforco.raiz, h('div', { class: 'fb-escala' }, h('span', null, 'leve'), h('span', null, 'máximo'))),
         h('section', { class: 'fb-secao' }, h('h3', { class: 'fb-secao-titulo' }, 'O que marcou o treino?'), h('div', { class: 'fb-chips' }, ...chips), blocoDor),
         h('section', { class: 'fb-secao' }, h('div', { class: 'fb-secao-linha' }, h('h3', { class: 'fb-secao-titulo' }, 'Notas'), contador), notas),

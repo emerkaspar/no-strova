@@ -12,7 +12,7 @@ import { icone } from '../../utils/icones.js';
 export const BADGES = Object.freeze({
   vinculado: { icone: 'vinculo', rotulo: 'Vinculada a um treino', categoria: 'status', prioridade: 15 },
   semVinculo: { icone: 'semVinculo', rotulo: 'Sem vínculo com um treino', categoria: 'registro', prioridade: 15 },
-  sensacao: { icone: 'sensacaoFoguete', rotulo: 'Como foi', categoria: 'acao', prioridade: 20 },
+  sensacao: { icone: 'sensacaoBateria3', rotulo: 'Como foi', categoria: 'acao', prioridade: 20 },
   esforco: { icone: 'fc', rotulo: 'Esforço percebido', categoria: 'acao', prioridade: 25 },
   etiquetas: { icone: 'etiqueta', rotulo: 'O que marcou o treino', categoria: 'registro', tom: 'var(--zona-3)', prioridade: 30 },
   testeLthr: { icone: 'fcPulso', rotulo: 'Teste de LTHR', categoria: 'acao', tom: 'var(--serie-fc)', prioridade: 35 },

@@ -318,6 +318,37 @@
   margin: 0;
 }
 
+/* Aviso de que a sensação influencia o plano */
+.fb-aviso-plano {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+  border-radius: 12px;
+}
+
+.fb-aviso-plano strong {
+  color: var(--text-primary);
+}
+
+.fb-aviso-plano-icone {
+  display: inline-flex;
+  flex: none;
+  margin-top: 1px;
+  color: var(--primary);
+}
+
+.fb-legenda-efeito {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 /* Sensação: cinco cartões com o ícone grande */
 .fb-sensacoes {
   display: grid;
