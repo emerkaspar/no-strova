@@ -27,6 +27,21 @@ service firebase.storage {
       allow read, update, delete: if false;
     }
 
+    // Foto de perfil: avatares/{userId}/foto.jpg (JPEG já reduzido pelo app, até 600 KB). Só o dono envia, troca e apaga;
+    // a leitura é por URL assinada (callable obterUrlAvatar).
+    match /avatares/{userId}/{arquivo} {
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && arquivo == 'foto.jpg'
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size > 0
+        && request.resource.size <= 600 * 1024
+        && acessoLiberado();
+
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

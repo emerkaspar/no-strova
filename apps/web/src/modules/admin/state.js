@@ -26,5 +26,20 @@ export function alternarOrdemUsuarios(campo) {
   };
 }
 
-/** Aba aberta na página de Administração: 'aprovacoes', 'usuarios' ou 'sistema'. */
+/** Estado do painel de adesão: busca, filtro e ordenação da tabela. */
+export const estadoAdesao = {
+  busca: '',
+  filtro: 'todos',
+  ordem: { campo: 'ultimoUso', direcao: 'desc' },
+};
+
+export function alternarOrdemAdesao(campo) {
+  const atual = estadoAdesao.ordem;
+  estadoAdesao.ordem = {
+    campo,
+    direcao: atual.campo === campo && atual.direcao === 'asc' ? 'desc' : 'asc',
+  };
+}
+
+/** Aba aberta na página de Administração: 'aprovacoes', 'usuarios', 'adesao' ou 'sistema'. */
 export const estadoAdmin = { aba: 'aprovacoes' };

@@ -1,4 +1,5 @@
 import { h } from '../../utils/dom.js';
+import { render as renderAdesao } from './adesao.view.js';
 import { render as renderAprovacoes } from './aprovacoes.view.js';
 import { criarCartaoLimiteIa } from './limiteIa.js';
 import { estadoAdmin } from './state.js';
@@ -7,6 +8,7 @@ import { render as renderUsuarios } from './usuarios.view.js';
 const ABAS = [
   { id: 'aprovacoes', rotulo: 'Aprovações' },
   { id: 'usuarios', rotulo: 'Usuários' },
+  { id: 'adesao', rotulo: 'Adesão' },
   { id: 'sistema', rotulo: 'Sistema' },
 ];
 
@@ -30,7 +32,7 @@ export function render(raiz, sessao) {
   function abrir(id) {
     estadoAdmin.aba = ABAS.some((a) => a.id === id) ? id : 'aprovacoes';
     limparAba();
-    const renderAba = { sistema: renderSistema, usuarios: renderUsuarios }[estadoAdmin.aba] ?? renderAprovacoes;
+    const renderAba = { sistema: renderSistema, usuarios: renderUsuarios, adesao: renderAdesao }[estadoAdmin.aba] ?? renderAprovacoes;
     limparAba = renderAba(conteudo, sessao) ?? (() => {});
     abas.replaceChildren(
       ...ABAS.map((a) =>
@@ -43,7 +45,7 @@ export function render(raiz, sessao) {
     h(
       'div',
       { class: 'ativ-pagina' },
-      h('header', { class: 'ativ-cabecalho' }, h('div', null, h('h1', null, 'Administração'), h('p', { class: 'texto-secundario' }, 'Aprovação e cadastro de usuários, funcionalidades liberadas por usuário e ajustes do sistema. Só você, como administrador, vê esta página.'))),
+      h('header', { class: 'ativ-cabecalho' }, h('div', null, h('h1', null, 'Administração'), h('p', { class: 'texto-secundario' }, 'Aprovação e cadastro de usuários, adesão ao sistema, funcionalidades liberadas por usuário e ajustes do sistema. Só você, como administrador, vê esta página.'))),
       abas,
       conteudo,
     ),

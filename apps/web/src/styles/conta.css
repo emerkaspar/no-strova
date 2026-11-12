@@ -1,0 +1,201 @@
+/* Editor da conta (modules/conta/conta.modal.js) e avatar com foto ou personagem. Só variáveis de tema. */
+
+/* o avatar do cabeçalho recorta a foto/desenho em círculo */
+.avatar {
+  overflow: hidden;
+}
+
+.avatar img,
+.avatar svg,
+.avatar-img img,
+.avatar-img svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-img {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-light);
+  color: var(--text-primary);
+  font-family: var(--fonte-titulo);
+}
+
+.modal-conta {
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(860px, calc(100dvh - 24px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal-conta[open] {
+  display: flex;
+}
+
+.conta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.conta-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.conta-titulo {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.conta-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 24px 28px 28px;
+  overflow-y: auto;
+}
+
+.conta-secao-titulo {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.conta-secao > .dica {
+  margin: 0;
+}
+
+.conta-avatar-linha {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.conta-previa {
+  width: 96px;
+  height: 96px;
+  font-size: 2.6rem;
+}
+
+.conta-avatar-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.conta-avatar-acoes .dica {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.conta-botoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.conta-botoes .btn {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.conta-botoes .btn[aria-pressed='true'] {
+  border-color: var(--primary);
+}
+
+.conta-personagens {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.conta-personagem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 4px;
+  background: var(--surface-light);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+
+.conta-personagem:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+}
+
+.conta-personagem[aria-pressed='true'] {
+  color: var(--text-primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.conta-personagem:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.conta-personagem-img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.conta-personagem-img svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.conta-form .btn {
+  align-self: flex-start;
+}
+
+.conta-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.conta-form .mensagem {
+  margin: 0 0 12px;
+}
+
+@media (max-width: 767px) {
+  .conta-topo,
+  .conta-corpo {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .conta-avatar-linha {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

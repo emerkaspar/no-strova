@@ -135,6 +135,22 @@ export async function completarCadastro({ nome, dataNascimento, aceite }) {
   }
 }
 
+export const contaTemSenha = authApi.contaTemSenha;
+
+/** Troca a senha pedindo a atual. Senha atual errada tem mensagem própria (no login a mensagem é outra). */
+export async function alterarSenha({ senhaAtual, novaSenha, confirmacao }) {
+  if (!senhaAtual) throw new Error('Informe a senha atual.');
+  validarSenha(novaSenha);
+  if (novaSenha !== confirmacao) throw new Error('A confirmação não confere com a nova senha.');
+  if (novaSenha === senhaAtual) throw new Error('A nova senha precisa ser diferente da atual.');
+  try {
+    await authApi.alterarSenha(senhaAtual, novaSenha);
+  } catch (err) {
+    if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/wrong-password') throw new Error('A senha atual está errada.');
+    throw new Error(traduzirErro(err));
+  }
+}
+
 export function sair() {
   return authApi.sair();
 }

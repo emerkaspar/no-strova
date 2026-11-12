@@ -32,6 +32,12 @@ Se você criou a conta mas não terminou o cadastro, o app pede para **concluir 
 - **Últimas atividades:** as cinco mais recentes, com data, esporte (ícone), duração, distância, HRSS e FC média. O cabeçalho usa ícones (passe o mouse para ver o nome) e a duração é compacta (49:43), para a tabela caber sem rolagem.
 - **Registro de peso:** diz há quantos dias você não registra o peso (verde até 3 dias, amarelo de 4 a 7, vermelho acima), o último peso e em quantos dias dos últimos 30 você pesou. O link leva à tela Peso.
 
+## Minha conta (foto, dados e senha)
+Clique no avatar, no canto do cabeçalho, e abra **Minha conta**:
+- **Foto de perfil:** envie uma foto sua (ela é recortada em quadrado e reduzida) ou escolha um dos personagens da corrida maluca. Quem não escolheu nada começa com o **Muttley**.
+- **Dados pessoais:** nome e data de nascimento.
+- **Alterar senha:** informe a senha atual, a nova (mínimo de 8 caracteres) e repita a nova. Quem entra com a conta do Google gerencia a senha por lá.
+
 ## Tema
 
 O app abre no **tema escuro**. Para alternar, clique no **círculo com a sua inicial** (canto superior direito) e escolha **Tema claro** ou **Tema escuro**; o app lembra a sua escolha neste aparelho.

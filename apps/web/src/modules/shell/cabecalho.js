@@ -1,4 +1,5 @@
-import { sair } from '../../application/sessao.js';
+import { aoMudarSessao, sair } from '../../application/sessao.js';
+import { preencherAvatar } from '../../utils/avatar.js';
 import { h } from '../../utils/dom.js';
 import { dataCurta, horaNoFuso, saudacaoDaHora } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
@@ -7,12 +8,8 @@ import { fraseAleatoria, LIMITE_FRASE, textoExibido } from '../../utils/frases.j
 import { alternarTema, temaEfetivo } from '../../utils/tema.js';
 import { pedirImportacao } from '../atividades/state.js';
 import { aoMudarNaoLidas, totalNaoLidas } from '../notificacoes/state.js';
+import { abrirConta } from '../conta/conta.modal.js';
 import { abrirWizard } from '../onboarding/wizard.js';
-
-function inicialDe(sessao) {
-  const base = (sessao.perfil?.nome || sessao.email || '?').trim();
-  return base.charAt(0).toUpperCase();
-}
 
 function primeiroNome(sessao) {
   return (sessao.perfil?.nome || '').trim().split(/\s+/)[0] || 'atleta';
@@ -134,6 +131,20 @@ export function criarCabecalho(sessao, itens) {
   const itemAdmin = sessao.admin
     ? h('a', { class: 'menu-conta-item', href: '#/admin', role: 'menuitem', 'data-caminho': '#/admin' }, icone('aprovacoes', 18), 'Administração')
     : null;
+  const itemConta = h(
+    'button',
+    {
+      class: 'menu-conta-item',
+      type: 'button',
+      role: 'menuitem',
+      onClick: () => {
+        fechar(false);
+        abrirConta();
+      },
+    },
+    icone('perfil', 18),
+    'Minha conta',
+  );
   const itemPerfil = h(
     'button',
     {
@@ -145,7 +156,7 @@ export function criarCabecalho(sessao, itens) {
         abrirWizard({ sessao });
       },
     },
-    icone('perfil', 18),
+    icone('treinos', 18),
     'Perfil de treino',
   );
   const itemSair = h('button', { class: 'menu-conta-item', type: 'button', role: 'menuitem', onClick: sair }, icone('sair', 18), 'Sair');
@@ -155,12 +166,17 @@ export function criarCabecalho(sessao, itens) {
     h('strong', null, (sessao.perfil?.nome || '').trim() || 'Minha conta'),
     sessao.email ? h('span', null, sessao.email) : null,
   );
-  const menu = h('div', { class: 'menu-conta', role: 'menu', 'aria-label': 'Conta', hidden: true }, perfil, h('div', { class: 'menu-conta-itens' }, itemPerfil, itemAdmin, itemSair));
+  const menu = h('div', { class: 'menu-conta', role: 'menu', 'aria-label': 'Conta', hidden: true }, perfil, h('div', { class: 'menu-conta-itens' }, itemConta, itemPerfil, itemAdmin, itemSair));
   const avatar = h(
     'button',
     { class: 'avatar', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Menu da conta' },
-    inicialDe(sessao),
   );
+  // foto, personagem ou inicial; acompanha o perfil quando o usuário troca o avatar
+  const nomeNoMenu = perfil.querySelector('strong');
+  const pararSessao = aoMudarSessao((s) => {
+    preencherAvatar(avatar, { uid: s.uid, perfil: s.perfil, email: s.email });
+    nomeNoMenu.textContent = (s.perfil?.nome || '').trim() || 'Minha conta';
+  });
 
   function marcarAtivo(caminho) {
     for (const link of [...linksPilula, ...linksAbas]) {
@@ -187,7 +203,7 @@ export function criarCabecalho(sessao, itens) {
     avatar.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', foraDoMenu, true);
     document.addEventListener('keydown', teclas);
-    itemPerfil.focus();
+    itemConta.focus();
   }
   function fechar(devolverFoco) {
     menu.hidden = true;
@@ -220,6 +236,7 @@ export function criarCabecalho(sessao, itens) {
     destruir() {
       frase.parar();
       pararSino();
+      pararSessao();
       document.removeEventListener('pointerdown', foraDoMenu, true);
       document.removeEventListener('keydown', teclas);
     },

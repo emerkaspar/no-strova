@@ -38,19 +38,24 @@ service cloud.firestore {
     }
 
     // Perfil: o dono lê sempre (precisa ver "aguardando aprovação"); o admin lê todos.
-    // O dono só edita nome e data de nascimento; papel, aprovação e ativo são do Admin SDK.
+    // O dono só edita nome, data de nascimento e avatar (foto ou personagem); papel, aprovação e ativo são do Admin SDK.
     match /users/{uid} {
       allow read: if logado() && (request.auth.uid == uid || ehAdmin());
 
       allow update: if acessoLiberado()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'dataNascimento'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'dataNascimento', 'avatar', 'avatarEm'])
         && request.resource.data.nome is string
         && request.resource.data.nome.size() >= 2
         && request.resource.data.nome.size() <= 80
         && (request.resource.data.dataNascimento == null
             || (request.resource.data.dataNascimento is string
-                && request.resource.data.dataNascimento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+                && request.resource.data.dataNascimento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && (!('avatar' in request.resource.data)
+            || request.resource.data.avatar == null
+            || (request.resource.data.avatar is string
+                && request.resource.data.avatar.matches('^(foto|personagem:[a-z-]{2,30})$')))
+        && (!('avatarEm' in request.resource.data) || request.resource.data.avatarEm is int);
 
       allow create, delete: if false;
     }

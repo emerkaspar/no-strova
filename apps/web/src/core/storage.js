@@ -1,4 +1,4 @@
-import { getStorage, ref, uploadBytesResumable } from 'firebase/storage';
+import { deleteObject, getStorage, ref, uploadBytes, uploadBytesResumable } from 'firebase/storage';
 import { app } from './firebase.js';
 
 const storage = getStorage(app);
@@ -27,4 +27,22 @@ export function enviarArquivoAtividade(uid, atividadeId, extensao, arquivo, aoPr
       () => resolve(),
     );
   });
+}
+
+/** Envia a foto de perfil (JPEG já reduzido) para avatares/{uid}/foto.jpg, trocando a anterior. As regras aceitam até 600 KB. */
+export async function enviarFotoPerfil(uid, blob) {
+  try {
+    await uploadBytes(ref(storage, `avatares/${uid}/foto.jpg`), blob, { contentType: 'image/jpeg' });
+  } catch {
+    throw new Error('Não foi possível enviar a foto. Verifique sua conexão e tente de novo.');
+  }
+}
+
+/** Apaga a foto de perfil (quando o usuário escolhe um personagem ou a inicial). Falha em silêncio: o avatar já mudou. */
+export async function removerFotoPerfil(uid) {
+  try {
+    await deleteObject(ref(storage, `avatares/${uid}/foto.jpg`));
+  } catch {
+    /* sem foto ou sem rede: nada a fazer */
+  }
 }

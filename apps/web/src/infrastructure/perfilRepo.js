@@ -8,7 +8,12 @@ export function observarPerfil(uid, aoDados, aoErro) {
   return observarDocumento(`users/${uid}`, aoDados, aoErro);
 }
 
-/** O dono só pode alterar nome e data de nascimento (as regras do Firestore garantem). */
+/** O dono só pode alterar nome, data de nascimento e avatar (as regras do Firestore garantem). */
 export function atualizarDadosPessoais(uid, { nome, dataNascimento }) {
   return atualizarDocumento(`users/${uid}`, { nome, dataNascimento });
+}
+
+/** Grava o avatar ('foto', 'personagem:<id>' ou null). `avatarEm` muda a cada troca para renovar o cache da foto. */
+export function atualizarAvatar(uid, avatar) {
+  return atualizarDocumento(`users/${uid}`, { avatar, avatarEm: Date.now() });
 }

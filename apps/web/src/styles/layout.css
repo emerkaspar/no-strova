@@ -8466,3 +8466,83 @@ a.rec-card-quando:hover {
   border-top: 1px solid color-mix(in srgb, var(--c) 25%, var(--border));
   font-size: 0.78rem;
 }
+
+/* Administração → Adesão */
+.adesao-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.adesao-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-light);
+}
+
+.adesao-kpi-rotulo {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.adesao-kpi-valor {
+  font-family: 'Anton', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.adesao-funil {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adesao-funil-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.adesao-barra {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.adesao-barra > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.tabela-adesao {
+  min-width: 900px;
+}
+
+.adesao-parado {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  .adesao-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .adesao-kpi {
+    padding: 20px;
+  }
+}

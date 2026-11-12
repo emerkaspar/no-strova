@@ -1,11 +1,14 @@
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  updatePassword,
 } from 'firebase/auth';
 import { app } from './firebase.js';
 
@@ -30,6 +33,19 @@ export function criarConta(email, senha) {
   return createUserWithEmailAndPassword(auth, email, senha);
 }
 
+/** A conta tem senha (e-mail/senha)? Quem entra só com o Google não tem senha para trocar aqui. */
+export function contaTemSenha() {
+  return auth.currentUser?.providerData.some((p) => p.providerId === 'password') ?? false;
+}
+
+/** Confirma a senha atual e grava a nova. */
+export async function alterarSenha(senhaAtual, novaSenha) {
+  const usuario = auth.currentUser;
+  if (!usuario?.email) throw Object.assign(new Error('sem sessão'), { code: 'auth/requires-recent-login' });
+  await reauthenticateWithCredential(usuario, EmailAuthProvider.credential(usuario.email, senhaAtual));
+  await updatePassword(usuario, novaSenha);
+}
+
 export function sair() {
   return signOut(auth);
 }
@@ -38,6 +54,7 @@ const MENSAGENS = {
   'auth/invalid-credential': 'Senha errada. Pelo menos o treino você lembra.',
   'auth/wrong-password': 'Senha errada. Pelo menos o treino você lembra.',
   'auth/user-not-found': 'Senha errada. Pelo menos o treino você lembra.',
+  'auth/requires-recent-login': 'Por segurança, saia e entre de novo antes de trocar a senha.',
   'auth/invalid-email': 'E-mail inválido. Confere aí.',
   'auth/email-already-in-use': 'Já existe uma conta com este e-mail.',
   'auth/weak-password': 'A senha é fraca demais. Use ao menos 8 caracteres.',

@@ -260,6 +260,7 @@ export async function excluirUsuario(uid: string): Promise<void> {
   }
   await db.recursiveDelete(db.doc(`preferencias/${uid}`));
   await getStorage().bucket().deleteFiles({ prefix: `atividades/${uid}/`, force: true });
+  await getStorage().bucket().deleteFiles({ prefix: `avatares/${uid}/`, force: true });
 
   // Auth primeiro: sem a conta, o usuário não volta a gravar dados enquanto o perfil é removido.
   try {
