@@ -471,11 +471,11 @@
 
 /* Cores das zonas. Escuro: texto preto sobre o fundo (contraste de 6,1:1 a 13,4:1). */
 :root {
-  --zona-optimal: #ff5200; /* laranja da marca, como no mockup */
-  --zona-neutral: #d4d4d4;
-  --zona-freshness: #4ade80;
-  --zona-transicao: #7dd3fc;
-  --zona-overload: #f87171;
+  --zona-optimal: #4ade80; /* verde */
+  --zona-neutral: #facc15; /* amarelo (texto escuro por cima nos dois temas) */
+  --zona-freshness: #60a5fa; /* azul */
+  --zona-transicao: #f472b6; /* rosa */
+  --zona-overload: #f87171; /* vermelho */
   /* Cartões flutuantes (hint): mais claros que as superfícies para se destacarem do fundo */
   --elevado: #262626;
   --realce: rgba(255, 255, 255, 0.07);
@@ -483,10 +483,10 @@
 
 /* Claro: texto branco sobre o fundo (contraste de 5,0:1 a 7,7:1). */
 :root[data-tema='claro'] {
-  --zona-optimal: #c93c00;
-  --zona-neutral: #52525b;
-  --zona-freshness: #15803d;
-  --zona-transicao: #0369a1;
+  --zona-optimal: #15803d;
+  --zona-neutral: #eab308;
+  --zona-freshness: #1d4ed8;
+  --zona-transicao: #be185d;
   --zona-overload: #b91c1c;
   --elevado: #ffffff;
   --realce: rgba(0, 0, 0, 0.05);
@@ -515,6 +515,13 @@
 :root[data-tema='claro'] .hero {
   --hero-fg: #ffffff;
   --hero-tile: rgba(255, 255, 255, 0.16);
+}
+
+/* Amarelo é claro demais para texto branco: a zona neutra usa texto escuro nos dois temas (contraste ~9:1) */
+.hero.hero-zona-neutral,
+:root[data-tema='claro'] .hero.hero-zona-neutral {
+  --hero-fg: #1a1a1a;
+  --hero-tile: rgba(0, 0, 0, 0.12);
 }
 
 .hero p {
@@ -643,10 +650,18 @@
 
 .zona-amostra {
   flex: none;
-  width: 14px;
-  height: 14px;
-  margin-top: 3px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 6px;
+  color: var(--cg-chip-fg);
+}
+
+.chip-icone {
+  display: inline-flex;
 }
 
 .zona-amostra-optimal {
@@ -1816,7 +1831,7 @@ textarea {
 }
 
 .meta-atinge {
-  border-left-color: var(--zona-freshness);
+  border-left-color: var(--zona-optimal);
 }
 
 .meta-abaixo {
@@ -1824,7 +1839,7 @@ textarea {
 }
 
 .meta-acima {
-  border-left-color: var(--zona-transicao);
+  border-left-color: var(--zona-freshness);
 }
 
 .chip-estado {
@@ -2139,9 +2154,9 @@ textarea {
   --cg-fitness: #ff5200;
   --cg-fadiga: #e5e5e5;
   --cg-peso: #facc15;
-  --cg-zona-transicao: #60a5fa;
-  --cg-zona-freshness: #2dd4bf;
-  --cg-zona-neutral: #a3a3a3;
+  --cg-zona-transicao: #f472b6;
+  --cg-zona-freshness: #60a5fa;
+  --cg-zona-neutral: #facc15;
   --cg-zona-optimal: #4ade80;
   --cg-zona-overload: #f87171;
   --cg-chip-fg: #0a0a0a;
@@ -2156,10 +2171,10 @@ textarea {
   --cg-fitness: #c93c00;
   --cg-fadiga: #3f3f46;
   --cg-peso: #a16207;
-  --cg-zona-transicao: #2563eb;
-  --cg-zona-freshness: #0f9488;
-  --cg-zona-neutral: #737373;
-  --cg-zona-optimal: #16a34a;
+  --cg-zona-transicao: #be185d;
+  --cg-zona-freshness: #1d4ed8;
+  --cg-zona-neutral: #eab308;
+  --cg-zona-optimal: #15803d;
   --cg-zona-overload: #dc2626;
   --cg-chip-fg: #ffffff;
   --cg-futuro: rgba(10, 10, 10, 0.045);
@@ -2397,6 +2412,13 @@ textarea {
 .cg-regua-seg,
 .cg-chip {
   background: var(--cg-cor);
+}
+
+/* texto escuro sobre o amarelo, também no tema claro */
+.cg-chip.cg-zona-neutral,
+:root[data-tema='claro'] .cg-chip.cg-zona-neutral,
+.zona-amostra-neutral {
+  color: #1a1a1a;
 }
 
 /* Sem peso cadastrado: o terceiro painel vira um estado vazio com link */

@@ -4,7 +4,7 @@ import { h } from './dom.js';
 import { desenhoDoPersonagem } from './personagens.js';
 
 /**
- * Preenche `el` com o avatar do perfil: foto ou personagem (o padrão é o Muttley).
+ * Preenche `el` com o avatar do perfil: foto ou personagem (o padrão é o Dick Vigarista).
  * A foto vem por URL assinada; enquanto carrega (ou se falhar) fica o personagem do perfil.
  * @param {HTMLElement} el
  * @param {{ uid?: string|null, perfil?: any, email?: string|null }} dados

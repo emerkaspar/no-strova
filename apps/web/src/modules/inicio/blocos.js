@@ -69,8 +69,8 @@ function botaoDoClima(motivo, aoBuscar) {
 }
 
 /**
- * 1. Bloco de destaque: a Forma de hoje em número grande, com a cor da zona (ótima = laranja da marca, fresca =
- * verde, neutra = cinza, transição = azul, sobrecarga = vermelho) e quatro dados menores. A frase e a explicação
+ * 1. Bloco de destaque: a Forma de hoje em número grande, com a cor da zona (ótima = verde, neutra = âmbar,
+ * descansada = azul, transição = rosa, sobrecarga = vermelho, cada uma com seu ícone) e quatro dados menores. A frase e a explicação
  * das zonas ficam no hint do chip e do número. Ver destaqueDoInicio.
  */
 export function blocoForma({ serie, carregou, semHrss = false, clima = null, climaMotivo = null, aoBuscarClima = () => {} }) {

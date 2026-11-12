@@ -2,7 +2,7 @@
  * Avatar do usuário. Guardado em users/{uid}.avatar como texto:
  *  - 'foto'                 → a foto enviada pelo usuário (Storage: avatares/{uid}/foto.jpg);
  *  - 'personagem:<id>'      → um dos personagens padrão abaixo;
- *  - ausente/null/inválido  → o personagem padrão (Muttley).
+ *  - ausente/null/inválido  → o personagem padrão (Dick Vigarista).
  */
 
 export const AVATAR_FOTO = 'foto';
@@ -25,7 +25,7 @@ export const PERSONAGENS = Object.freeze([
 ]);
 
 /** Personagem de quem ainda não escolheu avatar. */
-export const PERSONAGEM_PADRAO = 'muttley';
+export const PERSONAGEM_PADRAO = 'dick-vigarista';
 
 const IDS = new Set(PERSONAGENS.map((p) => p.id));
 

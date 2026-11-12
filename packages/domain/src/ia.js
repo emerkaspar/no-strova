@@ -126,6 +126,8 @@ export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado', prop
     .filter((m) => esporte === 'ambos' || m.esporte === esporte)
     .filter((m) => (ORDEM_DE_NIVEL[m.nivel] ?? 0) <= teto)
     .filter((m) => FOCOS[m.foco]?.intensidade !== 'teste') // o teste de LTHR é só da biblioteca
+    // zona 1 é fácil demais para quem não é iniciante: a recuperação só entra no cardápio do iniciante
+    .filter((m) => m.foco !== 'recuperacao' || teto === ORDEM_DE_NIVEL.iniciante)
     .map((m) => ({
       id: m.id,
       nome: m.nome,

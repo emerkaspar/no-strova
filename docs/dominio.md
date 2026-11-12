@@ -325,7 +325,7 @@ Regras puras em `packages/domain/src/provas.js` e `planoAnual.js` (testadas); te
 - Só dias **a partir de amanhã**, sem treino planejado ou realizado, e nunca depois do evento. Na **semana do evento**, só uma **soltura** leve (Z1) na véspera, de 45 min no pedal e 30 na corrida.
 - **Variedade (regra de ouro):** todo treino do rascunho é **estruturado** (aquecimento, blocos por zona, às vezes aceleradas ou ondas) e tem **nome próprio**; o mesmo treino não se repete enquanto houver outro, e o rascunho nunca traz dois dias seguidos com o mesmo nome.
   - **Qualidade:** até **duas sessões por semana**, uma **forte** (construção e pico: limiar, over-under, pirâmide, VO2máx, subidas, sprints) e uma **moderada** (tempo, progressivo, fartlek), de **focos diferentes**; na base, duas moderadas. Vêm do catálogo, do nível e do esporte; o foco usado há mais tempo vem primeiro, e nenhum modelo se repete em 6 semanas. A segunda sessão só entra com 4 ou mais dias livres e fora do nível iniciante; **semana de recuperação não tem qualidade**. No máximo 1 forte por semana, a 48 h de outro intenso e longe do longão.
-  - **Rodagens leves e longões** vêm de um conjunto de treinos de base (`treinosDeBase.js`): rodagens (Sem Pressa, Passeio da Vovó, Soltando a Ferrugem, Pé de Chinelo, Pimenta nas Aceleradas, Maré Mansa, Escadinha do Bem, Fartlek Sem Compromisso) e longões (Raiz, Final Feliz, Montanha-Russa, Degraus), em **rodízio** (o usado há mais tempo volta primeiro). Em semana de recuperação, só as rodagens bem leves (e o Longão Raiz).
+  - **Rodagens leves e longões** vêm de um conjunto de treinos de base (`treinosDeBase.js`): rodagens (Sem Pressa, Passeio da Vovó, Soltando a Ferrugem, Pé de Chinelo, Pimenta nas Aceleradas, Maré Mansa, Escadinha do Bem, Fartlek Sem Compromisso) e longões (Raiz, Final Feliz, Montanha-Russa, Degraus), em **rodízio** (o usado há mais tempo volta primeiro). Em semana de recuperação, só as rodagens bem leves (e o Longão Raiz). O Passeio da Vovó (zona 1) tem no máximo 40 min.
 - **Longão = 2 horas ou mais**, nos dois esportes (`MINIMO_DO_LONGAO_MIN`; 5 h no máximo; pelo menos 1,4 vez a rodagem leve da semana). Se a carga da semana não comporta 2 h, **não há longão** e o dia vira uma rodagem comum (ou fica livre), com aviso. **Rodagem leve tem no mínimo 45 min no pedal e 30 na corrida** (`MINIMO_DA_RODAGEM_MIN`; pedal leve de 20 ou 30 minutos não existe) e no máximo 90, em múltiplos de 5; vale também para as rodagens de recuperação e para a soltura da véspera do evento.
 - **Carga:** as durações seguem a meta da semana (o longão pesa 1,5 contra 1 de cada rodagem), mas **passar até 25% da meta é aceito** (`limiteSobreMeta`): o rascunho prefere variar a ficar exatamente na meta. Sem folga, ele **tira dias** (começando pelo fim da semana) em vez de encher a semana de sessões curtas, e avisa. A carga conta o que já foi feito e o que já está planejado na semana.
 - Cada semana mostra "meta · rascunho · já no plano"; o rascunho pode ficar abaixo da meta quando faltam dias livres.
@@ -387,7 +387,7 @@ Biblioteca de treinos estruturados para **ciclismo e corrida**, com muita varied
 ### Catálogo (no código, sem custo de leitura)
 - **12 focos em 3 grupos** e **3 níveis** (iniciante, intermediário, avançado):
   - **Qualidade (9):** VO2máx, limiar, tempo, over-under, pirâmide, fartlek, sprints, progressivo e subidas.
-  - **Leves (2), novos:** **recuperação** (zona 1; 45 a 75 min no pedal e 30 a 50 min na corrida) e **resistência** (zona 2: contínuos, com aceleradas, com ondas em zona 3, e os **longões** de 2 h ou mais, "Longão do Domingo" e "Longão com Gran Finale"). Pedal leve nunca fica abaixo de 45 min. As durações dependem do esporte: o catálogo aceita `passos` como função do esporte. Têm intensidade `baixa` e entram nas sugestões da semana.
+  - **Leves (2), novos:** **recuperação** (zona 1, que é muito leve: só **um** treino, "Café com Leite", **só do nível iniciante** e curto, 25 min no pedal e 15 min na corrida fora aquecimento e volta; a IA só o considera para o iniciante, e intermediário e avançado não têm treino de zona 1) e **resistência** (zona 2: contínuos, com aceleradas, com ondas em zona 3, e os **longões** de 2 h ou mais, "Longão do Domingo" e "Longão com Gran Finale"). O pedal de resistência nunca fica abaixo de 45 min. As durações dependem do esporte: o catálogo aceita `passos` como função do esporte. Têm intensidade `baixa` e entram nas sugestões da semana.
   - **Teste de LTHR (1), novo:** "Hora da Verdade", o protocolo de 30 min de Joe Friel como treino exportável (aquecimento de 18 min, 10 + 20 min no maior ritmo sustentável, volta de 10 min), disponível nos três níveis. Os passos principais têm **alvo de FC aberto** (`alvoAberto`): o relógio não cobra uma faixa que o teste ainda vai descobrir. Só aparece na biblioteca: nunca é sugerido nem escolhido pela IA.
   - Hoje são **46 treinos no ciclismo e 47 na corrida** (antes 33 e 34; o teste de LTHR conta nos três níveis), cada um com um **nome único e divertido** (ex.: "Oi, Coração!", "Gangorra do Sofrimento", "Café com Leite"), que fica mais debochado conforme o treino aperta e é o mesmo na tela, no plano e no relógio, a **especificação técnica** e uma descrição de como executar. Os testes garantem passos válidos, nomes únicos por esporte e nível (e diferentes dos treinos de base da preparação), cobertura de recuperação e resistência em todos os níveis e as regras de aquecimento e de duração.
 
@@ -544,13 +544,15 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
    - **Dados menores:** **Condicionamento** (com a variação em 7 dias: "▲ 1,2 em 7 dias", "▼ 0,4 em 7 dias" ou "estável em 7 dias"), **Fadiga** ("média de 7 dias"), **Forma amanhã** (Condicionamento − Fadiga de hoje, o efeito do treino de hoje, com a zona de amanhã) e **Último treino** ("Hoje", "Ontem" ou "Há N dias", com o HRSS daquele dia).
    - **Cor por zona** (texto preto no escuro e branco no claro; contrastes: escuro 6,1 a 13,4:1, claro 5,0 a 7,7:1):
 
-| Zona (Forma) | Escuro | Claro |
-|---|---|---|
-| Ótima (−30 a −10) | `#FF5200` (laranja da marca, como no mockup) | `#C93C00` |
-| Neutra (−10 a +5) | `#D4D4D4` (cinza claro) | `#52525B` |
-| Descansado (+5 a +25) | `#4ADE80` (verde) | `#15803D` |
-| Transição (> +25) | `#7DD3FC` (azul) | `#0369A1` |
-| Sobrecarga (< −30) | `#F87171` (vermelho) | `#B91C1C` |
+| Zona (Forma) | Escuro | Claro | Ícone |
+|---|---|---|---|
+| Ótima (−30 a −10) | `#4ADE80` (verde) | `#15803D` | alvo |
+| Neutra (−10 a +5) | `#FACC15` (amarelo) | `#EAB308` | equilíbrio (igual) |
+| Descansado (+5 a +25) | `#60A5FA` (azul) | `#1D4ED8` | lua |
+| Transição (> +25) | `#F472B6` (rosa) | `#BE185D` | pausa |
+| Sobrecarga (< −30) | `#F87171` (vermelho) | `#B91C1C` | chama |
+
+**Exceção de contraste:** o amarelo da zona neutra é claro demais para texto branco, então ela usa texto escuro (`#1A1A1A`, cerca de 9:1) nos dois temas (bloco, chip do gráfico e amostra do hint). O ícone aparece no chip do bloco e na lista do hint (`ICONE_DA_ZONA` em `dicaZonas.js`). O gráfico principal usa as mesmas cores (`--cg-zona-*`).
 
    A cor nunca é o único sinal: o chip traz o nome da zona. Para trocar uma cor, basta mudar `--hero-bg` da classe `.hero-zona-<id>` em `layout.css`.
    - **Sem dados:** "Vamos começar" (botão **Importar arquivo**) ou, se há atividades mas nenhuma com HRSS, "Falta a FC" (botão **Configurar FC**).

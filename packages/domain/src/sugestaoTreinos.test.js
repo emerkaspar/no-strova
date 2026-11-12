@@ -3,7 +3,7 @@ import { diasEntre } from './forma.js';
 import { sugerirTreinos } from './sugestaoTreinos.js';
 
 const HOJE = '2026-11-04'; // quarta-feira
-const base = { hoje: HOJE, esporte: 'ciclismo', nivel: 'intermediario' };
+const base = { hoje: HOJE, esporte: 'ciclismo', nivel: 'iniciante' };
 const focosDeIntensidade = (r, intensidade) => r.sugestoes.filter((s) => s.intensidade === intensidade);
 
 describe('sugerirTreinos: dias leves', () => {
@@ -62,6 +62,12 @@ describe('sugerirTreinos: dias leves', () => {
     const leves = ini.sugestoes.filter((s) => s.intensidade === 'baixa');
     expect(leves.length).toBeGreaterThan(0);
     expect(leves.every((s) => s.modelo.nivel === 'iniciante')).toBe(true);
+  });
+
+  it('quem não é iniciante não recebe recuperação em zona 1', () => {
+    for (const nivel of ['intermediario', 'avancado']) {
+      expect(sugerirTreinos({ ...base, nivel }).sugestoes.some((s) => s.modelo.foco === 'recuperacao'), nivel).toBe(false);
+    }
   });
 
   it('um treino leve recusado não volta', () => {

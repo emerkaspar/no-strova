@@ -37,6 +37,12 @@ export async function usarPersonagem(uid, id) {
   await removerFotoPerfil(uid);
 }
 
+/** Remove a foto: apaga o arquivo e volta ao personagem padrão. */
+export async function removerFoto(uid) {
+  await atualizarAvatar(uid, null);
+  await removerFotoPerfil(uid);
+}
+
 /** Salva nome e data de nascimento (mesma validação do cadastro). Devolve os valores normalizados. */
 export async function salvarDadosPessoais(uid, { nome, dataNascimento }) {
   const dados = validarDadosPerfil({ nome, dataNascimento });

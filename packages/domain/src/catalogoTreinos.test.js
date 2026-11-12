@@ -96,17 +96,18 @@ describe('catálogo: aquecimento e volta à calma', () => {
 });
 
 describe('catálogo: recuperação e resistência', () => {
-  it('cada nível tem treinos de recuperação e de resistência, nos dois esportes', () => {
+  it('cada nível tem treinos de resistência e só o iniciante tem recuperação (zona 1), nos dois esportes', () => {
     for (const esporte of ['ciclismo', 'corrida']) {
       for (const nivel of Object.keys(NIVEIS)) {
-        expect(modelosDoCatalogo({ esporte, nivel, foco: 'recuperacao' }).length, `${esporte} ${nivel} recuperação`).toBeGreaterThanOrEqual(1);
+        expect(modelosDoCatalogo({ esporte, nivel, foco: 'recuperacao' }).length, `${esporte} ${nivel} recuperação`).toBe(nivel === 'iniciante' ? 1 : 0);
         expect(modelosDoCatalogo({ esporte, nivel, foco: 'resistencia' }).length, `${esporte} ${nivel} resistência`).toBeGreaterThanOrEqual(1);
       }
     }
   });
 
-  it('as durações dependem do esporte: o pedal leve nunca fica abaixo de 45 min', () => {
-    for (const m of doGrupo(LEVES)) {
+  it('as durações dependem do esporte: a zona 1 é curta e o pedal leve passa de 45 min só na resistência', () => {
+    for (const m of doGrupo(['recuperacao'])) expect(duracaoMin(m), m.id).toBeLessThanOrEqual(40);
+    for (const m of doGrupo(['resistencia'])) {
       if (m.esporte === 'ciclismo') expect(duracaoMin(m), m.id).toBeGreaterThanOrEqual(45);
       else expect(duracaoMin(m), m.id).toBeGreaterThanOrEqual(30);
     }

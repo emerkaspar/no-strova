@@ -9,12 +9,12 @@ describe('avatares', () => {
     expect(ids.every((id) => /^[a-z-]{2,30}$/.test(id))).toBe(true);
   });
 
-  it('lê foto, personagem e cai no Muttley no resto', () => {
+  it('lê foto, personagem e cai no Dick Vigarista no resto', () => {
     expect(lerAvatar(AVATAR_FOTO)).toEqual({ tipo: 'foto' });
     expect(lerAvatar(avatarDoPersonagem('muttley'))).toEqual({ tipo: 'personagem', id: 'muttley' });
-    expect(lerAvatar('personagem:inexistente')).toEqual({ tipo: 'personagem', id: 'muttley' });
-    expect(lerAvatar(null)).toEqual({ tipo: 'personagem', id: 'muttley' });
-    expect(lerAvatar(42)).toEqual({ tipo: 'personagem', id: 'muttley' });
+    expect(lerAvatar('personagem:inexistente')).toEqual({ tipo: 'personagem', id: 'dick-vigarista' });
+    expect(lerAvatar(null)).toEqual({ tipo: 'personagem', id: 'dick-vigarista' });
+    expect(lerAvatar(42)).toEqual({ tipo: 'personagem', id: 'dick-vigarista' });
   });
 
   it('valida o que pode ser gravado', () => {

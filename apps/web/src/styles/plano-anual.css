@@ -254,13 +254,13 @@
 
 /* a cor da situação aparece só no indicador, na diferença e na barra */
 .mc-positivo {
-  --mc-tom: var(--zona-freshness);
-  --mc-barra: var(--zona-freshness);
+  --mc-tom: var(--zona-optimal);
+  --mc-barra: var(--zona-optimal);
 }
 
 .mc-atencao {
-  --mc-tom: var(--zona-transicao);
-  --mc-barra: var(--zona-transicao);
+  --mc-tom: var(--zona-freshness);
+  --mc-barra: var(--zona-freshness);
 }
 
 .mc-negativo {

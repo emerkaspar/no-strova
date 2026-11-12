@@ -1,12 +1,12 @@
 import { lerAvatar, PERSONAGENS } from '@no-strova/domain';
 import { alterarSenha, aoMudarSessao, contaTemSenha, obterSessao } from '../../application/sessao.js';
-import { salvarDadosPessoais, usarFoto, usarPersonagem } from '../../application/conta.js';
+import { removerFoto, salvarDadosPessoais, usarFoto, usarPersonagem } from '../../application/conta.js';
 import { SENHA_MINIMA } from '../../core/constants.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { avatarDe } from '../../utils/avatar.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
-import { abrirModal } from '../../utils/modal.js';
+import { abrirModal, confirmar } from '../../utils/modal.js';
 import { desenhoDoPersonagem } from '../../utils/personagens.js';
 
 /** Seção de avatar: pré-visualização, enviar foto e a grade de personagens. */
@@ -16,6 +16,7 @@ function secaoAvatar() {
   previa.atualizar(obterSessao());
   const entrada = h('input', { type: 'file', accept: 'image/*', hidden: true, 'aria-label': 'Escolher foto' });
   const botaoFoto = h('button', { class: 'btn btn-secundario', type: 'button' }, icone('camera', 18), 'Enviar foto');
+  const botaoRemover = h('button', { class: 'btn btn-secundario', type: 'button', hidden: true }, icone('lixeira', 18), 'Remover foto');
   const grade = h('div', { class: 'conta-personagens', role: 'group', 'aria-label': 'Personagens' });
 
   const botoesPersonagem = PERSONAGENS.map((p) => {
@@ -27,7 +28,7 @@ function secaoAvatar() {
   grade.append(...botoesPersonagem);
 
   async function trocar(acao, botao) {
-    const todos = [botaoFoto, ...botoesPersonagem];
+    const todos = [botaoFoto, botaoRemover, ...botoesPersonagem];
     mensagem.limpar();
     todos.forEach((b) => (b.disabled = true));
     botao?.classList.add('carregando');
@@ -48,9 +49,15 @@ function secaoAvatar() {
     if (arquivo) trocar(() => usarFoto(obterSessao().uid, arquivo), botaoFoto);
   });
 
+  botaoRemover.addEventListener('click', async () => {
+    const ok = await confirmar({ titulo: 'Remover a foto?', mensagem: 'O seu avatar volta ao personagem padrão. Você pode enviar outra foto quando quiser.', tipo: 'aviso', icone: 'lixeira', confirmarTexto: 'Remover' });
+    if (ok) trocar(() => removerFoto(obterSessao().uid), botaoRemover);
+  });
+
   function atualizar(sessao) {
     previa.atualizar(sessao);
     const atual = lerAvatar(sessao.perfil?.avatar);
+    botaoRemover.hidden = atual.tipo !== 'foto';
     for (const b of botoesPersonagem) b.setAttribute('aria-pressed', String(atual.tipo === 'personagem' && atual.id === b.dataset.id));
   }
 
@@ -62,7 +69,7 @@ function secaoAvatar() {
       'div',
       { class: 'conta-avatar-linha' },
       previa.el,
-      h('div', { class: 'conta-avatar-acoes' }, h('p', { class: 'dica' }, 'Envie uma foto sua (ela é recortada em quadrado) ou escolha um personagem abaixo.'), h('div', { class: 'conta-botoes' }, botaoFoto), entrada),
+      h('div', { class: 'conta-avatar-acoes' }, h('p', { class: 'dica' }, 'Envie uma foto sua (ela é recortada em quadrado) ou escolha um personagem abaixo.'), h('div', { class: 'conta-botoes' }, botaoFoto, botaoRemover), entrada),
     ),
     grade,
     mensagem.el,

@@ -62,7 +62,7 @@ export const TREINOS_DE_BASE = Object.freeze([
     passos: (d) => [aquecer(5, 'Z1'), principal(d - 10, 'Z2', 'Ritmo de conversa'), voltar(5)],
   },
   {
-    id: 'leve-recuperacao', tipo: 'leve', nome: 'Passeio da Vovó', minMin: 30, maxMin: 90, recuperacao: true,
+    id: 'leve-recuperacao', tipo: 'leve', nome: 'Passeio da Vovó', minMin: 30, maxMin: 40, recuperacao: true,
     motivo: 'Giro bem leve em zona 1 para as pernas se recuperarem.',
     passos: (d) => [principal(d, 'Z1', 'Bem leve, sem olhar o relógio')],
   },

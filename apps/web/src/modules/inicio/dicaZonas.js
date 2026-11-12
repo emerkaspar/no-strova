@@ -1,7 +1,17 @@
 import { FAIXAS_FORMA } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
+import { icone } from '../../utils/icones.js';
 
 let sequencia = 0;
+
+/** Ícone de cada zona de Forma (junto com a cor, para não depender só dela). */
+export const ICONE_DA_ZONA = Object.freeze({
+  optimal: 'alvo',
+  neutral: 'equilibrio',
+  freshness: 'lua',
+  transicao: 'pausa',
+  overload: 'chama',
+});
 
 /**
  * Chip da zona de Forma com um hint que explica as cinco zonas e destaca a atual.
@@ -20,7 +30,7 @@ export function criarDicaZonas({ zonaAtual, rotuloChip, valor, resumo }) {
     return h(
       'li',
       { class: `zona-linha${atual ? ' zona-atual' : ''}`, 'aria-current': atual ? 'true' : null },
-      h('span', { class: `zona-amostra zona-amostra-${f.id}`, 'aria-hidden': 'true' }),
+      h('span', { class: `zona-amostra zona-amostra-${f.id}`, 'aria-hidden': 'true' }, icone(ICONE_DA_ZONA[f.id], 14)),
       h(
         'div',
         { class: 'zona-corpo' },
@@ -48,6 +58,7 @@ export function criarDicaZonas({ zonaAtual, rotuloChip, valor, resumo }) {
   const chip = h(
     'button',
     { class: 'chip-zona', type: 'button', 'aria-describedby': id, 'aria-expanded': 'false' },
+    h('span', { class: 'chip-icone', 'aria-hidden': 'true' }, icone(ICONE_DA_ZONA[zonaAtual] ?? 'info', 16)),
     h('span', { class: 'chip-texto' }, rotuloChip),
     h('span', { class: 'chip-info', 'aria-hidden': 'true' }, 'i'),
   );
