@@ -7122,6 +7122,10 @@ button.ativ-badge:hover {
   fill: currentColor;
 }
 
+.ativ-orelha-intervals {
+  color: var(--primary);
+}
+
 .ativ-abrir {
   justify-content: center;
   padding: 6px 14px;

@@ -62,7 +62,7 @@ const OPCOES_POR_PAGINA = [10, 25, 50, 100];
 /** De onde veio a atividade: sincronizada do Garmin (`fonte`), arquivo enviado ou cadastro manual (`origem`). */
 function origemDaAtividade(a) {
   if (a.fonte === 'garmin') return { id: 'garmin', rotulo: 'Garmin Connect', icone: 'garmin' };
-  if (a.fonte === 'intervals') return { id: 'intervals', rotulo: 'intervals.icu', icone: 'arquivo' };
+  if (a.fonte === 'intervals') return { id: 'intervals', rotulo: 'intervals.icu', icone: 'intervals' };
   if (a.origem === 'manual') return { id: 'manual', rotulo: 'Cadastro manual', icone: 'lapis' };
   return { id: 'arquivo', rotulo: 'Arquivo importado', icone: 'arquivo' };
 }

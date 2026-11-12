@@ -35,6 +35,8 @@ const CAMINHOS = Object.freeze({
   sino: ['M6 16v-5a6 6 0 1 1 12 0v5l1.5 2h-15z', 'M10 21h4'],
   // origem da atividade (tabela de atividades)
   garmin: ['M12 3.5l8.5 16.5h-17z'],
+  // intervals.icu: barras de intervalos de alturas diferentes sobre a linha de base
+  intervals: ['M4.5 20.5h15', 'M6.5 17v-4M10 17V7.5M13.5 17v-6M17 17V4.5'],
   ia: ['M10.5 6c.7 4.2 2.3 5.8 6.5 6.5-4.2.7-5.8 2.3-6.5 6.5-.7-4.2-2.3-5.8-6.5-6.5 4.2-.7 5.8-2.3 6.5-6.5z', 'M19 2.5c.25 1.7.8 2.25 2.5 2.5-1.7.25-2.25.8-2.5 2.5-.25-1.7-.8-2.25-2.5-2.5 1.7-.25 2.25-.8 2.5-2.5z', 'M18.5 16.5c.2 1.3.6 1.7 1.9 1.9-1.3.2-1.7.6-1.9 1.9-.2-1.3-.6-1.7-1.9-1.9 1.3-.2 1.7-.6 1.9-1.9z'],
   lapis: ['M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z', 'M14 7l3 3'],
   arquivo: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5'],
