@@ -26,7 +26,7 @@ export {
   listarUsuarios,
 } from "./modules/auth/auth.functions";
 export { onAtividadeWrite, reconstruirEstresseDiario } from "./modules/estresse/estresse.functions";
-export { decidirRascunho, iaChamadasRestantes, sugerirPlanoAnual, sugerirTreinoDoTrajeto, sugerirTreinos, sugerirTreinoUnico } from "./modules/ia/ia.functions";
+export { decidirRascunho, gerarSemanaComIa, iaChamadasRestantes, sugerirPlanoAnual, sugerirTreinoDoTrajeto, sugerirTreinos, sugerirTreinoUnico } from "./modules/ia/ia.functions";
 export { marcarConquistasComoVistas, onMetaProgressaoWrite } from "./modules/objetivos/objetivos.functions";
 export {
   avisarNovoUsuarioPendente,
@@ -35,6 +35,8 @@ export {
   avisarTreinosDaTarde,
   marcarNotificacoesComoLidas,
   marcarTodasNotificacoesComoLidas,
+  registrarDispositivoPush,
+  removerDispositivoPush,
   resolverAvisoDeLthr,
   resolverAvisoDeMedidas,
   resolverAvisoDePesagem,

@@ -84,7 +84,7 @@ service cloud.firestore {
     // Plano de treino: o cliente escreve (nenhuma decisão do servidor depende destes campos), mas só valores plausíveis.
     function treinoValido() {
       let t = request.resource.data;
-      return t.keys().hasOnly(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'estresseEstimado', 'estresseManual', 'observacoes', 'status', 'atividadeId', 'criadoEm', 'passos', 'nomeTreino', 'modeloId'])
+      return t.keys().hasOnly(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'estresseEstimado', 'estresseManual', 'observacoes', 'status', 'atividadeId', 'criadoEm', 'passos', 'nomeTreino', 'modeloId', 'geradoPorIa'])
         && t.keys().hasAll(['userId', 'data', 'esporte', 'duracaoMin', 'zona', 'status'])
         && t.userId == request.auth.uid
         && t.data is string
@@ -102,7 +102,9 @@ service cloud.firestore {
         // (validarPassos); aqui o limite é o tamanho.
         && (!('passos' in t) || (t.passos is list && t.passos.size() >= 1 && t.passos.size() <= 30))
         && (!('nomeTreino' in t) || (t.nomeTreino is string && t.nomeTreino.size() >= 1 && t.nomeTreino.size() <= 60))
-        && (!('modeloId' in t) || t.modeloId == null || (t.modeloId is string && t.modeloId.size() <= 80));
+        && (!('modeloId' in t) || t.modeloId == null || (t.modeloId is string && t.modeloId.size() <= 80))
+        // marca dos treinos que a rotina de domingo (IA) cria; só o servidor a grava, e o cliente a preserva ao editar
+        && (!('geradoPorIa' in t) || t.geradoPorIa is bool);
     }
 
     match /treinosPlanejados/{id} {
@@ -230,16 +232,17 @@ service cloud.firestore {
 
     function preferenciasNotificacaoValidas(n) {
       return n is map
-        && n.keys().hasOnly(['tipos', 'intervaloPesoDias', 'intervaloMedidasDias', 'intervaloLthrSemanas'])
+        && n.keys().hasOnly(['tipos', 'tiposPush', 'intervaloPesoDias', 'intervaloMedidasDias', 'intervaloLthrSemanas'])
         && intervaloNotifOk(n, 'intervaloPesoDias', 1, 90)
         && intervaloNotifOk(n, 'intervaloMedidasDias', 7, 365)
         && intervaloNotifOk(n, 'intervaloLthrSemanas', 2, 52)
-        && (!('tipos' in n) || tiposNotificacaoValidos(n.tipos));
+        && (!('tipos' in n) || tiposNotificacaoValidos(n.tipos))
+        && (!('tiposPush' in n) || tiposNotificacaoValidos(n.tiposPush));
     }
 
     function tiposNotificacaoValidos(t) {
       return t is map
-        && t.keys().hasOnly(['treinoHoje', 'treinoOntem', 'comoFoi', 'conflitoTreinos', 'pesar', 'medidas', 'testeLthr', 'provaChegando', 'prazoMeta', 'conquista', 'recorde', 'garminExpirando', 'envioFalhou', 'intervalsChaveInvalida', 'contaAprovada', 'aguardandoAprovacao', 'rascunhoIa'])
+        && t.keys().hasOnly(['treinoHoje', 'treinoOntem', 'comoFoi', 'conflitoTreinos', 'pesar', 'medidas', 'testeLthr', 'provaChegando', 'prazoMeta', 'conquista', 'recorde', 'garminExpirando', 'envioFalhou', 'intervalsChaveInvalida', 'contaAprovada', 'aguardandoAprovacao', 'rascunhoIa', 'semanaIa'])
         && tipoNotifOk(t, 'treinoHoje')
         && tipoNotifOk(t, 'treinoOntem')
         && tipoNotifOk(t, 'comoFoi')
@@ -256,7 +259,8 @@ service cloud.firestore {
         && tipoNotifOk(t, 'intervalsChaveInvalida')
         && tipoNotifOk(t, 'contaAprovada')
         && tipoNotifOk(t, 'aguardandoAprovacao')
-        && tipoNotifOk(t, 'rascunhoIa');
+        && tipoNotifOk(t, 'rascunhoIa')
+        && tipoNotifOk(t, 'semanaIa');
     }
 
     // Medidas corporais (fita métrica): um registro por dia (id uid_yyyymmdd). Cada medida é opcional, de 10 a 250 cm.
@@ -377,7 +381,7 @@ service cloud.firestore {
       allow read: if acessoLiberado() && request.auth.uid == uid;
       allow create, update: if acessoLiberado()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding', 'usoGarmin', 'notificacoes'])
+        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding', 'usoGarmin', 'notificacoes', 'planoIaAutomatico'])
         && request.resource.data.keys().hasAll(['userId'])
         && request.resource.data.userId == request.auth.uid
         && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
@@ -392,8 +396,16 @@ service cloud.firestore {
         && (!('esportePrincipal' in request.resource.data) || request.resource.data.esportePrincipal in ['ciclismo', 'corrida', 'ambos'])
         && (!('onboarding' in request.resource.data) || request.resource.data.onboarding in ['concluido', 'pulado'])
         && (!('usoGarmin' in request.resource.data) || request.resource.data.usoGarmin in ['sim', 'nao', 'depois'])
+        && (!('planoIaAutomatico' in request.resource.data) || request.resource.data.planoIaAutomatico is bool)
         && (!('notificacoes' in request.resource.data) || preferenciasNotificacaoValidas(request.resource.data.notificacoes));
       allow delete: if false;
+    }
+
+    // Última semana montada pela IA na rotina de domingo (um documento por usuário, id = uid): resumo, treinos e o que foi
+    // considerado. Só o servidor grava; o dono lê para mostrar o aviso na tela de Treinos.
+    match /semanaIa/{uid} {
+      allow read: if acessoLiberado() && request.auth.uid == uid;
+      allow write: if false;
     }
 
     match /iaRascunhos/{id} {

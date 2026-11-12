@@ -80,6 +80,7 @@ export function estadoInicial(sessao, dados) {
     dias: new Set(p.diasTreino ?? []),
     longao: p.diaLongao ?? null,
     horas: p.horasSemana ?? 6,
+    planoIa: p.planoIaAutomatico === true,
     usoGarmin: p.usoGarmin ?? '',
     querMeta: Boolean(meta),
     metaPeso: paraCampo(meta?.pesoAlvoKg),
@@ -373,6 +374,24 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
       n === 0 ? 'Nenhum dia? Descanso total, então.' : `${n} ${n === 1 ? 'dia' : 'dias'} · ${horas} h por semana${estado.longao === null ? '' : ` · longão de ${NOMES[estado.longao]}`}`;
     horasSaida.textContent = `${horas} h`;
   }
+  // gerar a semana com IA automaticamente (desligado por padrão); só para quem tem a IA liberada
+  const liberadoIa = temRecurso(sessao.perfil, RECURSOS.IA);
+  const planoIaInput = h('input', { type: 'checkbox', role: 'switch', id: 'wz-plano-ia', class: 'interruptor-input', checked: estado.planoIa });
+  planoIaInput.addEventListener('change', () => {
+    estado.planoIa = planoIaInput.checked;
+  });
+  const campoPlanoIa = liberadoIa
+    ? h(
+        'div',
+        { class: 'campo wz-plano-ia' },
+        h(
+          'label',
+          { class: 'wz-interruptor', for: 'wz-plano-ia' },
+          h('span', { class: 'interruptor' }, planoIaInput, h('span', { class: 'interruptor-trilho', 'aria-hidden': 'true' }, h('span', { class: 'interruptor-bolinha' }))),
+          h('span', null, h('strong', null, 'Montar minha semana com IA'), h('span', { class: 'wz-nota' }, 'Todo domingo às 20h a IA analisa seus últimos treinos, como você se sentiu e o seu nível, cria os treinos da semana seguinte nos seus dias de treino e avisa por push o que escolheu e por quê. Você pode trocar ou excluir qualquer treino depois.')),
+        ),
+      )
+    : null;
   horasRange.addEventListener('input', () => {
     estado.horas = Number(horasRange.value);
     desenharSemana();
@@ -391,9 +410,10 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
       linhaLongao,
       h('div', { class: 'campo' }, h('label', { class: 'wz-rotulo', for: 'wz-horas' }, 'Horas por semana'), h('div', { class: 'wz-horas' }, horasRange, horasSaida)),
       resumoSemana,
+      campoPlanoIa,
     ),
     async continuar() {
-      await salvarPassoSemana({ uid, entrada: { diasTreino: [...estado.dias], diaLongao: estado.longao, horasSemana: estado.horas, esportePrincipal: estado.esporte } });
+      await salvarPassoSemana({ uid, entrada: { diasTreino: [...estado.dias], diaLongao: estado.longao, horasSemana: estado.horas, esportePrincipal: estado.esporte }, planoIaAutomatico: liberadoIa ? estado.planoIa : undefined });
     },
   };
 
@@ -613,7 +633,7 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
           'semana',
           'Semana',
           estado.dias.size === 0 ? '—' : [...estado.dias].sort((a, b) => a - b).map((d) => ABREV[d]).join(' · '),
-          `${formatarNumero(estado.horas, estado.horas % 1 === 0 ? 0 : 1)} h${estado.longao === null ? '' : ` · longão de ${NOMES[estado.longao]}`}`,
+          `${formatarNumero(estado.horas, estado.horas % 1 === 0 ? 0 : 1)} h${estado.longao === null ? '' : ` · longão de ${NOMES[estado.longao]}`}${estado.planoIa ? ' · semana com IA' : ''}`,
         ],
         [
           'intervals',

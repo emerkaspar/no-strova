@@ -33,7 +33,11 @@ export const TIPOS_NOTIFICACAO = Object.freeze({
   contaAprovada: { grupo: 'conta', rotulo: 'Conta aprovada', padrao: true },
   aguardandoAprovacao: { grupo: 'conta', rotulo: 'Usuário aguardando aprovação', padrao: true, soAdmin: true },
   rascunhoIa: { grupo: 'conta', rotulo: 'Rascunho da IA pendente', padrao: true },
+  semanaIa: { grupo: 'treino', rotulo: 'Semana de treinos montada pela IA', padrao: true },
 });
+
+/** Tipos que viram push no celular por padrão (o usuário liga ou desliga cada um em Configuração). */
+export const TIPOS_COM_PUSH_PADRAO = Object.freeze(['treinoHoje', 'semanaIa', 'garminExpirando', 'envioFalhou', 'intervalsChaveInvalida']);
 
 export const PADROES_NOTIFICACAO = Object.freeze({
   intervaloPesoDias: 14,
@@ -61,14 +65,17 @@ export const HORA_TREINO_TARDE = 18;
 /**
  * Normaliza as preferências de notificação vindas do documento (ou de um formulário): tipos desligados são os que vêm
  * `false`; intervalos inválidos voltam ao padrão.
- * @returns {{ tipos: Record<string, boolean>, intervaloPesoDias: number, intervaloMedidasDias: number, intervaloLthrSemanas: number }}
+ * @returns {{ tipos: Record<string, boolean>, tiposPush: Record<string, boolean>, intervaloPesoDias: number, intervaloMedidasDias: number, intervaloLthrSemanas: number }}
  */
 export function normalizarPreferenciasNotificacao(entrada) {
   const origem = entrada && typeof entrada === 'object' ? entrada : {};
   const tiposIn = origem.tipos && typeof origem.tipos === 'object' ? origem.tipos : {};
   const tipos = {};
   for (const [tipo, def] of Object.entries(TIPOS_NOTIFICACAO)) tipos[tipo] = typeof tiposIn[tipo] === 'boolean' ? tiposIn[tipo] : def.padrao;
-  const saida = { tipos };
+  const pushIn = origem.tiposPush && typeof origem.tiposPush === 'object' ? origem.tiposPush : {};
+  const tiposPush = {};
+  for (const tipo of Object.keys(TIPOS_NOTIFICACAO)) tiposPush[tipo] = typeof pushIn[tipo] === 'boolean' ? pushIn[tipo] : TIPOS_COM_PUSH_PADRAO.includes(tipo);
+  const saida = { tipos, tiposPush };
   for (const [campo, { min, max }] of Object.entries(LIMITES_INTERVALO)) {
     const n = Number(origem[campo]);
     saida[campo] = Number.isInteger(n) && n >= min && n <= max ? n : PADROES_NOTIFICACAO[campo];
@@ -80,6 +87,13 @@ export function normalizarPreferenciasNotificacao(entrada) {
 export function tipoLigado(preferencias, tipo) {
   if (!TIPOS_NOTIFICACAO[tipo]) return false;
   return normalizarPreferenciasNotificacao(preferencias).tipos[tipo];
+}
+
+/** O tipo está ligado E com push ligado? O push só existe para quem recebe o aviso na central. */
+export function tipoComPush(preferencias, tipo) {
+  if (!TIPOS_NOTIFICACAO[tipo]) return false;
+  const prefs = normalizarPreferenciasNotificacao(preferencias);
+  return prefs.tipos[tipo] && prefs.tiposPush[tipo];
 }
 
 /**
@@ -278,6 +292,14 @@ export function montarNotificacao(tipo, ctx = {}) {
         mensagem: 'Há uma sugestão de treinos para aprovar ou descartar.',
         rota: '#/plano',
         referencia: ctx.rascunhoId,
+      };
+    case 'semanaIa':
+      return {
+        ...base,
+        titulo: ctx.titulo || 'Sua semana de treino está pronta',
+        mensagem: ctx.mensagem || 'A IA montou os treinos da próxima semana. Confira no plano.',
+        rota: '#/plano',
+        referencia: ctx.inicio,
       };
     default:
       return null;

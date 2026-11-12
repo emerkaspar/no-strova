@@ -1,4 +1,4 @@
-import { CATALOGO_TREINOS, FOCOS, modelosDoCatalogo, NIVEIS, somarDias } from '@no-strova/domain';
+import { CATALOGO_TREINOS, FOCOS, modelosDoCatalogo, NIVEIS, RECURSOS, somarDias, temRecurso } from '@no-strova/domain';
 import { montarSerie } from '../../application/forma.js';
 import { excluirModeloProprio, modelosProprios, salvarNivelDosTreinos } from '../../application/treinos.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
@@ -6,6 +6,7 @@ import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarModelos } from '../../infrastructure/modelosRepo.js';
 import { observarTreinos } from '../../infrastructure/planoRepo.js';
 import { observarPreferencias } from '../../infrastructure/calibracaoRepo.js';
+import { observarSemanaIa } from '../../infrastructure/semanaIaRepo.js';
 import { criarAbas } from '../../utils/abas.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -15,6 +16,7 @@ import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { criarCartaoTreino } from './cartaoTreino.js';
 import { criarConstrutor } from './construtor.js';
 import { criarDetalheTreino } from './detalhe.js';
+import { criarPainelSemanaAutomatica } from './semanaAutomatica.js';
 import { criarSecaoSugestoes } from './sugestoes.js';
 import { estadoTreinos, salvarRecolhidas } from './state.js';
 import { criarSecaoTrajetos } from './trajetos/aba.js';
@@ -29,12 +31,14 @@ const DIAS_DE_HISTORICO = 45;
  */
 export function render(raiz, sessao) {
   const hoje = hojeIso();
-  const dados = { treinos: [], configs: [], modelos: [], dias: [], preferencias: null };
-  const carregou = { treinos: false, configs: false, modelos: false, dias: false, preferencias: false };
+  const dados = { treinos: [], configs: [], modelos: [], dias: [], preferencias: null, semanaIa: null };
+  const carregou = { treinos: false, configs: false, modelos: false, dias: false, preferencias: false, semanaIa: false };
   let ativa = true;
   const cancelar = [];
 
   const nivel = () => dados.preferencias?.nivelTreinos ?? 'intermediario';
+  /** O usuário liga "Montar minha semana com IA" no Perfil de treino (e tem a IA liberada): a semana é criada sozinha. */
+  const semanaAutomatica = () => dados.preferencias?.planoIaAutomatico === true && temRecurso(sessao.perfil, RECURSOS.IA);
   const proprios = () => modelosProprios(dados.modelos);
   const mensagem = areaMensagem();
   /** Seção Trajetos: criada uma vez (tem os próprios listeners) e reaproveitada a cada redesenho da página. */
@@ -104,7 +108,9 @@ export function render(raiz, sessao) {
    * cartão (o painel de um trajeto), e some junto quando a seção é recolhida.
    */
   function secao(id, { titulo, acoes = null, corpo, fora = null }) {
-    const recolhida = estaRecolhida(id);
+    // com a semana automática ligada, "Esta semana" abre recolhida em cada visita: o usuário a abre de propósito
+    const forcada = id === 'semana' && semanaAutomatica() && !estadoTreinos.semanaAutoAberta;
+    const recolhida = forcada || estaRecolhida(id);
     const corpoId = `treinos-corpo-${id}`;
     const botao = h(
       'button',
@@ -114,7 +120,12 @@ export function render(raiz, sessao) {
         'aria-expanded': String(!recolhida),
         'aria-controls': corpoId,
         onClick: () => {
-          definirRecolhida(id, !recolhida);
+          if (forcada) {
+            estadoTreinos.semanaAutoAberta = true;
+            if (estaRecolhida(id)) definirRecolhida(id, false);
+          } else {
+            definirRecolhida(id, !recolhida);
+          }
           desenhar();
           raiz.querySelector(`#treinos-${id} .treinos-secao-titulo`)?.focus();
         },
@@ -254,10 +265,11 @@ export function render(raiz, sessao) {
 
     // Esta semana
     let corpoSemana = carregando;
+    const automatica = semanaAutomatica();
     if (pronto) {
       const serie = montarSerie(dados.dias, hoje);
       const forma = serie.length > 0 ? serie[serie.length - 1].forma : null;
-      corpoSemana = criarSecaoSugestoes({
+      const sugestoesManuais = () => criarSecaoSugestoes({
         uid: sessao.uid,
         hoje,
         esporte,
@@ -269,6 +281,27 @@ export function render(raiz, sessao) {
         aoVer: abrirDetalhe,
         aoMudar: desenhar,
       });
+      corpoSemana = !automatica
+        ? sugestoesManuais()
+        : h(
+            'div',
+            { class: 'pilha' },
+            criarPainelSemanaAutomatica({
+              uid: sessao.uid,
+              hoje,
+              semana: dados.semanaIa,
+              treinos: dados.treinos,
+              configs: dados.configs,
+              proprios: proprios(),
+              liberada: estadoTreinos.semanaManualLiberada,
+              aoLiberar: () => {
+                estadoTreinos.semanaManualLiberada = true;
+                desenhar();
+              },
+              aoMudar: desenhar,
+            }),
+            estadoTreinos.semanaManualLiberada ? sugestoesManuais() : null,
+          );
     }
 
     // Biblioteca
@@ -311,7 +344,7 @@ export function render(raiz, sessao) {
     const painelTreinos = h(
       'div',
       { class: 'pilha' },
-      secao('semana', { titulo: 'Esta semana', acoes: pronto ? h('div', { class: 'treinos-secao-acoes' }, seletorDeNivel('nivelSemana')) : null, corpo: corpoSemana }),
+      secao('semana', { titulo: 'Esta semana', acoes: pronto && (!automatica || estadoTreinos.semanaManualLiberada) ? h('div', { class: 'treinos-secao-acoes' }, seletorDeNivel('nivelSemana')) : null, corpo: corpoSemana }),
       secao('biblioteca', { titulo: 'Biblioteca', acoes: acoesBiblioteca, corpo: corpoBiblioteca }),
       secao('meus', {
         titulo: 'Meus treinos',
@@ -370,6 +403,7 @@ export function render(raiz, sessao) {
     ouvir('modelos', (cb) => observarModelos(sessao.uid, cb, aoErro)),
     ouvir('dias', (cb) => observarEstresseDiario(sessao.uid, cb, aoErro)),
     ouvir('preferencias', (cb) => observarPreferencias(sessao.uid, cb, aoErro)),
+    ouvir('semanaIa', (cb) => observarSemanaIa(sessao.uid, cb, aoErro)),
   );
 
   return () => {

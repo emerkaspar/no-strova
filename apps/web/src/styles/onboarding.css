@@ -756,3 +756,16 @@
   flex: none;
   color: var(--primary);
 }
+
+/* Interruptor "Montar minha semana com IA" (passo Semana do Perfil de treino) */
+.wz-interruptor {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  cursor: pointer;
+}
+.wz-interruptor > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

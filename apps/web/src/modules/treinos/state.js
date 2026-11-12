@@ -53,6 +53,9 @@ export const estadoTreinos = {
   desmarcadas: [],
   /** ids das seções recolhidas */
   recolhidas: lerRecolhidas(),
+  /** semana automática (IA) ligada: o usuário abriu "Esta semana" e liberou as sugestões manuais nesta sessão */
+  semanaAutoAberta: false,
+  semanaManualLiberada: false,
   /** aba aberta ('treinos' ou 'trajetos'); null segue a última aba lembrada no navegador */
   aba: null,
   /** seção para onde a tela deve rolar ao abrir (uma vez) */

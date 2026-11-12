@@ -1,4 +1,5 @@
 import { GRUPOS_NOTIFICACAO, LIMITES_INTERVALO, normalizarPreferenciasNotificacao, TIPOS_NOTIFICACAO } from '@no-strova/domain';
+import { ativarPush, desativarPush, situacaoDoPush } from '../../application/push.js';
 import { lerPreferencias, salvarPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
@@ -9,6 +10,39 @@ const INTERVALOS = [
   { campo: 'intervaloMedidasDias', rotulo: 'Lembrar de refazer as medidas a cada (dias)' },
   { campo: 'intervaloLthrSemanas', rotulo: 'Lembrar de refazer o teste de LTHR a cada (semanas)' },
 ];
+
+/** Texto de situação do push neste aparelho. */
+function textoDoPush({ suportado, permissao, ativo }) {
+  if (!suportado) return 'Este navegador não suporta push. No Android, use o Chrome; no iPhone, instale o app na Tela de Início.';
+  if (permissao === 'denied') return 'Bloqueado: libere as notificações nas configurações do navegador (cadeado ao lado do endereço).';
+  return ativo ? 'Ativo neste aparelho.' : 'Desligado neste aparelho.';
+}
+
+/** "Push neste aparelho": liga e desliga o recebimento no navegador atual (a escolha por tipo fica abaixo). */
+function criarBlocoDoAparelho(uid, mensagem) {
+  const texto = h('p', { class: 'texto-secundario' }, 'Verificando…');
+  const botao = h('button', { class: 'btn btn-secundario', type: 'button', hidden: true });
+  let situacao = null;
+
+  async function atualizar() {
+    situacao = await situacaoDoPush(uid);
+    texto.textContent = textoDoPush(situacao);
+    botao.hidden = !situacao.suportado || situacao.permissao === 'denied';
+    botao.textContent = situacao.ativo ? 'Desativar neste aparelho' : 'Ativar neste aparelho';
+  }
+
+  botao.addEventListener('click', () => {
+    executarComBotao(botao, mensagem, async () => {
+      if (situacao?.ativo) await desativarPush(uid);
+      else await ativarPush(uid);
+      await atualizar();
+      mensagem.mostrar(situacao.ativo ? 'Push ativado neste aparelho.' : 'Push desativado neste aparelho.', 'ok');
+    }).then(atualizar);
+  });
+  atualizar();
+
+  return h('div', { class: 'notif-aparelho' }, h('h3', null, 'Push neste aparelho'), texto, botao);
+}
 
 /**
  * Cartão "Notificações": liga e desliga cada tipo de aviso e ajusta de quanto em quanto tempo o app lembra de pesar,
@@ -26,6 +60,7 @@ export function criarCartaoNotificacoes({ uid, admin = false }) {
 
   function desenhar(atual) {
     const checks = {};
+    const checksPush = {};
     const grupos = Object.entries(GRUPOS_NOTIFICACAO).map(([grupo, rotuloGrupo]) => {
       const tipos = Object.entries(TIPOS_NOTIFICACAO).filter(([, def]) => def.grupo === grupo && (!def.soAdmin || admin));
       if (tipos.length === 0) return null;
@@ -35,8 +70,19 @@ export function criarCartaoNotificacoes({ uid, admin = false }) {
         h('legend', null, rotuloGrupo),
         ...tipos.map(([tipo, def]) => {
           const input = h('input', { type: 'checkbox', id: `notif-${tipo}`, checked: atual.tipos[tipo] });
+          const push = h('input', { type: 'checkbox', id: `notif-push-${tipo}`, checked: atual.tiposPush[tipo], disabled: !atual.tipos[tipo] });
+          // sem o aviso na central não há push: desligar o tipo trava o push dele
+          input.addEventListener('change', () => {
+            push.disabled = !input.checked;
+          });
           checks[tipo] = input;
-          return h('label', { class: 'notif-opcao', for: `notif-${tipo}` }, input, def.rotulo);
+          checksPush[tipo] = push;
+          return h(
+            'div',
+            { class: 'notif-linha' },
+            h('label', { class: 'notif-opcao', for: `notif-${tipo}` }, input, def.rotulo),
+            h('label', { class: 'notif-push', for: `notif-push-${tipo}` }, push, 'Push'),
+          );
         }),
       );
     });
@@ -63,14 +109,17 @@ export function criarCartaoNotificacoes({ uid, admin = false }) {
               if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${rotulo}: informe um número inteiro de ${min} a ${max}.`);
               notificacoes[nome] = n;
             }
+            notificacoes.tiposPush = Object.fromEntries(Object.entries(checksPush).map(([t, el]) => [t, el.checked]));
             // tipos que o usuário não vê (ex.: avisos de admin) mantêm o valor salvo
             notificacoes.tipos = { ...atual.tipos, ...notificacoes.tipos };
+            notificacoes.tiposPush = { ...atual.tiposPush, ...notificacoes.tiposPush };
             await salvarPreferencias(uid, { notificacoes });
             mensagem.mostrar('Preferências de notificação salvas.', 'ok');
           });
         },
       },
-      h('p', { class: 'texto-secundario' }, 'Escolha quais avisos receber. Cada aviso fica na central de Notificações até você marcá-lo como lido.'),
+      h('p', { class: 'texto-secundario' }, 'Escolha quais avisos receber. Cada aviso fica na central de Notificações até você marcá-lo como lido. A caixa "Push" faz o aviso chegar também como notificação do celular (depois de ativar o push neste aparelho).'),
+      criarBlocoDoAparelho(uid, mensagem),
       ...grupos,
       h('div', { class: 'notif-intervalos' }, ...INTERVALOS.map((i) => campos[i.campo].raiz)),
       botao,

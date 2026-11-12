@@ -94,11 +94,11 @@ export function salvarPassoGarmin({ uid, uso }) {
 }
 
 /** Passo "Semana": dias, longão e horas. Lança Error em português. */
-export async function salvarPassoSemana({ uid, entrada }) {
+export async function salvarPassoSemana({ uid, entrada, planoIaAutomatico }) {
   const r = validarRotina(entrada);
   if (!r.valido) throw new Error(r.erros.join(' '));
   const { diasTreino, diaLongao, horasSemana } = r.valores;
-  await salvarPreferencias(uid, { diasTreino, diaLongao, horasSemana });
+  await salvarPreferencias(uid, { diasTreino, diaLongao, horasSemana, ...(typeof planoIaAutomatico === 'boolean' ? { planoIaAutomatico } : {}) });
   return r.valores;
 }
 

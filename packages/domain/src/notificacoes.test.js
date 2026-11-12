@@ -7,6 +7,7 @@ import {
   MARCOS_PROVA_DIAS,
   montarNotificacao,
   normalizarPreferenciasNotificacao,
+  tipoComPush,
   tipoLigado,
 } from './notificacoes.js';
 
@@ -31,6 +32,30 @@ describe('normalizarPreferenciasNotificacao', () => {
     expect(tipoLigado({}, 'pesar')).toBe(true);
     expect(tipoLigado({ tipos: { pesar: false } }, 'pesar')).toBe(false);
     expect(tipoLigado({}, 'inexistente')).toBe(false);
+  });
+});
+
+describe('push por tipo', () => {
+  it('só os tipos de ação do dia e de integração nascem com push', () => {
+    const p = normalizarPreferenciasNotificacao(undefined);
+    expect(p.tiposPush.treinoHoje).toBe(true);
+    expect(p.tiposPush.garminExpirando).toBe(true);
+    expect(p.tiposPush.pesar).toBe(false);
+    expect(p.tiposPush.conquista).toBe(false);
+  });
+
+  it('respeita o que o usuário escolheu e ignora valor inválido', () => {
+    const p = normalizarPreferenciasNotificacao({ tiposPush: { pesar: true, treinoHoje: false, medidas: 'sim' } });
+    expect(p.tiposPush.pesar).toBe(true);
+    expect(p.tiposPush.treinoHoje).toBe(false);
+    expect(p.tiposPush.medidas).toBe(false);
+  });
+
+  it('tipo desligado na central nunca vira push', () => {
+    expect(tipoComPush({}, 'treinoHoje')).toBe(true);
+    expect(tipoComPush({ tipos: { treinoHoje: false } }, 'treinoHoje')).toBe(false);
+    expect(tipoComPush({}, 'pesar')).toBe(false);
+    expect(tipoComPush({}, 'inexistente')).toBe(false);
   });
 });
 

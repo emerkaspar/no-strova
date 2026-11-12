@@ -6,6 +6,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { REGIAO } from "../../shared/config";
 import { exigirAcesso } from "../../shared/guards";
 import { avisosDeTreino, avisosDiarios } from "./lembretes.service";
+import { registrarDispositivo, removerDispositivo } from "./push.service";
 import { avisarAdminsDeNovoUsuario, marcarComoLidas, marcarTodasComoLidas, resolverNotificacoes } from "./notificacoes.service";
 
 const FUSO = "America/Sao_Paulo";
@@ -21,6 +22,20 @@ export const marcarNotificacoesComoLidas = onCall({ region: REGIAO }, async (req
 export const marcarTodasNotificacoesComoLidas = onCall({ region: REGIAO }, async (request) => {
   const { uid } = await exigirAcesso(request);
   return { marcadas: await marcarTodasComoLidas(uid) };
+});
+
+/** Registra o aparelho para receber push (o token vem do FCM no navegador). */
+export const registrarDispositivoPush = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  await registrarDispositivo(uid, request.data?.token, request.data?.plataforma);
+  return { ok: true };
+});
+
+/** Remove o aparelho (o usuário desligou o push). */
+export const removerDispositivoPush = onCall({ region: REGIAO }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  await removerDispositivo(uid, request.data?.token);
+  return { ok: true };
 });
 
 /** Todo dia às 07:00 (São Paulo): treinos de hoje, treino de ontem sem registro e conflitos. */

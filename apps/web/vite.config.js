@@ -26,6 +26,8 @@ export default defineConfig({
         // /__/ é reservado ao Firebase Hosting; /api/ será de Functions HTTP.
         navigateFallbackDenylist: [/^\/__\//, /^\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // push no celular: trata os eventos push e notificationclick (public/push-sw.js)
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

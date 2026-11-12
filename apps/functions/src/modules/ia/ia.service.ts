@@ -136,6 +136,8 @@ const schemaTreinos = z.object({
 export interface RascunhoDeTreinos {
   rascunhoId: string;
   restantes: number | null;
+  /** Só na rotina automática: o contexto resumido que a IA recebeu (para explicar a escolha ao atleta). */
+  contextoResumo?: { nivel: string; estado: { condicionamento: number; fadiga: number; forma: number } | null; cargaBase: number; feedback: unknown; ocupados: string[]; proprios: Array<Record<string, unknown> & { id: string }> };
   saida: {
     resumo: string;
     itens: unknown[];
@@ -190,7 +192,12 @@ const REGRA_FEEDBACK =
   `prefira treinos leves e menos volume, e não comente nem diagnostique dores (não é orientação médica); com sensação boa, mantenha a progressão normal.
 `;
 
-export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string, unknown>, apiKey: string): Promise<RascunhoDeTreinos> {
+/**
+ * `automatico`: chamada da rotina de domingo (sem o usuário na tela). Não gasta a cota diária do usuário e grava o rascunho já
+ * como aceito, porque o plano é gravado pela própria rotina logo em seguida.
+ */
+export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string, unknown>, apiKey: string, opcoes: { automatico?: boolean } = {}): Promise<RascunhoDeTreinos> {
+  const automatico = opcoes.automatico === true;
   const pedido = validarEntradaDeTreinos(bruto);
   if (!pedido.valido || !pedido.valores) throw new HttpsError("invalid-argument", pedido.erros.join(" "));
   const entrada = pedido.valores;
@@ -259,13 +266,13 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
     `Dados do atleta (JSON):\n${JSON.stringify(contexto)}`;
 
   logger.info("IA treinos: contexto", { cargaBase: Math.round(cargaBase), semanas: entrada.semanas, ocupados: ocupados.length, proprios: proprios.length });
-  const restantes = await reservarChamada(uid, hoje);
+  const restantes = automatico ? null : await reservarChamada(uid, hoje);
   let saidaIa: z.infer<typeof schemaTreinos>;
   try {
     saidaIa = await gerarSaidaEstruturada(apiKey, { sistema: SISTEMA_BASE, prompt, schema: schemaTreinos });
   } catch (err) {
     logger.error("Falha ao chamar o Gemini (treinos)", err);
-    await devolverChamada(uid, hoje);
+    if (!automatico) await devolverChamada(uid, hoje);
     if (semCreditoNoGemini(err)) throw new HttpsError("failed-precondition", "A conta do Gemini está sem créditos. Adicione créditos ou ative o faturamento no Google AI Studio e tente de novo (a tentativa não foi descontada).");
     throw new HttpsError("aborted", "Não foi possível gerar a sugestão agora. Tente novamente em instantes (a tentativa não foi descontada).");
   }
@@ -281,10 +288,14 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
     tipo: "treino",
     entradaResumo: { ...entrada, condicionamento: contexto.estadoAtual?.condicionamento ?? null, cargaBase: contexto.cargaSemanalMedia4Semanas },
     saida,
-    status: "pendente",
+    status: automatico ? "aceito" : "pendente",
+    origem: automatico ? "semana-automatica" : "manual",
     criadoEm: FieldValue.serverTimestamp(),
   });
-  return { rascunhoId: ref.id, restantes, saida };
+  const contextoResumo = automatico
+    ? { nivel, estado: contexto.estadoAtual, cargaBase: contexto.cargaSemanalMedia4Semanas, feedback, ocupados, proprios }
+    : undefined;
+  return { rascunhoId: ref.id, restantes, saida, contextoResumo };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

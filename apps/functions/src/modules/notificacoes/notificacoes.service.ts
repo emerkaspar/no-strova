@@ -1,7 +1,8 @@
-import { diaNoFuso, diasEntre, idNotificacao, montarNotificacao, normalizarPreferenciasNotificacao, tipoLigado } from "@no-strova/domain";
+import { diaNoFuso, diasEntre, idNotificacao, montarNotificacao, normalizarPreferenciasNotificacao, tipoComPush, tipoLigado } from "@no-strova/domain";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { db } from "../../shared/firebase";
+import { enviarPush } from "./push.service";
 
 type Ctx = Record<string, unknown>;
 
@@ -19,7 +20,7 @@ export async function lerPreferenciasNotificacao(uid: string) {
  */
 export async function criarNotificacao(uid: string, tipo: string, ctx: Ctx, preferencias?: unknown): Promise<boolean> {
   const prefs = preferencias ?? (await lerPreferenciasNotificacao(uid));
-  if (!tipoLigado({ tipos: (prefs as { tipos?: unknown }).tipos }, tipo)) return false;
+  if (!tipoLigado(prefs, tipo)) return false;
   const conteudo = montarNotificacao(tipo, ctx);
   if (!conteudo) return false;
   const id = idNotificacao(uid, tipo, conteudo.referencia);
@@ -38,6 +39,12 @@ export async function criarNotificacao(uid: string, tipo: string, ctx: Ctx, pref
       resolvida: false,
       resolvidaEm: null,
     });
+    // o push é um efeito colateral: se falhar, o aviso já está na central e nada deve quebrar
+    if (tipoComPush(prefs, tipo)) {
+      await enviarPush(uid, { id, titulo: conteudo.titulo, mensagem: conteudo.mensagem, rota: conteudo.rota }).catch((err) =>
+        logger.error("Falha ao enviar push", { uid, tipo, erro: String(err) }),
+      );
+    }
     return true;
   } catch (err) {
     if ((err as { code?: number }).code !== 6) logger.error("Falha ao criar notificação", { uid, tipo, erro: String(err) });

@@ -68,10 +68,15 @@ export async function avisosDeTreino(periodo: "manha" | "tarde"): Promise<void> 
       const conflito = Math.max(0, ...porEsporte.values());
       if (conflito > 1) criadas += contar(await criarNotificacao(uid, "conflitoTreinos", { data: hoje, quantidade: conflito }, prefs));
     }
+    // "Treino de ontem sem registro" só vale se havia treino planejado e NENHUMA atividade foi importada no dia: quem treinou
+    // mas não vinculou o treino ao plano não precisa desse aviso
     const ontemPendente = (await db.collection("treinosPlanejados").where("userId", "==", uid).where("data", "==", ontem).get()).docs.some(
       (d) => d.get("status") === "planejado",
     );
-    if (ontemPendente) criadas += contar(await criarNotificacao(uid, "treinoOntem", { data: ontem }, prefs));
+    if (ontemPendente) {
+      const treinouOntem = !(await db.collection("atividades").where("userId", "==", uid).where("data", "==", ontem).limit(1).get()).empty;
+      if (!treinouOntem) criadas += contar(await criarNotificacao(uid, "treinoOntem", { data: ontem }, prefs));
+    }
     return criadas;
   });
 }

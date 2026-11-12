@@ -90,6 +90,12 @@ describe('preferências de notificação', () => {
     await assertSucceeds(como('ana').doc('preferencias/ana').set({ userId: 'ana', calibracaoAtiva: true }));
   });
 
+  it('aceita a escolha de push por tipo e recusa tipo desconhecido ou valor não booleano no push', async () => {
+    await assertSucceeds(como('ana').doc('preferencias/ana').set(prefs({ tiposPush: { treinoHoje: true, pesar: false } })));
+    await assertFails(como('ana').doc('preferencias/ana').set(prefs({ tiposPush: { inventado: true } })));
+    await assertFails(como('ana').doc('preferencias/ana').set(prefs({ tiposPush: { pesar: 'sim' } })));
+  });
+
   it('recusa intervalo fora dos limites ou não inteiro', async () => {
     await assertFails(como('ana').doc('preferencias/ana').set(prefs({ intervaloPesoDias: 0 })));
     await assertFails(como('ana').doc('preferencias/ana').set(prefs({ intervaloMedidasDias: 3 })));
@@ -101,5 +107,35 @@ describe('preferências de notificação', () => {
     await assertFails(como('ana').doc('preferencias/ana').set(prefs({ tipos: { inventado: true } })));
     await assertFails(como('ana').doc('preferencias/ana').set(prefs({ tipos: { pesar: 'sim' } })));
     await assertFails(como('ana').doc('preferencias/ana').set(prefs({ extra: 1 })));
+  });
+});
+
+describe('semana montada pela IA (semanaIa e planoIaAutomatico)', () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc('semanaIa/ana').set({ userId: 'ana', inicio: '2026-11-16', status: 'gerada' });
+    });
+  });
+
+  it('o dono lê a semana; outro usuário não; ninguém escreve', async () => {
+    await assertSucceeds(como('ana').doc('semanaIa/ana').get());
+    await assertFails(como('beto').doc('semanaIa/ana').get());
+    await assertFails(como('ana').doc('semanaIa/ana').set({ userId: 'ana', status: 'gerada' }));
+  });
+
+  it('o dono liga o planoIaAutomatico (só booleano)', async () => {
+    await assertSucceeds(como('ana').doc('preferencias/ana').set({ userId: 'ana', planoIaAutomatico: true }));
+    await assertFails(como('ana').doc('preferencias/ana').set({ userId: 'ana', planoIaAutomatico: 'sim' }));
+  });
+
+  it('o tipo semanaIa é aceito nas preferências de notificação', async () => {
+    await assertSucceeds(como('ana').doc('preferencias/ana').set({ userId: 'ana', notificacoes: { tipos: { semanaIa: false }, tiposPush: { semanaIa: true } } }));
+  });
+
+  it('o cliente edita um treino criado pela IA mantendo a marca geradoPorIa', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc('treinosPlanejados/t1').set({ userId: 'ana', data: '2026-11-16', esporte: 'ciclismo', duracaoMin: 60, zona: 'Z2', status: 'planejado', geradoPorIa: true });
+    });
+    await assertSucceeds(como('ana').doc('treinosPlanejados/t1').update({ data: '2026-11-17' }));
   });
 });

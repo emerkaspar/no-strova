@@ -115,3 +115,35 @@
     scroll-margin-top: 12px;
   }
 }
+
+/* "Esta semana" com a semana montada pela IA (Perfil de treino → Montar minha semana com IA) */
+.semana-ia-aviso {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  border: 1px solid var(--primary);
+  border-radius: 14px;
+  background: var(--surface-light);
+}
+.semana-ia-aviso > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--primary);
+}
+.semana-ia-aviso p {
+  margin: 4px 0 0;
+}
+.semana-ia-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.semana-ia-lista p {
+  margin: 2px 0 0;
+}
+.semana-ia-incluir {
+  align-items: flex-end;
+}
