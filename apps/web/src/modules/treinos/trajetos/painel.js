@@ -4,6 +4,7 @@ import { formatarData, formatarDuracaoCurta, formatarNumero } from '../../../uti
 import { criarHeroDoTrajeto } from './hero.js';
 import { criarComparacao } from './comparacao.js';
 import { graficoEvolucao } from './graficos.js';
+import { criarCartaoEficiencia } from './eficiencia.js';
 import { abrirAjusteDeTrecho, criarCartaoRota } from './rota.js';
 import { kmTexto, metricasDoEsporte, ROTULO_SENSACAO, textoDeDesempenho, textoDeVariacao, textoDoTrecho } from './textos.js';
 
@@ -119,6 +120,8 @@ export function criarPainel({ item, esporte, estado, aoMudar, uid, nivelInicial,
     filtroClima,
   );
 
+  const cartaoEficiencia = criarCartaoEficiencia({ passagens: visiveis, selecionadas, contexto, aoAlternar: alternar, periodo: estado.periodoEficiencia ?? null, aoMudarPeriodo: (periodo) => { estado.periodoEficiencia = periodo; aoMudar(); } });
+
   // tabela
   const colunaDesempenho = esporte === 'corrida' ? 'Ritmo' : 'Velocidade';
   const ordem = estado.ordem;
@@ -177,7 +180,7 @@ export function criarPainel({ item, esporte, estado, aoMudar, uid, nivelInicial,
 
   const aviso = rota ? null : h('p', { class: 'mensagem mensagem-aviso', role: 'note' }, 'Sem rota de referência, cada passagem vale como a atividade inteira. Se você segue por outros caminhos antes ou depois do trajeto, defina a rota abaixo.');
   return {
-    el: h('div', { class: 'pilha' }, cabecalho, aviso, h('section', { class: 'traj-resumo' }, ...tiles), rota ? null : cartaoRota.el, grafico, tabela, comparacao?.el ?? null, rota ? cartaoRota.el : null),
+    el: h('div', { class: 'pilha' }, cabecalho, aviso, h('section', { class: 'traj-resumo' }, ...tiles), rota ? null : cartaoRota.el, cartaoEficiencia, grafico, tabela, comparacao?.el ?? null, rota ? cartaoRota.el : null),
     destruir: () => destrutores.forEach((f) => f()),
   };
 }

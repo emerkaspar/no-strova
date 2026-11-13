@@ -178,7 +178,7 @@
 
 .traj-ponto-sel {
   stroke: var(--text-primary);
-  stroke-width: 3;
+  stroke-width: 2;
   stroke-dasharray: none;
 }
 
@@ -1269,4 +1269,326 @@
   font-size: 0.75rem;
   white-space: nowrap;
   color: var(--text-secondary);
+}
+
+/* ---------- eficiência: início × recente ---------- */
+.ef-veredito {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 4px 0 2px;
+}
+
+.ef-veredito-numero {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ef-veredito-numero .cg-mini-rotulo,
+.ef-veredito-numero small {
+  display: none;
+}
+
+.ef-veredito-numero strong {
+  font-family: var(--fonte-titulo, inherit);
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.ef-veredito-melhor .ef-veredito-numero strong {
+  color: var(--traj-melhor);
+}
+
+.ef-veredito-pior .ef-veredito-numero strong {
+  color: var(--traj-pior);
+}
+
+.ef-veredito-texto {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.ef-veredito-texto strong {
+  font-size: 0.95rem;
+}
+
+.ef-veredito-texto p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+}
+
+.ef-grafico {
+  position: relative;
+  margin: 0;
+  width: 100%;
+}
+
+.ef-svg {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.ef-inicio {
+  --ef-tom: var(--traj-b);
+}
+
+.ef-recente {
+  --ef-tom: var(--primary);
+}
+
+.ef-eixo {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.ef-banda {
+  fill: color-mix(in srgb, var(--ef-tom) 7%, transparent);
+  stroke: none;
+}
+
+.ef-banda-rotulo {
+  fill: var(--ef-tom);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+line.ef-media {
+  stroke: var(--ef-tom);
+  stroke-width: 1.75;
+}
+
+.ef-media-valor {
+  fill: var(--ef-tom);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ef-ponte {
+  stroke: var(--text-secondary);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 4;
+}
+
+.ef-ponte-melhor {
+  stroke: var(--traj-melhor);
+}
+
+.ef-ponte-pior {
+  stroke: var(--traj-pior);
+}
+
+.ef-ponte-texto {
+  stroke: none;
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--text-secondary);
+}
+
+.ef-ponte-texto.ef-ponte-melhor {
+  fill: var(--traj-melhor);
+}
+
+.ef-ponte-texto.ef-ponte-pior {
+  fill: var(--traj-pior);
+}
+
+.ef-linha-evolucao {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  opacity: 0.35;
+}
+
+.ef-tendencia {
+  opacity: 0.5;
+  stroke-width: 1;
+}
+
+.ef-ponto {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+
+.ef-ponto:hover,
+.ef-ponto:focus-visible {
+  stroke: var(--text-primary);
+  outline: none;
+}
+
+.ef-ponto-inicio,
+.ef-amostra-inicio {
+  fill: var(--traj-b);
+  background: var(--traj-b);
+}
+
+.ef-ponto-recente,
+.ef-amostra-recente {
+  fill: var(--primary);
+  background: var(--primary);
+}
+
+.ef-ponto-meio,
+.ef-amostra-meio {
+  fill: var(--text-secondary);
+  background: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.ef-comparativo {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ef-linha {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(170px, 1.4fr) minmax(100px, auto);
+  align-items: center;
+  gap: 6px 18px;
+  padding: 12px 16px;
+}
+
+.ef-linha + .ef-linha {
+  border-top: 1px solid var(--border);
+}
+
+.ef-linha-rotulo {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ef-linha-rotulo small {
+  font-weight: 400;
+  font-size: 0.74rem;
+}
+
+.ef-linha-valores {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ef-valor-inicio {
+  color: var(--text-secondary);
+}
+
+.ef-valor-recente {
+  color: var(--text-primary);
+}
+
+.ef-seta {
+  color: var(--text-secondary);
+}
+
+.ef-delta {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ef-delta strong {
+  font-size: 0.95rem;
+}
+
+.ef-delta small {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.ef-delta-melhor strong {
+  color: var(--traj-melhor);
+}
+
+.ef-delta-pior strong {
+  color: var(--traj-pior);
+}
+
+.ef-destaques {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.ef-destaque {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-left: 2px solid var(--border);
+}
+
+.ef-destaque strong {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.ef-destaque small {
+  font-size: 0.76rem;
+}
+
+.ef-destaque-melhor strong {
+  color: var(--traj-melhor);
+}
+
+.ef-destaque-pior strong {
+  color: var(--traj-pior);
+}
+
+.ef-aviso {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 767px) {
+  .ef-linha {
+    grid-template-columns: 1fr auto;
+  }
+
+  .ef-linha-valores {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+.ef-area {
+  fill: transparent;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.ef-brush {
+  fill: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+
+.ef-periodo {
+  fill: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.ef-ponto-fora {
+  opacity: 0.3;
+}
+
+.ef-amostra-periodo {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  border: 1px solid var(--text-secondary);
 }

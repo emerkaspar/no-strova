@@ -32,6 +32,26 @@ function faixaY(valores, passoMinimo) {
   return { min: min - folga, max: max + folga };
 }
 
+/** Desenha o gráfico na largura real do container (e de novo ao redimensionar), para textos e pontos não esticarem. */
+function comLarguraReal(container, desenhar) {
+  let atual = 0;
+  const redesenhar = (largura) => {
+    const l = Math.max(300, Math.round(largura));
+    if (l === atual) return;
+    atual = l;
+    container.querySelector('svg')?.remove();
+    container.prepend(desenhar(l));
+  };
+  redesenhar(container.clientWidth || 640);
+  if (typeof ResizeObserver !== 'undefined') {
+    const obs = new ResizeObserver((entradas) => {
+      if (!container.isConnected) return obs.disconnect();
+      redesenhar(entradas[0].contentRect.width);
+    });
+    obs.observe(container);
+  }
+}
+
 function criarDica() {
   const dica = document.createElement('div');
   dica.className = 'grafico-dica';
@@ -61,83 +81,85 @@ export function graficoEvolucao({ passagens, metrica, selecionadas, podio, conte
     return container;
   }
 
-  const xMin = Math.min(...pontos.map((q) => q.x));
-  const xMax = Math.max(...pontos.map((q) => q.x));
-  const { min: yMin, max: yMax } = faixaY(pontos.map((q) => q.y), metrica.passoMinimo);
-  const largura = L - MARGEM.esquerda - MARGEM.direita;
-  const altura = A - MARGEM.topo - MARGEM.base;
-  const px = (v) => MARGEM.esquerda + (xMax === xMin ? 0.5 : (v - xMin) / (xMax - xMin)) * largura;
-  // voltas da mesma atividade caem no mesmo dia: afasta um pouco os pontos para não ficarem um sobre o outro
-  const afastar = (p) => (p.totalVoltas > 1 ? (p.volta - 1 - (p.totalVoltas - 1) / 2) * 12 : 0);
-  const frac = (v) => (v - yMin) / (yMax - yMin || 1);
-  const py = (v) => MARGEM.topo + (metrica.invertido ? frac(v) : 1 - frac(v)) * altura;
-
-  const raiz = svg('svg', { viewBox: `0 0 ${L} ${A}`, role: 'group', 'aria-label': `Evolução de ${metrica.rotulo.toLowerCase()} por passagem` });
-
-  const passoY = passoDoEixo(yMax - yMin, 4);
-  for (let v = Math.ceil(yMin / passoY) * passoY; v <= yMax; v += passoY) {
-    raiz.append(
-      svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: py(v), y2: py(v), class: 'grafico-grade' }),
-      svg('text', { x: MARGEM.esquerda - 6, y: py(v) + 4, 'text-anchor': 'end', class: 'grafico-rotulo' }, metrica.formatar(v).replace(/ (m\/min por bpm)$/, '')),
-    );
-  }
-  const passoX = Math.max(1, passoDoEixo(xMax - xMin || 1, 5));
-  for (let v = Math.ceil(xMin / passoX) * passoX; v <= xMax; v += passoX) {
-    const [, mes, d] = isoDoDia(v).split('-');
-    raiz.append(svg('text', { x: px(v), y: A - 9, 'text-anchor': 'middle', class: 'grafico-rotulo' }, `${d}/${mes}`));
-  }
-
-  if (tendencia && pontos.length >= 3) {
-    raiz.append(
-      svg('line', {
-        x1: px(xMin),
-        x2: px(xMax),
-        y1: py(tendencia.valorEm(isoDoDia(xMin))),
-        y2: py(tendencia.valorEm(isoDoDia(xMax))),
-        class: 'traj-tendencia',
-      }),
-    );
-  }
-  if (pontos.length >= 2) {
-    raiz.append(svg('polyline', { points: pontos.map((q) => `${(px(q.x) + afastar(q.p)).toFixed(1)},${py(q.y).toFixed(1)}`).join(' '), class: 'grafico-linha traj-linha' }));
-  }
-
   const dica = criarDica();
-  for (const { p, x, y } of pontos) {
-    const medalha = podio.get(p.id);
-    const fatores = contexto.get(p.id) ?? [];
-    const sel = selecionadas.has(p.id);
-    const classes = ['traj-ponto', medalha ? `traj-ponto-${medalha}` : '', fatores.length ? 'traj-ponto-contexto' : '', sel ? 'traj-ponto-sel' : ''].filter(Boolean).join(' ');
-    const texto = `${formatarData(p.data)}${p.totalVoltas > 1 ? ` (volta ${p.volta})` : ''} · ${metrica.formatar(y)}${medalha ? ` · ${medalha}` : ''}${fatores.length ? ` · ${fatores.join(', ')}` : ''}`;
-    const ponto = svg('circle', {
-      cx: (px(x) + afastar(p)).toFixed(1),
-      cy: py(y).toFixed(1),
-      r: sel ? 7 : 5.5,
-      class: classes,
-      tabindex: 0,
-      role: 'button',
-      'aria-pressed': String(sel),
-      'aria-label': `${texto}. ${sel ? 'Selecionada' : 'Selecionar'} para comparar.`,
-    });
-    const mostrar = () => {
-      dica.textContent = texto;
-      dica.hidden = false;
-    };
-    ponto.addEventListener('pointerenter', mostrar);
-    ponto.addEventListener('focus', mostrar);
-    ponto.addEventListener('pointerleave', () => (dica.hidden = true));
-    ponto.addEventListener('blur', () => (dica.hidden = true));
-    ponto.addEventListener('click', () => aoAlternar(p.id));
-    ponto.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        aoAlternar(p.id);
-      }
-    });
-    raiz.append(ponto);
-  }
+  container.append(dica);
+  comLarguraReal(container, (L) => {
+    const xMin = Math.min(...pontos.map((q) => q.x));
+    const xMax = Math.max(...pontos.map((q) => q.x));
+    const { min: yMin, max: yMax } = faixaY(pontos.map((q) => q.y), metrica.passoMinimo);
+    const largura = L - MARGEM.esquerda - MARGEM.direita;
+    const altura = A - MARGEM.topo - MARGEM.base;
+    const px = (v) => MARGEM.esquerda + (xMax === xMin ? 0.5 : (v - xMin) / (xMax - xMin)) * largura;
+    // voltas da mesma atividade caem no mesmo dia: afasta um pouco os pontos para não ficarem um sobre o outro
+    const afastar = (p) => (p.totalVoltas > 1 ? (p.volta - 1 - (p.totalVoltas - 1) / 2) * 12 : 0);
+    const frac = (v) => (v - yMin) / (yMax - yMin || 1);
+    const py = (v) => MARGEM.topo + (metrica.invertido ? frac(v) : 1 - frac(v)) * altura;
 
-  container.append(raiz, dica);
+    const raiz = svg('svg', { viewBox: `0 0 ${L} ${A}`, role: 'group', 'aria-label': `Evolução de ${metrica.rotulo.toLowerCase()} por passagem` });
+
+    const passoY = passoDoEixo(yMax - yMin, 4);
+    for (let v = Math.ceil(yMin / passoY) * passoY; v <= yMax; v += passoY) {
+      raiz.append(
+        svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: py(v), y2: py(v), class: 'grafico-grade' }),
+        svg('text', { x: MARGEM.esquerda - 6, y: py(v) + 4, 'text-anchor': 'end', class: 'grafico-rotulo' }, metrica.formatar(v).replace(/ (m\/min por bpm)$/, '')),
+      );
+    }
+    const passoX = Math.max(1, passoDoEixo(xMax - xMin || 1, 5));
+    for (let v = Math.ceil(xMin / passoX) * passoX; v <= xMax; v += passoX) {
+      const [, mes, d] = isoDoDia(v).split('-');
+      raiz.append(svg('text', { x: px(v), y: A - 9, 'text-anchor': 'middle', class: 'grafico-rotulo' }, `${d}/${mes}`));
+    }
+
+    if (tendencia && pontos.length >= 3) {
+      raiz.append(
+        svg('line', {
+          x1: px(xMin),
+          x2: px(xMax),
+          y1: py(tendencia.valorEm(isoDoDia(xMin))),
+          y2: py(tendencia.valorEm(isoDoDia(xMax))),
+          class: 'traj-tendencia',
+        }),
+      );
+    }
+    if (pontos.length >= 2) {
+      raiz.append(svg('polyline', { points: pontos.map((q) => `${(px(q.x) + afastar(q.p)).toFixed(1)},${py(q.y).toFixed(1)}`).join(' '), class: 'grafico-linha traj-linha' }));
+    }
+
+    for (const { p, x, y } of pontos) {
+      const medalha = podio.get(p.id);
+      const fatores = contexto.get(p.id) ?? [];
+      const sel = selecionadas.has(p.id);
+      const classes = ['traj-ponto', medalha ? `traj-ponto-${medalha}` : '', fatores.length ? 'traj-ponto-contexto' : '', sel ? 'traj-ponto-sel' : ''].filter(Boolean).join(' ');
+      const texto = `${formatarData(p.data)}${p.totalVoltas > 1 ? ` (volta ${p.volta})` : ''} · ${metrica.formatar(y)}${medalha ? ` · ${medalha}` : ''}${fatores.length ? ` · ${fatores.join(', ')}` : ''}`;
+      const ponto = svg('circle', {
+        cx: (px(x) + afastar(p)).toFixed(1),
+        cy: py(y).toFixed(1),
+        r: sel ? 7 : 5.5,
+        class: classes,
+        tabindex: 0,
+        role: 'button',
+        'aria-pressed': String(sel),
+        'aria-label': `${texto}. ${sel ? 'Selecionada' : 'Selecionar'} para comparar.`,
+      });
+      const mostrar = () => {
+        dica.textContent = texto;
+        dica.hidden = false;
+      };
+      ponto.addEventListener('pointerenter', mostrar);
+      ponto.addEventListener('focus', mostrar);
+      ponto.addEventListener('pointerleave', () => (dica.hidden = true));
+      ponto.addEventListener('blur', () => (dica.hidden = true));
+      ponto.addEventListener('click', () => aoAlternar(p.id));
+      ponto.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          aoAlternar(p.id);
+        }
+      });
+      raiz.append(ponto);
+    }
+    return raiz;
+  });
   return container;
 }
 

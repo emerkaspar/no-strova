@@ -166,6 +166,12 @@ export function compararInicioRecente(passagens, janela = JANELA_DE_COMPARACAO) 
     fcMedia: variacao(m(inicio, (p) => p.fcMedia), m(recente, (p) => p.fcMedia)),
     velocidadeInicio: m(inicio, (p) => p.velocidadeKmh),
     velocidadeRecente: m(recente, (p) => p.velocidadeKmh),
+    eficienciaInicio: m(inicio, (p) => p.eficiencia),
+    eficienciaRecente: m(recente, (p) => p.eficiencia),
+    fcInicio: m(inicio, (p) => p.fcMedia),
+    fcRecente: m(recente, (p) => p.fcMedia),
+    idsInicio: inicio.map((p) => p.id),
+    idsRecente: recente.map((p) => p.id),
   };
 }
 

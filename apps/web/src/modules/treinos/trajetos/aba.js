@@ -102,6 +102,7 @@ export function criarSecaoTrajetos({ uid, esporte: esporteInicial, nivel = () =>
           onClick: () => {
             estado.aberto = aberto ? null : i.trajeto.id;
             estado.comparadas = [];
+            estado.periodoEficiencia = null;
             desenhar();
             if (!aberto) painelEl.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
           },
@@ -179,6 +180,7 @@ export function criarSecaoTrajetos({ uid, esporte: esporteInicial, nivel = () =>
       esporte = novo;
       estado.aberto = null;
       estado.comparadas = [];
+      estado.periodoEficiencia = null;
       desenhar();
     },
     destruir() {
