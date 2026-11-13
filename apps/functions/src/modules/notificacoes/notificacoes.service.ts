@@ -54,14 +54,17 @@ export async function criarNotificacao(uid: string, tipo: string, ctx: Ctx, pref
 
 /**
  * Marca como resolvidas as notificações do tipo em que a condição deixou de valer (ex.: o usuário se pesou). Elas
- * continuam na lista até serem lidas: só ganham o selo "Resolvido". Filtra em memória para não exigir índice composto.
+ * ganham o selo "Resolvido" e já saem de "Não lidas" (viram lidas). Filtra em memória para não exigir índice composto.
  */
 export async function resolverNotificacoes(uid: string, tipo: string, filtro?: (referencia: string) => boolean): Promise<number> {
   const snap = await db.collection("notificacoes").where("userId", "==", uid).where("tipo", "==", tipo).where("resolvida", "==", false).get();
   const alvo = snap.docs.filter((d) => !filtro || filtro(String(d.get("referencia") ?? "")));
   if (alvo.length === 0) return 0;
   const lote = db.batch();
-  for (const d of alvo) lote.update(d.ref, { resolvida: true, resolvidaEm: FieldValue.serverTimestamp() });
+  for (const d of alvo) {
+    const agora = FieldValue.serverTimestamp();
+    lote.update(d.ref, { resolvida: true, resolvidaEm: agora, ...(d.get("lida") === true ? {} : { lida: true, lidaEm: agora }) });
+  }
   await lote.commit();
   return alvo.length;
 }
@@ -102,7 +105,7 @@ export async function marcarTodasComoLidas(uid: string): Promise<number> {
 /**
  * Reage à gravação de uma atividade: pede o "Como foi?" enquanto não houver feedback, dá o treino do dia por
  * resolvido quando a atividade é do próprio dia e resolve o lembrete de LTHR quando a atividade é um teste.
- * Notificação não some sozinha: resolver só põe o selo "Resolvido" (ela sai da lista quando o usuário a marca como lida).
+ * Resolver põe o selo "Resolvido" e marca como lida (sai de "Não lidas", mas continua em "Todas").
  */
 export async function reagirAAtividade(
   uid: string,

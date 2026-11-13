@@ -423,14 +423,25 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   const planejadoNaSemana = proximos
     .filter((t) => t.status === "planejado" && (t.data as string) >= semanaIni && (t.data as string) <= semanaFim && (t.data as string) >= hoje)
     .reduce((s, t) => s + estresseDe(t), 0);
-  const cargaDaSemana = { inicio: semanaIni, jaFeito: Math.round(feitoNaSemana), aindaPlanejado: Math.round(planejadoNaSemana), tetoSugerido: cargaBase > 0 ? Math.round(cargaBase * 1.1) : null };
+  const cargaDaSemana = {
+    inicio: semanaIni,
+    jaFeito: Math.round(feitoNaSemana),
+    aindaPlanejado: Math.round(planejadoNaSemana),
+    tetoSugerido: cargaBase > 0 ? Math.round(cargaBase * 1.1) : null,
+    folga: cargaBase > 0 ? Math.round(cargaBase * 1.1 - feitoNaSemana - planejadoNaSemana) : null,
+  };
 
   // teto de carga de um único treino: ~40% da carga semanal (sem histórico, sem teto). Com tempo pedido, o teto não corta a lista:
   // a IA traz o treino de duração mais próxima e o app avisa se a carga ficou alta ou baixa demais.
   const tetoEstresse = cargaBase > 0 ? cargaBase * 0.4 : Infinity;
   const idsDoTrajeto = new Set(proprios.filter((m) => trajeto && m.trajetoId === trajetoId).map((m) => m.id));
+  // quanto a semana ainda aguenta (teto = 110% da média); sem histórico, não há teto e tudo "cabe"
+  const folgaDaSemana = cargaBase > 0 ? Math.round(cargaBase * 1.1 - feitoNaSemana - planejadoNaSemana) : null;
   const todos = (catalogoParaIa(esporte, nivel, proprios) as ItemDoCatalogo[])
-    .map((m) => ({ ...m, estresse: Math.round(estimarEstresse(m.id)), ...(idsDoTrajeto.has(m.id) ? { feitoParaEsteTrajeto: true } : {}) }))
+    .map((m) => {
+      const estresse = Math.round(estimarEstresse(m.id));
+      return { ...m, estresse, cabeNaSemana: folgaDaSemana === null || estresse <= folgaDaSemana, ...(idsDoTrajeto.has(m.id) ? { feitoParaEsteTrajeto: true } : {}) };
+    })
     .filter((m) => m.estresse > 0);
   let catalogo = todos.filter((m: { intensidade: string; estresse: number }) => (!semIntenso || m.intensidade !== "alta") && (duracaoPedida !== null || m.estresse <= tetoEstresse));
   if (catalogo.length === 0) catalogo = [...todos].filter((m: { intensidade: string }) => m.intensidade === "baixa").sort((a: { estresse: number }, b: { estresse: number }) => a.estresse - b.estresse).slice(0, 8);
@@ -493,7 +504,9 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
     `- Considere o sentimento (feedbackRecente), se existir.\n` +
     `- Olhe a "agendaEmVolta" (treinos já feitos e JÁ PLANEJADOS nos próximos dias; diasDoTreinoPedido negativo = antes do dia, positivo = depois): ` +
     `não coloque um treino forte colado em outro forte, deixe o dia anterior a um treino intenso ou longo mais leve e não estoure a "cargaDaSemanaDoTreino" ` +
-    `(jaFeito + aindaPlanejado + o treino escolhido deve ficar perto do tetoSugerido; se a semana já está cheia, escolha um treino curto ou leve).\n` +
+    `(jaFeito + aindaPlanejado + o treino escolhido deve ficar perto do tetoSugerido; se a semana já está cheia, escolha um treino curto ou leve). Cada item do catálogo traz "cabeNaSemana".\n` +
+    `- O "motivo" precisa ser coerente com os números: só diga que a carga é adequada ou que cabe na semana se o treino escolhido tiver cabeNaSemana true. ` +
+    `Se for false (por exemplo, porque o atleta pediu um tempo longo), diga com franqueza que a semana fica acima do teto. Não use "perfeitamente" e não fale de voltas no trajeto (o app calcula).\n` +
     (contextoTrajeto
       ? `- O atleta vai treinar no trajeto "trajeto" (terreno em "trechos"). Itens com "feitoParaEsteTrajeto": true foram montados para esse terreno: prefira-os quando servirem ao dia, à carga e à agenda. ` +
         (podeCriarNovo
@@ -526,6 +539,7 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   type Escolhido = { id: string | null; nome: string; esporte: string; foco: string; intensidade: string; duracaoMin: number; estresse: number };
   let escolhido: Escolhido | undefined;
   let novoTreino: Record<string, unknown> | null = null;
+  let voltas = 1; // quantas vezes dar o trajeto para fechar o treino
 
   // pedido de treino novo sob medida: o código monta o treino pelo terreno (sem outra chamada de IA) e confere foco e carga
   if (saidaIa.novoParaOTrajeto && podeCriarNovo && terreno && trajeto) {
@@ -536,17 +550,17 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
       if (montado.valido && montado.treino) {
         let treino = montado.treino as Record<string, unknown> & { passos: unknown[]; nome: string; esporte: string; foco: string };
         // várias voltas: repete os passos do trajeto (o treino aceita até 30 passos) e registra as voltas no nome e na descrição
-        const voltas = Math.min(voltasSugeridas, Math.floor(30 / Math.max(1, treino.passos.length)));
-        if (voltas > 1) {
+        const voltasDoNovo = Math.min(voltasSugeridas, Math.floor(30 / Math.max(1, treino.passos.length)));
+        if (voltasDoNovo > 1) {
           const repetido = validarTreinoEstruturado({
             ...treino,
-            nome: `${treino.nome.slice(0, 60 - 12)} · ${voltas} voltas`,
-            descricao: `Dê ${voltas} voltas no trajeto, sem parar entre elas (os passos se repetem a cada volta). ${String(treino.descricao ?? "")}`.slice(0, 500),
-            passos: Array.from({ length: voltas }, () => treino.passos).flat(),
+            nome: `${treino.nome.slice(0, 60 - 12)} · ${voltasDoNovo} voltas`,
+            descricao: `Dê ${voltasDoNovo} voltas no trajeto, sem parar entre elas (os passos se repetem a cada volta). ${String(treino.descricao ?? "")}`.slice(0, 500),
+            passos: Array.from({ length: voltasDoNovo }, () => treino.passos).flat(),
           });
           if (repetido.valido && repetido.valores) {
             treino = repetido.valores as typeof treino;
-            avisos.push(`Você pediu ${duracaoPedida} min e o trajeto leva cerca de ${Math.round(duracaoDaVoltaMin)} min: o treino tem ${voltas} voltas.`);
+            voltas = voltasDoNovo;
           }
         }
         const duracaoMin = resumirTreino(treino.passos).duracaoMin;
@@ -569,9 +583,25 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
     }
   }
   if (!escolhido) throw new HttpsError("failed-precondition", "Não há treino disponível para o seu nível e esporte.");
-  // treino já existente do trajeto (uma volta) e tempo pedido maior: sugere repetir o trajeto
-  if (escolhido.id && idsDoTrajeto.has(escolhido.id) && duracaoPedida !== null && escolhido.duracaoMin > 0 && duracaoPedida > escolhido.duracaoMin * 1.25) {
-    avisos.push(`Este treino cobre uma volta do trajeto (${escolhido.duracaoMin} min). Para chegar perto de ${duracaoPedida} min, dê cerca de ${Math.max(2, Math.round(duracaoPedida / escolhido.duracaoMin))} voltas.`);
+  // quantas voltas no trajeto: um treino feito para o trajeto cobre UMA volta (repete-se até o tempo pedido); um treino de
+  // catálogo é maior que o trajeto, então o trajeto é repetido até completar a duração do treino
+  let minutosDoTreinoNasVoltas = escolhido.duracaoMin;
+  if (terreno && trajeto && !novoTreino && duracaoDaVoltaMin > 0) {
+    const doTrajeto = escolhido.id !== null && idsDoTrajeto.has(escolhido.id);
+    const alvo = doTrajeto ? (duracaoPedida ?? 0) : escolhido.duracaoMin;
+    const base = doTrajeto ? escolhido.duracaoMin : duracaoDaVoltaMin;
+    if (base > 0 && alvo > base * 1.25) {
+      voltas = Math.max(2, Math.round(alvo / base));
+      minutosDoTreinoNasVoltas = alvo;
+    }
+  }
+  if (voltas > 1 && trajeto) {
+    const volta = Math.round(duracaoDaVoltaMin);
+    avisos.push(
+      novoTreino
+        ? `O trajeto "${trajeto.nome}" leva cerca de ${volta} min por volta: o treino tem ${voltas} voltas (${escolhido.duracaoMin} min no total).`
+        : `O trajeto "${trajeto.nome}" leva cerca de ${volta} min por volta: dê ${voltas} voltas para completar os ${minutosDoTreinoNasVoltas} min.`,
+    );
   }
   if (semTerreno && trajeto) avisos.push(`Trajeto "${trajeto.nome}": ${semTerreno} Por isso o treino foi escolhido da lista, sem adaptação ao terreno.`);
   if (jaNoDia > 0) avisos.push("Este dia já tem treino planejado; o sugerido seria um segundo treino.");
@@ -579,12 +609,16 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   // a semana toda: o treino escolhido soma ao que já foi feito e ao que está planejado
   const semanaComEste = feitoNaSemana + planejadoNaSemana + escolhido.estresse;
   if (cargaBase > 0 && semanaComEste > cargaBase * 1.1) {
-    avisos.push(`Atenção: com este treino a semana de ${formatarDataBr(semanaIni)} chega a ~${Math.round(semanaComEste)} de carga (feito + planejado), acima de ~${Math.round(cargaBase * 1.1)} (10% sobre a sua média). Considere tirar ou aliviar outro treino da semana.`);
+    avisos.push(
+      `Carga da semana (${formatarDataBr(semanaIni)} a ${formatarDataBr(semanaFim)}): já há ~${Math.round(feitoNaSemana + planejadoNaSemana)} entre feito e planejado; com este treino (~${escolhido.estresse}) chega a ~${Math.round(semanaComEste)}, ` +
+        `acima do teto de ~${Math.round(cargaBase * 1.1)} (10% sobre a sua média). Considere aliviar outro treino da semana.`,
+    );
   }
   const item = {
     data, modeloId: escolhido.id, nome: escolhido.nome, esporte: escolhido.esporte, foco: escolhido.foco, intensidade: escolhido.intensidade,
     duracaoMin: escolhido.duracaoMin, estresse: escolhido.estresse, motivo: saidaIa.motivo.trim().slice(0, 300),
     ...(novoTreino ? { novoTreino } : {}),
+    ...(voltas > 1 ? { voltas } : {}),
     ...(trajeto ? { trajetoId, trajetoNome: String(trajeto.nome ?? "Trajeto") } : {}),
   };
   const saida = { resumo: item.motivo, itens: [item], avisos, aviso: AVISO_IA };

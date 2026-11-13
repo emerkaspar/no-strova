@@ -20,8 +20,9 @@ const milissegundos = (ts) => (ts && typeof ts.toMillis === 'function' ? ts.toMi
 
 /**
  * Central de notificações: abas "Não lidas" e "Todas", filtro por grupo e "marcar todas como lidas".
- * A notificação só sai de "Não lidas" quando o usuário a marca como lida (mesmo que o motivo já tenha sido resolvido:
- * ela ganha o selo "Resolvido"). Quem grava é o servidor; aqui só se lê e se pede para marcar como lida.
+ * A notificação sai de "Não lidas" quando o usuário a marca como lida ou quando o motivo é resolvido (selo "Resolvido";
+ * o servidor já a marca como lida, e a tela também ignora as antigas resolvidas e ainda pendentes).
+ * Quem grava é o servidor; aqui só se lê e se pede para marcar como lida.
  */
 export function render(raiz, sessao) {
   const dados = { naoLidas: [], todas: [] };
@@ -47,8 +48,10 @@ export function render(raiz, sessao) {
   const marcarUma = (id) => pedir(() => marcarNotificacoesComoLidas({ ids: [id] }));
   const marcarTodas = () => pedir(() => marcarTodasNotificacoesComoLidas({}));
 
+  const pendentes = () => dados.naoLidas.filter((n) => !n.resolvida);
+
   function itensVisiveis() {
-    const base = aba === 'nao-lidas' ? dados.naoLidas : dados.todas;
+    const base = aba === 'nao-lidas' ? pendentes() : dados.todas;
     return grupo === 'todos' ? base : base.filter((n) => n.grupo === grupo);
   }
 
@@ -90,7 +93,7 @@ export function render(raiz, sessao) {
         h('span', null, rotulo),
         total > 0 ? h('span', { class: 'notif-contagem' }, String(total)) : null,
       );
-    abas.replaceChildren(abrir('nao-lidas', 'Não lidas', 'sino', dados.naoLidas.length), abrir('todas', 'Todas', 'atividades', 0));
+    abas.replaceChildren(abrir('nao-lidas', 'Não lidas', 'sino', pendentes().length), abrir('todas', 'Todas', 'atividades', 0));
 
     const grupos = Object.entries({ todos: 'Todos', ...GRUPOS_NOTIFICACAO });
     filtros.replaceChildren(
@@ -99,8 +102,7 @@ export function render(raiz, sessao) {
       ),
     );
 
-    botaoTodas.disabled = dados.naoLidas.length === 0;
-    lista.replaceChildren(
+    botaoTodas.disabled = dados.naoLidas.length === 0;    lista.replaceChildren(
       ...(visiveis.length > 0
         ? visiveis.map(desenharItem)
         : [h('li', null, estadoVazio(aba === 'nao-lidas' ? 'Nenhuma notificação pendente. Tudo em dia.' : 'Nenhuma notificação por aqui ainda.'))]),

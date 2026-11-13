@@ -111,7 +111,15 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
         h('strong', null, it.nome),
         h('span', { class: 'texto-secundario' }, ` · ${it.duracaoMin} min · carga ~${it.estresse}`),
       ),
-      it.trajetoNome ? h('p', { class: 'texto-secundario' }, `Trajeto: ${it.trajetoNome}${it.novoTreino ? ' · treino novo criado pela IA' : ''}`) : null,
+      it.trajetoNome
+        ? h(
+            'p',
+            { class: 'texto-secundario' },
+            `Trajeto: ${it.trajetoNome}`,
+            it.voltas > 1 ? h('strong', null, ` · ${it.voltas} voltas`) : null,
+            it.novoTreino ? ' · treino novo criado pela IA' : '',
+          )
+        : null,
       it.motivo ? h('p', { class: 'ia-resumo' }, it.motivo) : null,
       saida.avisos.length > 0 ? h('ul', { class: 'ia-avisos' }, ...saida.avisos.map((a) => h('li', null, a))) : null,
       ].filter(Boolean),
