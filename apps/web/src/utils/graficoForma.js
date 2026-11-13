@@ -188,7 +188,7 @@ export function graficoForma(
       ...series.map((campo) =>
         linha(ROTULO_SERIE[campo], campo === 'forma' ? `${formatarNumero(d.forma, 1)} · ${faixa?.rotulo ?? ''}` : formatarNumero(d[campo], 1)),
       ),
-      linha(d.projetado ? 'Estresse planejado' : 'Estresse do dia', formatarNumero(d.estresse, 1)),
+      linha(d.projetado ? 'Esforço planejado' : 'Esforço do dia', formatarNumero(d.estresse, 1)),
     );
     dica.hidden = false;
   });

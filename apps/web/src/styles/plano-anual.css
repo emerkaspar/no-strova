@@ -596,138 +596,130 @@
   border-style: dashed;
 }
 
-/* ---------- Projeção do plano: refinamento visual (só o modo plano; o gráfico do Início não muda) ---------- */
+/* ---------- Projeção do plano: redesenho visual (só o modo plano; o gráfico do Início não muda) ---------- */
 
-/* cabeçalho: título, descrição e período alinhados; o seletor vira um controle segmentado */
+/* Tokens do cartão: fundos, bordas e textos herdam os tokens do app (igual ao resto do site); no tema claro só as cores das séries e das zonas seguem o redesenho. */
+.cg-plano {
+  --pp-card: var(--surface);
+  --pp-painel: var(--surface-light);
+  --pp-borda: var(--border);
+  --pp-grade: color-mix(in srgb, var(--border) 65%, transparent);
+  --pp-rotulo: var(--text-secondary);
+  --pp-tinta: var(--text-primary);
+  --pp-tinta-texto: var(--bg-main);
+  --pp-futuro: var(--cg-futuro);
+  --pp-estresse: var(--text-secondary);
+  --pp-estresse-fut: color-mix(in srgb, var(--text-secondary) 28%, transparent);
+  --pp-estresse-fut-borda: var(--text-secondary);
+
+  padding: 34px;
+  background: var(--pp-card);
+  border: 1px solid var(--pp-borda);
+  border-radius: 20px;
+}
+
+:root[data-tema='claro'] .cg-plano {
+  --cg-fitness: #b5360a;
+  --cg-fadiga: #3a342c;
+  --cg-zona-optimal: #2e7d4f;
+  --cg-zona-neutral: #d9a21b;
+  --cg-zona-freshness: #2f55b5;
+  --cg-zona-overload: #c0392b;
+  --cg-zona-transicao: #a3185e;
+}
+
+/* cabeçalho: título e descrição à esquerda, seletor em pílula à direita */
 .cg-plano .cg-topo {
-  align-items: center;
+  align-items: flex-start;
   gap: 14px 24px;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
 }
 
 .cg-plano .cg-topo h2 {
   margin: 0;
-  font-size: 1.25rem;
-  letter-spacing: 0.02em;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 
 .cg-plano .cg-sub {
   max-width: 64ch;
-  margin: 6px 0 0;
-  font-size: 0.85rem;
-  line-height: 1.45;
+  margin: 8px 0 0;
+  color: var(--pp-rotulo);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .cg-plano .cg-periodos {
   gap: 2px;
-  padding: 3px;
-  background: var(--surface-light);
+  padding: 4px;
+  background: var(--pp-painel);
+  border: 1px solid var(--pp-borda);
   border-radius: 999px;
 }
 
 .cg-plano .cg-periodo {
-  padding: 5px 14px;
+  padding: 6px 15px;
+  background: transparent;
   border-color: transparent;
-  font-size: 0.8rem;
+  border-radius: 999px;
+  color: var(--pp-rotulo);
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .cg-plano .cg-periodo:hover {
   border-color: transparent;
-  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  background: color-mix(in srgb, var(--pp-tinta) 8%, transparent);
 }
 
 .cg-plano .cg-periodo[aria-pressed='true'] {
-  background: var(--primary);
+  background: var(--pp-tinta);
   border-color: transparent;
-}
-
-/* eixos e grades: mais leves, para as linhas de dados serem as protagonistas */
-.cg-plano .cg-grade,
-.cg-plano .cg-limite {
-  stroke: color-mix(in srgb, var(--border) 65%, transparent);
-}
-
-.cg-plano .cg-limite {
-  stroke-dasharray: 2 4;
-}
-
-.cg-plano .cg-zero {
-  opacity: 0.55;
-}
-
-.cg-plano .cg-rotulo {
-  font-size: 11.5px;
-}
-
-/* títulos dos três painéis no mesmo padrão: caixa-alta, um pouco mais fortes que os rótulos dos eixos */
-.cg-plano .cg-titulo-painel {
-  fill: var(--text-primary);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  opacity: 0.85;
-}
-
-/* realizado × projetado: o realizado é sólido; o projetado fica pontilhado/translúcido sobre a área sombreada do futuro */
-.cg-futuro-rotulo {
-  fill: var(--text-secondary);
-  font-size: 10px;
+  color: var(--pp-tinta-texto);
   font-weight: 700;
-  letter-spacing: 0.1em;
-  opacity: 0.85;
 }
 
-.cg-plano .cg-tracejada {
-  stroke-dasharray: 0.1 6.5;
+/* o Plano não tem coluna lateral: indicadores no topo e o gráfico em largura total */
+.cg-plano .cg-corpo {
+  display: block;
 }
 
-.cg-plano .cg-barra-futura {
-  fill: var(--cg-cor);
-  fill-opacity: 0.22;
-  stroke-width: 1;
-  stroke-opacity: 0.8;
-  stroke-dasharray: none;
+.cg-plano .cg-indicadores {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1.6fr;
+  gap: 18px;
+  margin-bottom: 30px;
 }
 
-.cg-plano .cg-estresse-futuro {
-  fill: var(--text-secondary);
-  fill-opacity: 0.2;
-  stroke-width: 1;
-  stroke-dasharray: none;
-}
-
-.cg-plano .cg-hoje {
-  stroke: var(--primary);
-  stroke-dasharray: none;
-  opacity: 0.6;
-}
-
-.cg-plano .cg-meta-linha {
-  stroke-dasharray: 2 4;
-}
-
-/* painel Hoje: o indicador principal em destaque, a zona logo ao lado e o treino separado por um filete */
 .cg-plano .cg-cartao {
+  min-width: 0;
   padding: 22px;
-  border: 0;
+  background: var(--pp-painel);
+  border: 1px solid var(--pp-borda);
   border-radius: 16px;
 }
 
+/* Hoje: rótulo, valor grande na cor da zona e a zona em badge */
 .cg-plano .cg-dia-linha {
-  margin-top: 6px;
+  margin-top: 8px;
   gap: 6px 14px;
+  align-items: center;
 }
 
 .cg-plano .cg-dia-forma {
   margin: 0;
-  color: var(--cg-cor, var(--text-primary));
+  color: var(--cg-cor, var(--pp-tinta));
   font-size: 72px;
+  line-height: 1;
 }
 
 .cg-plano .cg-chip {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 3px 12px 3px 10px;
+  padding: 4px 12px 4px 10px;
   background: color-mix(in srgb, var(--cg-cor) 16%, transparent);
   color: var(--cg-cor);
 }
@@ -740,73 +732,239 @@
   background: var(--cg-cor);
 }
 
-.cg-plano .cg-mini-rotulo {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+/* Treino: ícone, nome em negrito e a frase em itálico */
+.cg-plano .cg-cartao-treino .cg-mini-rotulo {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
 }
 
 .cg-plano .cg-dia-treino p {
   margin: 8px 0 0;
-  font-size: 0.95rem;
+  font-size: 17px;
+  font-weight: 700;
 }
 
 .cg-plano .cg-dia-treino .cg-piada {
-  margin: 4px 0 0 26px;
-  font-size: 0.8rem;
+  margin: 8px 0 0;
+  color: var(--pp-rotulo);
+  font-size: 13.5px;
+  font-style: italic;
+  font-weight: 400;
 }
 
-/* régua de zonas: barra mais fina com segmentos separados, nome da zona do dia em destaque */
 .cg-plano .cg-subtitulo {
   margin: 0 0 18px;
-  color: var(--text-secondary);
+  color: var(--pp-rotulo);
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.cg-plano .cg-regua {
-  height: 220px;
+.cg-plano .cg-dia-rotulo,
+.cg-plano .cg-mini-rotulo {
+  color: var(--pp-rotulo);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
 
-.cg-plano .cg-regua-barra {
+/* régua de zonas horizontal: 5 segmentos, limites entre eles, nomes embaixo e marcador vertical no valor atual */
+.cg-plano .cg-regua-h {
+  height: auto;
+  padding-top: 4px;
+}
+
+.cg-plano .cg-regua-trilho {
+  position: relative;
+  padding: 6px 0;
+}
+
+.cg-plano .cg-regua-h .cg-regua-barra {
+  flex-direction: row;
   gap: 2px;
-  width: 12px;
-  border-radius: 6px;
+  width: 100%;
+  height: 10px;
+  border-radius: 5px;
 }
 
-.cg-plano .cg-regua-marcador {
-  left: -5px;
-  width: 22px;
-  height: 3px;
-  margin-top: -1.5px;
+.cg-plano .cg-regua-h .cg-regua-seg {
+  flex: 1;
 }
 
-.cg-plano .cg-regua-nome {
-  left: 28px;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
+.cg-plano .cg-regua-h .cg-regua-marcador {
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 22px;
+  margin: 0 0 0 -1.5px;
+  background: var(--cg-cor, var(--pp-tinta));
+  box-shadow: 0 0 0 2px var(--pp-painel);
+  transition: left 0.25s ease, background-color 0.25s ease;
+}
+
+.cg-plano .cg-regua-limites {
+  position: relative;
+  height: 16px;
+  margin-top: 4px;
+}
+
+.cg-plano .cg-regua-h .cg-regua-limite {
+  top: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  color: var(--pp-rotulo);
+  font-size: 11px;
+}
+
+.cg-plano .cg-regua-nomes {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.cg-plano .cg-regua-h .cg-regua-nome {
+  position: static;
+  transform: none;
+  color: var(--pp-rotulo);
+  font-size: 12px;
   font-weight: 500;
+  text-align: center;
 }
 
-.cg-plano .cg-regua-nome-ativo {
-  color: var(--text-primary);
+.cg-plano .cg-regua-h .cg-regua-nome-ativo {
+  color: var(--pp-tinta);
   font-weight: 700;
 }
 
-.cg-plano .cg-regua-limite {
-  font-size: 0.72rem;
-  opacity: 0.8;
+/* gráficos: zona de projeção, grade, rótulos e títulos de painel */
+.cg-plano .cg-futuro {
+  fill: var(--pp-futuro);
+}
+
+.cg-plano .cg-grade,
+.cg-plano .cg-limite {
+  stroke: var(--pp-grade);
+}
+
+.cg-plano .cg-limite {
+  stroke-dasharray: 2 4;
+}
+
+.cg-plano .cg-zero {
+  opacity: 0.55;
+}
+
+.cg-plano .cg-rotulo {
+  fill: var(--pp-rotulo);
+  font-size: 11px;
+}
+
+.cg-plano .cg-titulo-painel {
+  fill: var(--pp-tinta);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  opacity: 1;
+}
+
+.cg-futuro-rotulo {
+  fill: var(--pp-rotulo, var(--text-secondary));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+/* séries: Condicionamento 3px, Fadiga 2px, projeção em pontilhado arredondado */
+.cg-plano .cg-fitness {
+  stroke-width: 2.25;
+}
+
+.cg-plano .cg-linha {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.cg-plano .cg-fadiga {
+  stroke-width: 1.5;
+}
+
+.cg-plano .cg-tracejada {
+  stroke-dasharray: 0.1 5;
+  stroke-linecap: round;
+}
+
+/* barras da Forma: sólidas no passado; a projeção com 28% de preenchimento e contorno */
+.cg-plano .cg-barra-futura {
+  fill: var(--cg-cor);
+  fill-opacity: 0.28;
+  stroke-width: 1;
+  stroke-opacity: 0.85;
+  stroke-dasharray: none;
+}
+
+/* estresse do dia: cinza sólido no passado; a projeção clara com contorno */
+.cg-plano .cg-estresse {
+  fill: var(--pp-estresse);
+  opacity: 1;
+}
+
+.cg-plano .cg-estresse-futuro {
+  fill: var(--pp-estresse-fut);
+  stroke: var(--pp-estresse-fut-borda);
+  stroke-width: 1;
+  stroke-dasharray: none;
+  opacity: 1;
+}
+
+/* carga que vem do ritmo médio (sem treino previsto no dia): mais leve e tracejada que o treino previsto */
+.cg-plano .cg-estresse-futuro.cg-estresse-ritmo {
+  fill-opacity: 0.45;
+  stroke-opacity: 0.7;
+  stroke-dasharray: 3 3;
+}
+
+/* linha de hoje 1,2px e o rótulo em destaque no eixo X */
+.cg-plano .cg-hoje {
+  stroke: var(--pp-tinta);
+  stroke-width: 1;
+  stroke-dasharray: none;
+  opacity: 0.55;
+}
+
+.cg-plano .cg-hoje-rotulo {
+  fill: var(--cg-fitness);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* metas: faixa a 13% da cor, linha tracejada, losango com borda do fundo e rótulo em negrito */
+.cg-plano .cg-meta-faixa {
+  opacity: 0.13;
+}
+
+.cg-plano .cg-meta-linha {
+  stroke-dasharray: 2 4;
+}
+
+.cg-plano .cg-meta-marcador {
+  stroke: var(--pp-futuro);
+  stroke-width: 2;
+}
+
+.cg-plano .cg-meta-rotulo {
+  font-size: 11px;
+  font-weight: 700;
 }
 
 /* legenda compacta, logo abaixo do gráfico */
 .cg-plano .cg-legenda {
-  gap: 6px 12px;
+  gap: 6px 14px;
   justify-content: space-between;
-  margin-top: 14px;
-  font-size: 0.72rem;
+  margin-top: 18px;
+  color: var(--pp-rotulo);
+  font-size: 12px;
 }
 
 .cg-plano .cg-legenda li {
@@ -814,7 +972,7 @@
   white-space: nowrap;
 }
 
-/* em telas largas os seis itens cabem numa linha só; nas menores a legenda volta a quebrar */
+/* em telas largas os itens cabem numa linha só; nas menores a legenda volta a quebrar */
 @media (min-width: 1180px) {
   .cg-plano .cg-legenda {
     flex-wrap: nowrap;
@@ -829,14 +987,38 @@
   border-top-style: dotted;
 }
 
+/* telas médias: Hoje e Treino lado a lado, e a régua embaixo */
+@media (max-width: 900px) {
+  .cg-plano .cg-indicadores {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cg-plano .cg-indicadores > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* telas pequenas: o SVG encolhe junto com a largura, então os textos dele ganham corpo */
 @media (max-width: 600px) {
+  .cg-plano {
+    padding: 20px;
+  }
+
+  .cg-plano .cg-indicadores {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
   .cg-plano .cg-rotulo,
   .cg-plano .cg-titulo-painel,
   .cg-plano .cg-futuro-rotulo,
   .cg-plano .cg-hoje-rotulo,
   .cg-plano .cg-meta-rotulo {
     font-size: 14px;
+  }
+
+  .cg-plano .cg-topo h2 {
+    font-size: 26px;
   }
 
   .cg-plano .cg-periodos {

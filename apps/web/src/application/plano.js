@@ -6,6 +6,7 @@ import {
   estimarEstresseEstruturado,
   estimarEstresseTreino,
   horizonteDaProjecao,
+  ritmoSemanalPorDia,
   serieComProjecao,
   somarDias,
   validarMetaCondicionamento,
@@ -78,13 +79,16 @@ export async function salvarMetaDeCondicionamento({ uid, entrada, hoje, metasAti
  * @param {{ dias: Array<{data: string, estresse: number}>, treinos: any[], configs: any[], meta: any, hoje: string, limiteDias?: number }} entrada
  *   `limiteDias`: corta o horizonte a N dias depois de hoje (o Início usa 14).
  */
-export function montarProjecao({ dias, treinos, configs, meta, metaCondicionamento = null, hoje, limiteDias, calibracao = null }) {
+export function montarProjecao({ dias, treinos, configs, meta, metaCondicionamento = null, hoje, limiteDias, calibracao = null, usarRitmo = true }) {
   let ate = horizonteDaProjecao({ treinos, meta, metaCondicionamento, hoje });
   if (limiteDias && ate > somarDias(hoje, limiteDias)) ate = somarDias(hoje, limiteDias);
-  const serie = serieComProjecao({ realizado: dias, treinos, configs, hoje, ate, calibracao });
+  // dias futuros sem treino previsto seguem o ritmo médio das últimas semanas (null com pouco histórico)
+  const ritmo = usarRitmo ? ritmoSemanalPorDia({ realizado: dias, hoje }) : null;
+  const serie = serieComProjecao({ realizado: dias, treinos, configs, hoje, ate, calibracao, ritmo });
   return {
     serie,
     ate,
+    ritmo,
     avaliacao: avaliarMeta(serie, meta, hoje),
     avaliacaoCondicionamento: avaliarMetaCondicionamento(serie, metaCondicionamento, hoje),
   };

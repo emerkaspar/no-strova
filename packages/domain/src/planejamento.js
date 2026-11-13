@@ -182,7 +182,7 @@ function somarPorDia(itens) {
  * @param {{ realizado: Array<{data: string, estresse: number}>, treinos: TreinoPlanejado[], configs: any[], hoje: string }} entrada
  * @returns {Array<{ data: string, estresse: number }>}
  */
-export function estressesParaProjecao({ realizado, treinos, configs, hoje, calibracao = null }) {
+export function estressesParaProjecao({ realizado, treinos, configs, hoje, calibracao = null, ritmo = null, ate = null }) {
   const feito = somarPorDia((realizado ?? []).filter((r) => r.data <= hoje));
   const previsto = somarPorDia(
     (treinos ?? [])
@@ -195,9 +195,49 @@ export function estressesParaProjecao({ realizado, treinos, configs, hoje, calib
     const r = feito.get(data) ?? 0;
     const p = previsto.get(data) ?? 0;
     const estresse = data < hoje ? r : data === hoje ? Math.max(r, p) : p;
-    if (estresse > 0) resultado.push({ data, estresse });
+    if (estresse > 0) resultado.push({ data, estresse, origem: data > hoje || (data === hoje && p > r) ? 'planejado' : 'realizado' });
+  }
+
+  // Dias futuros sem treino previsto seguem o ritmo médio do atleta (o treino previsto do dia substitui a média).
+  if (ritmo && ate) {
+    for (let data = somarDias(hoje, 1); data <= ate; data = somarDias(data, 1)) {
+      if (previsto.has(data)) continue;
+      const estresse = ritmo[diaDaSemana(data)] ?? 0;
+      if (estresse > 0) resultado.push({ data, estresse, origem: 'ritmo' });
+    }
   }
   return resultado;
+}
+
+/** Quantas semanas completas do histórico formam o "ritmo médio", e o mínimo para haver ritmo. */
+export const SEMANAS_RITMO = 8;
+export const SEMANAS_MINIMAS_RITMO = 2;
+
+function diaDaSemana(iso) {
+  return new Date(`${iso}T00:00:00Z`).getUTCDay(); // 0 = domingo
+}
+
+/**
+ * Ritmo médio do atleta: o estresse médio de cada dia da semana nas últimas semanas completas antes de hoje (até 8, a
+ * partir da primeira atividade; dias sem treino contam 0, então folgas e longões ficam no lugar certo). Serve de
+ * projeção para os dias futuros sem treino previsto.
+ * @param {{ realizado: Array<{data: string, estresse: number}>, hoje: string, semanas?: number }} entrada
+ * @returns {number[]|null} 7 valores (índice 0 = domingo), ou null com menos de 2 semanas de histórico
+ */
+export function ritmoSemanalPorDia({ realizado, hoje, semanas = SEMANAS_RITMO }) {
+  const feito = somarPorDia((realizado ?? []).filter((r) => r.data < hoje));
+  if (feito.size === 0) return null;
+  const primeira = [...feito.keys()].reduce((a, b) => (b < a ? b : a));
+  const completas = Math.min(semanas, Math.floor(diasEntre(primeira, hoje) / 7));
+  if (completas < SEMANAS_MINIMAS_RITMO) return null;
+
+  const inicio = somarDias(hoje, -7 * completas);
+  const soma = [0, 0, 0, 0, 0, 0, 0];
+  for (const [data, estresse] of feito) {
+    if (data >= inicio) soma[diaDaSemana(data)] += estresse;
+  }
+  if (soma.every((v) => v === 0)) return null;
+  return soma.map((v) => v / completas);
 }
 
 /**
@@ -223,13 +263,14 @@ export function horizonteDaProjecao({ treinos, meta, metaCondicionamento = null,
  * Série de Fitness/Fadiga/Forma com a projeção do plano. Cada dia ganha `projetado` (depois de hoje).
  * @returns {Array<import('./forma.js').DiaForma & { projetado: boolean }>}
  */
-export function serieComProjecao({ realizado, treinos, configs, hoje, ate, calibracao = null }) {
-  const estresses = estressesParaProjecao({ realizado, treinos, configs, hoje, calibracao });
+export function serieComProjecao({ realizado, treinos, configs, hoje, ate, calibracao = null, ritmo = null }) {
   const limite = ate && ate > hoje ? ate : hoje;
+  const estresses = estressesParaProjecao({ realizado, treinos, configs, hoje, calibracao, ritmo, ate: limite });
+  const origens = new Map(estresses.map((e) => [e.data, e.origem]));
   // calcularSerieForma nunca termina antes do último estresse: corta no limite pedido
   return calcularSerieForma(estresses, { ate: limite })
     .filter((d) => d.data <= limite)
-    .map((d) => ({ ...d, projetado: d.data > hoje }));
+    .map((d) => ({ ...d, projetado: d.data > hoje, origem: origens.get(d.data) ?? null }));
 }
 
 /**

@@ -3,9 +3,10 @@ import { h } from '../../utils/dom.js';
 import { formatarForma, formatarNumero } from '../../utils/formatters.js';
 
 const NS = 'http://www.w3.org/2000/svg';
-const L = 760;
+// o Plano ocupa a largura toda do cartão (sem coluna lateral), então o gráfico é mais largo e os textos do SVG ficam no tamanho real
+const L_INICIO = 760;
+const L_PLANO = 1000;
 const MARGEM = { esquerda: 40, direita: 14 };
-const LARGURA = L - MARGEM.esquerda - MARGEM.direita;
 
 /**
  * Posição dos painéis. No Início: condicionamento e fadiga, Forma (com a faixa de atividades acima das barras) e peso.
@@ -15,10 +16,10 @@ function layoutDoModo(plano) {
   const faixa = plano ? 0 : 22;
   // o Plano não tem a coluna de peso nem os ícones, então os painéis ficam mais altos e o gráfico acompanha a coluna lateral
   // (e os painéis ganham mais respiro entre si, para o título de cada um não encostar no gráfico de cima)
-  const respiro = plano ? 44 : 28;
-  const cond = { topo: plano ? 24 : 20, alto: plano ? 200 : 170 };
-  const forma = { topo: cond.topo + cond.alto + respiro, alto: (plano ? 150 : 120) + faixa };
-  const terceiro = { topo: forma.topo + forma.alto + respiro, alto: plano ? 80 : 90 };
+  const respiro = plano ? 34 : 28;
+  const cond = { topo: plano ? 24 : 20, alto: plano ? 140 : 170 };
+  const forma = { topo: cond.topo + cond.alto + respiro, alto: (plano ? 105 : 120) + faixa };
+  const terceiro = { topo: forma.topo + forma.alto + respiro, alto: plano ? 56 : 90 };
   const fim = terceiro.topo + terceiro.alto;
   return {
     FAIXA_ATIVIDADES: faixa,
@@ -210,6 +211,8 @@ export function criarGraficoPrincipal({
   diaClicavel = null,
 }) {
   const plano = modo === 'plano';
+  const L = plano ? L_PLANO : L_INICIO;
+  const LARGURA = L - MARGEM.esquerda - MARGEM.direita;
   const periodos = plano ? PERIODOS_PLANO : PERIODOS;
   const raiz = h('section', { class: `card bloco-grafico cg${plano ? ' cg-plano' : ''}` });
   const periodo = () => periodos.find((p) => p.id === periodoPorModo[modo]) ?? periodos[1];
@@ -217,6 +220,8 @@ export function criarGraficoPrincipal({
   function desenhar() {
     const dias = recortarPeriodo(serie, periodo());
     const temFuturo = dias.some((d) => d.projetado);
+    const temRitmo = dias.some((d) => d.origem === 'ritmo');
+    const temPrevisto = dias.some((d) => d.projetado && d.origem === 'planejado');
     const seletor = h(
       'div',
       { class: 'cg-periodos', role: 'group', 'aria-label': 'Período do gráfico' },
@@ -247,7 +252,9 @@ export function criarGraficoPrincipal({
           'p',
           { class: 'texto-secundario cg-sub' },
           plano
-            ? temFuturo
+            ? temRitmo
+              ? `${temPrevisto ? 'Os treinos planejados valem no dia deles; os outros dias seguem' : 'Ainda não há treinos planejados: a projeção segue'} o seu ritmo médio das últimas semanas. Clique num dia para planejar ou editar o treino dele.`
+              : temFuturo
               ? 'Como o seu plano mexe no Condicionamento, na Fadiga e na Forma. Clique num dia para planejar ou editar o treino dele.'
               : 'Ainda não há treinos planejados: clique num dia para planejar um e ver a projeção do Condicionamento, da Fadiga e da Forma.'
             : 'Realizado até hoje e plano projetado. Passe o mouse sobre o gráfico.',
@@ -390,7 +397,7 @@ export function criarGraficoPrincipal({
       const alturaMaxima = PAINEL.estresse.alto - 4;
       const larguraEstresse = Math.max(1.5, passoX * 0.6);
       raizSvg.append(
-        svg('text', { x: MARGEM.esquerda, y: PAINEL.estresse.topo - 6, class: 'cg-titulo-painel' }, 'ESTRESSE DO DIA'),
+        svg('text', { x: MARGEM.esquerda, y: PAINEL.estresse.topo - 6, class: 'cg-titulo-painel' }, 'ESFORÇO DO DIA (HRSS)'),
         svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: baseEstresse, y2: baseEstresse, class: 'cg-grade' }),
         svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: baseEstresse - alturaMaxima, y2: baseEstresse - alturaMaxima, class: 'cg-grade' }),
         svg('text', { x: MARGEM.esquerda - 8, y: baseEstresse + 4, 'text-anchor': 'end', class: 'cg-rotulo' }, '0'),
@@ -404,9 +411,10 @@ export function criarGraficoPrincipal({
           y: (baseEstresse - altura).toFixed(1),
           width: larguraEstresse.toFixed(1),
           height: altura.toFixed(1),
-          class: `cg-estresse${d.projetado ? ' cg-estresse-futuro' : ''}`,
+          class: `cg-estresse${d.projetado ? ' cg-estresse-futuro' : ''}${d.origem === 'ritmo' ? ' cg-estresse-ritmo' : ''}`,
         });
-        barra.append(svg('title', {}, `${rotuloDoDia(d.data)} · estresse ${formatarNumero(d.estresse, 0)}${d.projetado ? ' (planejado)' : ''}`));
+        const sufixo = !d.projetado ? '' : d.origem === 'ritmo' ? ' (ritmo médio)' : ' (planejado)';
+        barra.append(svg('title', {}, `${rotuloDoDia(d.data)} · esforço ${formatarNumero(d.estresse, 0)}${sufixo}`));
         raizSvg.append(barra);
       });
     }
@@ -564,6 +572,9 @@ export function criarGraficoPrincipal({
       const chip = h('span', { class: 'cg-chip' });
       const treino = h('div', { class: 'cg-dia-treino' });
       const cartaoDia = h('div', { class: 'cg-cartao' }, rotuloDia, h('div', { class: 'cg-dia-linha' }, numero, chip), h('p', { class: 'cg-mini-rotulo' }, 'Treino'), treino);
+      // no Plano o painel do dia vira dois cartões lado a lado (Hoje e Treino), com a régua horizontal ao lado
+      const cartaoHoje = h('div', { class: 'cg-cartao cg-cartao-hoje' }, rotuloDia, h('div', { class: 'cg-dia-linha' }, numero, chip));
+      const cartaoTreino = h('div', { class: 'cg-cartao cg-cartao-treino' }, h('p', { class: 'cg-mini-rotulo' }, 'Treino'), treino);
 
       const marcador = h('span', { class: 'cg-regua-marcador', 'aria-hidden': 'true' });
       const segmentos = FAIXAS_FORMA.map((f, i) => {
@@ -575,7 +586,21 @@ export function criarGraficoPrincipal({
       const pct = (v) => ((ESCALA_REGUA.max - v) / total) * 100;
       // o nome da zona do dia selecionado ganha destaque (data-faixa liga o nome à zona)
       const nomes = segmentos.map(({ f, sup, inf }) => h('span', { class: 'cg-regua-nome', 'data-faixa': f.id, style: `top:${pct((sup + inf) / 2)}%` }, f.rotulo));
-      const regua = h(
+      // posição do marcador na régua horizontal: as 5 zonas têm a mesma largura e o valor é interpolado dentro da zona dele
+      const posicaoNaReguaH = (v) => {
+        const x = Math.min(ESCALA_REGUA.max, Math.max(ESCALA_REGUA.min, v));
+        const i = Math.max(0, segmentos.findIndex(({ inf }) => x >= inf));
+        const { sup, inf } = segmentos[i];
+        return ((i + (sup - x) / (sup - inf || 1)) / segmentos.length) * 100;
+      };
+      const reguaH = h(
+        'div',
+        { class: 'cg-regua cg-regua-h' },
+        h('div', { class: 'cg-regua-trilho' }, h('div', { class: 'cg-regua-barra' }, ...segmentos.map(({ f }) => h('span', { class: `cg-regua-seg cg-zona-${f.id}` }))), marcador),
+        h('div', { class: 'cg-regua-limites' }, ...LIMITES_REGUA.map((v, k) => h('span', { class: 'cg-regua-limite', style: `left:${((k + 1) / segmentos.length) * 100}%` }, v > 0 ? `+${v}` : `−${Math.abs(v)}`))),
+        h('div', { class: 'cg-regua-nomes' }, ...segmentos.map(({ f }) => h('span', { class: 'cg-regua-nome', 'data-faixa': f.id }, f.rotulo))),
+      );
+      const regua = plano ? null : h(
         'div',
         { class: 'cg-regua' },
         h('div', { class: 'cg-regua-barra' }, ...segmentos.map(({ f, sup, inf }) => h('span', { class: `cg-regua-seg cg-zona-${f.id}`, style: `flex:${sup - inf}` }))),
@@ -583,7 +608,7 @@ export function criarGraficoPrincipal({
         ...nomes,
         ...LIMITES_REGUA.map((v) => h('span', { class: 'cg-regua-limite', style: `top:${pct(v)}%` }, v > 0 ? `+${v}` : `−${Math.abs(v)}`)),
       );
-      const cartaoRegua = h('div', { class: 'cg-cartao' }, h('h3', { class: 'cg-subtitulo' }, 'Régua de zonas'), regua);
+      const cartaoRegua = h('div', { class: 'cg-cartao' }, h('h3', { class: 'cg-subtitulo' }, 'Régua de zonas'), plano ? reguaH : regua);
 
       const legenda = h(
         'ul',
@@ -593,7 +618,7 @@ export function criarGraficoPrincipal({
         ...(plano
           ? [
               h('li', null, h('span', { class: 'cg-amostra cg-amostra-plano' }), 'Projeção do plano'),
-              h('li', null, h('span', { class: 'cg-amostra-estresse' }), 'Estresse do dia'),
+              h('li', null, h('span', { class: 'cg-amostra-estresse' }), 'Esforço do dia (HRSS)'),
               metaCondNaJanela ? h('li', null, h('span', { class: 'cg-amostra-meta cg-meta-cond' }), 'Meta de Condicionamento') : null,
               metaNaJanela ? h('li', null, h('span', { class: 'cg-amostra-meta' }), 'Meta de forma') : null,
             ].filter(Boolean)
@@ -608,19 +633,23 @@ export function criarGraficoPrincipal({
 
       return {
         // no Plano a legenda sai da coluna lateral e fica logo abaixo do gráfico, junto das séries que ela explica
-        raiz: h('div', { class: 'cg-lateral' }, cartaoDia, cartaoRegua, plano ? null : legenda),
+        raiz: plano ? h('div', { class: 'cg-indicadores' }, cartaoHoje, cartaoTreino, cartaoRegua) : h('div', { class: 'cg-lateral' }, cartaoDia, cartaoRegua, legenda),
         legenda,
         mostrar(d) {
           const faixa = FAIXAS_FORMA.find((f) => f.id === d.faixa);
           rotuloDia.textContent = `${statusDoDia(d.data, hoje)} · ${rotuloDoDia(d.data)}`;
           numero.className = `cg-dia-forma cg-zona-${d.faixa}`;
-          nomes.forEach((nome) => nome.classList.toggle('cg-regua-nome-ativo', nome.dataset.faixa === d.faixa));
+          (plano ? reguaH.querySelectorAll('.cg-regua-nome') : nomes).forEach((nome) => nome.classList.toggle('cg-regua-nome-ativo', nome.dataset.faixa === d.faixa));
           numero.textContent = sinalDaForma(d.forma).replace('−', '-'); // a Anton não tem o sinal de menos
           numero.setAttribute('aria-label', `Forma ${sinalDaForma(d.forma)}`);
           chip.textContent = faixa?.rotulo ?? '';
           chip.className = `cg-chip cg-zona-${d.faixa}`;
           treino.replaceChildren(...linhasDoTreino(d.data).flatMap((t) => [linhaDeTreino(t), t.piada ? h('p', { class: 'cg-piada' }, t.piada) : null]).filter(Boolean));
-          marcador.style.top = `${pct(Math.min(ESCALA_REGUA.max, Math.max(ESCALA_REGUA.min, d.forma)))}%`;
+          if (plano) {
+            marcador.style.left = `${posicaoNaReguaH(d.forma)}%`;
+            marcador.className = `cg-regua-marcador cg-zona-${d.faixa}`; // a cor segue a zona do dia
+          }
+          else marcador.style.top = `${pct(Math.min(ESCALA_REGUA.max, Math.max(ESCALA_REGUA.min, d.forma)))}%`;
         },
       };
     }
@@ -711,7 +740,9 @@ export function criarGraficoPrincipal({
       if (e.pointerType !== 'touch') limpar(); // no toque, a seleção fica até o próximo toque
     });
 
-    return h('div', { class: 'cg-corpo' }, h('div', { class: 'cg-principal' }, area, plano ? lateral.legenda : null), lateral.raiz);
+    // Plano: faixa de indicadores no topo e o gráfico em largura total; Início: gráfico e coluna lateral
+    if (plano) return h('div', { class: 'cg-corpo' }, lateral.raiz, h('div', { class: 'cg-principal' }, area, lateral.legenda));
+    return h('div', { class: 'cg-corpo' }, h('div', { class: 'cg-principal' }, area), lateral.raiz);
   }
 
   desenhar();
