@@ -13,8 +13,8 @@ export function pedirTreinosDaIa(entrada) {
 }
 
 /** Pede à IA um único treino para o dia (pela carga e pelo sentimento recente). Retorna { rascunhoId, restantes, saida }. */
-export function pedirTreinoUnicoDaIa({ data, duracaoMin = null }) {
-  return sugerirTreinoUnico({ data, ...(duracaoMin ? { duracaoMin } : {}) });
+export function pedirTreinoUnicoDaIa({ data, duracaoMin = null, trajetoId = null }) {
+  return sugerirTreinoUnico({ data, ...(duracaoMin ? { duracaoMin } : {}), ...(trajetoId ? { trajetoId } : {}) });
 }
 
 /**

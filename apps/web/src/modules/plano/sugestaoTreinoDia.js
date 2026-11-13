@@ -1,6 +1,8 @@
 import { AVISO_IA, modeloPorId } from '@no-strova/domain';
 import { carregarModelosProprios } from '../../application/modelos.js';
 import { aceitarTreinosDaIa, descartarRascunho, pedirTreinoUnicoDaIa } from '../../application/ia.js';
+import { salvarModeloProprio } from '../../application/treinos.js';
+import { lerTrajetos } from '../../infrastructure/trajetosRepo.js';
 import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { formatarData } from '../../utils/formatters.js';
@@ -44,8 +46,30 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
     ),
     input: horasEl,
   };
+  // trajeto (opcional): a IA leva o terreno em conta e, se nenhum treino servir, cria um novo sob medida
+  const trajetoEl = h('select', { id: 'ia-dia-trajeto', disabled: true }, h('option', { value: '' }, 'Sem trajeto específico'));
+  const trajeto = {
+    raiz: h(
+      'div',
+      { class: 'campo' },
+      h('label', { for: 'ia-dia-trajeto' }, 'Em qual trajeto? (opcional)'),
+      trajetoEl,
+      h('small', { class: 'dica' }, 'Com um trajeto, a IA considera o terreno dele e, se nenhum treino seu combinar com o dia, cria um novo adaptado ao trajeto, olhando também o que você já fez e os treinos já marcados nos próximos dias.'),
+    ),
+  };
+  lerTrajetos(uid)
+    .then((lista) => {
+      const validos = lista.filter((t) => t.esporte === 'ciclismo' || t.esporte === 'corrida');
+      if (validos.length === 0) {
+        trajeto.raiz.remove();
+        return;
+      }
+      for (const t of validos) trajetoEl.append(h('option', { value: t.id }, `${t.nome} · ${t.esporte === 'corrida' ? 'corrida' : 'ciclismo'}`));
+      trajetoEl.disabled = false;
+    })
+    .catch(() => trajeto.raiz.remove());
   const botaoPedir = h('button', { class: 'btn', type: 'button' }, icone('ia', 16), ' Pedir treino à IA');
-  corpo.append(tempo.raiz);
+  corpo.append(tempo.raiz, trajeto.raiz);
   rodape.append(botaoPedir, botaoFechar);
 
   function mostrar({ rascunhoId: id, saida }) {
@@ -55,8 +79,16 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
     const botaoDescartar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Descartar');
     botaoAceitar.addEventListener('click', () =>
       executarComBotao(botaoAceitar, mensagem, async () => {
-        const proprios = modelos ?? (await carregarModelosProprios(uid));
-        await aceitarTreinosDaIa({ uid, rascunhoId: id, itens: [{ modelo: modeloPorId(it.modeloId, proprios), data: it.data }], configs });
+        let modelo;
+        if (it.novoTreino) {
+          // treino novo criado pela IA para o trajeto: entra em "Meus treinos" e depois no plano
+          const novoId = await salvarModeloProprio({ uid, entrada: it.novoTreino });
+          modelo = { ...it.novoTreino, id: novoId, origem: 'proprio' };
+        } else {
+          const proprios = modelos ?? (await carregarModelosProprios(uid));
+          modelo = modeloPorId(it.modeloId, proprios);
+        }
+        await aceitarTreinosDaIa({ uid, rascunhoId: id, itens: [{ modelo, data: it.data }], configs });
         rascunhoId = null;
         aoAceitar(`${it.nome} adicionado ao plano em ${formatarData(it.data)}.`);
         fecharModal();
@@ -79,6 +111,7 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
         h('strong', null, it.nome),
         h('span', { class: 'texto-secundario' }, ` · ${it.duracaoMin} min · carga ~${it.estresse}`),
       ),
+      it.trajetoNome ? h('p', { class: 'texto-secundario' }, `Trajeto: ${it.trajetoNome}${it.novoTreino ? ' · treino novo criado pela IA' : ''}`) : null,
       it.motivo ? h('p', { class: 'ia-resumo' }, it.motivo) : null,
       saida.avisos.length > 0 ? h('ul', { class: 'ia-avisos' }, ...saida.avisos.map((a) => h('li', null, a))) : null,
       ].filter(Boolean),
@@ -106,7 +139,7 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
     corpo.replaceChildren(h('p', { class: 'texto-secundario', role: 'status' }, 'A IA está avaliando sua carga e como você tem se sentido… pode levar alguns segundos.'));
     rodape.replaceChildren(botaoFechar);
     try {
-      mostrar(await pedirTreinoUnicoDaIa({ data, duracaoMin: duracaoMin === null ? null : Math.round(duracaoMin) }));
+      mostrar(await pedirTreinoUnicoDaIa({ data, duracaoMin: duracaoMin === null ? null : Math.round(duracaoMin), trajetoId: trajetoEl.value || null }));
     } catch (err) {
       corpo.replaceChildren(h('p', { class: 'mensagem mensagem-erro', role: 'alert' }, err.message || 'Não foi possível gerar a sugestão agora.'));
       rodape.replaceChildren(botaoFechar);

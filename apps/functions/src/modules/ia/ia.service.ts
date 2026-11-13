@@ -40,6 +40,7 @@ import {
   NOMES_DIA,
   modeloPorId,
   resumirFeedbacks,
+  resumirTreino,
   somarDias,
   validarRascunhoAnualDaIa,
   validarEntradaDeTreinos,
@@ -305,10 +306,19 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
 // Sugestão de um treino único (botão "+" do calendário)
 // ---------------------------------------------------------------------------------------------------------------
 
+const formatarDataBr = (iso: string) => iso.split("-").reverse().join("/");
+
 interface ItemDoCatalogo { id: string; nome: string; esporte: string; foco: string; intensidade: string; duracaoMin: number }
 
 const schemaTreinoUnico = z.object({
-  modeloId: z.string().describe("O id EXATO de um treino da lista do catálogo."),
+  modeloId: z.string().nullable().describe("O id EXATO de um treino da lista do catálogo. Nulo somente se for pedir um treino novo para o trajeto (novoParaOTrajeto)."),
+  novoParaOTrajeto: z
+    .object({
+      foco: z.string().describe("O foco do treino novo: um id da lista focosPermitidos."),
+      estrategia: z.enum(["subidas", "descidas_planos", "equilibrada"]).describe("Onde concentrar o esforço no terreno do trajeto."),
+    })
+    .nullable()
+    .describe("Só quando o contexto traz 'trajeto.podeCriarTreinoNovo' e nenhum treino da lista serve bem ao dia e ao trajeto: o app monta um treino novo que acompanha o terreno. Nulo caso contrário."),
   motivo: z.string().describe("Duas frases curtas: por que este treino hoje, considerando a carga e o sentimento recente do atleta."),
 });
 
@@ -328,18 +338,42 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   const duracaoPedida = lerDuracaoPedida(bruto.duracaoMin);
   if (duracaoPedida === undefined) throw new HttpsError("invalid-argument", "Informe um tempo de treino entre 15 e 360 minutos, ou deixe em branco para a IA sugerir.");
 
-  const [configs, estresseSnap, treinosSnap, prefSnap, feedback, proprios] = await Promise.all([
+  // trajeto (opcional): o treino deve servir ao terreno dele; o esporte passa a ser o do trajeto
+  const trajetoId = typeof bruto.trajetoId === "string" ? bruto.trajetoId : "";
+  if (bruto.trajetoId !== undefined && bruto.trajetoId !== null && bruto.trajetoId !== "" && (!trajetoId || trajetoId.length > 128 || trajetoId.includes("/"))) {
+    throw new HttpsError("invalid-argument", "Escolha um trajeto válido.");
+  }
+
+  const [configs, estresseSnap, treinosSnap, prefSnap, feedback, propriosTodos, trajetoDoc] = await Promise.all([
     carregarConfigs(uid),
     db.collection("estresseDiario").where("userId", "==", uid).where("data", ">=", somarDias(hoje, -90)).get(),
+    // sem teto superior: os treinos futuros do calendário entram no raciocínio (descanso, carga da semana)
     db.collection("treinosPlanejados").where("userId", "==", uid).where("data", ">=", somarDias(hoje, -3)).get(),
     db.doc(`preferencias/${uid}`).get(),
     feedbackRecente(uid, hoje),
     carregarModelosProprios(uid),
+    trajetoId ? db.doc(`trajetos/${trajetoId}`).get() : Promise.resolve(null),
   ]);
   const pref = prefSnap.data() ?? {};
   const nivel: string = pref.nivelTreinos === "iniciante" || pref.nivelTreinos === "avancado" ? pref.nivelTreinos : "intermediario";
-  const esporte: "ciclismo" | "corrida" | "ambos" =
-    bruto.esporte === "ciclismo" || bruto.esporte === "corrida" ? bruto.esporte : pref.esportePrincipal === "ciclismo" || pref.esportePrincipal === "corrida" ? pref.esportePrincipal : "ambos";
+  const trajeto = trajetoDoc?.data();
+  if (trajetoId && (!trajetoDoc?.exists || !trajeto || trajeto.userId !== uid)) throw new HttpsError("not-found", "Trajeto não encontrado.");
+  if (trajeto && trajeto.esporte !== "ciclismo" && trajeto.esporte !== "corrida") throw new HttpsError("failed-precondition", "O treino por trajeto existe para trajetos de ciclismo e de corrida.");
+  const esporte: "ciclismo" | "corrida" | "ambos" = trajeto
+    ? trajeto.esporte
+    : bruto.esporte === "ciclismo" || bruto.esporte === "corrida" ? bruto.esporte : pref.esportePrincipal === "ciclismo" || pref.esportePrincipal === "corrida" ? pref.esportePrincipal : "ambos";
+  // treinos próprios feitos para OUTRO trajeto ficam de fora quando há um trajeto escolhido (o terreno não combina)
+  const proprios = trajeto ? propriosTodos.filter((m) => !m.trajetoId || m.trajetoId === trajetoId) : propriosTodos;
+  // terreno do trajeto: sem rota de referência (ou plano demais) a IA ainda escolhe um treino, mas não há treino novo sob medida
+  let terreno: ReturnType<typeof segmentarTerreno> | null = null;
+  let semTerreno: string | null = null;
+  if (trajeto) {
+    try {
+      terreno = await terrenoDoTrajeto(uid, trajeto);
+    } catch (err) {
+      semTerreno = err instanceof HttpsError ? err.message : "Não foi possível ler o terreno do trajeto.";
+    }
+  }
 
   const dias = estresseSnap.docs.map((d) => ({ data: d.data().data as string, estresse: Number(d.data().estresse) || 0 }));
   const serie = calcularSerieForma(dias, { ate: hoje });
@@ -359,7 +393,7 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   // treinos próximos da data: o que já existe no dia e os intensos que impedem outro treino forte (menos de 48 h)
   const proximos = treinosSnap.docs.map((d) => d.data()).filter((t) => t.status === "planejado" || t.status === "realizado");
   const ehIntenso = (t: Record<string, unknown>) => {
-    const modelo = typeof t.modeloId === "string" ? modeloPorId(t.modeloId, proprios) : null;
+    const modelo = typeof t.modeloId === "string" ? modeloPorId(t.modeloId, propriosTodos) : null;
     return modelo ? FOCOS[modelo.foco as keyof typeof FOCOS]?.intensidade === "alta" : INTENSOS.includes(String(t.zona));
   };
   const intensoPerto = proximos.some((t) => ehIntenso(t) && Math.abs(diasEntre(t.data as string, data)) < REGRAS_SUGESTAO.espacoEntreIntensos);
@@ -367,14 +401,70 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   const formaCarregada = estado !== null && estado.forma <= REGRAS_SUGESTAO.formaCarregada;
   const semIntenso = intensoPerto || formaCarregada || fatorFeedback < 1;
 
+  // agenda em volta do dia (passado recente e FUTURO): a IA vê o que vem antes e depois e quanto a semana já pesa
+  const estresseDe = (t: Record<string, unknown>) => Math.round(Number(estresseDoTreino(t as never, configs, null)) || 0);
+  const agendaEmVolta = proximos
+    .filter((t) => (t.data as string) <= somarDias(data, 14))
+    .sort((a, b) => ((a.data as string) < (b.data as string) ? -1 : 1))
+    .slice(0, 20)
+    .map((t) => ({
+      data: t.data as string,
+      diasDoTreinoPedido: diasEntre(t.data as string, data),
+      nome: typeof t.nomeTreino === "string" ? t.nomeTreino : null,
+      esporte: t.esporte as string,
+      duracaoMin: Number(t.duracaoMin) || null,
+      intenso: ehIntenso(t),
+      situacao: t.status === "realizado" ? "feito" : "planejado",
+      estresse: estresseDe(t),
+    }));
+  const semanaIni = inicioDaSemana(data);
+  const semanaFim = somarDias(semanaIni, 6);
+  const feitoNaSemana = dias.filter((d) => d.data >= semanaIni && d.data <= semanaFim && d.data <= hoje).reduce((s, d) => s + d.estresse, 0);
+  const planejadoNaSemana = proximos
+    .filter((t) => t.status === "planejado" && (t.data as string) >= semanaIni && (t.data as string) <= semanaFim && (t.data as string) >= hoje)
+    .reduce((s, t) => s + estresseDe(t), 0);
+  const cargaDaSemana = { inicio: semanaIni, jaFeito: Math.round(feitoNaSemana), aindaPlanejado: Math.round(planejadoNaSemana), tetoSugerido: cargaBase > 0 ? Math.round(cargaBase * 1.1) : null };
+
   // teto de carga de um único treino: ~40% da carga semanal (sem histórico, sem teto). Com tempo pedido, o teto não corta a lista:
   // a IA traz o treino de duração mais próxima e o app avisa se a carga ficou alta ou baixa demais.
   const tetoEstresse = cargaBase > 0 ? cargaBase * 0.4 : Infinity;
-  const todos = (catalogoParaIa(esporte, nivel, proprios) as ItemDoCatalogo[]).map((m) => ({ ...m, estresse: Math.round(estimarEstresse(m.id)) })).filter((m) => m.estresse > 0);
+  const idsDoTrajeto = new Set(proprios.filter((m) => trajeto && m.trajetoId === trajetoId).map((m) => m.id));
+  const todos = (catalogoParaIa(esporte, nivel, proprios) as ItemDoCatalogo[])
+    .map((m) => ({ ...m, estresse: Math.round(estimarEstresse(m.id)), ...(idsDoTrajeto.has(m.id) ? { feitoParaEsteTrajeto: true } : {}) }))
+    .filter((m) => m.estresse > 0);
   let catalogo = todos.filter((m: { intensidade: string; estresse: number }) => (!semIntenso || m.intensidade !== "alta") && (duracaoPedida !== null || m.estresse <= tetoEstresse));
   if (catalogo.length === 0) catalogo = [...todos].filter((m: { intensidade: string }) => m.intensidade === "baixa").sort((a: { estresse: number }, b: { estresse: number }) => a.estresse - b.estresse).slice(0, 8);
   if (catalogo.length === 0) throw new HttpsError("failed-precondition", "Não há treino do catálogo disponível para o seu nível e esporte.");
   if (duracaoPedida !== null) catalogo = maisProximosDaDuracao(catalogo, duracaoPedida);
+  // os treinos feitos para este trajeto sempre ficam na lista, mesmo fora da faixa de tempo (são os mais fiéis ao terreno)
+  for (const m of todos) {
+    if (idsDoTrajeto.has(m.id) && !catalogo.some((c: { id: string }) => c.id === m.id) && (!semIntenso || m.intensidade !== "alta")) catalogo.push(m);
+  }
+
+  // treino novo sob medida: precisa de terreno; com carga que pede leveza, só focos de intensidade baixa
+  const focosPermitidos = FOCOS_PARA_TRAJETO.filter((f: string) => !semIntenso || FOCOS[f as keyof typeof FOCOS].intensidade !== "alta");
+  const podeCriarNovo = terreno !== null && focosPermitidos.length > 0;
+  // tempo pedido maior que o do trajeto (mais de 25% acima): sugere dar várias voltas, limitado pelos 30 passos de um treino
+  const duracaoDaVoltaMin = terreno ? terreno.resumo.duracaoS / 60 : 0;
+  const voltasSugeridas = terreno && duracaoPedida !== null && duracaoDaVoltaMin > 0 && duracaoPedida > duracaoDaVoltaMin * 1.25 ? Math.max(2, Math.round(duracaoPedida / duracaoDaVoltaMin)) : 1;
+  const contextoTrajeto = trajeto
+    ? {
+        nome: String(trajeto.nome ?? "Trajeto"),
+        esporte: trajeto.esporte,
+        ...(terreno
+          ? {
+              distanciaM: terreno.resumo.distanciaM,
+              duracaoNormalMin: Math.round(terreno.resumo.duracaoS / 60),
+              ganhoTotalM: terreno.resumo.ganhoTotalM,
+              perdaTotalM: terreno.resumo.perdaTotalM,
+              trechos: terreno.segmentos.map((s) => ({ tipo: s.tipo, distanciaM: s.distanciaM, gradienteMedioPct: s.gradienteMedio })),
+            }
+          : { semTerreno }),
+        ...(voltasSugeridas > 1 ? { voltasParaOTempoPedido: voltasSugeridas } : {}),
+        podeCriarTreinoNovo: podeCriarNovo,
+        ...(podeCriarNovo ? { focosPermitidos: focosPermitidos.map((f: string) => ({ id: f, nome: FOCOS[f as keyof typeof FOCOS].rotulo, intensidade: FOCOS[f as keyof typeof FOCOS].intensidade })) } : {}),
+      }
+    : null;
 
   const contexto = {
     hoje,
@@ -384,18 +474,35 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
     cargaSemanalMedia4Semanas: Math.round(cargaBase),
     treinosNoDiaJaExistentes: jaNoDia,
     intensoNosDiasProximos: intensoPerto,
+    agendaEmVolta,
+    cargaDaSemanaDoTreino: cargaDaSemana,
     nivelDoAtleta: nivel,
     feedbackRecente: feedback,
     ...(duracaoPedida !== null ? { duracaoDesejadaMin: duracaoPedida } : {}),
+    ...(contextoTrajeto ? { trajeto: contextoTrajeto } : {}),
     catalogo,
   };
   const prompt =
-    `Escolha UM único treino do catálogo para o atleta fazer em ${data} (${contexto.diaDaSemana}).\n` +
+    `Escolha UM único treino para o atleta fazer em ${data} (${contexto.diaDaSemana})` +
+    (contextoTrajeto ? `, no trajeto "${contextoTrajeto.nome}"` : "") +
+    `.\n` +
     `Regras:\n` +
     `- Use SOMENTE um id da lista "catalogo" (já filtrada por nível, esporte, carga e descanso). Não invente.\n` +
     regraDosProprios(proprios.length) +
     `- Considere a carga: com Fadiga alta ou Forma negativa, prefira treino leve ou de recuperação; com Forma positiva e boa disposição, pode escolher um treino mais exigente.\n` +
     `- Considere o sentimento (feedbackRecente), se existir.\n` +
+    `- Olhe a "agendaEmVolta" (treinos já feitos e JÁ PLANEJADOS nos próximos dias; diasDoTreinoPedido negativo = antes do dia, positivo = depois): ` +
+    `não coloque um treino forte colado em outro forte, deixe o dia anterior a um treino intenso ou longo mais leve e não estoure a "cargaDaSemanaDoTreino" ` +
+    `(jaFeito + aindaPlanejado + o treino escolhido deve ficar perto do tetoSugerido; se a semana já está cheia, escolha um treino curto ou leve).\n` +
+    (contextoTrajeto
+      ? `- O atleta vai treinar no trajeto "trajeto" (terreno em "trechos"). Itens com "feitoParaEsteTrajeto": true foram montados para esse terreno: prefira-os quando servirem ao dia, à carga e à agenda. ` +
+        (podeCriarNovo
+          ? `Se NENHUM treino da lista servir bem (por foco, carga, duração ou agenda), peça um treino novo sob medida em "novoParaOTrajeto" (foco de "focosPermitidos" e estratégia de esforço no terreno) e deixe modeloId nulo; ` +
+            `esse treino dura cerca de "duracaoNormalMin" (o tempo do atleta no trajeto)` +
+            (voltasSugeridas > 1 ? `; como o atleta pediu mais tempo que isso, o app repete o trajeto ${voltasSugeridas} vezes (voltasParaOTempoPedido) para chegar perto do tempo` : "") +
+            `. Se um treino da lista servir, use-o e deixe novoParaOTrajeto nulo.\n`
+          : `Não é possível criar treino novo para este trajeto (${semTerreno ?? "carga pede um treino leve e não há foco leve disponível"}); escolha da lista e deixe novoParaOTrajeto nulo.\n`)
+      : "") +
     (duracaoPedida !== null
       ? `- O atleta quer treinar cerca de ${duracaoPedida} min (duracaoDesejadaMin): escolha o treino da lista com duração mais próxima desse tempo, mesmo que a carga fique um pouco acima ou abaixo do ideal; o app avisa o atleta.\n`
       : "") +
@@ -416,18 +523,69 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   }
 
   const avisos: string[] = [];
-  let escolhido = catalogo.find((m: { id: string }) => m.id === saidaIa.modeloId);
-  if (!escolhido) {
-    escolhido = duracaoPedida !== null
-      ? catalogo[0]
-      : [...catalogo].sort((a: { estresse: number }, b: { estresse: number }) => a.estresse - b.estresse)[Math.floor(catalogo.length / 2)];
-    avisos.push("A IA indicou um treino fora das regras de segurança; foi trocado por um treino adequado à sua carga.");
+  type Escolhido = { id: string | null; nome: string; esporte: string; foco: string; intensidade: string; duracaoMin: number; estresse: number };
+  let escolhido: Escolhido | undefined;
+  let novoTreino: Record<string, unknown> | null = null;
+
+  // pedido de treino novo sob medida: o código monta o treino pelo terreno (sem outra chamada de IA) e confere foco e carga
+  if (saidaIa.novoParaOTrajeto && podeCriarNovo && terreno && trajeto) {
+    const foco = saidaIa.novoParaOTrajeto.foco;
+    const estrategia = saidaIa.novoParaOTrajeto.estrategia;
+    if (focosPermitidos.includes(foco) && estrategia in ESTRATEGIAS_TRAJETO) {
+      const montado = montarTreinoDoTerreno(terreno.segmentos, null, { esporte: String(trajeto.esporte), foco, nivel, estrategia, trajetoNome: String(trajeto.nome ?? "Trajeto") });
+      if (montado.valido && montado.treino) {
+        let treino = montado.treino as Record<string, unknown> & { passos: unknown[]; nome: string; esporte: string; foco: string };
+        // várias voltas: repete os passos do trajeto (o treino aceita até 30 passos) e registra as voltas no nome e na descrição
+        const voltas = Math.min(voltasSugeridas, Math.floor(30 / Math.max(1, treino.passos.length)));
+        if (voltas > 1) {
+          const repetido = validarTreinoEstruturado({
+            ...treino,
+            nome: `${treino.nome.slice(0, 60 - 12)} · ${voltas} voltas`,
+            descricao: `Dê ${voltas} voltas no trajeto, sem parar entre elas (os passos se repetem a cada volta). ${String(treino.descricao ?? "")}`.slice(0, 500),
+            passos: Array.from({ length: voltas }, () => treino.passos).flat(),
+          });
+          if (repetido.valido && repetido.valores) {
+            treino = repetido.valores as typeof treino;
+            avisos.push(`Você pediu ${duracaoPedida} min e o trajeto leva cerca de ${Math.round(duracaoDaVoltaMin)} min: o treino tem ${voltas} voltas.`);
+          }
+        }
+        const duracaoMin = resumirTreino(treino.passos).duracaoMin;
+        const estresse = Math.round(Number(estresseDoTreino({ ...treinoPlanejadoDoModelo(treino, data), status: "planejado" } as never, configs, null)) || 0);
+        escolhido = { id: null, nome: treino.nome, esporte: treino.esporte, foco: treino.foco, intensidade: FOCOS[treino.foco as keyof typeof FOCOS]?.intensidade ?? "moderada", duracaoMin, estresse };
+        novoTreino = { ...treino, trajetoId, trajetoNome: String(trajeto.nome ?? "Trajeto") };
+        avisos.push(`Treino novo, montado para o terreno do trajeto "${trajeto.nome}". Ele é salvo em "Meus treinos" quando você o adiciona ao plano.`);
+      }
+    }
+    if (!escolhido) avisos.push("Não foi possível montar o treino novo para o trajeto; foi escolhido um treino da lista.");
   }
+
+  if (!escolhido) {
+    escolhido = catalogo.find((m: { id: string }) => m.id === saidaIa.modeloId);
+    if (!escolhido) {
+      escolhido = duracaoPedida !== null
+        ? catalogo[0]
+        : [...catalogo].sort((a: { estresse: number }, b: { estresse: number }) => a.estresse - b.estresse)[Math.floor(catalogo.length / 2)];
+      avisos.push("A IA indicou um treino fora das regras de segurança; foi trocado por um treino adequado à sua carga.");
+    }
+  }
+  if (!escolhido) throw new HttpsError("failed-precondition", "Não há treino disponível para o seu nível e esporte.");
+  // treino já existente do trajeto (uma volta) e tempo pedido maior: sugere repetir o trajeto
+  if (escolhido.id && idsDoTrajeto.has(escolhido.id) && duracaoPedida !== null && escolhido.duracaoMin > 0 && duracaoPedida > escolhido.duracaoMin * 1.25) {
+    avisos.push(`Este treino cobre uma volta do trajeto (${escolhido.duracaoMin} min). Para chegar perto de ${duracaoPedida} min, dê cerca de ${Math.max(2, Math.round(duracaoPedida / escolhido.duracaoMin))} voltas.`);
+  }
+  if (semTerreno && trajeto) avisos.push(`Trajeto "${trajeto.nome}": ${semTerreno} Por isso o treino foi escolhido da lista, sem adaptação ao terreno.`);
   if (jaNoDia > 0) avisos.push("Este dia já tem treino planejado; o sugerido seria um segundo treino.");
-  avisos.push(...avisosDaCargaPedida(escolhido, { cargaBase, duracaoPedida }));
+  avisos.push(...avisosDaCargaPedida(escolhido as never, { cargaBase, duracaoPedida }));
+  // a semana toda: o treino escolhido soma ao que já foi feito e ao que está planejado
+  const semanaComEste = feitoNaSemana + planejadoNaSemana + escolhido.estresse;
+  if (cargaBase > 0 && semanaComEste > cargaBase * 1.1) {
+    avisos.push(`Atenção: com este treino a semana de ${formatarDataBr(semanaIni)} chega a ~${Math.round(semanaComEste)} de carga (feito + planejado), acima de ~${Math.round(cargaBase * 1.1)} (10% sobre a sua média). Considere tirar ou aliviar outro treino da semana.`);
+  }
   const item = {
     data, modeloId: escolhido.id, nome: escolhido.nome, esporte: escolhido.esporte, foco: escolhido.foco, intensidade: escolhido.intensidade,
     duracaoMin: escolhido.duracaoMin, estresse: escolhido.estresse, motivo: saidaIa.motivo.trim().slice(0, 300),
+    ...(novoTreino ? { novoTreino } : {}),
+    ...(trajeto ? { trajetoId, trajetoNome: String(trajeto.nome ?? "Trajeto") } : {}),
   };
   const saida = { resumo: item.motivo, itens: [item], avisos, aviso: AVISO_IA };
 
@@ -435,7 +593,7 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   await ref.set({
     userId: uid,
     tipo: "treino",
-    entradaResumo: { data, esporte, observacao: observacao || null, duracaoPedidaMin: duracaoPedida, condicionamento: contexto.estadoAtual?.condicionamento ?? null, cargaBase: contexto.cargaSemanalMedia4Semanas },
+    entradaResumo: { data, esporte, observacao: observacao || null, duracaoPedidaMin: duracaoPedida, trajetoId: trajetoId || null, condicionamento: contexto.estadoAtual?.condicionamento ?? null, cargaBase: contexto.cargaSemanalMedia4Semanas },
     saida,
     status: "pendente",
     criadoEm: FieldValue.serverTimestamp(),
@@ -461,6 +619,31 @@ const schemaTreinoDoTrajeto = z.object({
     )
     .describe("Uma decisão para cada trecho, na ordem."),
 });
+
+/**
+ * Terreno (trechos de subida, plano e descida) da rota de referência de um trajeto do usuário. Lança HttpsError em português
+ * quando o trajeto não tem rota, a atividade sumiu, falta altimetria ou o trajeto é plano demais.
+ */
+async function terrenoDoTrajeto(uid: string, trajeto: FirebaseFirestore.DocumentData): Promise<ReturnType<typeof segmentarTerreno>> {
+  const atividadeId = typeof trajeto.rotaAtividadeId === "string" ? trajeto.rotaAtividadeId : "";
+  if (!atividadeId) throw new HttpsError("failed-precondition", "Defina a rota de referência do trajeto antes de criar o treino adaptado.");
+  const atividadeRef = db.doc(`atividades/${atividadeId}`);
+  const [atividadeDoc, serieDoc] = await Promise.all([atividadeRef.get(), atividadeRef.collection("series").doc("detalhe").get()]);
+  if (!atividadeDoc.exists || atividadeDoc.data()?.userId !== uid) throw new HttpsError("failed-precondition", "A atividade da rota de referência não está mais disponível. Defina a rota de novo.");
+  const serie = serieDoc.exists ? (serieDoc.data() as { t: number[]; dist?: Array<number | null>; alt?: Array<number | null> }) : null;
+  if (!serie?.alt || !serie.dist) throw new HttpsError("failed-precondition", "A atividade da rota de referência não tem altimetria. Escolha outra atividade como referência.");
+
+  const ultimaDistM = [...serie.dist].reverse().find((d): d is number => typeof d === "number" && Number.isFinite(d));
+  const iniM = Number.isFinite(trajeto.rotaIniM) ? Number(trajeto.rotaIniM) : 0;
+  const fimM = Number.isFinite(trajeto.rotaFimM) ? Number(trajeto.rotaFimM) : (ultimaDistM ?? 0) * 1000;
+  const perfil = perfilDoTrajeto(serie, iniM, fimM);
+  if (!perfil) throw new HttpsError("failed-precondition", "Não foi possível ler a altimetria da rota de referência.");
+  const terreno = segmentarTerreno(perfil);
+  if (!terreno.resumo.relevante) {
+    throw new HttpsError("failed-precondition", "Este trajeto é plano demais (menos de 30 m de desnível ou muito curto) para um treino adaptado ao terreno.");
+  }
+  return terreno;
+}
 
 export interface TreinoDoTrajeto {
   trajeto: { id: string; nome: string };
@@ -503,23 +686,7 @@ export async function sugerirTreinoDoTrajetoDoUsuario(uid: string, bruto: Record
   const pref = prefSnap.data() ?? {};
   const nivel: string = typeof bruto.nivel === "string" && bruto.nivel in NIVEIS ? bruto.nivel : pref.nivelTreinos === "iniciante" || pref.nivelTreinos === "avancado" ? pref.nivelTreinos : "intermediario";
 
-  const atividadeId = typeof trajeto.rotaAtividadeId === "string" ? trajeto.rotaAtividadeId : "";
-  if (!atividadeId) throw new HttpsError("failed-precondition", "Defina a rota de referência do trajeto antes de criar o treino adaptado.");
-  const atividadeRef = db.doc(`atividades/${atividadeId}`);
-  const [atividadeDoc, serieDoc] = await Promise.all([atividadeRef.get(), atividadeRef.collection("series").doc("detalhe").get()]);
-  if (!atividadeDoc.exists || atividadeDoc.data()?.userId !== uid) throw new HttpsError("failed-precondition", "A atividade da rota de referência não está mais disponível. Defina a rota de novo.");
-  const serie = serieDoc.exists ? (serieDoc.data() as { t: number[]; dist?: Array<number | null>; alt?: Array<number | null> }) : null;
-  if (!serie?.alt || !serie.dist) throw new HttpsError("failed-precondition", "A atividade da rota de referência não tem altimetria. Escolha outra atividade como referência.");
-
-  const ultimaDistM = [...serie.dist].reverse().find((d): d is number => typeof d === "number" && Number.isFinite(d));
-  const iniM = Number.isFinite(trajeto.rotaIniM) ? Number(trajeto.rotaIniM) : 0;
-  const fimM = Number.isFinite(trajeto.rotaFimM) ? Number(trajeto.rotaFimM) : (ultimaDistM ?? 0) * 1000;
-  const perfil = perfilDoTrajeto(serie, iniM, fimM);
-  if (!perfil) throw new HttpsError("failed-precondition", "Não foi possível ler a altimetria da rota de referência.");
-  const terreno = segmentarTerreno(perfil);
-  if (!terreno.resumo.relevante) {
-    throw new HttpsError("failed-precondition", "Este trajeto é plano demais (menos de 30 m de desnível ou muito curto) para um treino adaptado ao terreno.");
-  }
+  const terreno = await terrenoDoTrajeto(uid, trajeto);
 
   const avisos: string[] = [];
   let decisoes: object[] | null = null;
