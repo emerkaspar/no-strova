@@ -1,18 +1,23 @@
 import {
   estresseDoTreino,
+  configVigenteEm,
   gradeDoMes,
   inicioDaSemana,
+  modeloPorId,
   NOMES_DIA,
   ROTULOS_DIA,
   somarDias,
   treinoNaoRealizado,
 } from '@no-strova/domain';
+import { lerSerieFc } from '../../infrastructure/atividadesRepo.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarDistancia, formatarNumero } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { criarMenuNovoTreino } from '../../utils/menuNovoTreino.js';
 import { perfilDoTreino } from '../../utils/perfilTreino.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
+
+const NS_SVG = 'http://www.w3.org/2000/svg';
 
 /** Id do treino sendo arrastado (HTML5 drag and drop). */
 let arrastandoId = null;
@@ -33,20 +38,60 @@ function passosDoChip(t) {
   return [{ tipo: 'bloco', papel: 'principal', zona: t.zona ?? 'Z2', duracaoS, descricao: null }];
 }
 
+/** Tipos de treino do calendário: nome, ícone e a classe de cores (`tp-*` no CSS). */
+const TIPOS = Object.freeze({
+  ciclismo: { rotulo: 'Ciclismo', icone: 'ciclismo' },
+  intervalado: { rotulo: 'Intervalado', icone: 'raio' },
+  limiar: { rotulo: 'Limiar', icone: 'medidor' },
+  regenerativo: { rotulo: 'Regenerativo', icone: 'onda' },
+  resistencia: { rotulo: 'Resistência', icone: 'equilibrio' },
+  base: { rotulo: 'Base', icone: 'camadas' },
+});
+
+const TIPO_DO_FOCO = {
+  vo2max: 'intervalado', sprint: 'intervalado', fartlek: 'intervalado', subidas: 'intervalado', piramide: 'intervalado', recorde: 'intervalado',
+  limiar: 'limiar', tempo: 'limiar', overunder: 'limiar', teste: 'limiar',
+  recuperacao: 'regenerativo',
+  resistencia: 'resistencia',
+  progressivo: 'base',
+};
+
+/** Tipo do treino planejado: pelo foco do modelo de origem; sem modelo (treino livre), pela zona mais alta dos passos. */
+function tipoDoTreino(t) {
+  const foco = t.modeloId ? modeloPorId(t.modeloId)?.foco : null;
+  if (foco && TIPO_DO_FOCO[foco]) return TIPO_DO_FOCO[foco];
+  const zona = Math.max(...passosDoChip(t).flatMap((p) => [p.zona, p.zonaRepouso]).filter(Boolean).map((z) => Number(String(z).slice(1))), 0) || Number(String(t.zona ?? 'Z2').slice(1));
+  if (zona <= 1) return 'regenerativo';
+  if (zona === 2) return 'base';
+  if (zona <= 4) return 'limiar';
+  return 'intervalado';
+}
+
+/** Cabeçalho do card: quadrado colorido com o ícone, título e, abaixo, o nome do tipo. */
+function cabecalhoDoChip(tipo, titulo, iconeNome = TIPOS[tipo].icone, rotulo = TIPOS[tipo].rotulo) {
+  return h(
+    'span',
+    { class: 'chip-cab' },
+    h('span', { class: 'chip-icone-tipo' }, icone(iconeNome, 14)),
+    h('span', { class: 'chip-cab-textos' }, h('span', { class: 'chip-titulo' }, titulo), h('span', { class: 'chip-tipo' }, rotulo)),
+  );
+}
+
 function chipTreino(t, { hoje, configs, calibracao, aoEditar, aoExcluir }) {
   const estado = estadoDoTreino(t, hoje);
+  const tipo = tipoDoTreino(t);
   const titulo = t.nomeTreino ? `${t.nomeTreino} · ${t.duracaoMin}min` : `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`;
   const botao = h(
     'button',
     {
       type: 'button',
-      class: `chip-treino chip-${estado}`,
+      class: `chip-treino chip-${estado} tp-${tipo}`,
       draggable: t.status === 'planejado',
       'data-id': t.id,
       title: t.observacoes ? `${titulo}\n${t.observacoes}` : titulo,
       onClick: () => aoEditar(t),
     },
-    h('span', { class: 'chip-titulo' }, titulo),
+    cabecalhoDoChip(tipo, titulo),
     h('span', { class: 'chip-perfil' }, perfilDoTreino(passosDoChip(t), { altura: 24 })),
     h('span', { class: 'chip-sub' }, `~${formatarNumero(estresseDoTreino(t, configs, calibracao), 0)} · ${ROTULO_ESTADO[estado]}`),
   );
@@ -77,13 +122,77 @@ function chipTreino(t, { hoje, configs, calibracao, aoEditar, aoExcluir }) {
   return botao;
 }
 
-function chipAtividade(a) {
+const BARRAS_FC = 16; // poucas barras: é um resumo aproximado da FC, não o gráfico
+const seriesFc = new Map(); // a tela redesenha a cada snapshot: não relê a série de cada atividade
+
+function serieDeFc(id) {
+  if (!seriesFc.has(id)) seriesFc.set(id, lerSerieFc(id).catch(() => null));
+  return seriesFc.get(id);
+}
+
+/** Zona (1 a 5) de uma FC pela fração do LTHR; sem LTHR, pela posição entre a menor e a maior FC da atividade. */
+function zonaDaBarra(fc, lthr, minimo, maximo) {
+  const razao = Number.isFinite(lthr) && lthr > 0 ? fc / lthr : 0.7 + (maximo > minimo ? ((fc - minimo) / (maximo - minimo)) * 0.4 : 0.15);
+  if (razao < 0.81) return 1;
+  if (razao < 0.9) return 2;
+  if (razao < 0.94) return 3;
+  if (razao < 1.0) return 4;
+  return 5;
+}
+
+/** Perfil aproximado da FC realizada: a série é agrupada em poucas barras (média de cada trecho), coloridas pela zona. */
+function perfilDeFc(serie, lthr, altura = 24) {
+  const valores = (serie?.fc ?? []).filter((v) => Number.isFinite(v) && v > 30);
+  if (valores.length < 2) return null;
+  const barras = Math.min(BARRAS_FC, valores.length);
+  const medias = [];
+  for (let i = 0; i < barras; i++) {
+    const trecho = valores.slice(Math.floor((i * valores.length) / barras), Math.floor(((i + 1) * valores.length) / barras));
+    medias.push(trecho.reduce((s, v) => s + v, 0) / trecho.length);
+  }
+  const minimo = Math.min(...medias);
+  const maximo = Math.max(...medias);
+  const largura = 300;
+  const passo = largura / barras;
+  const svg = document.createElementNS(NS_SVG, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${largura} ${altura}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('class', 'perfil-treino');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', `Frequência cardíaca realizada, de ${Math.round(minimo)} a ${Math.round(maximo)} bpm`);
+  medias.forEach((fc, i) => {
+    const fracao = maximo > minimo ? (fc - minimo) / (maximo - minimo) : 0.6;
+    const alt = Math.max(4, (0.3 + 0.7 * fracao) * altura);
+    const barra = document.createElementNS(NS_SVG, 'rect');
+    barra.setAttribute('x', (i * passo).toFixed(2));
+    barra.setAttribute('y', (altura - alt).toFixed(2));
+    barra.setAttribute('width', Math.max(0.5, passo - 1.5).toFixed(2));
+    barra.setAttribute('height', alt.toFixed(2));
+    barra.setAttribute('rx', '1.5');
+    barra.setAttribute('class', `perfil-barra perfil-z${zonaDaBarra(fc, lthr, minimo, maximo)}`);
+    const titulo = document.createElementNS(NS_SVG, 'title');
+    titulo.textContent = `${Math.round(fc)} bpm`;
+    barra.append(titulo);
+    svg.append(barra);
+  });
+  return svg;
+}
+
+function chipAtividade(a, configs) {
   const partes = [ROTULO_ESPORTE[a.esporte] ?? a.esporte];
   if (a.distanciaM) partes.push(formatarDistancia(a.distanciaM));
+  const perfil = h('span', { class: 'chip-perfil chip-perfil-fc', hidden: true });
+  serieDeFc(a.id).then((serie) => {
+    const svg = perfilDeFc(serie, configVigenteEm(configs, a.data)?.lthr);
+    if (!svg) return;
+    perfil.append(svg);
+    perfil.hidden = false;
+  });
   return h(
     'a',
-    { class: 'chip-atividade', href: `#/atividades/${a.id}`, title: 'Atividade realizada' },
-    h('span', { class: 'chip-titulo' }, partes.join(' ')),
+    { class: 'chip-atividade tp-ciclismo', href: `#/atividades/${a.id}`, title: 'Atividade realizada' },
+    cabecalhoDoChip('ciclismo', partes.join(' '), a.esporte === 'corrida' ? 'corrida' : 'ciclismo', ROTULO_ESPORTE[a.esporte] ?? 'Ciclismo'),
+    perfil,
     h('span', { class: 'chip-sub' }, `${a.hrss === null || a.hrss === undefined ? '—' : formatarNumero(a.hrss, 0)} · realizado`),
   );
 }
@@ -183,7 +292,7 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
     const treinos = [...dia.treinos].sort((a, b) => String(a.id).localeCompare(String(b.id)));
     const planejado = treinos.filter((t) => t.status === 'planejado' && data >= hoje).reduce((s, t) => s + estresseDoTreino(t, configs, calibracao), 0);
     const realizado = dia.atividades.reduce((s, a) => s + (Number.isFinite(a.hrss) ? a.hrss : 0), 0);
-    const itens = [...dia.atividades.map(chipAtividade), ...treinos.map((t) => chipTreino(t, { hoje, configs, calibracao, aoEditar, aoExcluir }))];
+    const itens = [...dia.atividades.map((a) => chipAtividade(a, configs)), ...treinos.map((t) => chipTreino(t, { hoje, configs, calibracao, aoEditar, aoExcluir }))];
     const limite = compacta ? 3 : Infinity;
     const visiveis = itens.slice(0, limite);
     const numero = Number(data.slice(8));

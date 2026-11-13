@@ -458,6 +458,10 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   // tempo pedido maior que o do trajeto (mais de 25% acima): sugere dar várias voltas, limitado pelos 30 passos de um treino
   const duracaoDaVoltaMin = terreno ? terreno.resumo.duracaoS / 60 : 0;
   const voltasSugeridas = terreno && duracaoPedida !== null && duracaoDaVoltaMin > 0 && duracaoPedida > duracaoDaVoltaMin * 1.25 ? Math.max(2, Math.round(duracaoPedida / duracaoDaVoltaMin)) : 1;
+  // com terreno, treino genérico do catálogo não serve (ignora o aclive e a FC do treino não se sustenta na subida):
+  // a IA só vê os treinos feitos para este trajeto e, se nenhum servir, pede um novo; a lista completa fica de reserva
+  const catalogoGenerico = catalogo;
+  if (podeCriarNovo) catalogo = catalogo.filter((m: { id: string }) => idsDoTrajeto.has(m.id));
   const contextoTrajeto = trajeto
     ? {
         nome: String(trajeto.nome ?? "Trajeto"),
@@ -506,11 +510,12 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
     `não coloque um treino forte colado em outro forte, deixe o dia anterior a um treino intenso ou longo mais leve e não estoure a "cargaDaSemanaDoTreino" ` +
     `(jaFeito + aindaPlanejado + o treino escolhido deve ficar perto do tetoSugerido; se a semana já está cheia, escolha um treino curto ou leve). Cada item do catálogo traz "cabeNaSemana".\n` +
     `- O "motivo" precisa ser coerente com os números: só diga que a carga é adequada ou que cabe na semana se o treino escolhido tiver cabeNaSemana true. ` +
-    `Se for false (por exemplo, porque o atleta pediu um tempo longo), diga com franqueza que a semana fica acima do teto. Não use "perfeitamente" e não fale de voltas no trajeto (o app calcula).\n` +
+    `Se for false (por exemplo, porque o atleta pediu um tempo longo), diga com franqueza que a semana fica acima do teto. Ao pedir treino novo (novoParaOTrajeto), não afirme que a carga cabe na semana: explique a escolha do foco pelo terreno e pelo estado do atleta. Não use "perfeitamente" e não fale de voltas no trajeto (o app calcula).\n` +
     (contextoTrajeto
       ? `- O atleta vai treinar no trajeto "trajeto" (terreno em "trechos"). Itens com "feitoParaEsteTrajeto": true foram montados para esse terreno: prefira-os quando servirem ao dia, à carga e à agenda. ` +
         (podeCriarNovo
-          ? `Se NENHUM treino da lista servir bem (por foco, carga, duração ou agenda), peça um treino novo sob medida em "novoParaOTrajeto" (foco de "focosPermitidos" e estratégia de esforço no terreno) e deixe modeloId nulo; ` +
+          ? `Treinos genéricos do catálogo NÃO são oferecidos aqui porque ignoram o aclive do trajeto (a FC do treino não se sustenta na subida): a lista só tem treinos feitos para este trajeto (pode estar vazia). ` +
+            `Se NENHUM servir bem (por foco, carga, duração ou agenda), peça um treino novo sob medida em "novoParaOTrajeto" (foco de "focosPermitidos" e estratégia de esforço no terreno) e deixe modeloId nulo; ` +
             `esse treino dura cerca de "duracaoNormalMin" (o tempo do atleta no trajeto)` +
             (voltasSugeridas > 1 ? `; como o atleta pediu mais tempo que isso, o app repete o trajeto ${voltasSugeridas} vezes (voltasParaOTempoPedido) para chegar perto do tempo` : "") +
             `. Se um treino da lista servir, use-o e deixe novoParaOTrajeto nulo.\n`
@@ -538,47 +543,53 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   const avisos: string[] = [];
   type Escolhido = { id: string | null; nome: string; esporte: string; foco: string; intensidade: string; duracaoMin: number; estresse: number };
   let escolhido: Escolhido | undefined;
-  let novoTreino: Record<string, unknown> | null = null;
+  let novoTreino = null as Record<string, unknown> | null; // atribuído em montarNovo
   let voltas = 1; // quantas vezes dar o trajeto para fechar o treino
 
-  // pedido de treino novo sob medida: o código monta o treino pelo terreno (sem outra chamada de IA) e confere foco e carga
-  if (saidaIa.novoParaOTrajeto && podeCriarNovo && terreno && trajeto) {
-    const foco = saidaIa.novoParaOTrajeto.foco;
-    const estrategia = saidaIa.novoParaOTrajeto.estrategia;
-    if (focosPermitidos.includes(foco) && estrategia in ESTRATEGIAS_TRAJETO) {
-      const montado = montarTreinoDoTerreno(terreno.segmentos, null, { esporte: String(trajeto.esporte), foco, nivel, estrategia, trajetoNome: String(trajeto.nome ?? "Trajeto") });
-      if (montado.valido && montado.treino) {
-        let treino = montado.treino as Record<string, unknown> & { passos: unknown[]; nome: string; esporte: string; foco: string };
-        // várias voltas: repete os passos do trajeto (o treino aceita até 30 passos) e registra as voltas no nome e na descrição
-        const voltasDoNovo = Math.min(voltasSugeridas, Math.floor(30 / Math.max(1, treino.passos.length)));
-        if (voltasDoNovo > 1) {
-          const repetido = validarTreinoEstruturado({
-            ...treino,
-            nome: `${treino.nome.slice(0, 60 - 12)} · ${voltasDoNovo} voltas`,
-            descricao: `Dê ${voltasDoNovo} voltas no trajeto, sem parar entre elas (os passos se repetem a cada volta). ${String(treino.descricao ?? "")}`.slice(0, 500),
-            passos: Array.from({ length: voltasDoNovo }, () => treino.passos).flat(),
-          });
-          if (repetido.valido && repetido.valores) {
-            treino = repetido.valores as typeof treino;
-            voltas = voltasDoNovo;
-          }
-        }
-        const duracaoMin = resumirTreino(treino.passos).duracaoMin;
-        const estresse = Math.round(Number(estresseDoTreino({ ...treinoPlanejadoDoModelo(treino, data), status: "planejado" } as never, configs, null)) || 0);
-        escolhido = { id: null, nome: treino.nome, esporte: treino.esporte, foco: treino.foco, intensidade: FOCOS[treino.foco as keyof typeof FOCOS]?.intensidade ?? "moderada", duracaoMin, estresse };
-        novoTreino = { ...treino, trajetoId, trajetoNome: String(trajeto.nome ?? "Trajeto") };
-        avisos.push(`Treino novo, montado para o terreno do trajeto "${trajeto.nome}". Ele é salvo em "Meus treinos" quando você o adiciona ao plano.`);
+  // treino novo sob medida: o código monta o treino pelo terreno (sem outra chamada de IA); devolve null se não der
+  const montarNovo = (foco: string, estrategia: string): Escolhido | null => {
+    if (!terreno || !trajeto || !focosPermitidos.includes(foco) || !(estrategia in ESTRATEGIAS_TRAJETO)) return null;
+    const montado = montarTreinoDoTerreno(terreno.segmentos, null, { esporte: String(trajeto.esporte), foco, nivel, estrategia, trajetoNome: String(trajeto.nome ?? "Trajeto") });
+    if (!montado.valido || !montado.treino) return null;
+    let treino = montado.treino as Record<string, unknown> & { passos: unknown[]; nome: string; esporte: string; foco: string };
+    // várias voltas: repete os passos do trajeto (o treino aceita até 30 passos) e registra as voltas no nome e na descrição
+    const voltasDoNovo = Math.min(voltasSugeridas, Math.floor(30 / Math.max(1, treino.passos.length)));
+    if (voltasDoNovo > 1) {
+      const repetido = validarTreinoEstruturado({
+        ...treino,
+        nome: `${treino.nome.slice(0, 60 - 12)} · ${voltasDoNovo} voltas`,
+        descricao: `Dê ${voltasDoNovo} voltas no trajeto, sem parar entre elas (os passos se repetem a cada volta). ${String(treino.descricao ?? "")}`.slice(0, 500),
+        passos: Array.from({ length: voltasDoNovo }, () => treino.passos).flat(),
+      });
+      if (repetido.valido && repetido.valores) {
+        treino = repetido.valores as typeof treino;
+        voltas = voltasDoNovo;
       }
     }
-    if (!escolhido) avisos.push("Não foi possível montar o treino novo para o trajeto; foi escolhido um treino da lista.");
+    const duracaoMin = resumirTreino(treino.passos).duracaoMin;
+    const estresse = Math.round(Number(estresseDoTreino({ ...treinoPlanejadoDoModelo(treino, data), status: "planejado" } as never, configs, null)) || 0);
+    novoTreino = { ...treino, trajetoId, trajetoNome: String(trajeto.nome ?? "Trajeto") };
+    return { id: null, nome: treino.nome, esporte: treino.esporte, foco: treino.foco, intensidade: FOCOS[treino.foco as keyof typeof FOCOS]?.intensidade ?? "moderada", duracaoMin, estresse };
+  };
+
+  if (podeCriarNovo && saidaIa.novoParaOTrajeto) escolhido = montarNovo(saidaIa.novoParaOTrajeto.foco, saidaIa.novoParaOTrajeto.estrategia) ?? undefined;
+  if (!escolhido && saidaIa.modeloId && idsDoTrajeto.has(saidaIa.modeloId)) escolhido = catalogo.find((m: { id: string }) => m.id === saidaIa.modeloId);
+  // trajeto com terreno e a IA não trouxe treino feito para ele: um treino genérico ignora o aclive (a FC do treino não se sustenta
+  // na subida), então o código monta um adaptado ao terreno, no foco que a IA tinha em mente
+  if (!escolhido && podeCriarNovo) {
+    const doGenerico = catalogo.find((m: { id: string }) => m.id === saidaIa.modeloId) as { foco: string } | undefined;
+    const foco = [saidaIa.novoParaOTrajeto?.foco, doGenerico?.foco, "resistencia", focosPermitidos[0]].find((f): f is string => typeof f === "string" && focosPermitidos.includes(f)) ?? "resistencia";
+    escolhido = montarNovo(foco, saidaIa.novoParaOTrajeto?.estrategia ?? "equilibrada") ?? undefined;
   }
+  if (novoTreino && trajeto) avisos.push(`Treino novo, montado para o terreno do trajeto "${trajeto.nome}" (o esforço de cada trecho respeita a zona de FC do treino na subida, no plano e na descida). Ele é salvo em "Meus treinos" quando você o adiciona ao plano.`);
+  if (!escolhido && podeCriarNovo) avisos.push("Não foi possível montar o treino novo para o trajeto; foi escolhido um treino da lista, sem adaptação ao terreno.");
 
   if (!escolhido) {
-    escolhido = catalogo.find((m: { id: string }) => m.id === saidaIa.modeloId);
+    escolhido = catalogoGenerico.find((m: { id: string }) => m.id === saidaIa.modeloId);
     if (!escolhido) {
       escolhido = duracaoPedida !== null
-        ? catalogo[0]
-        : [...catalogo].sort((a: { estresse: number }, b: { estresse: number }) => a.estresse - b.estresse)[Math.floor(catalogo.length / 2)];
+        ? catalogoGenerico[0]
+        : [...catalogoGenerico].sort((a: { estresse: number }, b: { estresse: number }) => a.estresse - b.estresse)[Math.floor(catalogoGenerico.length / 2)];
       avisos.push("A IA indicou um treino fora das regras de segurança; foi trocado por um treino adequado à sua carga.");
     }
   }

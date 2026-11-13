@@ -46,6 +46,15 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
     ),
     input: horasEl,
   };
+  // esporte: sem escolha, o servidor usa o esporte principal do perfil; escolher um filtra os trajetos e o cardápio da IA
+  const esporteEl = h(
+    'select',
+    { id: 'ia-dia-esporte' },
+    h('option', { value: '' }, 'A IA escolhe pelo meu perfil'),
+    h('option', { value: 'ciclismo' }, 'Ciclismo (pedal)'),
+    h('option', { value: 'corrida' }, 'Corrida'),
+  );
+  const esporte = { raiz: h('div', { class: 'campo' }, h('label', { for: 'ia-dia-esporte' }, 'Qual esporte?'), esporteEl) };
   // trajeto (opcional): a IA leva o terreno em conta e, se nenhum treino servir, cria um novo sob medida
   const trajetoEl = h('select', { id: 'ia-dia-trajeto', disabled: true }, h('option', { value: '' }, 'Sem trajeto específico'));
   const trajeto = {
@@ -57,19 +66,37 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
       h('small', { class: 'dica' }, 'Com um trajeto, a IA considera o terreno dele e, se nenhum treino seu combinar com o dia, cria um novo adaptado ao trajeto, olhando também o que você já fez e os treinos já marcados nos próximos dias.'),
     ),
   };
+  let trajetos = [];
+  // mostra só os trajetos do esporte escolhido (todos, se nenhum)
+  const montarOpcoesDeTrajeto = () => {
+    trajetoEl.replaceChildren(h('option', { value: '' }, 'Sem trajeto específico'));
+    for (const t of trajetos.filter((x) => !esporteEl.value || x.esporte === esporteEl.value)) {
+      trajetoEl.append(h('option', { value: t.id }, `${t.nome} · ${t.esporte === 'corrida' ? 'corrida' : 'ciclismo'}`));
+    }
+  };
+  esporteEl.addEventListener('change', montarOpcoesDeTrajeto);
+  // escolher o trajeto define o esporte (o treino é no esporte do trajeto)
+  trajetoEl.addEventListener('change', () => {
+    const t = trajetos.find((x) => x.id === trajetoEl.value);
+    if (t && esporteEl.value !== t.esporte) {
+      esporteEl.value = t.esporte;
+      montarOpcoesDeTrajeto();
+      trajetoEl.value = t.id;
+    }
+  });
   lerTrajetos(uid)
     .then((lista) => {
-      const validos = lista.filter((t) => t.esporte === 'ciclismo' || t.esporte === 'corrida');
-      if (validos.length === 0) {
+      trajetos = lista.filter((t) => t.esporte === 'ciclismo' || t.esporte === 'corrida');
+      if (trajetos.length === 0) {
         trajeto.raiz.remove();
         return;
       }
-      for (const t of validos) trajetoEl.append(h('option', { value: t.id }, `${t.nome} · ${t.esporte === 'corrida' ? 'corrida' : 'ciclismo'}`));
+      montarOpcoesDeTrajeto();
       trajetoEl.disabled = false;
     })
     .catch(() => trajeto.raiz.remove());
   const botaoPedir = h('button', { class: 'btn', type: 'button' }, icone('ia', 16), ' Pedir treino à IA');
-  corpo.append(tempo.raiz, trajeto.raiz);
+  corpo.append(esporte.raiz, tempo.raiz, trajeto.raiz);
   rodape.append(botaoPedir, botaoFechar);
 
   function mostrar({ rascunhoId: id, saida }) {
@@ -147,7 +174,7 @@ export async function abrirSugestaoDeTreinoDoDia({ uid, data, configs, modelos =
     corpo.replaceChildren(h('p', { class: 'texto-secundario', role: 'status' }, 'A IA está avaliando sua carga e como você tem se sentido… pode levar alguns segundos.'));
     rodape.replaceChildren(botaoFechar);
     try {
-      mostrar(await pedirTreinoUnicoDaIa({ data, duracaoMin: duracaoMin === null ? null : Math.round(duracaoMin), trajetoId: trajetoEl.value || null }));
+      mostrar(await pedirTreinoUnicoDaIa({ data, duracaoMin: duracaoMin === null ? null : Math.round(duracaoMin), trajetoId: trajetoEl.value || null, esporte: esporteEl.value || null }));
     } catch (err) {
       corpo.replaceChildren(h('p', { class: 'mensagem mensagem-erro', role: 'alert' }, err.message || 'Não foi possível gerar a sugestão agora.'));
       rodape.replaceChildren(botaoFechar);
