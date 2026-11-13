@@ -90,6 +90,11 @@ export function render(raiz, sessao) {
     const treinosDaSemana = dados.treinos.filter((t) => t.status === 'planejado' && t.data >= hoje && t.data >= segunda);
     const planejado = treinosDaSemana.map((t) => ({ data: t.data, estresse: estresseDoTreino(t, dados.configs, dados.calibracao) }));
 
+    // Previsto da semana (para comparar com o feito): treinos vinculados (realizado) em qualquer dia e os ainda planejados de hoje em diante.
+    const previstosDaSemana = dados.treinos
+      .filter((t) => t.data >= segunda && (t.status === 'realizado' || (t.status === 'planejado' && t.data >= hoje)))
+      .map((t) => ({ ...t, estresseProjetado: estresseDoTreino(t, dados.configs, dados.calibracao) }));
+
     const comDados = c.dias && dados.dias.length > 0;
     const dicaDoDia = dicaDeZonaDoDia(hoje);
     const configHoje = configVigenteEm(dados.configs, hoje);
@@ -129,6 +134,7 @@ export function render(raiz, sessao) {
         semana: montarSemana(hoje, { realizado: dados.dias.filter((d) => d.data >= segunda), planejado }),
         atividades: dados.atividades.filter((a) => a.data >= segunda),
         treinos: treinosDaSemana.map((t, i) => ({ ...t, estresseProjetado: planejado[i].estresse })),
+        previstos: previstosDaSemana,
         comparativo: comparativoSemanal(hoje, { atividades: dados.atividades, dias: dados.dias }),
         carregou: c.dias && c.atividades && c.treinos && c.configs && c.calibracao,
         meta: metaDaSemanaDoPlanoAnual({ provas: dados.provas, dias: dados.dias, hoje, inicioDaSemana: segunda, preferencias: dados.preferencias }),

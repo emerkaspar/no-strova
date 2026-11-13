@@ -66,25 +66,56 @@ function blocoDeTreino(t) {
   );
 }
 
-/** "Previsto 40 → Feito 51 (+28%)": só quando o dia tem treino realizado e planejado. */
-function comparacaoPrevistoFeito(dia) {
-  if (!(dia.realizado > 0 && dia.planejado > 0)) return null;
-  const variacao = ((dia.realizado - dia.planejado) / dia.planejado) * 100;
+/** Painel "Previsto × Feito" (HRSS e duração) com barras sobrepostas e a variação; só quando o dia tem treino realizado e previsto. */
+function comparacaoPrevistoFeito(dia, previstos = [], atividades = []) {
+  const previsto = dia.previsto ?? dia.planejado;
+  if (!(dia.realizado > 0 && previsto > 0)) return null;
+  const variacao = ((dia.realizado - previsto) / previsto) * 100;
   const sinal = variacao > 0 ? '+' : variacao < 0 ? '−' : '';
+  const tom = Math.abs(variacao) <= 15 ? 'no-alvo' : variacao > 0 ? 'acima' : 'abaixo';
+  const veredito = tom === 'no-alvo' ? 'Dentro do previsto' : tom === 'acima' ? 'Acima do previsto' : 'Abaixo do previsto';
+  const escala = Math.max(previsto, dia.realizado);
+
+  const linhaBarra = (rotulo, valor, classe) =>
+    h(
+      'div',
+      { class: 'dia-comp-linha' },
+      h('span', { class: 'dia-comp-rotulo' }, rotulo),
+      h('span', { class: 'dia-comp-trilho' }, h('span', { class: `dia-comp-barra ${classe}`, style: `width:${Math.max(3, (valor / escala) * 100)}%` })),
+      h('span', { class: 'dia-comp-valor' }, formatarNumero(valor, 0)),
+    );
+
+  // duração prevista × feita (somando os treinos vinculados e as atividades do dia)
+  const minPrevisto = previstos.reduce((s, t) => s + (ehNumero(t.duracaoMin) ? t.duracaoMin : 0), 0);
+  const minFeito = atividades.reduce((s, a) => s + (ehNumero(a.duracaoS) ? a.duracaoS / 60 : 0), 0);
+  const duracao =
+    minPrevisto > 0 && minFeito > 0
+      ? h('p', { class: 'dia-comp-duracao' }, `Duração: ${formatarDuracao(minPrevisto * 60)} previsto → ${formatarDuracao(minFeito * 60)} feito`)
+      : null;
+
   return h(
-    'p',
-    { class: 'dia-pop-comparacao' },
-    `Previsto ${formatarNumero(dia.planejado, 0)} → Feito ${formatarNumero(dia.realizado, 0)} (${sinal}${formatarNumero(Math.abs(variacao), 0)}%)`,
+    'section',
+    { class: `dia-pop-comparacao dia-comp-${tom}` },
+    h(
+      'div',
+      { class: 'dia-comp-topo' },
+      h('span', { class: 'dia-comp-titulo' }, 'Previsto × Feito · HRSS'),
+      h('span', { class: 'dia-comp-delta' }, `${sinal}${formatarNumero(Math.abs(variacao), 0)}%`),
+    ),
+    linhaBarra('Previsto', previsto, 'prevista'),
+    linhaBarra('Feito', dia.realizado, 'feita'),
+    h('p', { class: 'dia-comp-veredito' }, veredito),
+    duracao,
   );
 }
 
-function conteudoDoDia({ dia, atividades, treinos, totalRealizado }) {
+function conteudoDoDia({ dia, atividades, treinos, previstos = [], totalRealizado }) {
   const planejados = dia.hoje || dia.futuro ? treinos.filter((t) => t.status === 'planejado') : [];
   const blocos = [...atividades.map((a) => blocoDeAtividade(a, totalRealizado)), ...planejados.map(blocoDeTreino)];
   return [
     h('p', { class: 'dia-pop-titulo' }, `${dia.nome}, ${formatarData(dia.data)}`),
     ...blocos,
-    comparacaoPrevistoFeito(dia),
+    comparacaoPrevistoFeito(dia, previstos, atividades),
     blocos.length === 0
       ? h('p', { class: 'dia-pop-vazio' }, dia.futuro ? 'Livre. Nada planejado para este dia.' : 'Descanso. Nenhum treino registrado.')
       : null,

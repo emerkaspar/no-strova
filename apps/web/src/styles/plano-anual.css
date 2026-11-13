@@ -533,33 +533,38 @@
 }
 
 /* ---------- lixeira do calendário e exclusão em massa ---------- */
-.cal-lixeira {
-  display: flex;
+.chip-treino-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+/* o título não passa por baixo do botão de lixeira */
+.chip-treino-wrap .chip-titulo {
+  padding-right: 22px;
+}
+
+.chip-excluir {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  padding: 10px 16px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   color: var(--text-secondary);
   background: transparent;
-  border: 2px dashed var(--border);
-  border-radius: 14px;
-  font-size: 0.9rem;
-  transition: color 0.14s ease, background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.14s ease, background 0.14s ease;
 }
 
-/* enquanto um treino é arrastado, a lixeira chama a atenção */
-body.cal-arrastando .cal-lixeira {
-  color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
-  background: color-mix(in srgb, var(--danger) 7%, transparent);
-}
-
-.cal-lixeira.cal-lixeira-alvo {
+.chip-excluir:hover,
+.chip-excluir:focus-visible {
   color: #fff;
   background: var(--danger);
-  border-color: var(--danger);
-  transform: scale(1.01);
 }
 
 .cal-rodape {
@@ -577,13 +582,6 @@ body.cal-arrastando .cal-lixeira {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-@media (hover: none) and (pointer: coarse) {
-  /* sem arrastar no toque: a lixeira some e a exclusão é pelo botão Excluir do treino */
-  .cal-lixeira {
-    display: none;
-  }
 }
 
 /* ---------- chips dos focos leves e do teste (biblioteca de treinos) ---------- */

@@ -167,8 +167,13 @@ export function blocoMinis({ proximo, sequencia, dicaZona, descanso = null, meta
   );
 }
 
+function legendaDasBarras() {
+  const item = (classe, texto) => h('span', { class: 'semana-leg-item' }, h('i', { class: `semana-leg-marca ${classe}` }), texto);
+  return h('div', { class: 'semana-leg', 'aria-hidden': 'true' }, item('leg-previsto', 'Previsto'), item('leg-falta', 'Falta'), item('leg-feito', 'Feito'), item('leg-acima', 'Acima do previsto'));
+}
+
 /** 3. Semana atual em 7 colunas: realizado cheio, planejado tracejado, descanso mínimo. */
-export function blocoSemana({ semana, atividades, treinos = [], carregou, comparativo = null, meta = null, comIa = false, aoNovo = () => {}, aoExcluir = () => {} }) {
+export function blocoSemana({ semana, atividades, treinos = [], previstos = [], carregou, comparativo = null, meta = null, comIa = false, aoNovo = () => {}, aoExcluir = () => {} }) {
   const totais = totaisDaSemana(semana);
   const cabecalho = cabecalhoDoBloco(
     tituloDaSemana(semana),
@@ -194,7 +199,10 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
     );
   }
 
-  const maximo = Math.max(1, ...semana.flatMap((d) => [d.realizado, d.planejado]));
+  const previstosPorDia = new Map();
+  for (const t of previstos) previstosPorDia.set(t.data, [...(previstosPorDia.get(t.data) ?? []), t]);
+  const previstoDoDia = (d) => (previstosPorDia.get(d.data) ?? []).reduce((s, t) => s + (Number.isFinite(t.estresseProjetado) ? t.estresseProjetado : 0), 0);
+  const maximo = Math.max(1, ...semana.flatMap((d) => [d.realizado, d.planejado, previstoDoDia(d)]));
   const porDia = new Map();
   for (const a of atividades) porDia.set(a.data, [...(porDia.get(a.data) ?? []), a]);
   const planoPorDia = new Map();
@@ -205,15 +213,31 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
     const descanso = d.realizado === 0 && d.planejado === 0;
     const valor =
       d.realizado > 0
-        ? `${formatarNumero(d.realizado, 0)} · feito`
+        ? `${formatarNumero(d.realizado, 0)} · feito${previstoDoDia(d) > 0 ? ` de ${formatarNumero(previstoDoDia(d), 0)}` : ''}`
         : d.planejado > 0
           ? `~${formatarNumero(d.planejado, 0)} · plano`
           : '—';
+    // previsto (tracejado) e feito (cheio) se sobrepõem: o previsto fica por cima, então some o que faltou ou sobrou
+    const previsto = Math.max(previstoDoDia(d), d.planejado);
+    const comparavel = d.realizado > 0 && previsto > 0;
+    const resumoAria = comparavel ? `previsto ${formatarNumero(previsto, 0)}, feito ${formatarNumero(d.realizado, 0)}` : valor;
+    // alturas em % da área (86% no máximo, para sobrar espaço ao selo de diferença acima da barra mais alta)
+    const alt = (v) => Math.max(4, (v / maximo) * 86);
+    const diferenca = Math.round(d.realizado - previsto);
+    const passou = comparavel && d.realizado >= previsto;
     const barras = h(
       'div',
-      { class: 'dia-barras', role: 'img', 'aria-label': `${d.nome}, dia ${Number(d.dia)}: ${descanso ? 'sem treino' : valor}` },
-      d.planejado > 0 ? h('span', { class: 'barra-planejada', style: `height:${Math.max(6, (d.planejado / maximo) * 100)}%` }) : null,
-      d.realizado > 0 ? h('span', { class: 'barra-real', style: `height:${Math.max(6, (d.realizado / maximo) * 100)}%` }) : null,
+      { class: 'dia-barras', role: 'img', 'aria-label': `${d.nome}, dia ${Number(d.dia)}: ${descanso ? 'sem treino' : resumoAria}` },
+      // falta: hachurado do zero até o previsto (o feito cobre a parte já cumprida)
+      previsto > 0 && !passou ? h('span', { class: 'barra-falta', style: `height:${alt(previsto)}%` }) : null,
+      // feito: sólido até o previsto; o que passa dele vira o trecho em degradê
+      d.realizado > 0 ? h('span', { class: `barra-real${passou && d.realizado > previsto ? ' com-excesso' : ''}`, style: `height:${alt(passou ? previsto : d.realizado)}%` }) : null,
+      passou && d.realizado > previsto ? h('span', { class: 'barra-excesso', style: `bottom:${alt(previsto)}%;height:${alt(d.realizado) - alt(previsto)}%` }) : null,
+      // linha do previsto (com o valor) quando o feito já chegou nele
+      passou ? h('span', { class: 'barra-linha', style: `bottom:${alt(previsto)}%` }, h('em', null, formatarNumero(previsto, 0))) : null,
+      comparavel
+        ? h('span', { class: `barra-selo${passou ? ' selo-ok' : ''}`, style: `bottom:calc(${alt(Math.max(previsto, d.realizado))}% + 8px)` }, `${diferenca > 0 ? '+' : diferenca < 0 ? '−' : ''}${Math.abs(diferenca)}`)
+        : null,
       descanso ? h('span', { class: 'barra-descanso' }) : null,
     );
     // dia sem barra: o "+" fica no meio do espaço das barras; com barra (treino feito ou planejado), embaixo do valor
@@ -239,7 +263,8 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
     ligarPopoverDoDia(
       coluna,
       {
-        dia: d,
+        dia: { ...d, previsto },
+        previstos: previstosPorDia.get(d.data) ?? [],
         atividades: [...(porDia.get(d.data) ?? [])].sort((a, b) => (a.inicio?.toMillis?.() ?? 0) - (b.inicio?.toMillis?.() ?? 0)),
         treinos: planoPorDia.get(d.data) ?? [],
         totalRealizado: totais.realizado,
@@ -259,7 +284,7 @@ export function blocoSemana({ semana, atividades, treinos = [], carregou, compar
           progressoDaCarga(totais),
         )
       : null;
-  return h('section', { class: 'card bloco-semana' }, cabecalho, h('ul', { class: 'semana' }, ...colunas), extras);
+  return h('section', { class: 'card bloco-semana' }, cabecalho, legendaDasBarras(), h('ul', { class: 'semana' }, ...colunas), extras);
 }
 
 /** Segundos → "1h 05min" ou "30min" (totais, sem segundos). */

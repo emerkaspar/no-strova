@@ -1398,3 +1398,128 @@
     flex: 1 0 100%;
   }
 }
+
+/* ---------- modal do treino planejado (ver, editar, baixar .fit) ---------- */
+.modal-treino {
+  width: min(760px, calc(100vw - 24px));
+  max-height: min(900px, calc(100dvh - 24px));
+  overflow-y: auto;
+}
+
+.treino-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.treino-modal h2 {
+  margin: 0;
+}
+
+.treino-modal-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.treino-modal-topo > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.treino-modal-fechar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.treino-modal-fechar:hover {
+  color: var(--text-primary);
+  background: var(--surface-light);
+}
+
+.treino-estado {
+  padding: 3px 10px;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.treino-estado-atrasado {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.treino-estado-pulado,
+.treino-estado-realizado {
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.treino-modal-perfil {
+  padding: 12px 12px 4px;
+  background: var(--bg-main);
+  border-radius: 12px;
+}
+
+.treino-modal-perfil .perfil-treino {
+  width: 100%;
+  height: 120px;
+}
+
+.treino-numeros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.treino-numero {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.treino-numero strong {
+  font-size: 1.25rem;
+}
+
+.treino-numero span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.treino-obs {
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--border);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 560px) {
+  .modal-treino {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: auto 0 0;
+    padding: 20px 16px;
+    border-radius: 20px 20px 0 0;
+  }
+}

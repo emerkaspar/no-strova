@@ -33,7 +33,7 @@ function passosDoChip(t) {
   return [{ tipo: 'bloco', papel: 'principal', zona: t.zona ?? 'Z2', duracaoS, descricao: null }];
 }
 
-function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
+function chipTreino(t, { hoje, configs, calibracao, aoEditar, aoExcluir }) {
   const estado = estadoDoTreino(t, hoje);
   const titulo = t.nomeTreino ? `${t.nomeTreino} · ${t.duracaoMin}min` : `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} ${t.duracaoMin}min · ${t.zona}`;
   const botao = h(
@@ -54,7 +54,6 @@ function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
     botao.addEventListener('dragstart', (e) => {
       arrastandoId = t.id;
       botao.classList.add('arrastando');
-      document.body.classList.add('cal-arrastando'); // destaca a lixeira enquanto o treino é arrastado
       try {
         e.dataTransfer.setData('text/plain', t.id); // o Firefox só inicia o arrasto com dados
         e.dataTransfer.effectAllowed = 'move';
@@ -65,9 +64,15 @@ function chipTreino(t, { hoje, configs, calibracao, aoEditar }) {
     botao.addEventListener('dragend', () => {
       arrastandoId = null;
       botao.classList.remove('arrastando');
-      document.body.classList.remove('cal-arrastando');
-      document.querySelectorAll('.cal-alvo, .cal-lixeira-alvo').forEach((el) => el.classList.remove('cal-alvo', 'cal-lixeira-alvo'));
+      document.querySelectorAll('.cal-alvo').forEach((el) => el.classList.remove('cal-alvo'));
     });
+    // botãozinho de lixeira no canto do chip (fora do <button> do chip, que não pode conter outro botão)
+    const excluir = h('button', { type: 'button', class: 'chip-excluir', title: 'Excluir este treino', 'aria-label': `Excluir o treino ${titulo}` }, icone('lixeira', 14));
+    excluir.addEventListener('click', (e) => {
+      e.stopPropagation();
+      aoExcluir(t.id);
+    });
+    return h('div', { class: 'chip-treino-wrap' }, botao, excluir);
   }
   return botao;
 }
@@ -139,8 +144,8 @@ export function cartaoDeEsforco({ inicioSemana, realizado, previsto, treinos, me
 }
 
 /**
- * Calendário do plano (semana ou mês). Treinos "planejados" podem ser arrastados para outro dia ou para a lixeira (que pede
- * a confirmação da exclusão em `aoExcluir`).
+ * Calendário do plano (semana ou mês). Treinos "planejados" podem ser arrastados para outro dia ou excluídos pelo botão de
+ * lixeira do chip (a confirmação da exclusão fica em `aoExcluir`).
  * @param {{
  *   visao: 'semana'|'mes', ancora: string, hoje: string, configs: any[],
  *   porDia: Map<string, { treinos: any[], atividades: any[] }>,
@@ -173,45 +178,12 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
     return cartaoDeEsforco({ inicioSemana, realizado, previsto, treinos, meta: metaDaSemana(inicioSemana), compacta });
   }
 
-  /** Idêntico para semana e mês: o treino arrastado até aqui é excluído (depois de confirmar). */
-  function lixeira() {
-    const el = h(
-      'div',
-      { class: 'cal-lixeira', 'aria-label': 'Lixeira: arraste um treino planejado até aqui para excluir' },
-      icone('lixeira', 22),
-      h('span', null, 'Arraste um treino aqui para excluir'),
-    );
-    el.addEventListener('dragover', (e) => {
-      if (!arrastandoId) return;
-      e.preventDefault();
-      el.classList.add('cal-lixeira-alvo');
-    });
-    el.addEventListener('dragleave', () => el.classList.remove('cal-lixeira-alvo'));
-    el.addEventListener('drop', (e) => {
-      e.preventDefault();
-      el.classList.remove('cal-lixeira-alvo');
-      let id = arrastandoId;
-      if (!id) {
-        try {
-          id = e.dataTransfer?.getData('text/plain');
-        } catch {
-          id = null;
-        }
-      }
-      arrastandoId = null;
-      document.body.classList.remove('cal-arrastando');
-      if (id) aoExcluir(id);
-    });
-    return el;
-  }
-
-
   function celula(data, indice, { doMes = true, compacta = false } = {}) {
     const dia = porDia.get(data) ?? { treinos: [], atividades: [] };
     const treinos = [...dia.treinos].sort((a, b) => String(a.id).localeCompare(String(b.id)));
     const planejado = treinos.filter((t) => t.status === 'planejado' && data >= hoje).reduce((s, t) => s + estresseDoTreino(t, configs, calibracao), 0);
     const realizado = dia.atividades.reduce((s, a) => s + (Number.isFinite(a.hrss) ? a.hrss : 0), 0);
-    const itens = [...dia.atividades.map(chipAtividade), ...treinos.map((t) => chipTreino(t, { hoje, configs, calibracao, aoEditar }))];
+    const itens = [...dia.atividades.map(chipAtividade), ...treinos.map((t) => chipTreino(t, { hoje, configs, calibracao, aoEditar, aoExcluir }))];
     const limite = compacta ? 3 : Infinity;
     const visiveis = itens.slice(0, limite);
     const numero = Number(data.slice(8));
@@ -271,7 +243,6 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
     return h(
       'div',
       { class: 'cal-bloco' },
-      lixeira(),
       h(
         'div',
         { class: 'cal cal-mes', role: 'grid', 'aria-label': 'Calendário do mês' },
@@ -285,7 +256,6 @@ export function desenharCalendario({ visao, ancora, hoje, configs, calibracao = 
   return h(
     'div',
     { class: 'cal-bloco' },
-    lixeira(),
     h('div', { class: 'cal cal-semana', role: 'group', 'aria-label': 'Calendário da semana' }, ...Array.from({ length: 7 }, (_, i) => celula(somarDias(inicio, i), i)), h('div', { class: 'cal-esforco-coluna' }, h('span', { class: 'cal-esforco-titulo' }, 'ESFORÇO PLANEJADO'), colunaEsforco(inicio))),
   );
 }

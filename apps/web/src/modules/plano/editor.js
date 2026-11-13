@@ -9,20 +9,45 @@ import {
   modelosDoCatalogo,
   NIVEIS,
   resumirTreino,
-  somarDias,
 } from '@no-strova/domain';
 import { detalheDaEstimativa, salvarTreinoPlanejado } from '../../application/plano.js';
-import { desvincularTreino, excluirTreino, pularTreino } from '../../infrastructure/planoRepo.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
-import { formatarData, formatarNumero } from '../../utils/formatters.js';
+import { formatarNumero } from '../../utils/formatters.js';
 import { baixarArquivo, perfilDoTreino } from '../../utils/perfilTreino.js';
 import { OPCOES_ESPORTE, OPCOES_ZONA } from '../atividades/textos.js';
-import { confirmar } from '../../utils/modal.js';
 
 /**
- * Formulário de treino planejado (novo ou existente). O treino pode ser livre (zona e duração) ou vir da biblioteca
- * de intervalados (do catálogo ou dos treinos próprios), caso em que a duração, a zona e o HRSS vêm dos passos.
+ * Gera e baixa o .fit de um treino (estruturado ou livre). Treino livre vira um passo único na zona e duração.
+ * Lança Error com mensagem em português se não der para gerar. Devolve o nome do arquivo e se havia faixa de FC.
+ * @param {{ esporte: string, zona: string, duracaoMin: number|string, passos?: any[]|null, nomeTreino?: string|null, config: any|null }} p
+ */
+export function baixarFitDoTreino({ esporte, zona, duracaoMin, passos, nomeTreino, config }) {
+  let modelo;
+  if (passos?.length) {
+    modelo = { nome: nomeTreino, esporte, passos };
+  } else {
+    const minutos = Number(String(duracaoMin).replace(',', '.'));
+    if (!Number.isFinite(minutos) || minutos <= 0) throw new Error('Informe a duração do treino para gerar o arquivo.');
+    const nomeEsporte = OPCOES_ESPORTE.find((o) => o.valor === esporte)?.rotulo ?? 'Treino';
+    modelo = {
+      nome: `${nomeEsporte} ${zona} ${Math.round(minutos)}min`,
+      esporte,
+      passos: [{ tipo: 'bloco', papel: 'principal', zona, duracaoS: Math.round(minutos * 60), descricao: null }],
+    };
+  }
+  const { bytes, nomeArquivo } = gerarFitDoTreino(modelo, { config });
+  baixarArquivo(bytes, nomeArquivo, 'application/vnd.ant.fit');
+  return {
+    nomeArquivo,
+    aviso: `Arquivo ${nomeArquivo} gerado${config ? ', com a faixa de FC de cada zona' : ' sem faixa de FC (cadastre a configuração de FC para incluir)'}. Copie para a pasta de treinos do aparelho (Garmin: NewFiles) ou importe no Garmin Connect.`,
+  };
+}
+
+/**
+ * Formulário de treino planejado (novo ou existente), usado dentro do modal do treino. O treino pode ser livre (zona e
+ * duração) ou vir da biblioteca de intervalados (do catálogo ou dos treinos próprios), caso em que a duração, a zona e o
+ * HRSS vêm dos passos. Num treino existente a biblioteca fica recolhida atrás do botão "Trocar treino".
  * @param {{
  *   uid: string, configs: () => any[], calibracao?: () => any, modelos?: () => any[],
  *   treino: any|null, dataInicial: string, aoConcluir: (aviso?: string) => void, aoCancelar: () => void
@@ -249,6 +274,22 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
     ...(estrutura ? { passos: estrutura.passos, nomeTreino: estrutura.nomeTreino, modeloId: estrutura.modeloId ?? null } : {}),
   });
 
+  // Treino novo: biblioteca já aberta. Treino existente: recolhida atrás de "Trocar treino".
+  const blocoBiblioteca = h(
+    'div',
+    { class: 'campo' },
+    h('label', { for: 'tr-busca' }, 'Treino da biblioteca'),
+    h('div', { class: 'biblioteca' }, busca, filtros, filtrosHrss, lista),
+    h('small', { class: 'dica' }, 'Escolha um intervalado pronto (ou um dos seus) ou deixe "Treino livre" para informar a zona e a duração. O HRSS é estimado pela sua configuração de FC.'),
+  );
+  blocoBiblioteca.hidden = existente;
+  const trocar = h('button', { class: 'btn btn-secundario', type: 'button', hidden: !existente }, 'Trocar treino');
+  trocar.addEventListener('click', () => {
+    blocoBiblioteca.hidden = false;
+    trocar.hidden = true;
+    busca.focus();
+  });
+
   const form = h(
     'form',
     {
@@ -261,13 +302,8 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
         });
       },
     },
-    h(
-      'div',
-      { class: 'campo' },
-      h('label', { for: 'tr-busca' }, 'Treino da biblioteca'),
-      h('div', { class: 'biblioteca' }, busca, filtros, filtrosHrss, lista),
-      h('small', { class: 'dica' }, 'Escolha um intervalado pronto (ou um dos seus) ou deixe "Treino livre" para informar a zona e a duração. O HRSS é estimado pela sua configuração de FC.'),
-    ),
+    trocar,
+    blocoBiblioteca,
     painelEstrutura,
     h('div', { class: 'grid' }, data.raiz, esporte.raiz, duracao.raiz, zona.raiz, estresse.raiz),
     h('div', { class: 'campo' }, h('label', { for: 'tr-obs' }, 'Observações (opcional)'), observacoes),
@@ -276,85 +312,33 @@ export function criarEditor({ uid, configs, calibracao = () => null, modelos = (
   );
   // O botão de enviar precisa estar DENTRO do formulário: fora dele, clicar não dispara o submit.
 
-  async function acao(botaoAcao, executar, aviso) {
-    botaoAcao.disabled = true;
-    mensagem.limpar();
-    try {
-      await executar();
-      aoConcluir(aviso);
-    } catch (err) {
-      mensagem.mostrar(err.message || 'Não foi possível concluir a operação.');
-      botaoAcao.disabled = false;
-    }
-  }
-
-  /** Baixa o treino do formulário como arquivo .fit para o relógio. O treino livre vira um passo único na zona e duração. */
+  /** Baixa o treino do formulário como arquivo .fit para o relógio. */
   function exportarFit() {
     mensagem.limpar();
     try {
-      const dataTreino = data.input.value || treino?.data || dataInicial;
-      const config = configVigenteEm(configs(), dataTreino);
-      let modelo;
-      if (estrutura) {
-        modelo = { nome: estrutura.nomeTreino, esporte: esporte.select.value, passos: estrutura.passos };
-      } else {
-        const minutos = Number(String(duracao.input.value).replace(',', '.'));
-        if (!Number.isFinite(minutos) || minutos <= 0) throw new Error('Informe a duração do treino para gerar o arquivo.');
-        const nomeEsporte = OPCOES_ESPORTE.find((o) => o.valor === esporte.select.value)?.rotulo ?? 'Treino';
-        modelo = {
-          nome: `${nomeEsporte} ${zona.select.value} ${Math.round(minutos)}min`,
-          esporte: esporte.select.value,
-          passos: [{ tipo: 'bloco', papel: 'principal', zona: zona.select.value, duracaoS: Math.round(minutos * 60), descricao: null }],
-        };
-      }
-      const { bytes, nomeArquivo } = gerarFitDoTreino(modelo, { config });
-      baixarArquivo(bytes, nomeArquivo, 'application/vnd.ant.fit');
-      mensagem.mostrar(
-        `Arquivo ${nomeArquivo} gerado${config ? ', com a faixa de FC de cada zona' : ' sem faixa de FC (cadastre a configuração de FC para incluir)'}. Copie para a pasta de treinos do aparelho (Garmin: NewFiles) ou importe no Garmin Connect.`,
-        'ok',
-      );
+      const config = configVigenteEm(configs(), data.input.value || treino?.data || dataInicial);
+      const { aviso } = baixarFitDoTreino({
+        esporte: esporte.select.value,
+        zona: zona.select.value,
+        duracaoMin: duracao.input.value,
+        passos: estrutura?.passos ?? null,
+        nomeTreino: estrutura?.nomeTreino ?? null,
+        config,
+      });
+      mensagem.mostrar(aviso, 'ok');
     } catch (err) {
       mensagem.mostrar(err.message || 'Não foi possível gerar o arquivo.');
     }
   }
 
-  const botoes = h(
-    'div',
-    { class: 'linha-botoes' },
-    botao,
-    h('button', { class: 'btn btn-secundario', type: 'button', onClick: exportarFit }, 'Salvar treino (.fit)'),
-    h('button', { class: 'btn btn-secundario', type: 'button', onClick: aoCancelar }, 'Cancelar'),
+  form.append(
+    h(
+      'div',
+      { class: 'linha-botoes' },
+      botao,
+      h('button', { class: 'btn btn-secundario', type: 'button', onClick: exportarFit }, 'Baixar .fit'),
+      h('button', { class: 'btn btn-secundario', type: 'button', onClick: aoCancelar }, 'Cancelar'),
+    ),
   );
-
-  if (existente) {
-    const duplicar = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Duplicar para a próxima semana');
-    duplicar.addEventListener('click', () =>
-      acao(
-        duplicar,
-        () => salvarTreinoPlanejado({ uid, entrada: { ...entrada(), data: somarDias(treino.data, 7) }, configs: configs(), calibracao: calibracao() }),
-        `Treino duplicado para ${formatarData(somarDias(treino.data, 7))}.`,
-      ),
-    );
-    botoes.append(duplicar);
-
-    if (treino.status === 'planejado') {
-      const pular = h('button', { class: 'btn btn-secundario', type: 'button' }, 'Marcar como pulado');
-      pular.addEventListener('click', () => acao(pular, () => pularTreino(treino.id), 'Treino marcado como pulado.'));
-      botoes.append(pular);
-    } else {
-      const reabrir = h('button', { class: 'btn btn-secundario', type: 'button' }, treino.status === 'realizado' ? 'Desvincular da atividade' : 'Voltar para planejado');
-      reabrir.addEventListener('click', () => acao(reabrir, () => desvincularTreino(treino.id), 'Treino voltou para planejado.'));
-      botoes.append(reabrir);
-    }
-
-    const excluir = h('button', { class: 'btn btn-perigo', type: 'button' }, 'Excluir');
-    excluir.addEventListener('click', async () => {
-      if (!(await confirmar({ titulo: 'Excluir este treino?', mensagem: 'Ele sai do plano e da projeção.', confirmarTexto: 'Excluir', tipo: 'perigo', icone: 'lixeira' }))) return;
-      acao(excluir, () => excluirTreino(treino.id), 'Treino excluído.');
-    });
-    botoes.append(excluir);
-  }
-
-  form.append(botoes);
-  return h('section', { class: 'card', id: 'editor-treino' }, h('h2', null, existente ? 'Editar treino' : 'Novo treino'), form);
+  return form;
 }

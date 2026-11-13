@@ -22,7 +22,7 @@ import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { abrirSugestaoDeTreinoDoDia } from './sugestaoTreinoDia.js';
 import { criarFaixaPendencias } from './acompanhamento.js';
 import { desenharCalendario } from './calendario.js';
-import { criarEditor } from './editor.js';
+import { abrirTreinoModal } from './treinoModal.js';
 import { criarPainelEnviarGarmin } from './enviarGarmin.js';
 import { criarCartaoMeta } from './meta.js';
 import { criarCartaoMetaCondicionamento } from './metaCondicionamento.js';
@@ -64,7 +64,6 @@ export function render(raiz, sessao, params = {}) {
   const aviso = h('p', { class: 'mensagem', hidden: true });
   const barra = h('div', { class: 'plano-barra' });
   const calendario = h('div');
-  const editorArea = h('div');
   const exportacaoArea = h('div');
   const lembreteGarmin = h('div');
   let garminConectado; // undefined = ainda não sabemos; só é consultado para quem disse que quer usar o Garmin
@@ -84,26 +83,20 @@ export function render(raiz, sessao, params = {}) {
   const cartaoPlanoAnual = criarCartaoPlanoAnual({ uid: sessao.uid, hoje });
 
   // ---- edição ----
-  function fecharEditor(texto) {
-    editorArea.replaceChildren();
-    if (texto) mensagem.mostrar(texto, 'ok');
-  }
-
-  function abrirEditor(treino, data) {
+  /** Abre o modal do treino: treino existente em visualização; sem treino (novo), direto na edição. */
+  async function abrirEditor(treino, data) {
     mensagem.limpar();
-    editorArea.replaceChildren(
-      criarEditor({
-        uid: sessao.uid,
-        configs: () => dados.configs,
-        calibracao: () => dados.calibracao,
-        modelos: () => modelosProprios(dados.modelos),
-        treino,
-        dataInicial: data,
-        aoConcluir: fecharEditor,
-        aoCancelar: () => fecharEditor(),
-      }),
-    );
-    editorArea.firstChild.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    const texto = await abrirTreinoModal({
+      uid: sessao.uid,
+      treino,
+      data,
+      hoje,
+      configs: () => dados.configs,
+      calibracao: () => dados.calibracao,
+      modelos: () => modelosProprios(dados.modelos),
+      modo: treino ? 'visualizar' : 'editar',
+    });
+    if (texto) mensagem.mostrar(texto, 'ok');
   }
 
   async function executar(acao, avisoOk) {
@@ -120,7 +113,7 @@ export function render(raiz, sessao, params = {}) {
   // ---- exclusão ----
   const descricaoDoTreino = (t) => `${t.nomeTreino || `${ROTULO_ESPORTE[t.esporte] ?? t.esporte} de ${t.duracaoMin} min`} em ${formatarData(t.data)}`;
 
-  /** Treino arrastado até a lixeira: confirma e exclui. */
+  /** Botão de lixeira do chip do treino: confirma e exclui. */
   async function excluirArrastado(id) {
     const t = dados.treinos.find((x) => x.id === id);
     if (!t) return;
@@ -541,7 +534,6 @@ Os treinos já realizados e o de hoje não são afetados.`,
         painelIa?.el,
         calendario,
       ),
-      editorArea,
     ].filter(Boolean),
   );
 

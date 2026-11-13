@@ -950,24 +950,122 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Barras da semana: feito (sólido), falta até o previsto (hachurado), excesso acima do previsto (degradê) */
 .dia-barras span {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 5%;
+  right: 5%;
   bottom: 0;
-  border-radius: 6px 6px 0 0;
+  border-radius: 8px 8px 0 0;
 }
 
 .barra-real {
+  z-index: 1;
+  background: var(--primary);
+  transition: height 0.4s ease;
+}
+
+.barra-real.com-excesso {
+  border-radius: 0;
+}
+
+.barra-excesso {
+  z-index: 1;
+  background: linear-gradient(180deg, #f5a623, var(--primary));
+  transition: height 0.4s ease, bottom 0.4s ease;
+}
+
+.barra-falta {
+  z-index: 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-secondary) 28%, transparent) 0 5px, color-mix(in srgb, var(--text-secondary) 8%, transparent) 5px 10px);
+  transition: height 0.4s ease;
+}
+
+/* linha tracejada do previsto, um pouco mais larga que a barra, com o valor na ponta */
+.dia-barras span.barra-linha {
+  z-index: 2;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed var(--text-primary);
+  border-radius: 0;
+  pointer-events: none;
+}
+
+.barra-linha em {
+  position: absolute;
+  left: 100%;
+  top: -9px;
+  padding-left: 4px;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-style: normal;
+}
+
+/* selo com a diferença (feito − previsto) acima da barra */
+.dia-barras span.barra-selo {
+  left: 50%;
+  right: auto;
+  z-index: 3;
+  transform: translateX(-50%);
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--surface-light);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.barra-selo.selo-ok {
+  color: #16a34a;
+}
+
+.semana-leg {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 16px;
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.semana-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.semana-leg-marca {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.leg-previsto {
+  height: 0;
+  border-top: 2px dashed var(--text-primary);
+  border-radius: 0;
+}
+
+.leg-falta {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-secondary) 35%, transparent) 0 3px, transparent 3px 6px);
+}
+
+.leg-feito {
   background: var(--primary);
 }
 
-.barra-planejada {
-  border: 2px dashed var(--primary);
-  border-bottom: 0;
+.leg-acima {
+  background: linear-gradient(180deg, #f5a623, var(--primary));
 }
 
-.barra-descanso {
+.dia-barras span.barra-descanso {
+  left: 0;
+  right: 0;
   height: 3px;
   border-radius: 2px;
   background: var(--text-secondary);
@@ -1135,12 +1233,103 @@
 }
 
 .dia-pop-comparacao {
-  margin-top: 12px !important;
-  padding: 8px 10px;
-  border-radius: 10px;
+  --comp-cor: var(--primary);
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   background: var(--bg-main);
   font-size: 0.85rem;
-  font-weight: 600;
+}
+
+.dia-comp-acima {
+  --comp-cor: #4ade80;
+}
+
+.dia-comp-abaixo {
+  --comp-cor: #fbbf24;
+}
+
+.dia-comp-no-alvo {
+  --comp-cor: #4ade80;
+}
+
+.dia-comp-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dia-comp-titulo {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dia-comp-delta {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--comp-cor) 18%, transparent);
+  color: var(--comp-cor);
+  font-weight: 800;
+}
+
+.dia-comp-linha {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.dia-comp-rotulo {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.dia-comp-trilho {
+  display: block;
+  height: 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
+  overflow: hidden;
+}
+
+.dia-comp-barra {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+}
+
+.dia-comp-barra.prevista {
+  background: repeating-linear-gradient(135deg, var(--primary) 0 4px, transparent 4px 8px);
+  outline: 1px dashed var(--primary);
+  outline-offset: -1px;
+}
+
+.dia-comp-barra.feita {
+  background: var(--primary);
+}
+
+.dia-comp-valor {
+  text-align: right;
+  font-weight: 700;
+}
+
+.dia-comp-veredito {
+  margin-top: 10px !important;
+  color: var(--comp-cor);
+  font-weight: 700;
+}
+
+.dia-comp-duracao {
+  margin-top: 4px !important;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 .dia-pop-vazio {
@@ -8566,5 +8755,17 @@ a.rec-card-quando:hover {
 
   .adesao-kpi {
     padding: 20px;
+  }
+}
+
+/* Barras ainda mais largas em telas estreitas; o valor da linha de previsto sai para não vazar da coluna */
+@media (max-width: 768px) {
+  .dia-barras span {
+    left: 0;
+    right: 0;
+  }
+
+  .barra-linha em {
+    display: none;
   }
 }
