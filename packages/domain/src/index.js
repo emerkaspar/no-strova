@@ -42,6 +42,7 @@ export * from './usuarios.js';
 export * from './avatares.js';
 export * from './medalhas.js';
 export * from './zonasDaAtividade.js';
+export * from './desempenho.js';
 export * from './treinosDeBase.js';
 export * from './iaPlanoAnual.js';
 export * from './notificacoes.js';

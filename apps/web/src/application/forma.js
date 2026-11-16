@@ -1,4 +1,4 @@
-import { calcularSerieForma, recortarSerie } from '@no-strova/domain';
+import { anexarEficiencia, calcularSerieForma, pontosDeDesempenho, recortarSerie, resumoDeDesempenho, serieDeEficiencia } from '@no-strova/domain';
 import { reconstruirEstresseDiario } from '../core/functions.js';
 
 /** Períodos do gráfico. `dias: null` mostra tudo desde a primeira atividade. */
@@ -23,6 +23,24 @@ export function montarSerie(estresseDiario, hoje) {
     estresseDiario.map(({ data, estresse }) => ({ data, estresse })),
     { ate: hoje },
   );
+}
+
+/** Anos de atividades lidos para o EF do gráfico (o mesmo histórico da Progressão). */
+export const ANOS_DE_HISTORICO_EF = 5;
+
+/**
+ * Acrescenta à série de Forma o EF (eficiência aeróbica) suavizado de um esporte, calculado pelo próprio sistema a partir das
+ * atividades (distância, tempo em movimento, FC média e tempo por zona), sem depender do intervals.icu.
+ * @returns {{ serie: object[], treinos: number, excluidas: Record<string, number>, resumo: object|null }}
+ */
+export function montarSerieComEficiencia(serie, atividades, esporte, hoje) {
+  const { pontos, excluidas } = pontosDeDesempenho(atividades, esporte);
+  return {
+    serie: anexarEficiencia(serie, serieDeEficiencia(pontos, { ate: hoje })),
+    treinos: pontos.length,
+    excluidas,
+    resumo: resumoDeDesempenho(pontos, { hoje }),
+  };
 }
 
 export function recortarPeriodo(serie, periodoId) {

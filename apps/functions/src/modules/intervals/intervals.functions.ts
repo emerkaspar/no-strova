@@ -80,6 +80,49 @@ export const sincronizarIntervalsDiario = onSchedule(
   },
 );
 
+/**
+ * Todo dia às 05:00 (São Paulo): envia os treinos planejados dos próximos 7 dias de quem tem o intervals.icu conectado e o recurso
+ * Garmin liberado. Mesmo molde da sincronização de atividades (`rodarAgenda`): chave recusada vira aviso, o que não couber no
+ * tempo fica para o dia seguinte. Não duplica: treino igual é pulado e o alterado atualiza o mesmo evento.
+ */
+export const enviarTreinosIntervalsDiario = onSchedule(
+  { schedule: "every day 05:00", timeZone: "America/Sao_Paulo", region: REGIAO, timeoutSeconds: 540, memory: "512MiB", secrets: [GARMIN_CHAVE_CRIPTO] },
+  async () => {
+    const segredo = GARMIN_CHAVE_CRIPTO.value();
+    const resumo = await rodarAgenda(
+      {
+        async listar() {
+          const snap = await db.collection("intervalsConexoes").where("status", "==", "ativa").get();
+          return snap.docs.map((d) => {
+            const ultima = d.get("ultimaTentativaEnvio");
+            return { uid: d.id, ultimaTentativaMs: ultima instanceof Timestamp ? ultima.toMillis() : null };
+          });
+        },
+        async sincronizar(uid) {
+          const r = await servico.enviarPlanoAutomatico(uid, segredo);
+          if ("ignorado" in r) return { importadas: 0 };
+          if (r.falhas > 0) {
+            await criarNotificacao(uid, "envioFalhou", { falhas: r.falhas, referencia: String(Date.now()) }).catch((err) =>
+              logger.error("Falha ao notificar o erro de envio", { uid, erro: String(err) }),
+            );
+          }
+          return { importadas: r.enviados + r.atualizados };
+        },
+        marcarChaveInvalida: servico.marcarChaveInvalida,
+        registrarFalha: async (uid) => {
+          await servico.docConexao(uid).set({ ultimaTentativaEnvio: Timestamp.now() }, { merge: true });
+        },
+        avisarChaveInvalida: async (uid) => {
+          await criarNotificacao(uid, "intervalsChaveInvalida", { dia: diaNoFuso(Date.now()) });
+        },
+        agora: () => Date.now(),
+      },
+      ORCAMENTO_DA_ROTINA_MS,
+    );
+    logger.info("Envio diário de treinos ao intervals.icu concluído", resumo);
+  },
+);
+
 /** Só leitura: compara o LTHR do No Strova com o do intervals.icu. */
 export const intervalsLthr = onCall({ region: REGIAO, secrets: [GARMIN_CHAVE_CRIPTO] }, async (request) => {
   const { uid } = await exigirRecurso(request, RECURSOS.GARMIN);

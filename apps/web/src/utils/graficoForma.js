@@ -8,6 +8,8 @@ const A = 340;
 const MARGEM_BASE = { topo: 16, base: 30, esquerda: 44 };
 const ALTURA_BARRAS = 0.22; // fração da área útil
 const ROTULO_SERIE = { fitness: 'Condicionamento', fadiga: 'Fadiga', forma: 'Forma' };
+const MARGEM_EIXO_EF = 44; // espaço à direita para os números do eixo da eficiência
+const finito = (v) => typeof v === 'number' && Number.isFinite(v);
 
 function svg(nome, atributos = {}, ...filhos) {
   const el = document.createElementNS(NS, nome);
@@ -38,20 +40,24 @@ const linha = (rotulo, valor) => {
  * @param {Array<import('@no-strova/domain').DiaForma & { projetado?: boolean }>} serie
  * @param {{
  *   barras?: boolean, faixas?: boolean, series?: Array<'fitness'|'fadiga'|'forma'>, marcarHoje?: boolean,
- *   projecao?: boolean, meta?: { dataAlvo: string, formaAlvo: number }|null
+ *   projecao?: boolean, meta?: { dataAlvo: string, formaAlvo: number }|null, eficiencia?: boolean
  * }} [opcoes]
  *   `projecao`: os dias com `projetado` saem tracejados, sobre uma região sombreada "Projeção do plano";
- *   `meta`: marca o alvo (data e Forma) no gráfico.
+ *   `meta`: marca o alvo (data e Forma) no gráfico;
+ *   `eficiencia`: desenha o campo `eficiencia` de cada dia (EF suavizado, ou null sem treino) numa escala própria, no eixo da direita.
  */
 export function graficoForma(
   serie,
-  { barras = true, faixas = true, series = ['fitness', 'fadiga', 'forma'], marcarHoje = false, projecao = false, meta = null } = {},
+  { barras = true, faixas = true, series = ['fitness', 'fadiga', 'forma'], marcarHoje = false, projecao = false, meta = null, eficiencia = false } = {},
 ) {
   const container = document.createElement('div');
   container.className = 'grafico';
   if (serie.length < 2) return container;
 
-  const MARGEM = { ...MARGEM_BASE, direita: faixas ? 92 : 14 };
+  const valoresEf = eficiencia ? serie.map((d) => d.eficiencia).filter(finito) : [];
+  const comEf = valoresEf.length > 0;
+  const MARGEM = { ...MARGEM_BASE, direita: (faixas ? 92 : 14) + (comEf ? MARGEM_EIXO_EF : 0) };
+  const deslocFaixa = comEf ? MARGEM_EIXO_EF : 0;
   const largura = L - MARGEM.esquerda - MARGEM.direita;
   const altura = A - MARGEM.topo - MARGEM.base;
   const n = serie.length;
@@ -69,6 +75,20 @@ export function graficoForma(
   const px = (i) => MARGEM.esquerda + (i / (n - 1)) * largura;
   const py = (v) => MARGEM.topo + (1 - (v - yMin) / (yMax - yMin)) * altura;
 
+  // Eficiência: escala própria (com folga), para a linha ocupar a altura do gráfico sem esmagar as outras séries
+  let efMin = 0;
+  let efMax = 1;
+  let passoEf = 1;
+  if (comEf) {
+    const baixo = Math.min(...valoresEf);
+    const alto = Math.max(...valoresEf);
+    const folga = Math.max((alto - baixo) * 0.15, 0.02);
+    passoEf = passoDoEixo(alto - baixo + 2 * folga || 0.1, 4);
+    efMin = Math.floor((baixo - folga) / passoEf) * passoEf;
+    efMax = Math.ceil((alto + folga) / passoEf) * passoEf;
+  }
+  const pyEf = (v) => MARGEM.topo + (1 - (v - efMin) / (efMax - efMin || 1)) * altura;
+
   // Último dia que não é projeção (hoje). Sem projeção, é o último ponto da série.
   const primeiroProjetado = projecao ? serie.findIndex((d) => d.projetado) : -1;
   const temProjecao = primeiroProjetado > 0;
@@ -77,7 +97,7 @@ export function graficoForma(
   const raiz = svg('svg', {
     viewBox: `0 0 ${L} ${A}`,
     role: 'img',
-    'aria-label': `Gráfico de ${series.map((s) => ROTULO_SERIE[s]).join(', ')} de ${formatarData(serie[0].data)} a ${formatarData(serie[n - 1].data)}${temProjecao ? ', com projeção do plano' : ''}`,
+    'aria-label': `Gráfico de ${[...series.map((s) => ROTULO_SERIE[s]), ...(comEf ? ['Eficiência aeróbica'] : [])].join(', ')} de ${formatarData(serie[0].data)} a ${formatarData(serie[n - 1].data)}${temProjecao ? ', com projeção do plano' : ''}`,
   });
 
   // Faixas de Forma ao fundo, recortadas ao intervalo visível.
@@ -91,7 +111,7 @@ export function graficoForma(
         svg('rect', { x: MARGEM.esquerda, y: py(alto), width: largura, height: py(baixo) - py(alto), class: `faixa faixa-${faixa.id}` }),
       );
       if (py(baixo) - py(alto) >= 14) {
-        raiz.append(svg('text', { x: L - MARGEM.direita + 8, y: (py(alto) + py(baixo)) / 2 + 4, class: 'grafico-rotulo-faixa' }, faixa.rotulo));
+        raiz.append(svg('text', { x: L - MARGEM.direita + 8 + deslocFaixa, y: (py(alto) + py(baixo)) / 2 + 4, class: 'grafico-rotulo-faixa' }, faixa.rotulo));
       }
     });
   }
@@ -111,6 +131,13 @@ export function graficoForma(
     );
   }
 
+  if (comEf) {
+    for (let v = efMin; v <= efMax + 1e-9; v += passoEf) {
+      raiz.append(svg('text', { x: L - MARGEM.direita + 6, y: pyEf(v) + 4, class: 'grafico-rotulo-ef' }, formatarNumero(v, 2)));
+    }
+    raiz.append(svg('text', { x: L - MARGEM.direita + 6, y: MARGEM.topo - 4, class: 'grafico-rotulo-ef' }, 'EF'));
+  }
+
   const mostrarAno = n > 120;
   const marcas = Math.min(4, n);
   for (let k = 0; k < marcas; k++) {
@@ -127,6 +154,24 @@ export function graficoForma(
       const h = (d.estresse / maxEstresse) * altura * ALTURA_BARRAS;
       raiz.append(svg('rect', { x: px(i) - larguraBarra / 2, y: MARGEM.topo + altura - h, width: larguraBarra, height: h, class: `grafico-barra${d.projetado ? ' grafico-barra-projetada' : ''}` }));
     });
+  }
+
+  if (comEf) {
+    // trechos contínuos (dias sem treino na janela de 28 dias quebram a linha); ponto isolado vira bolinha
+    let trecho = [];
+    const fecharTrecho = () => {
+      if (trecho.length >= 2) raiz.append(svg('polyline', { points: trecho.join(' '), class: 'serie serie-eficiencia' }));
+      else if (trecho.length === 1) {
+        const [x, y] = trecho[0].split(',');
+        raiz.append(svg('circle', { cx: x, cy: y, r: 2.5, class: 'marcador-eficiencia-ponto' }));
+      }
+      trecho = [];
+    };
+    serie.forEach((d, i) => {
+      if (finito(d.eficiencia)) trecho.push(`${px(i).toFixed(1)},${pyEf(d.eficiencia).toFixed(1)}`);
+      else fecharTrecho();
+    });
+    fecharTrecho();
   }
 
   const pontos = (campo, de, ate) =>
@@ -162,7 +207,8 @@ export function graficoForma(
 
   const guia = svg('line', { y1: MARGEM.topo, y2: MARGEM.topo + altura, class: 'grafico-guia', visibility: 'hidden' });
   const marcadores = series.map((campo) => svg('circle', { r: 4, class: `marcador marcador-${campo}`, visibility: 'hidden' }));
-  raiz.append(guia, ...marcadores);
+  const marcadorEf = comEf ? svg('circle', { r: 4, class: 'marcador marcador-eficiencia', visibility: 'hidden' }) : null;
+  raiz.append(guia, ...marcadores, ...(marcadorEf ? [marcadorEf] : []));
 
   const dica = document.createElement('div');
   dica.className = 'grafico-dica';
@@ -182,12 +228,20 @@ export function graficoForma(
       marcadores[k].setAttribute('cy', py(d[campo]));
       marcadores[k].setAttribute('visibility', 'visible');
     });
+    if (marcadorEf) {
+      if (finito(d.eficiencia)) {
+        marcadorEf.setAttribute('cx', px(i));
+        marcadorEf.setAttribute('cy', pyEf(d.eficiencia));
+        marcadorEf.setAttribute('visibility', 'visible');
+      } else marcadorEf.setAttribute('visibility', 'hidden');
+    }
     const faixa = FAIXAS_FORMA.find((f) => f.id === d.faixa);
     dica.replaceChildren(
       Object.assign(document.createElement('strong'), { textContent: `${formatarData(d.data)}${d.projetado ? ' · projeção' : ''}` }),
       ...series.map((campo) =>
         linha(ROTULO_SERIE[campo], campo === 'forma' ? `${formatarNumero(d.forma, 1)} · ${faixa?.rotulo ?? ''}` : formatarNumero(d[campo], 1)),
       ),
+      ...(comEf ? [linha('Eficiência (28 dias)', finito(d.eficiencia) ? `${formatarNumero(d.eficiencia, 2)} m/min por bpm` : '—')] : []),
       linha(d.projetado ? 'Esforço planejado' : 'Esforço do dia', formatarNumero(d.estresse, 1)),
     );
     dica.hidden = false;
@@ -195,6 +249,7 @@ export function graficoForma(
   area.addEventListener('pointerleave', () => {
     guia.setAttribute('visibility', 'hidden');
     marcadores.forEach((m) => m.setAttribute('visibility', 'hidden'));
+    marcadorEf?.setAttribute('visibility', 'hidden');
     dica.hidden = true;
   });
   raiz.append(area);

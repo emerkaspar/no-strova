@@ -827,6 +827,7 @@ a.marca {
   --serie-fitness: var(--primary);
   --serie-fadiga: var(--text-primary);
   --serie-forma: #38bdf8;
+  --serie-eficiencia: #4ade80;
   --faixa-transicao: rgba(163, 163, 163, 0.1);
   --faixa-freshness: rgba(74, 222, 128, 0.13);
   --faixa-neutral: rgba(255, 255, 255, 0.04);
@@ -836,6 +837,7 @@ a.marca {
 
 :root[data-tema='claro'] {
   --serie-forma: #0369a1;
+  --serie-eficiencia: #15803d;
   --faixa-transicao: rgba(92, 92, 92, 0.1);
   --faixa-freshness: rgba(21, 128, 61, 0.13);
   --faixa-neutral: rgba(10, 10, 10, 0.04);
@@ -886,6 +888,23 @@ a.marca {
 
 .serie-forma {
   stroke: var(--serie-forma);
+}
+
+/* Eficiência aeróbica: eixo próprio à direita, em tracejado curto para não se confundir com as séries de carga */
+.serie-eficiencia {
+  stroke: var(--serie-eficiencia);
+  stroke-width: 2;
+  stroke-dasharray: 6 3;
+}
+
+.marcador-eficiencia,
+.marcador-eficiencia-ponto {
+  fill: var(--serie-eficiencia);
+}
+
+.grafico-rotulo-ef {
+  fill: var(--serie-eficiencia);
+  font-size: 11px;
 }
 
 .marcador {
@@ -987,6 +1006,10 @@ a.marca {
 
 .amostra-forma {
   background: var(--serie-forma);
+}
+
+.amostra-eficiencia {
+  background: repeating-linear-gradient(90deg, var(--serie-eficiencia) 0 6px, transparent 6px 9px);
 }
 
 .amostra-faixa {

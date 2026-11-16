@@ -25,7 +25,8 @@ import { paginaTopo } from '../../utils/paginaTopo.js';
 import { seletor } from '../../utils/listaSuspensa.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
-import { icone } from '../../utils/icones.js';
+import { cartaoIndicador } from './cartaoIndicador.js';
+import { criarPainelDesempenho } from './desempenho.js';
 import { graficoProgressao } from './graficoProgressao.js';
 import { painelDeObjetivos, prateleiraDeConquistas } from './objetivos.js';
 import { consumirMetaPedida } from './state.js';
@@ -44,6 +45,15 @@ const ROTULO_ESTADO = Object.freeze({ atingida: 'Meta atingida', adiantada: 'Adi
 const GRAVIDADE_ESTADO = Object.freeze({ atingida: 'ok', adiantada: 'ok', 'no-ritmo': 'ok', atrasada: 'alerta' });
 const dois = (n) => String(n).padStart(2, '0');
 
+/** Seções da página, na ordem em que aparecem; a barra de abas no topo leva a elas (como no Plano). */
+const SECOES = [
+  { id: 'objetivos', rotulo: 'Objetivos' },
+  { id: 'analise', rotulo: 'Análise' },
+  { id: 'desempenho', rotulo: 'Desempenho' },
+  { id: 'conquistas', rotulo: 'Conquistas' },
+  { id: 'zonas', rotulo: 'Zonas' },
+];
+
 /** Número com a unidade da métrica ("1.234 km", "12,5 h", "86,3"). */
 function formatarValor(tipo, v, { unidade = true } = {}) {
   const cfg = TIPOS_DE_PROGRESSAO[tipo];
@@ -57,17 +67,6 @@ const comSinal = (tipo, v) => {
   const cfg = TIPOS_DE_PROGRESSAO[tipo];
   return `${v > 0 ? '+' : v < 0 ? '−' : ''}${formatarNumero(Math.abs(v), cfg.casas)}${cfg.unidade ? ` ${cfg.unidade}` : ''}`;
 };
-
-/** Cartão de indicador do sistema (mesmo estilo dos recordes). */
-function cartao({ rotulo, nomeIcone, valor, nota = null, gravidade = '' }) {
-  return h(
-    'article',
-    { class: `ativ-recorde${gravidade ? ` peso-${gravidade}-cartao` : ''}` },
-    h('div', { class: 'ativ-recorde-topo' }, h('span', { class: 'ativ-recorde-icone' }, icone(nomeIcone, 18)), h('span', { class: 'ativ-recorde-rotulo' }, rotulo)),
-    h('strong', { class: `ativ-recorde-valor${gravidade ? ` peso-${gravidade}` : ''}` }, valor),
-    nota ? h('div', { class: 'ativ-recorde-rodape' }, h('span', { class: 'ativ-recorde-quando' }, nota)) : null,
-  );
-}
 
 /** Rótulo enxuto de um período para a tabela: "Semana de 02/11" vira "02/11". */
 const rotuloCurto = (periodo) => periodo.rotulo.replace(/^Semana de /, '');
@@ -87,7 +86,7 @@ function rotuloDoPonto(periodo, n) {
   return periodo.tipo === 'semana' ? `${DIAS_DA_SEMANA[n - 1]}, ${formatarData(data)}` : formatarData(data);
 }
 
-export function render(raiz, sessao) {
+export function render(raiz, sessao, params = {}) {
   const hoje = hojeIso();
   const anoHoje = Number(hoje.slice(0, 4));
   const dados = { atividades: [], dias: [], metas: [], conquistas: [] };
@@ -96,6 +95,9 @@ export function render(raiz, sessao) {
   let temporizador = null;
   let metaPedida = consumirMetaPedida(); // objetivo clicado na Início: abre já selecionado
   let rolarAoDesenhar = false;
+  let secaoInicial = SECOES.some((x) => x.id === params.secao) ? params.secao : null; // rola até ela quando os dados chegarem
+  let secaoVisivel = SECOES[0].id;
+  let observador = null;
   const estado = {
     periodo: 'ano',
     tipo: 'distancia',
@@ -130,6 +132,49 @@ export function render(raiz, sessao) {
     estado.esportes = new Set(meta.esportes ?? []);
     estado.referenciaInicio = ehRecorrente(meta) ? (instanciasDaMeta(meta, hoje).slice(-1)[0]?.inicio ?? null) : meta.inicio;
     estado.escolhidos = null;
+  }
+
+  // ---- abas: a barra fixa leva às seções e destaca a que está na tela; a URL acompanha, sem recarregar ----
+  const secaoEl = (id) => document.getElementById(`prog-${id}`);
+  function irParaSecao(id, comportamento = 'smooth') {
+    window.history.replaceState(null, '', id === SECOES[0].id ? '#/progressao' : `#/progressao/${id}`);
+    secaoEl(id)?.scrollIntoView?.({ behavior: comportamento, block: 'start' });
+  }
+  function criarAbas() {
+    return h(
+      'nav',
+      { class: 'plano-ancoras', 'aria-label': 'Seções da progressão' },
+      ...SECOES.map((x) => h('button', { class: 'plano-ancora', type: 'button', 'data-secao': x.id, 'aria-current': secaoVisivel === x.id ? 'true' : null, onClick: () => irParaSecao(x.id) }, x.rotulo)),
+    );
+  }
+  /** Destaca na barra a seção que ocupa a parte de cima da tela. A tela é redesenhada a cada dado novo, então o observador é refeito. */
+  function observarSecoes() {
+    observador?.disconnect();
+    observador = null;
+    if (typeof IntersectionObserver === 'undefined') return;
+    const visiveis = new Set();
+    observador = new IntersectionObserver(
+      (entradas) => {
+        for (const e of entradas) {
+          if (e.isIntersecting) visiveis.add(e.target.dataset.secao);
+          else visiveis.delete(e.target.dataset.secao);
+        }
+        const atual = SECOES.find((x) => visiveis.has(x.id))?.id;
+        if (atual && atual !== secaoVisivel) {
+          secaoVisivel = atual;
+          raiz.querySelectorAll('.plano-ancora').forEach((b) => b.setAttribute('aria-current', String(b.dataset.secao === atual)));
+        }
+      },
+      // só conta a faixa de cima da tela (abaixo da barra fixa)
+      { rootMargin: '-80px 0px -60% 0px' },
+    );
+    for (const x of SECOES) {
+      const el = secaoEl(x.id);
+      if (el) {
+        el.dataset.secao = x.id;
+        observador.observe(el);
+      }
+    }
   }
 
   function desenhar() {
@@ -237,26 +282,26 @@ export function render(raiz, sessao) {
     const valorRef = comp.linhas.find((l) => l.periodo.id === ref.id)?.valor ?? null;
     const porSemana = ref.tipo === 'ano';
     const cartoes = [
-      cartao({ rotulo: cfg.acumulado ? `Acumulado · ${ref.rotulo}` : `Condicionamento · ${ref.rotulo}`, nomeIcone: 'atividades', valor: formatarValor(estado.tipo, valorRef), nota: `até ${formatarData(hoje <= ref.fim ? hoje : ref.fim)}` }),
+      cartaoIndicador({ rotulo: cfg.acumulado ? `Acumulado · ${ref.rotulo}` : `Condicionamento · ${ref.rotulo}`, nomeIcone: 'atividades', valor: formatarValor(estado.tipo, valorRef), nota: `até ${formatarData(hoje <= ref.fim ? hoje : ref.fim)}` }),
     ];
     if (comp.meta) {
       const m = comp.meta;
       cartoes.push(
-        cartao({ rotulo: 'Meta', nomeIcone: 'esporte', valor: formatarValor(estado.tipo, m.valorAlvo), nota: m.percentual === null ? null : `${formatarNumero(m.percentual, 0)}% concluída` }),
-        cartao({ rotulo: 'Situação', nomeIcone: 'hrss', valor: ROTULO_ESTADO[m.estado], gravidade: GRAVIDADE_ESTADO[m.estado] ?? '', nota: `esperado até hoje: ${formatarValor(estado.tipo, m.esperadoHoje)}` }),
-        cartao({ rotulo: 'Faltam', nomeIcone: 'distancia', valor: formatarValor(estado.tipo, m.faltam) }),
+        cartaoIndicador({ rotulo: 'Meta', nomeIcone: 'esporte', valor: formatarValor(estado.tipo, m.valorAlvo), nota: m.percentual === null ? null : `${formatarNumero(m.percentual, 0)}% concluída` }),
+        cartaoIndicador({ rotulo: 'Situação', nomeIcone: 'hrss', valor: ROTULO_ESTADO[m.estado], gravidade: GRAVIDADE_ESTADO[m.estado] ?? '', nota: `esperado até hoje: ${formatarValor(estado.tipo, m.esperadoHoje)}` }),
+        cartaoIndicador({ rotulo: 'Faltam', nomeIcone: 'distancia', valor: formatarValor(estado.tipo, m.faltam) }),
       );
       if (m.ritmoNecessarioPorDia !== null) {
         const ritmo = porSemana ? m.ritmoNecessarioPorDia * 7 : m.ritmoNecessarioPorDia;
-        cartoes.push(cartao({ rotulo: `Ritmo necessário`, nomeIcone: 'duracao', valor: `${formatarValor(estado.tipo, ritmo)}`, nota: porSemana ? 'por semana, até o fim do ano' : `por dia, até o fim d${ref.tipo === 'mes' ? 'o mês' : 'a semana'}` }));
+        cartoes.push(cartaoIndicador({ rotulo: `Ritmo necessário`, nomeIcone: 'duracao', valor: `${formatarValor(estado.tipo, ritmo)}`, nota: porSemana ? 'por semana, até o fim do ano' : `por dia, até o fim d${ref.tipo === 'mes' ? 'o mês' : 'a semana'}` }));
       }
     }
     if (comp.projecaoFim !== null) {
-      cartoes.push(cartao({ rotulo: `Projeção do fim d${ref.tipo === 'ano' ? 'o ano' : ref.tipo === 'mes' ? 'o mês' : 'a semana'}`, nomeIcone: 'elevacao', valor: formatarValor(estado.tipo, comp.projecaoFim), nota: 'mantendo o ritmo médio até agora' }));
+      cartoes.push(cartaoIndicador({ rotulo: `Projeção do fim d${ref.tipo === 'ano' ? 'o ano' : ref.tipo === 'mes' ? 'o mês' : 'a semana'}`, nomeIcone: 'elevacao', valor: formatarValor(estado.tipo, comp.projecaoFim), nota: 'mantendo o ritmo médio até agora' }));
     }
     const anterior = comp.linhas.length > 1 ? comp.linhas.filter((l) => l.periodo.inicio < ref.inicio).slice(-1)[0] : null;
     if (anterior && !comp.meta) {
-      cartoes.push(cartao({ rotulo: `No mesmo ponto em ${anterior.periodo.rotulo}`, nomeIcone: 'plano', valor: formatarValor(estado.tipo, anterior.valor), nota: valorRef === null || anterior.valor === null ? null : `${comSinal(estado.tipo, valorRef - anterior.valor)} em relação a ${anterior.periodo.rotulo}` }));
+      cartoes.push(cartaoIndicador({ rotulo: `No mesmo ponto em ${anterior.periodo.rotulo}`, nomeIcone: 'plano', valor: formatarValor(estado.tipo, anterior.valor), nota: valorRef === null || anterior.valor === null ? null : `${comSinal(estado.tipo, valorRef - anterior.valor)} em relação a ${anterior.periodo.rotulo}` }));
     }
 
     // ---- períodos comparados (chips) e gráfico
@@ -330,45 +375,61 @@ export function render(raiz, sessao) {
     const nomeDoPeriodo = ref.tipo === 'semana' ? ref.rotulo : `${PERIODOS_DE_PROGRESSAO[ref.tipo].rotulo.toLowerCase()} ${ref.rotulo}`;
     const tituloGrafico = `${cfg.rotulo}${cfg.acumulado ? ' acumulada' : ''} · ${nomeDoPeriodo}${comp.meta ? ` · meta ${formatarValor(estado.tipo, comp.meta.valorAlvo)}` : ''}`;
 
+    const secao = (id, ...filhos) => h('div', { class: 'prog-secao', id: `prog-${id}` }, ...filhos);
     raiz.replaceChildren(
       h(
         'div',
         { class: 'prog-pagina' },
-      paginaTopo({ icone: 'progressao', titulo: 'Progressão', subtitulo: 'Acompanhe seus objetivos e compare o acumulado do ano, do mês ou da semana com os períodos anteriores.' }),
-      h(
-        'section',
-        { class: 'card' },
-        h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Objetivos'), botaoNova),
-        estado.formAberto ? formularioDeMeta() : null,
-        painelDeObjetivos({
-          metas: dados.metas,
-          atividades: dados.atividades,
-          condicionamentoPorData,
-          hoje,
-          selecionadaId: estado.metaId,
-          acoes: acoesDoObjetivo,
-          aoSelecionar: (m) => {
-            aplicarMeta(m);
-            desenhar();
-            raiz.querySelector('.prog-analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          },
-        }),
-        mensagem.el,
-      ),
-      h('section', { class: 'card prog-analise' }, h('h2', null, 'Análise por período'), controles),
-      h('div', { class: 'ativ-recordes-grade ativ-indicadores prog-cartoes' }, cartoes),
-      temDados || !cfg.acumulado
-        ? h(
+        paginaTopo({ icone: 'progressao', titulo: 'Progressão', subtitulo: 'Acompanhe seus objetivos, compare o acumulado com os períodos anteriores e veja se o seu desempenho está evoluindo.' }),
+        criarAbas(),
+        secao(
+          'objetivos',
+          h(
             'section',
-            { class: 'card prog-corpo' },
-            h('div', { class: 'prog-grafico' }, h('h2', null, tituloGrafico), chipsPeriodos, grafico.el),
-            h('div', { class: 'prog-lateral' }, h('h2', null, `${formatarData(ref.inicio).slice(0, 5)} → ${formatarData(hoje <= ref.fim ? hoje : ref.fim).slice(0, 5)}`), tabela),
-          )
-        : h('section', { class: 'card' }, estadoVazio('Nenhuma atividade encontrada neste período com os filtros escolhidos.')),
-      h('section', { class: 'card' }, h('h2', null, 'Conquistas'), prateleiraDeConquistas(dados.conquistas)),
-      criarCartaoZonas({ atividades: dados.atividades, hoje }),
+            { class: 'card' },
+            h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Objetivos'), botaoNova),
+            estado.formAberto ? formularioDeMeta() : null,
+            painelDeObjetivos({
+              metas: dados.metas,
+              atividades: dados.atividades,
+              condicionamentoPorData,
+              hoje,
+              selecionadaId: estado.metaId,
+              acoes: acoesDoObjetivo,
+              aoSelecionar: (m) => {
+                aplicarMeta(m);
+                desenhar();
+                raiz.querySelector('.prog-analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              },
+            }),
+            mensagem.el,
+          ),
+        ),
+        secao(
+          'analise',
+          h('section', { class: 'card prog-analise' }, h('h2', null, 'Análise por período'), controles),
+          h('div', { class: 'ativ-recordes-grade ativ-indicadores prog-cartoes' }, cartoes),
+          temDados || !cfg.acumulado
+            ? h(
+                'section',
+                { class: 'card prog-corpo' },
+                h('div', { class: 'prog-grafico' }, h('h2', null, tituloGrafico), chipsPeriodos, grafico.el),
+                h('div', { class: 'prog-lateral' }, h('h2', null, `${formatarData(ref.inicio).slice(0, 5)} → ${formatarData(hoje <= ref.fim ? hoje : ref.fim).slice(0, 5)}`), tabela),
+              )
+            : h('section', { class: 'card' }, estadoVazio('Nenhuma atividade encontrada neste período com os filtros escolhidos.')),
+        ),
+        secao('desempenho', criarPainelDesempenho({ atividades: dados.atividades, hoje })),
+        secao('conquistas', h('section', { class: 'card' }, h('h2', null, 'Conquistas'), prateleiraDeConquistas(dados.conquistas))),
+        secao('zonas', criarCartaoZonas({ atividades: dados.atividades, hoje })),
       ),
     );
+    observarSecoes();
+    // rota de uma seção (#/progressao/desempenho): só rola quando os dados chegaram, para a página já ter a altura final
+    if (secaoInicial && !rolarAoDesenhar) {
+      const id = secaoInicial;
+      secaoInicial = null;
+      requestAnimationFrame(() => irParaSecao(id, 'auto'));
+    }
     if (rolarAoDesenhar && raiz.querySelector('.prog-corpo')) {
       rolarAoDesenhar = false;
       raiz.querySelector('.prog-corpo').scrollIntoView({ block: 'start' });
@@ -554,6 +615,7 @@ export function render(raiz, sessao) {
 
   return () => {
     clearTimeout(temporizador);
+    observador?.disconnect();
     cancelar.forEach((fn) => fn());
     limparGrafico();
   };

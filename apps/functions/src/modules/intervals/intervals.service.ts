@@ -1,4 +1,4 @@
-import { configVigenteEm, diaNoFuso, montarPlanoParaExportar } from "@no-strova/domain";
+import { configVigenteEm, diaNoFuso, montarPlanoParaExportar, type Perfil, RECURSOS, somarDias, temRecurso, usuarioPodeAcessar } from "@no-strova/domain";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
@@ -387,6 +387,36 @@ export async function sincronizarUsuario(uid: string, segredo: string, requisito
   return totais;
 }
 
+const MSG_SEM_TREINOS = "Não há treinos planejados nesse período para enviar.";
+
+/** Janela do envio automático: hoje e os 6 dias seguintes (o intervals.icu só repassa ao Garmin a próxima semana). */
+export const DIAS_ENVIO_AUTOMATICO = 7;
+
+export type ResultadoEnvioAutomatico = { enviados: number; atualizados: number; falhas: number } | { ignorado: "semRecurso" | "semTreinos" };
+
+/**
+ * Envio diário de um usuário (rotina agendada): manda os treinos dos próximos 7 dias, sem duplicar (o que não mudou é pulado).
+ * Só vale para quem tem o recurso Garmin liberado e acesso ativo. Sem treinos no período não é erro. Falhas da chave ou do
+ * intervals.icu sobem como HttpsError, para quem chama decidir (igual à sincronização de atividades).
+ */
+export async function enviarPlanoAutomatico(uid: string, segredo: string, requisitor?: Requisitor): Promise<ResultadoEnvioAutomatico> {
+  const perfil = (await db.doc(`users/${uid}`).get()).data();
+  if (!perfil || !usuarioPodeAcessar(perfil as Perfil) || !temRecurso(perfil as Perfil, RECURSOS.GARMIN)) return { ignorado: "semRecurso" };
+  const hoje = diaNoFuso(Date.now());
+  let resposta: RespostaEnvio;
+  try {
+    resposta = await enviarPlano(uid, { de: hoje, ate: somarDias(hoje, DIAS_ENVIO_AUTOMATICO - 1) }, segredo, requisitor);
+  } catch (erro) {
+    if (erro instanceof HttpsError && erro.code === "failed-precondition" && erro.message === MSG_SEM_TREINOS) {
+      await docConexao(uid).set({ ultimoEnvioEm: FieldValue.serverTimestamp(), ultimaTentativaEnvio: FieldValue.serverTimestamp() }, { merge: true });
+      return { ignorado: "semTreinos" };
+    }
+    throw erro;
+  }
+  await docConexao(uid).set({ ultimoEnvioEm: FieldValue.serverTimestamp(), ultimaTentativaEnvio: FieldValue.serverTimestamp() }, { merge: true });
+  return { enviados: resposta.enviados, atualizados: resposta.atualizados, falhas: resposta.falhas };
+}
+
 /** Envia ao intervals.icu os treinos planejados do período (que o intervals.icu repassa ao Garmin Connect). */
 export async function enviarPlano(uid: string, periodo: { de: string; ate: string }, segredo: string, requisitor?: Requisitor): Promise<RespostaEnvio> {
   const snapChave = await docChave(uid).get();
@@ -405,7 +435,7 @@ export async function enviarPlano(uid: string, periodo: { de: string; ate: strin
   const treinos = treinosSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const { plano, ignorados } = montarPlanoParaExportar(treinos, { configs, de, ate: periodo.ate });
   const doPlano = plano.treinos as TreinoPlano[];
-  if (doPlano.length === 0) throw new HttpsError("failed-precondition", "Não há treinos planejados nesse período para enviar.");
+  if (doPlano.length === 0) throw new HttpsError("failed-precondition", MSG_SEM_TREINOS);
   if (doPlano.length > MAXIMO_TREINOS) {
     throw new HttpsError("invalid-argument", `Há ${doPlano.length} treinos nesse período. Escolha um período menor (até ${MAXIMO_TREINOS} treinos).`);
   }

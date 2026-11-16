@@ -5898,6 +5898,64 @@ textarea {
   margin: 0;
 }
 
+/* Seções da página (as abas no topo levam a elas); a barra fixa cobre o topo da rolagem */
+.prog-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  scroll-margin-top: 60px;
+}
+
+.prog-secao > .card,
+.prog-secao > .prog-cartoes {
+  margin: 0;
+}
+
+/* Painel de Desempenho (EF, batimentos por km, ritmo em FC fixa, desacoplamento, VDOT e RPE) */
+.dp-cartoes {
+  margin: 4px 0 16px;
+}
+
+.dp-titulo-grafico {
+  margin: 24px 0 0;
+  font-size: 1rem;
+}
+
+.dp-linha {
+  fill: none;
+  stroke: var(--serie-eficiencia);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.traj-legenda .dp-amostra-linha {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--serie-eficiencia);
+}
+
+.dp-ajuda {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.dp-ajuda summary {
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.dp-ajuda ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
 /* Marcador do progresso esperado na barra do objetivo */
 .obj-trilho {
   position: relative;
