@@ -10,6 +10,7 @@ import { observarSemanaIa } from '../../infrastructure/semanaIaRepo.js';
 import { criarAbas } from '../../utils/abas.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { seletor } from '../../utils/listaSuspensa.js';
 import { hojeIso } from '../../utils/formatters.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
@@ -57,7 +58,7 @@ export function render(raiz, sessao) {
   });
   cancelar.push(() => trajetos.destruir());
 
-  const cabecalho = h('section', { class: 'card' });
+  const cabecalho = h('div', { class: 'pagina-topo-grupo' });
   const controles = h('div', { class: 'treinos-controles' });
   /** Barra fixa com os controles (esporte e nível), sempre à mão ao rolar. */
   const barra = h('div', { class: 'treinos-barra' }, controles);
@@ -197,12 +198,11 @@ export function render(raiz, sessao) {
 
   function desenharCabecalho() {
     cabecalho.replaceChildren(
-      h('h1', null, 'Treinos'),
-      h(
-        'p',
-        { class: 'texto-secundario' },
-        'Sugestões para a semana, a sua evolução em cada trajeto e uma biblioteca de treinos intervalados para ciclismo e corrida, por foco e nível. Escolha um treino, leve para o plano ou para o relógio, ou crie o seu.',
-      ),
+      paginaTopo({
+        icone: 'treinos',
+        titulo: 'Treinos',
+        subtitulo: 'Sugestões para a semana, a sua evolução em cada trajeto e uma biblioteca de treinos intervalados para ciclismo e corrida, por foco e nível. Escolha um treino, leve para o plano ou para o relógio, ou crie o seu.',
+      }),
       mensagem.el,
     );
   }

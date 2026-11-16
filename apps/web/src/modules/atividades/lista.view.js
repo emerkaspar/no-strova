@@ -15,6 +15,7 @@ import { resumoSincronizacao, semNovidades, sincronizarGarmin } from '../configu
 import { resumoDoIntervals, sincronizarIntervals } from '../configuracao/intervalsAtividades.js';
 import { criarAbas, colunasDe } from '../../utils/abas.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { seletor } from '../../utils/listaSuspensa.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
@@ -744,11 +745,11 @@ export function render(raiz, sessao) {
     h(
       'div',
       { class: 'ativ-pagina' },
-      h(
-        'header',
-        { class: 'ativ-cabecalho' },
-        h('div', null, h('h1', null, 'Atividades'), h('p', { class: 'texto-secundario' }, 'Seu histórico de treinos, recordes e totais por período.')),
-        h(
+      paginaTopo({
+        icone: 'atividades',
+        titulo: 'Atividades',
+        subtitulo: 'Seu histórico de treinos, recordes e totais por período.',
+        acoes: h(
           'div',
           { class: 'linha-botoes' },
           botaoIntervals,
@@ -756,7 +757,7 @@ export function render(raiz, sessao) {
           h('button', { class: 'btn', type: 'button', onClick: () => mostrarPainel('importar', abrirImportar) }, 'Importar arquivo'),
           h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => mostrarPainel('manual', abrirManual) }, 'Registrar manualmente'),
         ),
-      ),
+      }),
       mensagemGarmin.el,
       mensagemIntervals.el,
       aviso,

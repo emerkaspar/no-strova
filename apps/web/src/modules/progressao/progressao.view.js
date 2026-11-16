@@ -21,6 +21,7 @@ import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { excluirMetaProgressao, observarMetasProgressao } from '../../infrastructure/metasProgressaoRepo.js';
 import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { seletor } from '../../utils/listaSuspensa.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
@@ -333,11 +334,7 @@ export function render(raiz, sessao) {
       h(
         'div',
         { class: 'prog-pagina' },
-      h(
-        'header',
-        { class: 'ativ-cabecalho' },
-        h('div', null, h('h1', null, 'Progressão'), h('p', { class: 'texto-secundario' }, 'Acompanhe seus objetivos e compare o acumulado do ano, do mês ou da semana com os períodos anteriores.')),
-      ),
+      paginaTopo({ icone: 'progressao', titulo: 'Progressão', subtitulo: 'Acompanhe seus objetivos e compare o acumulado do ano, do mês ou da semana com os períodos anteriores.' }),
       h(
         'section',
         { class: 'card' },

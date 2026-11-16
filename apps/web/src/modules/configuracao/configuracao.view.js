@@ -6,6 +6,7 @@ import { excluirConfig, observarConfigs, salvarConfig } from '../../infrastructu
 import { conferirLthrNoIntervals } from './lthrIntervals.js';
 import { areaMensagem, campo, executarComBotao, selecao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { criarCartaoCalibracao, criarCartaoTesteLthr } from './calibracao.js';
 import { criarCartaoGarmin } from './garmin.js';
@@ -215,6 +216,7 @@ export function render(raiz, sessao) {
 
   raiz.replaceChildren(
     h('div', { class: 'pilha' },
+      paginaTopo({ icone: 'configuracao', titulo: 'Configuração', subtitulo: 'Conexões de atividades, dados do atleta, zonas de FC e lembretes. É a base dos cálculos de HRSS, Forma e plano.' }),
       // o intervals.icu é o conector oficial e vale para todos; o cartão do Garmin continua dependendo do recurso liberado pelo admin
       criarCartaoIntervalsAtividades().raiz,
       temRecurso(sessao.perfil, RECURSOS.GARMIN) ? criarCartaoGarmin().raiz : null,

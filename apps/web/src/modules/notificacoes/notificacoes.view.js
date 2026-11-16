@@ -3,6 +3,7 @@ import { marcarNotificacoesComoLidas, marcarTodasNotificacoesComoLidas } from '.
 import { observarNaoLidas, observarTodas } from '../../infrastructure/notificacoesRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarDataHora } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
@@ -117,14 +118,15 @@ export function render(raiz, sessao) {
 
   raiz.replaceChildren(
     h(
-      'section',
-      { class: 'card notif-cartao' },
-      h('div', { class: 'notif-topo' }, h('h1', { class: 'notif-h1' }, 'Notificações'), botaoTodas),
-      h('p', { class: 'dica' }, 'Cada aviso fica aqui até você marcá-lo como lido. Os lembretes e os horários podem ser ajustados em Configuração.'),
-      abas,
-      filtros,
-      mensagem.el,
-      lista,
+      'div',
+      { class: 'pilha' },
+      paginaTopo({
+        icone: 'sino',
+        titulo: 'Notificações',
+        subtitulo: 'Cada aviso fica aqui até você marcá-lo como lido. Os lembretes e os horários podem ser ajustados em Configuração.',
+        acoes: botaoTodas,
+      }),
+      h('section', { class: 'card notif-cartao' }, abas, filtros, mensagem.el, lista),
     ),
   );
   desenhar();

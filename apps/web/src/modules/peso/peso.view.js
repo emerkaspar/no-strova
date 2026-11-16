@@ -7,6 +7,7 @@ import { observarMedidas } from '../../infrastructure/medidasRepo.js';
 import { excluirMetaPeso, excluirPesagem, idDaPesagem, observarMetasPeso, observarPesagens } from '../../infrastructure/pesoRepo.js';
 import { areaMensagem, campo, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { cartao } from './cartaoIndicador.js';
@@ -352,7 +353,7 @@ export function render(raiz, sessao) {
     h(
       'div',
       { class: 'ativ-pagina' },
-      h('header', { class: 'ativ-cabecalho' }, h('div', null, h('h1', null, 'Peso'), h('p', { class: 'texto-secundario' }, 'Registre o peso, acompanhe a tendência e cruze com a carga de treino.'))),
+      paginaTopo({ icone: 'peso', titulo: 'Peso', subtitulo: 'Registre o peso, acompanhe a tendência e cruze com a carga de treino.' }),
       erroGeral.el,
       h('section', { class: 'card' }, h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Registrar peso')), formRegistro, msgRegistro.el),
       tiles,

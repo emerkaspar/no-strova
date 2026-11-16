@@ -72,8 +72,7 @@
 
   .rail-logo:focus-visible,
   .rail-importar:focus-visible,
-  .rail-recolher:focus-visible,
-  .rail-avatar:focus-visible {
+  .rail-recolher:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
     border-radius: 12px;
@@ -214,7 +213,7 @@
     transform: scale(0.95);
   }
 
-  /* perfil (último item da pílula, no mesmo formato dos outros): avatar de 38 px com anel e o rótulo */
+  /* perfil (último item da pílula, no mesmo formato dos outros): a foto em quadrado arredondado de 38 px e o rótulo */
   .rail-conta {
     display: flex;
     flex-direction: column;
@@ -229,16 +228,33 @@
     line-height: 1;
   }
 
+  /* a foto é recortada no formato do polegar para cima (a mesma silhueta do logo) */
   .rail-avatar {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border: 0;
-    box-shadow: 0 0 0 2px var(--surface);
+    border-radius: 0;
     font-size: 1rem;
+    -webkit-mask: var(--rail-polegar) center / 100% 100% no-repeat;
+    mask: var(--rail-polegar) center / 100% 100% no-repeat;
+    --rail-polegar: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='1 1 22 22'%3E%3Cpath d='M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z'/%3E%3C/svg%3E");
   }
 
-  .rail-avatar.avatar-ativo {
-    box-shadow: 0 0 0 2px var(--primary);
+  .rail-avatar .avatar-img,
+  .rail-avatar img,
+  .rail-avatar svg {
+    border-radius: 0;
+  }
+
+  /* a máscara corta sombra e contorno do botão, então o destaque e o foco vão no item inteiro */
+  .rail-conta:has(.rail-avatar.avatar-ativo) .rail-rotulo {
+    color: var(--primary);
+  }
+
+  .rail-conta:has(.rail-avatar:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 14px;
   }
 
   /* o menu da conta abre ao lado do avatar, para cima */

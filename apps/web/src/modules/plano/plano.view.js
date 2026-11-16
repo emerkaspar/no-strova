@@ -13,6 +13,7 @@ import { excluirTreino, excluirTreinosEmLote, moverTreino, observarMetas, observ
 import { observarProvas } from '../../infrastructure/provasRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
 import { salvarPassoGarmin } from '../../application/onboarding.js';
@@ -542,10 +543,9 @@ Os treinos já realizados e o de hoje não são afetados.`,
       'div',
       { class: 'pilha' },
       h(
-        'section',
-        { class: 'card' },
-        h('h1', null, 'Plano de treino'),
-        h('p', { class: 'texto-secundario' }, 'Planeje os treinos, veja a projeção da Forma, acompanhe os eventos e as metas e confira o que foi feito.'),
+        'div',
+        { class: 'pagina-topo-grupo' },
+        paginaTopo({ icone: 'plano', titulo: 'Plano de treino', subtitulo: 'Planeje os treinos, veja a projeção da Forma, acompanhe os eventos e as metas e confira o que foi feito.' }),
         aviso,
       ),
       ancoras,

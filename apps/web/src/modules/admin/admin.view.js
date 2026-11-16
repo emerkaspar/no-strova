@@ -1,4 +1,5 @@
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { render as renderAdesao } from './adesao.view.js';
 import { render as renderAprovacoes } from './aprovacoes.view.js';
 import { criarCartaoLimiteIa } from './limiteIa.js';
@@ -45,7 +46,7 @@ export function render(raiz, sessao) {
     h(
       'div',
       { class: 'ativ-pagina' },
-      h('header', { class: 'ativ-cabecalho' }, h('div', null, h('h1', null, 'Administração'), h('p', { class: 'texto-secundario' }, 'Aprovação e cadastro de usuários, adesão ao sistema, funcionalidades liberadas por usuário e ajustes do sistema. Só você, como administrador, vê esta página.'))),
+      paginaTopo({ icone: 'aprovacoes', titulo: 'Administração', subtitulo: 'Aprovação e cadastro de usuários, adesão ao sistema, funcionalidades liberadas por usuário e ajustes do sistema. Só você, como administrador, vê esta página.' }),
       abas,
       conteudo,
     ),

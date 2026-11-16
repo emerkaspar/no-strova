@@ -3,6 +3,7 @@ import { cargaRecente, montarSerie, PERIODOS, pedirReconstrucaoSeVazio, recortar
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { paginaTopo } from '../../utils/paginaTopo.js';
 import { formatarNumero, hojeIso } from '../../utils/formatters.js';
 import { graficoForma } from '../../utils/graficoForma.js';
 import { estadoForma } from './state.js';
@@ -114,18 +115,21 @@ export function render(raiz, sessao) {
 
   raiz.replaceChildren(
     h(
-      'section',
-      { class: 'card' },
-      h('h1', null, 'Forma'),
-      h('p', { class: 'texto-secundario' }, 'Condicionamento, Fadiga e Forma calculados a partir do HRSS das suas atividades, no método do Elevate.'),
+      'div',
+      { class: 'pilha' },
+      paginaTopo({ icone: 'medidor', titulo: 'Forma', subtitulo: 'Condicionamento, Fadiga e Forma calculados a partir do HRSS das suas atividades, no método do Elevate.' }),
       h(
-        'div',
-        { class: 'linha-botoes', role: 'group', 'aria-label': 'Período' },
-        ...botoesPeriodo,
-        h('label', { class: 'opcao', for: 'forma-barras' }, barras, ' Mostrar estresse diário'),
+        'section',
+        { class: 'card' },
+        h(
+          'div',
+          { class: 'linha-botoes', role: 'group', 'aria-label': 'Período' },
+          ...botoesPeriodo,
+          h('label', { class: 'opcao', for: 'forma-barras' }, barras, ' Mostrar estresse diário'),
+        ),
+        mensagem.el,
+        conteudo,
       ),
-      mensagem.el,
-      conteudo,
     ),
   );
   desenhar();
