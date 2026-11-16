@@ -2,6 +2,7 @@ import { condicaoDoClima, diasEntre, fraseDoClima, iconeDoClima, progressoDaMeta
 import { destaqueDoInicio } from '../../application/inicio.js';
 import { h } from '../../utils/dom.js';
 import { icone } from '../../utils/icones.js';
+import { perfilHachurado } from '../../utils/perfilTreino.js';
 import { estadoVazio } from '../../utils/estadoVazio.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarDuracaoCurta, formatarNumero } from '../../utils/formatters.js';
 import { pedirImportacao } from '../atividades/state.js';
@@ -225,11 +226,14 @@ export function blocoSemana({ semana, atividades, treinos = [], previstos = [], 
     const alt = (v) => Math.max(4, (v / maximo) * 86);
     const diferenca = Math.round(d.realizado - previsto);
     const passou = comparavel && d.realizado >= previsto;
+    // treino planejado com intervalos (passos por zona de FC): a barra "falta" mostra o perfil hachurado por zona
+    const planejadosComPassos = (planoPorDia.get(d.data) ?? []).filter((t) => t.status === 'planejado');
+    const passosDoDia = planejadosComPassos.length > 0 && planejadosComPassos.every((t) => Array.isArray(t.passos) && t.passos.length > 0) ? planejadosComPassos.flatMap((t) => t.passos) : null;
     const barras = h(
       'div',
       { class: 'dia-barras', role: 'img', 'aria-label': `${d.nome}, dia ${Number(d.dia)}: ${descanso ? 'sem treino' : resumoAria}` },
       // falta: hachurado do zero até o previsto (o feito cobre a parte já cumprida)
-      previsto > 0 && !passou ? h('span', { class: 'barra-falta', style: `height:${alt(previsto)}%` }) : null,
+      previsto > 0 && !passou ? h('span', { class: `barra-falta${passosDoDia ? ' barra-falta-perfil' : ''}`, style: `height:${alt(previsto)}%` }, passosDoDia ? perfilHachurado(passosDoDia) : null) : null,
       // feito: sólido até o previsto; o que passa dele vira o trecho em degradê
       d.realizado > 0 ? h('span', { class: `barra-real${passou && d.realizado > previsto ? ' com-excesso' : ''}`, style: `height:${alt(passou ? previsto : d.realizado)}%` }) : null,
       passou && d.realizado > previsto ? h('span', { class: 'barra-excesso', style: `bottom:${alt(previsto)}%;height:${alt(d.realizado) - alt(previsto)}%` }) : null,

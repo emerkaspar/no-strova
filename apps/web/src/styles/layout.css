@@ -8961,3 +8961,32 @@ a.rec-card-quando:hover {
     line-height: 1.3;
   }
 }
+
+/* Barra "falta" de treino com intervalos: o hachurado vira o perfil por zona de FC (largura = tempo, cor = zona) */
+.dia-barras span.barra-falta-perfil {
+  overflow: hidden;
+  background: none;
+}
+
+.falta-perfil {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+}
+
+.falta-perfil-bloco {
+  min-width: 1px;
+  border-radius: 3px 3px 0 0;
+}
+
+.perfil-h-z1 { --zc: var(--zhr-z1); }
+.perfil-h-z2 { --zc: var(--zhr-z2); }
+.perfil-h-z3 { --zc: var(--zhr-z3); }
+.perfil-h-z4 { --zc: var(--zhr-z4); }
+.perfil-h-z5 { --zc: var(--zhr-z5); }
+
+.falta-perfil-bloco {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--zc, var(--text-secondary)) 85%, transparent) 0 4px, color-mix(in srgb, var(--zc, var(--text-secondary)) 30%, transparent) 4px 8px);
+}

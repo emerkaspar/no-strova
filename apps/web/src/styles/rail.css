@@ -1,0 +1,512 @@
+/*
+ * Barra lateral (desktop) "integrada ao fundo" e menu Importar.
+ * Desktop (>= 768 px): rail fixa à esquerda, sem fundo, borda ou sombra próprios (usa o fundo da página); o corpo ganha a
+ * margem da largura dela. Celular: a rail some e valem a barra de abas e o cabeçalho de sempre; o menu Importar vira
+ * uma folha de baixo. Carregado depois do layout.css para sobrescrever o cabeçalho de antes.
+ */
+.app-shell {
+  --rail-w: 96px;
+  --rail-sombra: 0 3px 10px rgba(22, 24, 29, 0.1);
+}
+
+.app-shell.rail-recolhida {
+  --rail-w: 64px;
+}
+
+.rail {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .app-corpo {
+    margin-left: var(--rail-w);
+    transition: margin-left 0.2s ease;
+  }
+
+  .rail {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    width: var(--rail-w);
+    padding: 16px 0 12px;
+    transition: width 0.2s ease;
+  }
+
+  .rail-topo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 14px;
+  }
+
+  /* logo: ícone de 32 px e o nome embaixo; separador fino entre o logo e o resto */
+  .rail-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-self: stretch;
+    gap: 5px;
+    margin: 0 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .rail-marca {
+    display: block;
+  }
+
+  .rail-logo-nome {
+    font-family: var(--fonte-titulo);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .rail-logo:focus-visible,
+  .rail-importar:focus-visible,
+  .rail-recolher:focus-visible,
+  .rail-avatar:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 12px;
+  }
+
+  .rail-menu {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .rail-rodape {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* item (link ou botão): ícone de 20 px sobre o rótulo de 11 px; o ativo vira um cartão elevado */
+  .rail-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 76px;
+    height: 58px;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 14px;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s, color 0.15s;
+  }
+
+  .rail-pilula {
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  .rail-item:hover {
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  }
+
+  .rail-item[aria-current='page'] {
+    background: var(--surface);
+    box-shadow: var(--rail-sombra);
+    color: var(--primary);
+  }
+
+  .rail-item:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* pílula do rodapé: Avisos, Tema e Config. */
+  .rail-grupo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: calc(100% - 12px);
+    padding: 6px 4px;
+    background: var(--surface);
+    border-radius: 20px;
+    box-shadow: 0 2px 10px rgba(22, 24, 29, 0.07);
+    transition: width 0.2s ease;
+  }
+
+  .rail-grupo .rail-item[aria-current='page'] {
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    box-shadow: none;
+  }
+
+  /* ponto vermelho de novidades nos Avisos */
+  .rail-ponto {
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    width: 9px;
+    height: 9px;
+    background: #d92d2d;
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    box-sizing: content-box;
+  }
+
+  .rail-ponto[hidden] {
+    display: none;
+  }
+
+  /* botão Importar */
+  .rail-importar {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .rail-importar-circulo {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent);
+    transition: background 0.15s, width 0.2s ease, height 0.2s ease, transform 0.15s;
+  }
+
+  .rail-importar:hover .rail-importar-circulo,
+  .rail-importar[aria-expanded='true'] .rail-importar-circulo {
+    background: var(--primary-hover);
+  }
+
+  .rail-importar:active .rail-importar-circulo {
+    transform: scale(0.95);
+  }
+
+  /* perfil (último item da pílula, no mesmo formato dos outros): avatar de 38 px com anel e o rótulo */
+  .rail-conta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 76px;
+    height: 58px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .rail-avatar {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    box-shadow: 0 0 0 2px var(--surface);
+    font-size: 1rem;
+  }
+
+  .rail-avatar.avatar-ativo {
+    box-shadow: 0 0 0 2px var(--primary);
+  }
+
+  /* o menu da conta abre ao lado do avatar, para cima */
+  .menu-conta-rail {
+    top: auto;
+    right: auto;
+    bottom: 0;
+    left: calc(100% + 12px);
+  }
+
+  /* recolher / expandir */
+  .rail-recolher {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 32px;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 10px;
+    color: #6b6760;
+    cursor: pointer;
+  }
+
+  .rail-recolher:hover {
+    color: var(--text-primary);
+  }
+
+  /* dica escura (o nome do item na barra recolhida) */
+  .rail-dica {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 6px);
+    z-index: 60;
+    display: none;
+    padding: 6px 10px;
+    background: #16181d;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .rail-importar .rail-dica {
+    top: 24px;
+  }
+
+  /* a dica do botão de recolher aparece sempre (o ícone sozinho não diz o que faz) */
+  .rail-recolher:hover .rail-dica,
+  .rail-recolher:focus-visible .rail-dica {
+    display: block;
+  }
+
+  .rail-recolhida .rail-item:is(:hover, :focus-visible) > .rail-dica,
+  .rail-recolhida .rail-importar:is(:hover, :focus-visible) > .rail-dica,
+  .rail-recolhida .rail-conta:is(:hover, :focus-within) > .rail-dica {
+    display: block;
+  }
+
+  /* com o menu da conta aberto, a dica do perfil sai da frente */
+  .rail-conta:has(.menu-conta:not([hidden])) > .rail-dica {
+    display: none !important;
+  }
+
+  /* recolhida: só ícones em botões de 44 x 44 (o ativo mantém o cartão elevado) */
+  .rail-recolhida .rail-rotulo,
+  .rail-recolhida .rail-logo-nome {
+    display: none;
+  }
+
+  .rail-recolhida .rail-logo {
+    gap: 0;
+  }
+
+  .rail-recolhida .rail-item {
+    width: 44px;
+    height: 44px;
+  }
+
+  .rail-recolhida .rail-conta {
+    width: 44px;
+    height: 44px;
+  }
+
+  .rail-recolhida .rail-grupo {
+    width: calc(100% - 8px);
+    padding: 6px;
+  }
+
+  .rail-recolhida .rail-importar-circulo {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* faixa superior: só a saudação (data, "Bom dia, Nome" e a frase) */
+  .topo-logo,
+  .topo-faixa,
+  .topo-acoes,
+  .btn-importar-topo {
+    display: none;
+  }
+
+  .topo-card {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px 28px;
+  }
+
+  .topo-titulo {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .topo-frase {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-corpo,
+  .rail,
+  .rail-grupo,
+  .rail-item,
+  .rail-importar-circulo {
+    transition: none;
+  }
+}
+
+/* Menu Importar: popover à direita do botão no desktop, folha de baixo no celular */
+.importar-fundo {
+  display: none;
+}
+
+.importar-menu {
+  position: fixed;
+  left: var(--importar-x, 16px);
+  top: var(--importar-y, 80px);
+  z-index: 70;
+  width: 320px;
+  padding: 12px 8px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.importar-menu[hidden] {
+  display: none;
+}
+
+.importar-titulo {
+  margin: 0;
+  padding: 2px 10px 8px;
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.importar-opcao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.importar-opcao:hover,
+.importar-opcao:focus-visible {
+  background: var(--surface-light);
+  outline: none;
+}
+
+.importar-opcao:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.importar-opcao[hidden] {
+  display: none;
+}
+
+.importar-opcao-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+
+.importar-opcao-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.importar-opcao-texto strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.importar-opcao-texto small {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* resultado das sincronizações: aviso flutuante, visível em qualquer tela */
+.importar-aviso {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 80;
+  width: min(420px, calc(100vw - 32px));
+}
+
+.importar-aviso .aviso-faixa {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 767px) {
+  .importar-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: 69;
+    display: block;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  .importar-fundo[hidden] {
+    display: none;
+  }
+
+  .importar-menu {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    padding: 18px 12px calc(16px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .importar-titulo {
+    padding-bottom: 10px;
+  }
+
+  .importar-opcao {
+    padding: 12px 10px;
+  }
+
+  .importar-aviso {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}

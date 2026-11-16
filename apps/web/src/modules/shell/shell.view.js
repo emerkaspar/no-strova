@@ -17,6 +17,8 @@ import { render as renderProgressao } from '../progressao/progressao.view.js';
 import { abrirWizard, wizardAberto } from '../onboarding/wizard.js';
 import { render as renderTreinos } from '../treinos/treinos.view.js';
 import { criarCabecalho } from './cabecalho.js';
+import { criarMenuImportar } from './importarMenu.js';
+import { criarRail } from './rail.js';
 
 // Itens do menu principal (a tela de Forma abre pelo Início e não tem item próprio; a Administração fica no menu da conta).
 const MENU = [
@@ -65,7 +67,10 @@ function resolverRota(hash, admin) {
 let wizardJaOferecido = false;
 
 export function render(raiz, sessao) {
-  const cabecalho = criarCabecalho(sessao, MENU);
+  const menuImportar = criarMenuImportar();
+  const aoImportar = (botao) => menuImportar.abrir(botao);
+  const cabecalho = criarCabecalho(sessao, MENU, { aoImportar });
+  const rail = criarRail(MENU, sessao, { aoImportar });
   const saida = h('main', { class: 'container conteudo' });
   const faixa = h(
     'div',
@@ -123,13 +128,19 @@ export function render(raiz, sessao) {
     if (evento) cabecalho.novaFrase(); // frase nova só ao trocar de página (a primeira já veio sorteada com o cabeçalho)
     const rota = resolverRota(window.location.hash, sessao.admin);
     cabecalho.marcarAtivo(rota.menu);
+    rail.marcarAtivo(rota.menu);
+    menuImportar.fechar(false);
     menuAtual = rota.menu;
     atualizarFaixa();
     window.scrollTo(0, 0);
     destruirRota = rota.render(saida, sessao, rota.params);
   }
 
-  raiz.replaceChildren(cabecalho.topo, faixa, saida, cabecalho.abas);
+  // desktop: barra lateral fixa + corpo com a margem da largura dela; celular: só o corpo (a barra lateral some no CSS)
+  const corpo = h('div', { class: 'app-corpo' }, cabecalho.topo, faixa, saida, cabecalho.abas);
+  const casca = h('div', { class: 'app-shell' }, rail.el, corpo);
+  raiz.replaceChildren(casca, menuImportar.fundo, menuImportar.el, menuImportar.avisoEl);
+  rail.ligar(casca);
 
   window.addEventListener('hashchange', desenharRota);
   desenharRota(null);
@@ -137,6 +148,8 @@ export function render(raiz, sessao) {
   return () => {
     window.removeEventListener('hashchange', desenharRota);
     cabecalho.destruir();
+    rail.destruir();
+    menuImportar.fechar(false);
     cancelarPerfil.forEach((fn) => fn());
     definirNaoLidas(0);
     destruirRota?.();

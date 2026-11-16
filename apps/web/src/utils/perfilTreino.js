@@ -41,6 +41,28 @@ export function perfilDoTreino(passos, { altura = 56 } = {}) {
   return svg;
 }
 
+/**
+ * Perfil hachurado para dentro da barra "falta" da semana: um bloco por intervalo (largura = tempo), na cor da zona e
+ * com a altura relativa à zona mais alta do treino (o topo do perfil encosta no topo da barra, que já tem a altura do
+ * previsto). Usa divs, não SVG, para o hachurado não distorcer ao esticar.
+ * @param {any[]} passos
+ */
+export function perfilHachurado(passos) {
+  const blocos = expandirPassos(passos);
+  const maximo = Math.max(...blocos.map((b) => NIVEL_DA_ZONA[b.zona] ?? 0.4), 0.01);
+  const raiz = document.createElement('div');
+  raiz.className = 'falta-perfil';
+  for (const b of blocos) {
+    const bloco = document.createElement('div');
+    bloco.className = `falta-perfil-bloco perfil-h-${String(b.zona).toLowerCase()}`;
+    bloco.style.flex = `${b.duracaoS} 1 0`;
+    bloco.style.height = `${(((NIVEL_DA_ZONA[b.zona] ?? 0.4) / maximo) * 100).toFixed(1)}%`;
+    bloco.title = `${formatarSegundos(b.duracaoS)} em ${b.zona}${b.descricao ? ` · ${b.descricao}` : ''}`;
+    raiz.append(bloco);
+  }
+  return raiz;
+}
+
 /** Baixa um arquivo gerado no navegador (sem ir ao servidor). */
 export function baixarArquivo(bytes, nome, tipo = 'application/octet-stream') {
   const url = URL.createObjectURL(new Blob([bytes], { type: tipo }));
