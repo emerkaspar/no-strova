@@ -209,7 +209,7 @@ export function criarPainelDesempenho({ atividades, hoje }) {
       raiz.replaceChildren(
         ...[
           ...cabecalho,
-          h('p', { class: 'vazio-curto', role: 'status' }, `Ainda não há treinos de ${nomeEsporte} comparáveis. Entram treinos de arquivo, com FC e tempo por zona, de 20 min e 3 km ou mais, leves (no máximo 10% do tempo em Z4–Z5) e em terreno pouco ondulado.`),
+          h('p', { class: 'vazio-curto', role: 'status' }, `Ainda não há treinos de ${nomeEsporte} comparáveis. Entram treinos de arquivo, com FC e tempo por zona, de 20 min e 3 km ou mais, leves (pouco tempo em Z4–Z5 (até 10% na corrida e 25% no pedal)) e em terreno pouco ondulado.`),
           ordemDeMotivos.length ? h('p', { class: 'texto-secundario' }, `Ficaram de fora: ${ordemDeMotivos.map(([m, n]) => `${n} (${(MOTIVOS_DE_EXCLUSAO[m] ?? m).toLowerCase()})`).join('; ')}.`) : null,
         ].filter(Boolean),
       );

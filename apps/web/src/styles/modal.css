@@ -1523,3 +1523,219 @@
     border-radius: 20px 20px 0 0;
   }
 }
+
+/* ------------------------------------------------------------------------------------------------
+   Resumo do treino, logo depois de salvar o "Como foi?" (modules/atividades/resumoTreinoModal.js)
+   Reaproveita o esqueleto .fb (cabeçalho, corpo rolável, rodapé) e a cor --tom da sensação.
+   ------------------------------------------------------------------------------------------------ */
+
+.rt-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.rt-secao .fb-secao-titulo {
+  margin-bottom: 10px;
+}
+
+/* Entrada escalonada */
+.rt-entra {
+  animation: rt-entra 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--atraso, 0ms);
+}
+
+@keyframes rt-entra {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+/* Calorias */
+.rt-kcal {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 22px;
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--tom) 22%, transparent), transparent 65%),
+    var(--surface-light);
+  border: 1px solid color-mix(in srgb, var(--tom) 40%, var(--border));
+  border-radius: 20px;
+}
+
+.rt-kcal-icone {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.rt-kcal-linha {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  line-height: 1;
+}
+
+.rt-kcal-valor {
+  color: var(--tom);
+  font-size: 3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-kcal-un {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+.rt-kcal small,
+.rt-metrica small {
+  color: var(--text-secondary);
+}
+
+/* Condicionamento, Fadiga e Forma */
+.rt-metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.rt-metrica {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--serie);
+  border-radius: 16px;
+}
+
+.rt-metrica-nome {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rt-metrica-valores {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-antes {
+  color: var(--text-secondary);
+}
+
+.rt-depois {
+  color: var(--text-primary);
+  font-family: var(--fonte-titulo);
+  font-size: 1.7rem;
+  font-weight: 400;
+}
+
+.rt-delta {
+  padding: 2px 10px;
+  color: var(--serie);
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--serie) 14%, transparent);
+  border-radius: 999px;
+}
+
+.rt-faixa {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+/* Equivalências */
+.rt-equiv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.rt-equiv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.rt-equiv-item p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.rt-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* Selos de destaque */
+.rt-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rt-selo {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--tom) 14%, var(--surface-light));
+  border: 1px solid color-mix(in srgb, var(--tom) 40%, transparent);
+  border-radius: 999px;
+}
+
+/* Recomendação para amanhã */
+.rt-recomendacao {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+  border: 1px dashed color-mix(in srgb, var(--tom) 55%, var(--border));
+  border-radius: 16px;
+}
+
+.rt-recomendacao p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.rt-aviso {
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .rt-kcal-valor {
+    font-size: 2.4rem;
+  }
+
+  .rt-metricas,
+  .rt-equiv {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-entra {
+    animation: none;
+  }
+}

@@ -54,6 +54,18 @@ describe('avaliarAtividade', () => {
     expect(avaliarAtividade({ ...corrida({ esporte: 'ciclismo', altimetriaM: 10, distanciaM: 15000 }), feedback: { etiquetas: ['em-grupo'] } }).motivo).toBe('em-grupo');
   });
 
+  it('o pedal tolera mais intensidade (25%) e relevo (20 m/km) que a corrida', () => {
+    const pedal = (extra) => ({ ...corrida({ distanciaM: 15000, altimetriaM: 270, ...extra }), esporte: 'ciclismo' });
+    // 18 m/km e 20% em Z4–Z5: entra no pedal
+    expect(avaliarAtividade(pedal({ tempoZonasS: [400, 1000, 400, 600, 0] })).ok).toBe(true);
+    // 30% em Z4–Z5 e 24 m/km: fora
+    expect(avaliarAtividade(pedal({ tempoZonasS: [300, 700, 300, 500, 0] })).motivo).toBe('intensa');
+    expect(avaliarAtividade(pedal({ altimetriaM: 360 })).motivo).toBe('relevo');
+    // a corrida segue com 10% e 15 m/km
+    expect(avaliarAtividade(corrida({ tempoZonasS: [400, 1000, 400, 600, 0] })).motivo).toBe('intensa');
+    expect(avaliarAtividade(corrida({ distanciaM: 15000, altimetriaM: 270 })).motivo).toBe('relevo');
+  });
+
   it('usa a duração total quando não há tempo em movimento', () => {
     const r = avaliarAtividade(corrida({ tempoMovimentoS: null, duracaoS: 2000 }));
     expect(r.ok).toBe(true);

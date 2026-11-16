@@ -13,6 +13,7 @@ export * from './exportarTreino.js';
 export * from './textoIntervals.js';
 export * from './forma.js';
 export * from './hrss.js';
+export * from './impactoTreino.js';
 export * from './dicasDeZonas.js';
 export * from './descanso.js';
 export * from './metaCondicionamento.js';

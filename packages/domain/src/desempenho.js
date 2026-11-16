@@ -17,14 +17,14 @@ export const JANELA_EFICIENCIA_DIAS = 28;
 
 /**
  * Quais atividades entram nas médias. O EF só compara bem treinos parecidos: aeróbicos, sem tiros e em terreno pouco ondulado.
- * `intensoMaximo`: fração máxima do tempo em Z4–Z5; `relevoMaximoMPorKm`: subida acumulada por km (sem ajuste de inclinação,
+ * `intensoMaximo`: fração máxima do tempo em Z4–Z5, por esporte (o pedal tolera mais); `relevoMaximoMPorKm`: subida acumulada por km (sem ajuste de inclinação,
  * o relevo forte é excluído em vez de corrigido).
  */
 export const CRITERIO_DE_EFICIENCIA = Object.freeze({
   tempoMinimoS: 20 * 60,
   distanciaMinimaM: 3000,
-  intensoMaximo: 0.1,
-  relevoMaximoMPorKm: Object.freeze({ corrida: 15, ciclismo: 10 }),
+  intensoMaximo: Object.freeze({ corrida: 0.1, ciclismo: 0.25 }),
+  relevoMaximoMPorKm: Object.freeze({ corrida: 15, ciclismo: 20 }),
 });
 
 /** Tempo mínimo (s) para medir o desacoplamento, e o aquecimento descartado no início. */
@@ -35,7 +35,7 @@ export const MOTIVOS_DE_EXCLUSAO = Object.freeze({
   'sem-fc': 'Sem frequência cardíaca ou distância',
   curta: 'Curta demais (menos de 20 min ou 3 km)',
   'sem-zonas': 'Sem tempo por zona (atividade manual ou ainda não calculado)',
-  intensa: 'Treino forte (mais de 10% do tempo em Z4–Z5)',
+  intensa: 'Treino forte (muito tempo em Z4–Z5: mais de 10% na corrida e de 25% no pedal)',
   relevo: 'Muita subida para comparar',
   'em-grupo': 'Pedal em grupo (vácuo infla a velocidade)',
 });
@@ -59,7 +59,7 @@ export function avaliarAtividade(a) {
   if (!zonas) return { ok: false, motivo: 'sem-zonas' };
   const total = zonas.reduce((s, v) => s + v, 0);
   if (!(total > 0)) return { ok: false, motivo: 'sem-zonas' };
-  if ((zonas[3] + zonas[4]) / total > CRITERIO_DE_EFICIENCIA.intensoMaximo) return { ok: false, motivo: 'intensa' };
+  if ((zonas[3] + zonas[4]) / total > CRITERIO_DE_EFICIENCIA.intensoMaximo[a.esporte]) return { ok: false, motivo: 'intensa' };
   if (finito(a.altimetriaM) && a.altimetriaM / (distanciaM / 1000) > CRITERIO_DE_EFICIENCIA.relevoMaximoMPorKm[a.esporte]) return { ok: false, motivo: 'relevo' };
   const etiquetas = a.feedback?.etiquetas;
   if (a.esporte === 'ciclismo' && Array.isArray(etiquetas) && etiquetas.includes('em-grupo')) return { ok: false, motivo: 'em-grupo' };

@@ -11,6 +11,7 @@ import { icone } from '../../utils/icones.js';
 import { listaSuspensa, seletor } from '../../utils/listaSuspensa.js';
 import { abrirModal, confirmar } from '../../utils/modal.js';
 import { analisarAtividadeLthr, montarResultadoLthr } from '../configuracao/resultadoLthr.js';
+import { abrirResumoDoTreino } from './resumoTreinoModal.js';
 import { OPCOES_ESPORTE, ROTULO_ESPORTE } from './textos.js';
 import { criarSecaoTreinoDoDia } from './treinoDoDia.js';
 
@@ -81,11 +82,17 @@ function grupoRadio({ rotulo, classe, itens, valor, desmarcavel, aoMudar }) {
 export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false }) {
   const a = atividade;
   const existente = a.feedback ?? null;
+  let gravouFeedback = false;
   const resultado = await abrirModal({
     classe: 'modal-feedback',
     rotulo: 'Como foi a atividade?',
     conteudo: (fechar) => montar(fechar),
   });
+  // o resumo abre depois que este modal fechou, para não haver dois diálogos sobrepostos
+  if (gravouFeedback && resultado?.feedback) {
+    const salvo = { ...a, titulo: resultado.titulo ?? a.titulo, esporte: resultado.esporte ?? a.esporte, feedback: resultado.feedback };
+    abrirResumoDoTreino({ uid: obterSessao().uid, atividade: salvo, tom: TOM_DA_SENSACAO[resultado.feedback.sensacao] }).catch(() => {});
+  }
   return resultado ?? null;
 
   function montar(fechar) {
@@ -446,6 +453,7 @@ export async function abrirFeedbackDaAtividade({ atividade, primeiraVez = false 
       salvar.textContent = 'Salvando…';
       try {
         const salvo = await salvarAtividade(pedido);
+        gravouFeedback = Boolean(pedido.feedback);
         // recém-marcado como teste: o resultado da análise aparece aqui mesmo, antes de fechar
         if (pedido.testeLthr === true) mostrarAnalise(salvo);
         else fechar(salvo);
