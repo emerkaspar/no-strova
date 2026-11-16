@@ -1739,3 +1739,175 @@
     animation: none;
   }
 }
+
+/* Resumo: números do treino, conquistas, zonas e períodos */
+.rt-numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.rt-numero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.rt-numero small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rt-numero strong {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-conquistas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rt-conquistas .fb-secao-titulo {
+  margin-bottom: 0;
+}
+
+.rt-medalhas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.rt-medalha {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--medalha) 12%, var(--surface-light));
+  border: 1px solid color-mix(in srgb, var(--medalha) 45%, transparent);
+  border-radius: 14px;
+}
+
+.rt-medalha-selo {
+  display: inline-flex;
+  flex: none;
+  padding: 7px;
+  color: var(--medalha);
+  background: color-mix(in srgb, var(--medalha) 16%, transparent);
+  border-radius: 50%;
+}
+
+.rt-medalha-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rt-medalha small {
+  color: var(--text-secondary);
+}
+
+.rt-medalha-valor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-zonas {
+  display: flex;
+  height: 26px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.rt-zona {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4px;
+  color: #0a0a0a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--zona);
+}
+
+.rt-zonas-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.rt-zonas-legenda span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.rt-zonas-legenda i {
+  width: 10px;
+  height: 10px;
+  background: var(--zona);
+  border-radius: 50%;
+}
+
+.rt-periodos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.rt-periodo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.rt-periodo-sub {
+  color: var(--text-secondary);
+}
+
+.rt-periodo-linha {
+  display: grid;
+  grid-template-columns: 1fr auto 64px;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+.rt-periodo-linha > :first-child {
+  color: var(--text-secondary);
+}
+
+.rt-periodo-linha .rt-delta,
+.rt-periodo-sem {
+  justify-self: end;
+  font-size: 0.75rem;
+}
+
+.rt-periodo-linha .rt-delta {
+  --serie: var(--text-secondary);
+}
+
+.rt-periodo-linha .rt-delta-sobe {
+  --serie: var(--success);
+}

@@ -3,6 +3,9 @@
  * das calorias, destaques frente ao histórico e recomendação para amanhã. Funções puras, sem Firebase e sem DOM.
  */
 import { calcularSerieForma, faixaDaForma, somarDias } from './forma.js';
+import { medalhasDasAtividades } from './medalhas.js';
+import { maiorCondicionamento, semanaMaisPesada } from './recordesAtividades.js';
+import { comparativoMensal, comparativoSemanal, inicioDaSemana, sequenciaSemanal } from './semana.js';
 
 const arredondar = (n, casas = 1) => Number(n.toFixed(casas));
 
@@ -165,29 +168,62 @@ export function equivalenciasDeCalorias(kcal, { quantas = 3, sorteio = Math.rand
 }
 
 /**
- * Selos que o treino merece frente ao histórico do mesmo esporte (só os verdadeiros).
- * @param {object} atividade { id, esporte, data, distanciaM, duracaoS, hrss }
- * @param {object[]} historico demais atividades (a atual é ignorada pelo id)
- * @returns {Array<{ id: string, emoji: string, texto: string }>}
+ * Conquistas do treino frente a todo o histórico: medalhas de recorde (pódio e recentes), marcos (pico de
+ * Condicionamento, semana mais pesada, sequência de semanas, distância acumulada) e os totais da semana e do mês
+ * contra os períodos anteriores. Só traz o que é verdadeiro.
+ *
+ * @param {{ atividade: object, outrasAtividades?: object[], hojeIso?: string }} entrada `atividade` já com os campos salvos;
+ *   `hojeIso` é a data de referência das medalhas recentes e dos comparativos (padrão: a data da atividade)
+ * @returns {{ medalhas: object[], marcos: Array<{ id: string, emoji: string, texto: string }>, semana: object, mes: object, nSemana: number, nAno: number }}
  */
-export function destaquesDoTreino(atividade, historico = []) {
-  const outras = historico.filter((x) => x.id !== atividade.id && x.esporte === atividade.esporte);
-  if (outras.length < 3) return []; // sem histórico, comparar não significa nada
-  const mes = atividade.data?.slice(0, 7);
-  const doMes = outras.filter((x) => x.data?.slice(0, 7) === mes);
-  const maior = (lista, campo) => lista.reduce((m, x) => Math.max(m, Number(x[campo]) || 0), 0);
-  const selos = [];
+export function conquistasDoTreino({ atividade, outrasAtividades = [], hojeIso } = {}) {
+  const hoje = hojeIso && hojeIso >= atividade.data ? hojeIso : atividade.data;
+  const outras = outrasAtividades.filter((x) => x.id !== atividade.id);
+  const todas = [...outras, atividade];
+  const medalhas = medalhasDasAtividades(todas, hoje).get(atividade.id) ?? [];
+  const marcos = [];
 
-  const comparar = (campo, nome, emoji) => {
-    const v = Number(atividade[campo]) || 0;
-    if (v <= 0) return;
-    if (v > maior(outras, campo)) selos.push({ id: `${campo}-recorde`, emoji, texto: `Maior ${nome} de todos os seus treinos` });
-    else if (doMes.length >= 3 && v > maior(doMes, campo)) selos.push({ id: `${campo}-mes`, emoji, texto: `Maior ${nome} do mês` });
-  };
-  comparar('distanciaM', 'distância', '📏');
-  comparar('duracaoS', 'duração', '⏱️');
-  comparar('hrss', 'carga (HRSS)', '🔥');
-  return selos;
+  // pico de Condicionamento (antes e depois deste treino)
+  if (Number.isFinite(atividade.hrss) && atividade.hrss > 0) {
+    const dias = (lista) => lista.filter((x) => x.hrss > 0).map((x) => ({ data: x.data, estresse: x.hrss }));
+    const antes = maiorCondicionamento(calcularSerieForma(dias(outras), { ate: atividade.data }));
+    const depois = maiorCondicionamento(calcularSerieForma(dias(todas), { ate: atividade.data }));
+    if (depois && antes && depois.valor > antes.valor && depois.data === atividade.data) {
+      marcos.push({ id: 'pico-condicionamento', emoji: '📈', texto: `Novo pico de Condicionamento: ${arredondar(depois.valor)}` });
+    }
+    const pesadaAntes = semanaMaisPesada(outras);
+    const pesadaDepois = semanaMaisPesada(todas);
+    if (pesadaAntes && pesadaDepois && pesadaDepois.inicio === inicioDaSemana(atividade.data) && pesadaDepois.valor > pesadaAntes.valor) {
+      marcos.push({ id: 'semana-mais-pesada', emoji: '🏋️', texto: `Sua semana mais pesada até agora (HRSS ${arredondar(pesadaDepois.valor, 0)})` });
+    }
+  }
+
+  // sequência de semanas seguidas com treino
+  const seq = sequenciaSemanal(todas.map((x) => x.data), hoje);
+  const antesSeq = sequenciaSemanal(outras.map((x) => x.data), hoje);
+  if (seq.atual >= 2 && seq.nestaSemana) {
+    const recorde = seq.atual === seq.recorde && seq.atual > antesSeq.recorde;
+    marcos.push({ id: 'sequencia', emoji: '🔗', texto: recorde ? `${seq.atual} semanas seguidas treinando: sua maior sequência!` : `${seq.atual} semanas seguidas treinando` });
+  }
+
+  // distância acumulada no ano, no esporte: cruzou um marco redondo?
+  const ano = atividade.data.slice(0, 4);
+  const doAno = outras.filter((x) => x.esporte === atividade.esporte && x.data.slice(0, 4) === ano);
+  const somaKm = (lista) => lista.reduce((t, x) => t + (Number(x.distanciaM) || 0), 0) / 1000;
+  if (atividade.distanciaM > 0) {
+    const antesKm = somaKm(doAno);
+    const depoisKm = antesKm + atividade.distanciaM / 1000;
+    const passo = depoisKm >= 1000 ? 500 : depoisKm >= 300 ? 100 : 50;
+    const marco = Math.floor(depoisKm / passo) * passo;
+    if (marco > 0 && antesKm < marco) marcos.push({ id: 'km-no-ano', emoji: '🗺️', texto: `Você passou de ${marco} km no ano (${atividade.esporte === 'ciclismo' ? 'pedalando' : 'em atividade'})` });
+  }
+
+  const nSemana = todas.filter((x) => x.data >= inicioDaSemana(atividade.data) && x.data <= atividade.data).length;
+  const nAno = todas.filter((x) => x.data.slice(0, 4) === ano && x.data <= atividade.data).length;
+  const dados = { atividades: todas, dias: todas.filter((x) => x.hrss > 0).map((x) => ({ data: x.data, estresse: x.hrss })) };
+  const { atual: semana, anterior: semanaAnterior } = comparativoSemanal(atividade.data, dados);
+  const { atual: mes, anterior: mesAnterior } = comparativoMensal(atividade.data, dados);
+  return { medalhas, marcos, semana: { atual: semana, anterior: semanaAnterior }, mes: { atual: mes, anterior: mesAnterior }, nSemana, nAno };
 }
 
 /**

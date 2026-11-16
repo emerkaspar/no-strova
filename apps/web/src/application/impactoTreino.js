@@ -1,5 +1,6 @@
-import { calcularImpacto, destaquesDoTreino, equivalenciasDeCalorias, recomendacaoDeRecuperacao } from '@no-strova/domain';
+import { calcularImpacto, conquistasDoTreino, equivalenciasDeCalorias, recomendacaoDeRecuperacao } from '@no-strova/domain';
 import { lerConsulta } from '../core/db.js';
+import { hojeIso } from '../utils/formatters.js';
 
 /**
  * Monta o resumo de impacto de uma atividade recém-salva.
@@ -7,7 +8,7 @@ import { lerConsulta } from '../core/db.js';
  * e pode ainda não refletir a atividade logo depois de salvar.
  *
  * @param {{ uid: string, atividade: object }} entrada atividade já com os campos salvos (título, esporte...)
- * @returns {Promise<{ impacto: object|null, equivalencias: object[], destaques: object[], recomendacao: object|null }>}
+ * @returns {Promise<{ impacto: object|null, equivalencias: object[], conquistas: object, recomendacao: object|null }>}
  */
 export async function carregarImpacto({ uid, atividade }) {
   const todas = await lerConsulta('atividades', { onde: [['userId', '==', uid]], limite: 1000 });
@@ -16,7 +17,7 @@ export async function carregarImpacto({ uid, atividade }) {
   return {
     impacto,
     equivalencias: equivalenciasDeCalorias(atividade.calorias),
-    destaques: destaquesDoTreino(atividade, outras),
+    conquistas: conquistasDoTreino({ atividade, outrasAtividades: outras, hojeIso: hojeIso() }),
     recomendacao: impacto ? recomendacaoDeRecuperacao(impacto.forma.depois) : null,
   };
 }

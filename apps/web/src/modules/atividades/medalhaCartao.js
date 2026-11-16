@@ -13,7 +13,7 @@ const FECHAR_MS = 200;
 const ICONE_DA_METRICA = Object.freeze({ distancia: 'distancia', duracao: 'duracao', elevacao: 'elevacao', hrss: 'hrss' });
 
 /** Valor do recorde para mostrar: distância, tempo, subida, HRSS ou o tempo (e ritmo) de um melhor esforço. */
-function valorDaMedalha(m, esporte) {
+export function valorDaMedalha(m, esporte) {
   if (m.metrica === 'distancia') return { texto: formatarDistancia(m.valor), nota: null };
   if (m.metrica === 'duracao') return { texto: formatarDuracao(m.valor), nota: null };
   if (m.metrica === 'elevacao') return { texto: `${formatarNumero(m.valor, 0)} m`, nota: null };

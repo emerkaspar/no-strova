@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calcularSerieForma } from './forma.js';
-import { calcularImpacto, destaquesDoTreino, equivalenciasDeCalorias, recomendacaoDeRecuperacao, textoDaQuantidade, EQUIVALENCIAS } from './impactoTreino.js';
+import { calcularImpacto, conquistasDoTreino, equivalenciasDeCalorias, recomendacaoDeRecuperacao, textoDaQuantidade, EQUIVALENCIAS } from './impactoTreino.js';
 
 describe('calcularImpacto', () => {
   it('sem hrss não há impacto', () => {
@@ -59,18 +59,38 @@ describe('textoDaQuantidade', () => {
   });
 });
 
-describe('destaquesDoTreino', () => {
-  const hist = [1, 2, 3, 4].map((i) => ({ id: `h${i}`, esporte: 'corrida', data: `2026-10-0${i}`, distanciaM: 5000 + i * 100, duracaoS: 1800, hrss: 50 }));
-  it('sem histórico suficiente não há selos', () => {
-    expect(destaquesDoTreino({ id: 'x', esporte: 'corrida', data: '2026-11-10', distanciaM: 9000 }, hist.slice(0, 2))).toEqual([]);
+describe('conquistasDoTreino', () => {
+  const hist = [1, 2, 3, 4].map((i) => ({ id: `h${i}`, esporte: 'corrida', data: `2026-10-${String(i * 7).padStart(2, '0')}`, distanciaM: 5000 + i * 100, duracaoS: 1800, hrss: 50 }));
+  const nova = { id: 'x', esporte: 'corrida', data: '2026-11-10', distanciaM: 9000, duracaoS: 3000, hrss: 120 };
+
+  it('traz medalha de ouro de distância para o maior treino', () => {
+    const r = conquistasDoTreino({ atividade: nova, outrasAtividades: hist, hojeIso: '2026-11-10' });
+    const ouro = r.medalhas.find((m) => m.metrica === 'distancia');
+    expect(ouro).toMatchObject({ tipo: 'podio', medalha: 'ouro' });
   });
-  it('recorde de distância', () => {
-    const s = destaquesDoTreino({ id: 'x', esporte: 'corrida', data: '2026-11-10', distanciaM: 9000, duracaoS: 1000, hrss: 10 }, hist);
-    expect(s.map((x) => x.id)).toEqual(['distanciaM-recorde']);
+
+  it('detecta novo pico de condicionamento e semana mais pesada', () => {
+    const r = conquistasDoTreino({ atividade: nova, outrasAtividades: hist, hojeIso: '2026-11-10' });
+    expect(r.marcos.map((m) => m.id)).toEqual(expect.arrayContaining(['pico-condicionamento', 'semana-mais-pesada']));
   });
-  it('ignora a própria atividade e outros esportes', () => {
-    const a = { id: 'x', esporte: 'corrida', data: '2026-11-10', distanciaM: 9000 };
-    expect(destaquesDoTreino(a, [...hist, a, { id: 'c', esporte: 'ciclismo', data: '2026-11-01', distanciaM: 90000 }]).length).toBe(1);
+
+  it('não repete a própria atividade e compara semana e mês', () => {
+    const r = conquistasDoTreino({ atividade: nova, outrasAtividades: [...hist, nova], hojeIso: '2026-11-10' });
+    expect(r.semana.atual.atividades).toBe(1);
+    expect(r.mes.anterior.atividades).toBe(1); // 07/10, até o dia 10
+    expect(r.nAno).toBe(5);
+  });
+
+  it('sem histórico não há medalha', () => {
+    const r = conquistasDoTreino({ atividade: nova, outrasAtividades: [], hojeIso: '2026-11-10' });
+    expect(r.medalhas).toEqual([]);
+  });
+
+  it('marco de km no ano', () => {
+    const grande = { id: 'g', esporte: 'ciclismo', data: '2026-11-10', distanciaM: 60000 };
+    const base = [{ id: 'a', esporte: 'ciclismo', data: '2026-03-01', distanciaM: 30000 }];
+    const r = conquistasDoTreino({ atividade: grande, outrasAtividades: base, hojeIso: '2026-11-10' });
+    expect(r.marcos.find((m) => m.id === 'km-no-ano')?.texto).toContain('50 km');
   });
 });
 
