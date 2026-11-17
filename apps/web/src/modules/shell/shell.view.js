@@ -14,6 +14,7 @@ import { definirNaoLidas } from '../notificacoes/state.js';
 import { render as renderPeso } from '../peso/peso.view.js';
 import { render as renderPlano } from '../plano/plano.view.js';
 import { render as renderProgressao } from '../progressao/progressao.view.js';
+import { render as renderRecordes } from '../recordes/recordes.view.js';
 import { abrirWizard, wizardAberto } from '../onboarding/wizard.js';
 import { render as renderTreinos } from '../treinos/treinos.view.js';
 import { criarCabecalho } from './cabecalho.js';
@@ -26,6 +27,7 @@ const MENU = [
   { caminho: '#/atividades', rotulo: 'Atividades', icone: 'atividades' },
   { caminho: '#/plano', rotulo: 'Plano', icone: 'plano' },
   { caminho: '#/progressao', rotulo: 'Progressão', icone: 'progressao' },
+  { caminho: '#/recordes', rotulo: 'Recordes', icone: 'esporte' },
   { caminho: '#/treinos', rotulo: 'Treinos', icone: 'treinos' },
   { caminho: '#/peso', rotulo: 'Peso', icone: 'peso' },
   { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao', soIcone: true },
@@ -39,7 +41,7 @@ function resolverRota(hash, admin) {
   const plano = /^#\/plano\/(projecao|calendario|provas|acompanhamento)$/.exec(hash);
   if (plano) return { menu: '#/plano', render: renderPlano, params: { secao: plano[1] } };
   // as seções da Progressão (abas no topo da página) também têm rota própria: a tela rola até a seção
-  const progressao = /^#\/progressao\/(projecao|objetivos|analise|desempenho|conquistas|zonas)$/.exec(hash);
+  const progressao = /^#\/progressao\/(projecao|objetivos|analise|desempenho|zonas)$/.exec(hash);
   if (progressao) return { menu: '#/progressao', render: renderProgressao, params: { secao: progressao[1] } };
   switch (hash) {
     case '#/forma':
@@ -50,6 +52,10 @@ function resolverRota(hash, admin) {
       return { menu: hash, render: renderPlano, params: {} };
     case '#/progressao':
       return { menu: hash, render: renderProgressao, params: {} };
+    case '#/recordes':
+      return { menu: hash, render: renderRecordes, params: {} };
+    case '#/progressao/conquistas': // as conquistas mudaram para a página de Recordes
+      return { menu: '#/recordes', render: renderRecordes, params: {} };
     case '#/treinos':
       return { menu: hash, render: renderTreinos, params: {} };
     case '#/peso':

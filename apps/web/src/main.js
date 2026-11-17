@@ -19,6 +19,7 @@ import './styles/comparacao.css';
 import './styles/onboarding.css';
 import './styles/plano-anual.css';
 import './styles/zonas-medalhas.css';
+import './styles/recordes.css';
 import './styles/trajetos.css';
 import './styles/notificacoes.css';
 import './styles/treinos.css';

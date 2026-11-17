@@ -1,11 +1,8 @@
-import { iconeDoClima, condicaoDoClima, recordesDeClima, somarDias, anosComAtividades, atividadePrecisaCompletar, esforcosDoEsporte, medalhasDasAtividades, melhorMedalha, melhoresEsforcosDasAtividades, podioDaMetrica, VERSAO_DO_DETALHE, VERSAO_DOS_ESFORCOS, intervaloDoPeriodo, maiorCondicionamento, maiorSequenciaDeSemanas, RECURSOS, semanaMaisPesada, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, recordesDasAtividades, resumoDasAtividades, temRecurso, velocidadeMediaMs } from '@no-strova/domain';
-import { montarSerie } from '../../application/forma.js';
+import { iconeDoClima, condicaoDoClima, anosComAtividades, medalhasDasAtividades, melhorMedalha, podioDaMetrica, RECURSOS, atividadesAntesDaPrimeiraVigencia, filtrarPorPeriodo, PERIODOS_RAPIDOS, primeiraVigencia, resumoDasAtividades, temRecurso, velocidadeMediaMs } from '@no-strova/domain';
 import { obterSessao } from '../../application/sessao.js';
-import { completarAtividades } from '../../application/completarAtividades.js';
 import { guardarAtividadesParaMedalhas } from '../../application/medalhas.js';
 import { garminSituacao, intervalsSituacao } from '../../core/functions.js';
 import { observarAtividades } from '../../infrastructure/atividadesRepo.js';
-import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarTreinosVinculados } from '../../infrastructure/planoRepo.js';
 import { observarTrajetos } from '../../infrastructure/trajetosRepo.js';
@@ -13,13 +10,11 @@ import { avisoDispensavel } from '../../utils/avisoDispensavel.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { resumoSincronizacao, semNovidades, sincronizarGarmin } from '../configuracao/garmin.js';
 import { resumoDoIntervals, sincronizarIntervals } from '../configuracao/intervalsAtividades.js';
-import { criarAbas, colunasDe } from '../../utils/abas.js';
 import { h } from '../../utils/dom.js';
 import { paginaTopo } from '../../utils/paginaTopo.js';
 import { seletor } from '../../utils/listaSuspensa.js';
 import { icone } from '../../utils/icones.js';
 import { formatarData, formatarDistancia, formatarDuracao, formatarNumero, hojeIso } from '../../utils/formatters.js';
-import { tempoDeEsforco, ritmoTexto } from './esforcos.js';
 import { criarFaixaDeBadges, montarBadge } from './badges.js';
 import { abrirFeedbackDaAtividade, abrirFeedbackPorId, dadosDaSensacao, dadosDoEsforco, textoDasEtiquetas } from './feedbackModal.js';
 import { painelImportar } from './importar.js';
@@ -85,42 +80,6 @@ function textoVelocidade(a) {
 
 const metros = (m) => (Number.isFinite(m) && m > 0 ? `${formatarNumero(m, 0)} m` : '—');
 
-/** Cards de recorde: rótulo, campo, ícone e como formatar o valor. */
-/** Cartões de melhor 5 km e 10 km de um esporte (um par por esporte mostrado). */
-const cartoesDeEsforco = (esporte) =>
-  esforcosDoEsporte(esporte).map((e) => ({ id: `${e.id}-${esporte}`, grupo: 'esforcos', rotulo: e.rotulo, rotuloCompleto: `Melhor ${e.rotulo} · ${ROTULO_ESPORTE[esporte] ?? esporte}`, rotuloIcone: esporte, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: e.metros, esporte }));
-
-/** O cálculo do histórico roda sozinho uma vez por abertura do app (o botão continua para tentar de novo). */
-let calculoAutomaticoIniciado = false;
-
-/** Abas da seção de recordes, na ordem em que aparecem. Os melhores esforços (um por distância e esporte) entram na aba `esforcos`. */
-const GRUPOS_DE_RECORDE = [
-  { id: 'marcas', nome: 'Maiores marcas', titulo: 'Maiores marcas', icone: 'esporte' },
-  { id: 'esforcos', nome: 'Esforços', titulo: 'Melhores esforços', icone: 'cronometro' },
-  { id: 'potencia', nome: 'Potência', titulo: 'Potência (ciclismo)', icone: 'hrss' },
-  { id: 'clima', nome: 'Clima', titulo: 'Clima', icone: 'nuvem' },
-  { id: 'carga', nome: 'Carga', titulo: 'Carga e consistência', icone: 'atividades' },
-];
-
-const CHAVE_ABA_RECORDES = 'no-strova:recordes-aba';
-
-const CARDS_DE_RECORDE = [
-  { id: 'distancia', grupo: 'marcas', rotulo: 'Distância', rotuloCompleto: 'Maior distância', icone: 'distancia', formatar: (v) => formatarDistancia(v) },
-  { id: 'duracao', grupo: 'marcas', rotulo: 'Tempo', rotuloCompleto: 'Maior tempo', icone: 'duracao', formatar: (v) => formatarDuracao(v) },
-  { id: 'elevacao', grupo: 'marcas', rotulo: 'Elevação', rotuloCompleto: 'Maior elevação', icone: 'elevacao', formatar: metros },
-  { id: 'hrss', grupo: 'marcas', rotulo: 'HRSS', rotuloCompleto: 'Maior HRSS', icone: 'hrss', formatar: (v) => formatarNumero(v, 1) },
-  { id: 'fcMax', grupo: 'marcas', rotulo: 'FC máxima', rotuloCompleto: 'Maior FC máxima', icone: 'fc', formatar: (v) => `${formatarNumero(v, 0)} bpm` },
-  { id: 'potencia', grupo: 'potencia', rotulo: 'Potência média', rotuloCompleto: 'Maior potência média · Ciclismo', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} W`, campo: 'potenciaMediaW' },
-  { id: 'potencia20min', grupo: 'potencia', rotulo: 'Melhor 20 min', rotuloCompleto: 'Melhor 20 min de potência · Ciclismo', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} W`, campo: 'potenciaMax20minW' },
-  { id: 'quente', grupo: 'clima', rotulo: 'Mais quente', rotuloCompleto: 'Atividade mais quente', icone: 'sol', formatar: (v) => `${formatarNumero(v, 1)} °C`, campo: 'temperaturaMediaC', aceitaZero: true },
-  { id: 'fria', grupo: 'clima', rotulo: 'Mais fria', rotuloCompleto: 'Atividade mais fria', icone: 'floco', formatar: (v) => `${formatarNumero(v, 1)} °C`, campo: 'temperaturaMediaC', aceitaZero: true },
-  { id: 'vento', grupo: 'clima', rotulo: 'Vento médio', rotuloCompleto: 'Maior vento médio', icone: 'vento', formatar: (v) => `${formatarNumero(v, 1)} km/h`, campo: 'ventoKmh' },
-  { id: 'semanaPesada', grupo: 'carga', rotulo: 'Semana pesada', rotuloCompleto: 'Semana mais pesada', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} HRSS` },
-  { id: 'sequencia', grupo: 'carga', rotulo: 'Sequência', rotuloCompleto: 'Maior sequência', icone: 'plano', formatar: (v) => `${v} semana${v === 1 ? '' : 's'}` },
-  { id: 'condicionamento', grupo: 'carga', rotulo: 'Condicionamento', rotuloCompleto: 'Maior Condicionamento', icone: 'atividades', formatar: (v) => formatarNumero(v, 1), geral: true },
-];
-
-
 function iconeDoEsporte(esporte) {
   return icone(esporte === 'ciclismo' || esporte === 'corrida' ? esporte : 'outro', 16);
 }
@@ -149,7 +108,6 @@ export function render(raiz, sessao) {
   let atividades = [];
   let medalhas = new Map();
   let configs = null;
-  let serieForma = [];
   let treinosVinculados = new Map(); // id da atividade -> treino planejado vinculado a ela
   let nomesDosTrajetos = new Map(); // id do trajeto de treino -> nome
   const cancelar = [];
@@ -202,7 +160,6 @@ export function render(raiz, sessao) {
   const hoje = hojeIso();
   const filtros = h('div', { class: 'ativ-filtros' });
   const resumo = h('div', { class: 'ativ-resumo' });
-  const recordes = h('section', { class: 'ativ-recordes' });
 
   /** Atividades visíveis: esporte e período escolhidos. */
   const visiveis = () => filtrarPorPeriodo(doEsporte(atividades), estadoAtividades.periodo, hoje).map((a) => ({ ...a, velocidadeMs: velocidadeMediaMs(a) }));
@@ -236,7 +193,6 @@ export function render(raiz, sessao) {
     desenharChipsDaLista();
     desenharFiltros();
     desenharResumo();
-    desenharRecordes();
     desenharTabela();
   }
 
@@ -305,135 +261,6 @@ export function render(raiz, sessao) {
       tile('Elevação', metros(r.altimetriaM), 'elevacao'),
       tile('Carga (HRSS)', r.hrss > 0 ? formatarNumero(r.hrss, 0) : '—', 'hrss'),
     );
-  }
-
-  /**
-   * Botão (só ícone) que calcula os melhores esforços e as zonas das atividades importadas antes desses recursos (o servidor
-   * relê os arquivos). O texto completo e a contagem ficam no tooltip; o andamento aparece ao lado.
-   */
-  function botaoDeEsforcos(pendentes) {
-    const textoCompleto = `Calcular melhores esforços e zonas do histórico (${pendentes} atividade${pendentes === 1 ? '' : 's'})`;
-    const estado = h('span', { class: 'texto-secundario ativ-esforcos-estado', 'aria-live': 'polite' });
-    const botao = h('button', { class: 'rec-atualizar', type: 'button', title: textoCompleto, 'aria-label': textoCompleto }, icone('atualizar', 16));
-    botao.addEventListener('click', async () => {
-      botao.disabled = true;
-      botao.classList.add('rec-girando');
-      let feitas = 0;
-      try {
-        estado.textContent = `Calculando… ${feitas} de ${pendentes}`;
-        feitas = await completarAtividades((n) => {
-          estado.textContent = `Calculando… ${n} de ${pendentes}`;
-        });
-        estado.textContent = 'Pronto.';
-        botao.classList.remove('rec-girando');
-      } catch (err) {
-        estado.textContent = err.message || 'Não foi possível calcular agora.';
-        botao.disabled = false;
-        botao.classList.remove('rec-girando');
-      }
-    });
-    return h('div', { class: 'rec-acoes' }, estado, botao);
-  }
-
-  function desenharRecordes() {
-    if (atividades.length === 0) {
-      recordes.replaceChildren();
-      return;
-    }
-    const todos = estadoAtividades.periodo === 'tudo';
-    // Melhor 5 km e 10 km: tempos só se comparam dentro de um esporte; "Todos" mostra um par por esporte.
-    const esportesEsforco = estadoAtividades.esporte ? [estadoAtividades.esporte] : ['corrida', 'ciclismo'];
-    const pendentes = atividades.filter((a) => atividadePrecisaCompletar(a, { versaoDosEsforcos: VERSAO_DOS_ESFORCOS, versaoDoDetalhe: VERSAO_DO_DETALHE })).length;
-    // O Condicionamento não vem de uma atividade: é o pico da curva diária (vale para todos os esportes).
-    // Recordes que não são de uma única atividade (semana, sequência e Condicionamento) entram sem link, com um texto de "quando".
-    const calculados = (lista, intervalo) => {
-      const pico = maiorCondicionamento(serieForma, intervalo);
-      const semana = semanaMaisPesada(lista);
-      const sequencia = maiorSequenciaDeSemanas(lista, hoje);
-      const sem = (id, valor, quando) => ({ valor, atividade: { id, semLink: true, quando } });
-      return {
-        ...recordesDasAtividades(lista),
-        ...recordesDeClima(lista),
-        ...Object.fromEntries(
-          esportesEsforco.flatMap((e) => {
-            const m = melhoresEsforcosDasAtividades(lista.filter((a) => a.esporte === e));
-            return esforcosDoEsporte(e).map((x) => [`${x.id}-${e}`, m[x.id]]);
-          }),
-        ),
-        semanaPesada: semana ? sem(`sem:${semana.inicio}`, semana.valor, `Semana de ${formatarData(semana.inicio).slice(0, 5)}`) : null,
-        sequencia: sequencia ? sem(`seq:${sequencia.valor}`, sequencia.valor, 'Semanas seguidas') : null,
-        condicionamento: pico ? sem(`cond:${pico.data}`, pico.valor, formatarData(pico.data)) : null,
-      };
-    };
-    const doPeriodo = calculados(visiveis(), intervaloDoPeriodo(estadoAtividades.periodo, hoje));
-    const historicos = todos ? doPeriodo : calculados(doEsporte(atividades), null);
-    const subtitulo = todos ? 'O maior valor em uma única atividade, de todos os tempos.' : 'O maior valor em uma única atividade no período, com o recorde histórico ao lado.';
-    const comEsforcos = CARDS_DE_RECORDE.flatMap((c) => (c.id === 'duracao' ? [c, ...esportesEsforco.flatMap(cartoesDeEsforco)] : [c]));
-    const cartoes = comEsforcos.filter((c) => {
-      if (c.campo) return doEsporte(atividades).some((a) => Number.isFinite(a[c.campo]) && (c.aceitaZero || a[c.campo] > 0));
-      return !c.esforcoM || atividades.some((a) => a.esporte === c.esporte && a.distanciaM >= c.esforcoM);
-    });
-    const botaoCalculo = pendentes > 0 ? botaoDeEsforcos(pendentes) : null;
-    if (botaoCalculo && !calculoAutomaticoIniciado) {
-      calculoAutomaticoIniciado = true;
-      setTimeout(() => botaoCalculo.querySelector('button')?.click(), 0);
-    }
-    // recorde "novo": a atividade é dos últimos 7 dias (os recordes sem atividade, como a semana ou o Condicionamento, ficam de fora)
-    const limiteNovo = somarDias(hoje, -6);
-    const ehNovo = (c) => {
-      const r = doPeriodo[c.id];
-      return Boolean(r && !r.atividade.semLink && r.atividade.data >= limiteNovo);
-    };
-    const abas = GRUPOS_DE_RECORDE.map((g) => ({ ...g, cartoes: cartoes.filter((c) => c.grupo === g.id) })).filter((g) => g.cartoes.length > 0);
-
-    function cartaoDeRecorde(c) {
-      const r = doPeriodo[c.id];
-      const hist = historicos[c.id];
-      const ehHistorico = Boolean(r && hist && r.atividade.id === hist.atividade.id);
-      const aux = r && !r.atividade.semLink && c.esforcoM ? ritmoTexto(r.atividade.esporte, r.valor, c.esforcoM) : null;
-      return h(
-        'article',
-        { class: `rec-card${ehHistorico && !todos ? ' rec-card-historico' : ''}` },
-        h(
-          'div',
-          { class: 'rec-card-topo' },
-          h('span', { class: 'rec-card-icone' }, icone(c.icone, 16)),
-          ehNovo(c) ? h('span', { class: 'rec-novo', title: 'Recorde batido nos últimos 7 dias' }, 'Novo') : null,
-        ),
-        h('span', { class: 'rec-card-rotulo', title: c.rotuloCompleto ?? c.rotulo }, c.rotuloIcone ? icone(c.rotuloIcone, 13) : null, c.rotulo),
-        h('strong', { class: 'rec-card-valor' }, r ? c.formatar(r.valor) : '—'),
-        h(
-          'div',
-          { class: 'rec-card-rodape' },
-          r?.atividade.semLink
-            ? h('span', { class: 'rec-card-quando' }, r.atividade.quando)
-            : r
-            ? h('a', { class: 'rec-card-quando', href: `#/atividades/${r.atividade.id}` }, iconeDoEsporte(r.atividade.esporte), formatarData(r.atividade.data))
-            : h('span', { class: 'rec-card-quando texto-secundario' }, 'Sem registro'),
-          aux ? h('span', { class: 'rec-card-aux' }, aux) : null,
-          c.geral ? h('span', { class: 'rec-pill', title: 'Vale para todos os esportes: não segue o filtro de esporte' }, 'Geral') : null,
-          ehHistorico && !todos ? h('span', { class: 'ativ-selo', title: 'É o recorde de todos os tempos' }, icone('esporte', 12), 'Histórico') : null,
-        ),
-        !todos && hist && !ehHistorico
-          ? h(hist.atividade.semLink ? 'span' : 'a', { class: 'rec-card-hist', ...(hist.atividade.semLink ? {} : { href: `#/atividades/${hist.atividade.id}` }) }, `Histórico: ${c.formatar(hist.valor)} · ${hist.atividade.quando ?? formatarData(hist.atividade.data)}`)
-          : null,
-      );
-    }
-
-    const { lista: listaDeAbas, paineis } = criarAbas({
-      chave: CHAVE_ABA_RECORDES,
-      rotuloAria: 'Seções de recordes',
-      abas: abas.map((g) => ({
-        id: g.id,
-        nome: g.nome,
-        titulo: g.titulo,
-        icone: g.icone,
-        ponto: g.cartoes.some(ehNovo),
-        painel: h('div', { class: 'rec-grade', style: `--cols:${colunasDe(g.cartoes.length)}` }, ...g.cartoes.map(cartaoDeRecorde)),
-      })),
-    });
-
-    recordes.replaceChildren(h('div', { class: 'rec-topo' }, h('h2', { title: subtitulo }, 'Recordes'), listaDeAbas, botaoCalculo), ...paineis);
   }
 
   function mostrarPainel(chave, construir) {
@@ -748,7 +575,7 @@ export function render(raiz, sessao) {
       paginaTopo({
         icone: 'atividades',
         titulo: 'Atividades',
-        subtitulo: 'Seu histórico de treinos, recordes e totais por período.',
+        subtitulo: 'Seu histórico de treinos e totais por período.',
         acoes: h(
           'div',
           { class: 'linha-botoes' },
@@ -764,7 +591,6 @@ export function render(raiz, sessao) {
       paineis,
       filtros,
       resumo,
-      recordes,
       h(
         'section',
         { class: 'card ativ-tabela-card' },
@@ -794,14 +620,6 @@ export function render(raiz, sessao) {
         atualizarAviso();
       },
       () => mensagem.mostrar('Não foi possível carregar as atividades.'),
-    ),
-    observarEstresseDiario(
-      sessao.uid,
-      (dias) => {
-        serieForma = dias.length > 0 ? montarSerie(dias, hoje) : [];
-        desenharRecordes();
-      },
-      () => {},
     ),
     observarTreinosVinculados(
       sessao.uid,

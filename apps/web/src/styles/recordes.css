@@ -1,0 +1,339 @@
+/*
+ * Página de Recordes (modules/recordes): faixa de destaques, cartões grandes de recorde por aba e a prateleira de conquistas.
+ * As abas (.rec-aba), o botão de recálculo (.rec-atualizar) e o selo "Novo" (.rec-novo) vêm de layout.css. Só variáveis de tema.
+ */
+.rcd-pagina {
+  --rcd-ouro: #e0ad00;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- destaques: três números grandes no topo ---------- */
+.rcd-destaques {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.rcd-destaques:empty {
+  display: none;
+}
+
+.rcd-destaque {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 24px;
+  overflow: hidden;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 10%, var(--surface)), var(--surface) 70%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.rcd-destaque-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  border-radius: 15px;
+}
+
+.rcd-destaque > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rcd-destaque-valor {
+  font-family: var(--fonte-titulo);
+  font-size: 2.4rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.rcd-destaque-rotulo {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.rcd-destaque small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+/* ---------- blocos (recordes e conquistas) ---------- */
+.rcd-bloco {
+  padding: 24px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.rcd-bloco .rec-topo h2 {
+  font-size: 1.75rem;
+}
+
+.rcd-secoes {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rcd-secoes:empty {
+  display: none;
+}
+
+/* a barra fixa de âncoras cobre o topo da rolagem */
+.rcd-secao {
+  scroll-margin-top: 60px;
+}
+
+.rcd-secao-topo {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rcd-secao-topo > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rcd-secao-topo h2 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.rcd-secao-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border-radius: 14px;
+}
+
+.rcd-subtitulo {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.rcd-contagem {
+  flex: none;
+  padding: 3px 12px;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-radius: 999px;
+}
+
+.rcd-link-objetivos {
+  margin-top: 18px;
+}
+
+/* ---------- cartões de recorde ---------- */
+.rcd-grade {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
+  gap: 14px;
+}
+
+.rcd-grade[hidden] {
+  display: none;
+}
+
+.rcd-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 18px 18px 16px;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--surface-light), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.rcd-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--primary) 12%, transparent);
+  transform: translateY(-2px);
+}
+
+/* barra de destaque no topo: laranja nos recordes novos, dourada no recorde de todos os tempos */
+.rcd-card-novo::before,
+.rcd-card-historico::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  content: '';
+  background: var(--primary);
+}
+
+.rcd-card-historico::before {
+  background: var(--rcd-ouro);
+}
+
+.rcd-card-vazio {
+  opacity: 0.6;
+}
+
+.rcd-card-topo {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.rcd-card-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border-radius: 12px;
+}
+
+.rcd-card-historico .rcd-card-icone {
+  color: var(--rcd-ouro);
+  background: color-mix(in srgb, var(--rcd-ouro) 18%, transparent);
+}
+
+.rcd-card-topo .rec-novo,
+.rcd-coroa {
+  margin-left: auto;
+}
+
+.rcd-coroa {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 9px;
+  color: var(--rcd-ouro);
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--rcd-ouro) 15%, transparent);
+  border-radius: 999px;
+}
+
+.rcd-card-rotulo {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rcd-card-valor {
+  font-family: var(--fonte-titulo);
+  font-size: 2.3rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.rcd-card-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.rcd-card-quando {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+a.rcd-card-link:hover {
+  color: var(--primary);
+}
+
+.rcd-card-aux {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.rcd-card-hist {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-decoration: none;
+}
+
+a.rcd-card-hist:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 900px) {
+  .rcd-grade {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .rcd-bloco {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .rcd-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .rcd-card {
+    padding: 14px;
+  }
+
+  .rcd-card-valor {
+    font-size: 1.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rcd-card {
+    transition: none;
+  }
+
+  .rcd-card:hover {
+    transform: none;
+  }
+}

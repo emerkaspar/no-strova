@@ -14,8 +14,6 @@ import {
   valorEsperadoDaMeta,
 } from '@no-strova/domain';
 import { editarMeta, encerrarMetaDeProgressao, salvarMetaDeProgressao } from '../../application/progressao.js';
-import { marcarConquistasComoVistas } from '../../core/functions.js';
-import { observarConquistas } from '../../infrastructure/conquistasRepo.js';
 import { observarAtividadesParaProgressao } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { excluirMetaProgressao, observarMetasProgressao } from '../../infrastructure/metasProgressaoRepo.js';
@@ -28,7 +26,7 @@ import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js
 import { cartaoIndicador } from './cartaoIndicador.js';
 import { criarPainelDesempenho } from './desempenho.js';
 import { graficoProgressao } from './graficoProgressao.js';
-import { painelDeObjetivos, prateleiraDeConquistas } from './objetivos.js';
+import { painelDeObjetivos } from './objetivos.js';
 import { consumirMetaPedida } from './state.js';
 import { abrirModal, confirmar } from '../../utils/modal.js';
 import { criarCartaoZonas } from './zonas.js';
@@ -52,7 +50,6 @@ const SECOES = [
   { id: 'objetivos', rotulo: 'Objetivos' },
   { id: 'analise', rotulo: 'Análise' },
   { id: 'desempenho', rotulo: 'Desempenho' },
-  { id: 'conquistas', rotulo: 'Conquistas' },
   { id: 'zonas', rotulo: 'Zonas' },
 ];
 
@@ -91,10 +88,8 @@ function rotuloDoPonto(periodo, n) {
 export function render(raiz, sessao, params = {}) {
   const hoje = hojeIso();
   const anoHoje = Number(hoje.slice(0, 4));
-  const dados = { atividades: [], dias: [], metas: [], conquistas: [] };
-  const carregou = { atividades: false, dias: false, metas: false, conquistas: false };
-  const avisadas = new Set(); // conquistas já marcadas como vistas nesta tela
-  let temporizador = null;
+  const dados = { atividades: [], dias: [], metas: [] };
+  const carregou = { atividades: false, dias: false, metas: false };
   let metaPedida = consumirMetaPedida(); // objetivo clicado na Início: abre já selecionado
   let rolarAoDesenhar = false;
   let secaoInicial = SECOES.some((x) => x.id === params.secao) ? params.secao : null; // rola até ela quando os dados chegarem
@@ -183,7 +178,7 @@ export function render(raiz, sessao, params = {}) {
 
   function desenhar() {
     limparGrafico();
-    if (!carregou.atividades || !carregou.dias || !carregou.metas || !carregou.conquistas) {
+    if (!carregou.atividades || !carregou.dias || !carregou.metas) {
       raiz.replaceChildren(h('section', { class: 'card' }, h('h1', null, 'Progressão'), h('p', { class: 'vazio', role: 'status' }, 'Carregando…')));
       return;
     }
@@ -424,7 +419,6 @@ export function render(raiz, sessao, params = {}) {
             : h('section', { class: 'card' }, estadoVazio('Nenhuma atividade encontrada neste período com os filtros escolhidos.')),
         ),
         secao('desempenho', criarPainelDesempenho({ atividades: dados.atividades, hoje })),
-        secao('conquistas', h('section', { class: 'card' }, h('h2', null, 'Conquistas'), prateleiraDeConquistas(dados.conquistas))),
         secao('zonas', criarCartaoZonas({ atividades: dados.atividades, hoje })),
       ),
     );
@@ -599,27 +593,10 @@ export function render(raiz, sessao, params = {}) {
       },
       aoErro,
     ),
-    observarConquistas(
-      sessao.uid,
-      (lista) => {
-        dados.conquistas = lista;
-        carregou.conquistas = true;
-        desenhar();
-        // quem está vendo a tela já viu as badges novas: o selo "Nova" some depois de alguns segundos
-        const novas = lista.filter((c) => c.vista === false && !avisadas.has(c.id)).map((c) => c.id);
-        if (novas.length > 0) {
-          novas.forEach((id) => avisadas.add(id));
-          clearTimeout(temporizador);
-          temporizador = setTimeout(() => marcarConquistasComoVistas({ ids: novas }).catch(() => {}), 4000);
-        }
-      },
-      aoErro,
-    ),
   ];
   desenhar();
 
   return () => {
-    clearTimeout(temporizador);
     observador?.disconnect();
     cancelar.forEach((fn) => fn());
     blocoProjecao.destruir();
