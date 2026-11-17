@@ -132,14 +132,14 @@ export function nosDoMarcador(meta, av, marcador) {
 export function indicadoresDoCartao(meta, av) {
   const ind = indicadoresDoObjetivo(meta, av);
   if (!ind || (ind.ritmoNecessario === null && ind.projecaoFim === null)) return null;
-  const item = (rotulo, valor, nota, tom = '') =>
-    h('div', { class: `obj-ind${tom ? ` obj-ind-${tom}` : ''}` }, h('span', { class: 'obj-ind-rotulo' }, rotulo), h('strong', null, valor), nota ? h('span', { class: 'obj-ind-nota' }, nota) : null);
+  const item = (chave, rotulo, valor, nota, tom = '') =>
+    h('div', { class: `obj-ind obj-ind-${chave}${tom ? ` obj-ind-${tom}` : ''}` }, h('span', { class: 'obj-ind-rotulo' }, rotulo), h('strong', null, valor), nota ? h('span', { class: 'obj-ind-nota' }, nota) : null);
   const itens = [];
-  if (ind.ritmoNecessario !== null) itens.push(item('Ritmo necessário', formatarMetrica(meta.tipo, ind.ritmoNecessario), `por ${ind.unidade}`));
+  if (ind.ritmoNecessario !== null) itens.push(item('ritmo', 'Ritmo necessário', formatarMetrica(meta.tipo, ind.ritmoNecessario), `por ${ind.unidade}`));
   if (ind.projecaoFim !== null) {
     const diferenca = ind.projecaoFim - meta.valorAlvo;
     const nota = Math.abs(diferenca) < 0.5 ? 'na meta' : `${formatarMetrica(meta.tipo, Math.abs(diferenca))} ${diferenca > 0 ? 'acima' : 'abaixo'} da meta`;
-    itens.push(item(`Projeção do fim ${ind.periodoRotuloFim}`, formatarMetrica(meta.tipo, ind.projecaoFim), nota, diferenca >= 0 ? 'ok' : 'alerta'));
+    itens.push(item('projecao', `Projeção do fim ${ind.periodoRotuloFim}`, formatarMetrica(meta.tipo, ind.projecaoFim), nota, diferenca >= 0 ? 'ok' : 'alerta'));
   }
   return h('div', { class: 'obj-indicadores' }, itens);
 }

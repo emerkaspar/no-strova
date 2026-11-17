@@ -1,5 +1,8 @@
 import {
+  avisoSonoCarga,
+  calcularSerieForma,
   diaNoFuso,
+  formatarSono,
   lembretePeriodicoVencido,
   MARCOS_GARMIN_DIAS,
   MARCOS_META_DIAS,
@@ -96,7 +99,28 @@ async function ultimaData(colecao: string, uid: string): Promise<string | null> 
   return snap.empty ? null : (snap.docs[0].get("data") as string);
 }
 
-/** Rotina diária: pesagem, medidas, LTHR, provas, prazos de meta e validade da chave do Garmin. */
+/**
+ * "Sono curto com carga alta": dormiu menos de 6 h (noite de hoje ou de ontem, a mais recente) e a Forma está abaixo de −10.
+ * Roda às 08:00, depois da sincronização das 05:00. Sem registro de sono ou sem treino, não avisa. Um aviso por dia (a data é a
+ * referência).
+ * @returns quantas notificações foram criadas (0 ou 1)
+ */
+async function avisoDeSonoComCarga(uid: string, hoje: string, prefs: Awaited<ReturnType<typeof lerPreferenciasNotificacao>>): Promise<number> {
+  const sonos = await db.collection("bemEstar").where("userId", "==", uid).where("data", ">=", somarDias(hoje, -1)).orderBy("data", "desc").limit(2).get();
+  const sono = sonos.docs.map((d) => d.get("sonoSegundos")).find((s): s is number => typeof s === "number" && s > 0);
+  if (sono === undefined || sono >= 6 * 3600) return 0; // sem sono curto, nem lê a carga
+  const estresse = (await db.collection("estresseDiario").where("userId", "==", uid).where("data", ">=", somarDias(hoje, -150)).get()).docs.map((d) => ({
+    data: d.get("data") as string,
+    estresse: d.get("estresse") as number,
+  }));
+  const serie = calcularSerieForma(estresse, { ate: hoje });
+  if (serie.length === 0) return 0;
+  const { avisar, motivo } = avisoSonoCarga({ sonoUltimoS: sono, forma: serie[serie.length - 1].forma });
+  if (!avisar) return 0;
+  return contar(await criarNotificacao(uid, "sonoCarga", { data: hoje, sono: formatarSono(sono), motivo }, prefs));
+}
+
+/** Rotina diária: pesagem, medidas, sono com carga alta, LTHR, provas, prazos de meta e validade da chave do Garmin. */
 export async function avisosDiarios(): Promise<void> {
   const hoje = diaNoFuso(Date.now());
   await paraCadaUsuario("diario", async (uid) => {
@@ -117,6 +141,8 @@ export async function avisosDiarios(): Promise<void> {
       const lthr = lembretePeriodicoVencido({ ultimaData: ultima, hoje, intervaloDias: prefs.intervaloLthrSemanas * 7 });
       if (lthr) criadas += contar(await criarNotificacao(uid, "testeLthr", lthr, prefs));
     }
+
+    criadas += await avisoDeSonoComCarga(uid, hoje, prefs);
 
     for (const prova of (await db.collection("provas").where("userId", "==", uid).where("data", ">=", hoje).get()).docs) {
       const dados = prova.data() as { nome?: string; data: string; local?: string };

@@ -379,7 +379,9 @@ export async function sincronizarUsuario(uid: string, segredo: string, requisito
     if (r.terminou) break;
   }
   // passos e sono são complementares: se falharem, a sincronização das atividades não é prejudicada
-  await sincronizarBemEstar(uid, segredo, DIAS_BEM_ESTAR, requisitor).catch((err) => logger.warn("Falha ao sincronizar passos e sono", { uid, erro: String(err) }));
+  // rotina diária: 5 dias; a primeira vez de quem nunca sincronizou passos e sono busca os 14
+  const primeiraVez = !(conexao.get("ultimoBemEstarEm") instanceof Timestamp);
+  await sincronizarBemEstar(uid, segredo, primeiraVez ? DIAS_BEM_ESTAR : DIAS_BEM_ESTAR_ROTINA, requisitor).catch((err) => logger.warn("Falha ao sincronizar passos e sono", { uid, erro: String(err) }));
   await docConexao(uid).set(
     {
       ultimaAutomaticaEm: FieldValue.serverTimestamp(),
@@ -390,8 +392,10 @@ export async function sincronizarUsuario(uid: string, segredo: string, requisito
   return totais;
 }
 
-/** Dias de passos e sono que cada sincronização traz (hoje e os anteriores): cobre dias que o relógio sincronizou com atraso. */
+/** Dias de passos e sono do "Atualizar" e da primeira sincronização (hoje e os anteriores). */
 export const DIAS_BEM_ESTAR = 14;
+/** Dias da rotina diária: cobre o dia incompleto e relógios que sincronizaram com até alguns dias de atraso. */
+export const DIAS_BEM_ESTAR_ROTINA = 5;
 const MAXIMO_DIAS_BEM_ESTAR = 90;
 
 /** Id do documento de bem-estar de um dia: um por usuário e dia, então sincronizar de novo substitui. */

@@ -109,6 +109,15 @@ describe('montarNotificacao', () => {
     expect(montarNotificacao('nada')).toBeNull();
   });
 
+  it('aviso de sono curto com carga alta usa a data como referência e muda o texto na sobrecarga', () => {
+    const a = montarNotificacao('sonoCarga', { data: '2026-11-17', sono: '5 h 10 min', motivo: 'carregado' });
+    const b = montarNotificacao('sonoCarga', { data: '2026-11-17', sono: '5 h 10 min', motivo: 'sobrecarga' });
+    expect(a.referencia).toBe('2026-11-17');
+    expect(a.rota).toBe('#/peso');
+    expect(a.mensagem).toContain('5 h 10 min');
+    expect(b.mensagem).toContain('sobrecarga');
+  });
+
   it('treino do dia diferencia manhã e tarde na referência', () => {
     const m = montarNotificacao('treinoHoje', { data: '2026-11-09', quantidade: 1, periodo: 'manha' });
     const t = montarNotificacao('treinoHoje', { data: '2026-11-09', quantidade: 1, periodo: 'tarde' });

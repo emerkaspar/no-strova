@@ -1,8 +1,11 @@
-import { FAIXAS_FORMA, TOLERANCIA_META, TOLERANCIA_META_CONDICIONAMENTO } from '@no-strova/domain';
+import { FAIXAS_FORMA, faixaDoSono, faixaDosPassos, formatarSono, TOLERANCIA_META, TOLERANCIA_META_CONDICIONAMENTO } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarForma, formatarNumero } from '../../utils/formatters.js';
+import { criarCartaoBemEstar } from './cartaoBemEstar.js';
 
 const NS = 'http://www.w3.org/2000/svg';
+const TEXTO_PASSOS = Object.freeze({ atingiu: 'meta atingida', quase: 'quase na meta', abaixo: 'abaixo da meta' });
+const TEXTO_SONO = Object.freeze({ ideal: 'ideal', curto: 'curto', 'muito-curto': 'muito curto', longo: 'longo' });
 // o Plano ocupa a largura toda do cartão (sem coluna lateral), então o gráfico é mais largo e os textos do SVG ficam no tamanho real
 const L_INICIO = 760;
 const L_PLANO = 1000;
@@ -211,6 +214,9 @@ export function criarGraficoPrincipal({
   esportesDoDia = () => [],
   pesos = [],
   metaPeso = null,
+  bemEstar = [],
+  metaPassos = 8000,
+  prontidaoHoje = null,
   modo = 'inicio',
   meta = null,
   metaCondicionamento = null,
@@ -582,6 +588,20 @@ export function criarGraficoPrincipal({
       h('p', { class: classe ?? 'cg-treino-linha' }, t.esporte ? iconeSolto(t.esporte, 18) : null, h('span', null, t.texto));
 
     // ---- coluna lateral ----
+    // Sono e passos do dia sob o mouse (só no Início, e só quando o intervals.icu já trouxe algum registro)
+    const bemEstarPorDia = new Map(bemEstar.map((b) => [b.data, b]));
+    const cartaoBemEstar = plano ? null : criarCartaoBemEstar({
+      bemEstar,
+      hoje,
+      meta: metaPassos,
+      prontidaoHoje,
+      // passar o mouse numa barra do cartão move o gráfico maior (o inverso já vale: o gráfico atualiza o cartão)
+      aoPassar: (data) => {
+        const i = dias.findIndex((d) => d.data === data);
+        if (i >= 0) destacar(i);
+      },
+      aoSair: () => limpar(),
+    });
     const lateral = lateralDoDia();
     function lateralDoDia() {
       const rotuloDia = h('p', { class: 'cg-dia-rotulo' });
@@ -650,7 +670,7 @@ export function criarGraficoPrincipal({
 
       return {
         // no Plano a legenda sai da coluna lateral e fica logo abaixo do gráfico, junto das séries que ela explica
-        raiz: plano ? h('div', { class: 'cg-indicadores' }, cartaoHoje, cartaoTreino, cartaoRegua) : h('div', { class: 'cg-lateral' }, cartaoDia, cartaoRegua, legenda),
+        raiz: plano ? h('div', { class: 'cg-indicadores' }, cartaoHoje, cartaoTreino, cartaoRegua) : h('div', { class: 'cg-lateral' }, cartaoDia, cartaoRegua, legenda, cartaoBemEstar?.el ?? null),
         legenda,
         mostrar(d) {
           const faixa = FAIXAS_FORMA.find((f) => f.id === d.faixa);
@@ -667,6 +687,7 @@ export function criarGraficoPrincipal({
             marcador.className = `cg-regua-marcador cg-zona-${d.faixa}`; // a cor segue a zona do dia
           }
           else marcador.style.top = `${pct(Math.min(ESCALA_REGUA.max, Math.max(ESCALA_REGUA.min, d.forma)))}%`;
+          cartaoBemEstar?.mostrar(d.data);
         },
       };
     }
@@ -700,6 +721,8 @@ export function criarGraficoPrincipal({
       barras.forEach((b, k) => b.classList.toggle('cg-barra-ativa', k === i));
 
       const faixa = FAIXAS_FORMA.find((f) => f.id === d.faixa);
+      const passosDoDia = plano ? null : bemEstarPorDia.get(d.data)?.passos || null;
+      const sonoDoDia = plano ? null : bemEstarPorDia.get(d.data)?.sonoSegundos || null;
       const treinos = linhasDoTreino(d.data);
       let linhaMetaCond = null;
       if (metaCondNaJanela && d.data >= hoje && d.data <= metaCondNaJanela.dataAlvo) {
@@ -724,6 +747,8 @@ export function criarGraficoPrincipal({
         linhaMetaCond,
         linhaMeta,
         ...destaques.filter((s) => s.indice === i).map((s) => h('div', { class: 'cg-dica-destaque' }, seloSolto(s.tipo), h('div', null, h('span', null, s.texto), h('p', null, s.sentido)))),
+        passosDoDia ? linhaDica('Passos', `${formatarNumero(passosDoDia, 0)} · ${TEXTO_PASSOS[faixaDosPassos(passosDoDia, metaPassos)]}`, 'gps-dica-passos') : null,
+        sonoDoDia ? linhaDica('Sono', `${formatarSono(sonoDoDia)} · ${TEXTO_SONO[faixaDoSono(sonoDoDia)]}`, 'gps-dica-sono') : null,
         kg !== null ? linhaDica('Peso', `${formatarNumero(kg, 1)} kg`, 'cg-dica-peso') : kgMeta !== null ? linhaDica('Meta', `${formatarNumero(kgMeta, 1)} kg`, 'cg-dica-peso') : null,
       ].filter(Boolean));
       dica.hidden = false;

@@ -22,6 +22,7 @@ export const TIPOS_NOTIFICACAO = Object.freeze({
   conflitoTreinos: { grupo: 'treino', rotulo: 'Conflito de treinos no mesmo dia', padrao: true },
   pesar: { grupo: 'corpo', rotulo: 'Hora de se pesar', padrao: true },
   medidas: { grupo: 'corpo', rotulo: 'Refazer as medidas do corpo', padrao: true },
+  sonoCarga: { grupo: 'corpo', rotulo: 'Sono curto com carga de treino alta', padrao: true },
   testeLthr: { grupo: 'desempenho', rotulo: 'Refazer o teste de LTHR', padrao: true },
   provaChegando: { grupo: 'metas', rotulo: 'Prova chegando', padrao: true },
   prazoMeta: { grupo: 'metas', rotulo: 'Prazo de meta', padrao: true },
@@ -201,6 +202,17 @@ export function montarNotificacao(tipo, ctx = {}) {
         mensagem: ctx.diasDesde == null ? 'Você ainda não registrou medidas do corpo.' : `Suas últimas medidas foram há ${ctx.diasDesde} ${plural(ctx.diasDesde, 'dia', 'dias')}.`,
         rota: '#/peso',
         referencia: ctx.referencia,
+      };
+    case 'sonoCarga':
+      return {
+        ...base,
+        titulo: 'Pouco sono e carga de treino alta',
+        mensagem:
+          ctx.motivo === 'sobrecarga'
+            ? `Você dormiu ${ctx.sono} e está em sobrecarga de treino. Prefira um treino leve ou descanso hoje.`
+            : `Você dormiu ${ctx.sono} e vem treinando carregado. Considere pegar leve hoje.`,
+        rota: '#/peso',
+        referencia: ctx.data,
       };
     case 'testeLthr':
       return {

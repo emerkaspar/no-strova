@@ -1,4 +1,4 @@
-import { RECURSOS, configVigenteEm, descansoERecuperacao, dicaDeZonaDoDia, faixaDeFcDaZona, temRecurso, comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
+import { META_PASSOS_PADRAO, RECURSOS, configVigenteEm, descansoERecuperacao, validarMetaPassos, dicaDeZonaDoDia, faixaDeFcDaZona, temRecurso, comparativoMensal, comparativoSemanal, estresseDoTreino, inicioDaSemana, montarSemana, proximoTreinoPlanejado, sequenciaSemanal, somarDias } from '@no-strova/domain';
 import { observarCalibracaoDoUsuario } from '../../application/calibracao.js';
 import { climaAgoraDoUsuario } from '../../application/climaAgora.js';
 import { montarSerie, pedirReconstrucaoSeVazio } from '../../application/forma.js';
@@ -17,6 +17,8 @@ import { excluirTreino, observarMetasCondicionamento, observarTreinos } from '..
 import { confirmar } from '../../utils/modal.js';
 import { ROTULO_ESPORTE } from '../atividades/textos.js';
 import { observarMetasPeso, observarPesagens } from '../../infrastructure/pesoRepo.js';
+import { observarBemEstar } from '../../infrastructure/bemEstarRepo.js';
+import { prontidaoDeHoje } from './cartaoBemEstar.js';
 import { h } from '../../utils/dom.js';
 import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
@@ -26,6 +28,8 @@ import { criarTreinoDoDia } from './treinoDoDia.js';
 
 /** Dias de histórico de atividades e treinos para nomear o treino de cada dia no gráfico (cobre o período de 10 sem). */
 const DIAS_DE_HISTORICO = 70;
+/** Passos e sono: os mesmos 60 dias da tela Saúde (minigráfico, médias e o painel de sono do gráfico principal). */
+const DIAS_DO_BEM_ESTAR = 60;
 
 /**
  * Início: Forma hoje, semana atual (realizado e planejado), gráfico de Condicionamento, fadiga e forma com a
@@ -49,10 +53,11 @@ export function render(raiz, sessao) {
     pesagens: [],
     metasPeso: [],
     metasProgressao: [],
+    bemEstar: [],
     clima: null,
     climaMotivo: null,
     atividadesAno: [],
-    carregou: { metasProgressao: false, atividadesAno: false, pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false, provas: false },
+    carregou: { bemEstar: false, metasProgressao: false, atividadesAno: false, pesagens: false, metasPeso: false, dias: false, ultimas: false, atividades: false, treinos: false, configs: false, calibracao: false, metasCondicionamento: false, provas: false },
   };
   let ativa = true;
 
@@ -167,6 +172,7 @@ export function render(raiz, sessao) {
         carregou: c.dias && c.atividades,
       }),
     );
+    const diasComTreino = dados.dias.filter((d) => d.estresse > 0 || d.qtdAtividades > 0).map((d) => d.data);
     const metaPesoAtiva = dados.metasPeso.find((m) => m.status === 'ativa') ?? null;
     const pesos = dados.pesagens.map((p) => ({ data: p.data, kg: p.pesoKg }));
     const metaPeso = metaPesoAtiva ? { dataAlvo: metaPesoAtiva.dataAlvo, kg: metaPesoAtiva.pesoAlvoKg } : null;
@@ -178,6 +184,14 @@ export function render(raiz, sessao) {
       esportesDoDia,
       pesos,
       metaPeso,
+      bemEstar: dados.bemEstar,
+      metaPassos: validarMetaPassos(dados.preferencias?.metaPassos) ?? META_PASSOS_PADRAO,
+      prontidaoHoje: prontidaoDeHoje({
+        bemEstar: dados.bemEstar,
+        hoje,
+        forma: serieReal.length > 0 ? serieReal[serieReal.length - 1].forma : null,
+        diasTreinandoSeguidos: descansoERecuperacao(diasComTreino, hoje).diasTreinandoSeguidos,
+      }),
       // clicar num dia com atividade abre a atividade (ou um modal para escolher, se houver mais de uma)
       aoClicarDia: (data) => abrirAtividadeDoDia(data, dados.atividades),
       diaClicavel: (data) => dados.atividades.some((a) => a.data === data),
@@ -225,6 +239,7 @@ export function render(raiz, sessao) {
     ouvir('configs', 'configs', (ok, erro) => observarConfigs(sessao.uid, ok, erro)),
     ouvir('pesagens', 'pesagens', (ok, erro) => observarPesagens(sessao.uid, ok, erro)),
     ouvir('metasPeso', 'metasPeso', (ok, erro) => observarMetasPeso(sessao.uid, ok, erro)),
+    ouvir('bemEstar', 'bemEstar', (ok, erro) => observarBemEstar(sessao.uid, somarDias(hoje, -DIAS_DO_BEM_ESTAR), ok, erro)),
     ouvir('metasProgressao', 'metasProgressao', (ok, erro) => observarMetasProgressao(sessao.uid, ok, erro)),
     // o objetivo anual precisa das atividades desde 1º de janeiro (e a semana pode começar no ano anterior)
     ouvir('atividadesAno', 'atividadesAno', (ok, erro) => observarAtividadesParaProgressao(sessao.uid, hoje.slice(0, 4) + '-01-01' < segunda ? hoje.slice(0, 4) + '-01-01' : segunda, ok, erro)),

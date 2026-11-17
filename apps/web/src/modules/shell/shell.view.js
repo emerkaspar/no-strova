@@ -29,7 +29,7 @@ const MENU = [
   { caminho: '#/progressao', rotulo: 'Progressão', icone: 'progressao' },
   { caminho: '#/recordes', rotulo: 'Recordes', icone: 'esporte' },
   { caminho: '#/treinos', rotulo: 'Treinos', icone: 'treinos' },
-  { caminho: '#/peso', rotulo: 'Saúde', icone: 'peso' },
+  { caminho: '#/peso', rotulo: 'Saúde', icone: 'saude' },
   { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao', soIcone: true },
 ];
 
@@ -43,6 +43,9 @@ function resolverRota(hash, admin) {
   // as seções da Progressão (abas no topo da página) também têm rota própria: a tela rola até a seção
   const progressao = /^#\/progressao\/(projecao|objetivos|analise|desempenho|zonas)$/.exec(hash);
   if (progressao) return { menu: '#/progressao', render: renderProgressao, params: { secao: progressao[1] } };
+  // as seções da Saúde (índice fixo no topo da página) também têm rota própria: a tela rola até a seção
+  const saude = /^#\/peso\/(resumo|peso|sono-passos|medidas)$/.exec(hash);
+  if (saude) return { menu: '#/peso', render: renderPeso, params: { secao: saude[1] } };
   switch (hash) {
     case '#/forma':
       return { menu: '#/inicio', render: renderForma, params: {} };

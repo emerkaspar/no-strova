@@ -55,3 +55,16 @@ describe('listaEmPortugues', () => {
     expect(listaEmPortugues(['a', 'b', 'c'])).toBe('a, b e c');
   });
 });
+
+describe('consideracoesDaSemana: sono', () => {
+  it('cita o sono curto da semana como motivo da carga reduzida', () => {
+    const frases = consideracoesDaSemana({ nivel: 'intermediario', bemEstar: { mediaSonoHoras7Dias: 5.8, noitesComRegistro7Dias: 5 } });
+    expect(frases.some((f) => f.includes('5,8 h') && f.includes('reduzida'))).toBe(true);
+  });
+
+  it('cita o sono em dia e ignora poucas noites ou ausência de dados', () => {
+    expect(consideracoesDaSemana({ nivel: 'intermediario', bemEstar: { mediaSonoHoras7Dias: 7.6, noitesComRegistro7Dias: 6 } }).some((f) => f.includes('em dia'))).toBe(true);
+    expect(consideracoesDaSemana({ nivel: 'intermediario', bemEstar: { mediaSonoHoras7Dias: 5, noitesComRegistro7Dias: 2 } }).some((f) => f.includes('sono'))).toBe(false);
+    expect(consideracoesDaSemana({ nivel: 'intermediario', bemEstar: null }).some((f) => f.includes('sono'))).toBe(false);
+  });
+});

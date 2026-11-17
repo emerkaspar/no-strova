@@ -29,6 +29,7 @@ export function listaEmPortugues(itens) {
  *   estado?: { condicionamento: number, fadiga: number, forma: number }|null,
  *   cargaBase?: number,
  *   feedback?: { registros: number, sensacaoMedia: number|null, rpeMedio: number|null, dorRecorrente: boolean, treinosDificeis: number }|null,
+ *   bemEstar?: { mediaSonoHoras7Dias: number|null, noitesComRegistro7Dias: number }|null,
  *   diasDeTreino?: number[], diaLongao?: number|null, horasPorSemana?: number,
  *   ocupados?: string[], avisos?: string[]
  * }} ctx
@@ -54,6 +55,12 @@ export function consideracoesDaSemana(ctx) {
     if (f.dorRecorrente) saida.push('Você relatou dor em mais de um treino recente, então a semana ficou mais leve.');
     else if (f.sensacaoMedia !== null && f.sensacaoMedia >= 3.5) saida.push('Seus últimos treinos foram pesados para você (Como foi?), então a carga foi reduzida.');
     else if (f.sensacaoMedia !== null) saida.push('Você tem se sentido bem nos últimos treinos (Como foi?), então a progressão seguiu normal.');
+  }
+  const b = ctx.bemEstar;
+  if (b && b.noitesComRegistro7Dias >= 3 && Number.isFinite(b.mediaSonoHoras7Dias)) {
+    const media = String(b.mediaSonoHoras7Dias).replace('.', ',');
+    if (b.mediaSonoHoras7Dias < 6.5) saida.push(`Você dormiu em média ${media} h por noite na última semana, então a carga foi reduzida.`);
+    else saida.push(`Seu sono na última semana (média de ${media} h) está em dia, então a progressão seguiu normal.`);
   }
   if ((ctx.ocupados ?? []).length > 0) saida.push(`Dias que você já tinha planejado foram mantidos (${ctx.ocupados.length}).`);
   return saida;

@@ -253,7 +253,7 @@ service cloud.firestore {
 
     function tiposNotificacaoValidos(t) {
       return t is map
-        && t.keys().hasOnly(['treinoHoje', 'treinoOntem', 'comoFoi', 'conflitoTreinos', 'pesar', 'medidas', 'testeLthr', 'provaChegando', 'prazoMeta', 'conquista', 'recorde', 'garminExpirando', 'envioFalhou', 'intervalsChaveInvalida', 'contaAprovada', 'aguardandoAprovacao', 'rascunhoIa', 'semanaIa'])
+        && t.keys().hasOnly(['treinoHoje', 'treinoOntem', 'comoFoi', 'conflitoTreinos', 'pesar', 'medidas', 'testeLthr', 'provaChegando', 'prazoMeta', 'conquista', 'recorde', 'garminExpirando', 'envioFalhou', 'intervalsChaveInvalida', 'contaAprovada', 'aguardandoAprovacao', 'rascunhoIa', 'semanaIa', 'sonoCarga'])
         && tipoNotifOk(t, 'treinoHoje')
         && tipoNotifOk(t, 'treinoOntem')
         && tipoNotifOk(t, 'comoFoi')
@@ -271,7 +271,8 @@ service cloud.firestore {
         && tipoNotifOk(t, 'contaAprovada')
         && tipoNotifOk(t, 'aguardandoAprovacao')
         && tipoNotifOk(t, 'rascunhoIa')
-        && tipoNotifOk(t, 'semanaIa');
+        && tipoNotifOk(t, 'semanaIa')
+        && tipoNotifOk(t, 'sonoCarga');
     }
 
     // Medidas corporais (fita métrica): um registro por dia (id uid_yyyymmdd). Cada medida é opcional, de 10 a 250 cm.
@@ -392,7 +393,7 @@ service cloud.firestore {
       allow read: if acessoLiberado() && request.auth.uid == uid;
       allow create, update: if acessoLiberado()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding', 'usoGarmin', 'notificacoes', 'planoIaAutomatico'])
+        && request.resource.data.keys().hasOnly(['userId', 'calibracaoAtiva', 'nivelTreinos', 'diasTreino', 'diaLongao', 'horasSemana', 'esportePrincipal', 'onboarding', 'usoGarmin', 'notificacoes', 'planoIaAutomatico', 'metaPassos'])
         && request.resource.data.keys().hasAll(['userId'])
         && request.resource.data.userId == request.auth.uid
         && (!('calibracaoAtiva' in request.resource.data) || request.resource.data.calibracaoAtiva is bool)
@@ -408,6 +409,8 @@ service cloud.firestore {
         && (!('onboarding' in request.resource.data) || request.resource.data.onboarding in ['concluido', 'pulado'])
         && (!('usoGarmin' in request.resource.data) || request.resource.data.usoGarmin in ['sim', 'nao', 'depois'])
         && (!('planoIaAutomatico' in request.resource.data) || request.resource.data.planoIaAutomatico is bool)
+        && (!('metaPassos' in request.resource.data) || (request.resource.data.metaPassos is int
+          && request.resource.data.metaPassos >= 1000 && request.resource.data.metaPassos <= 50000))
         && (!('notificacoes' in request.resource.data) || preferenciasNotificacaoValidas(request.resource.data.notificacoes));
       allow delete: if false;
     }

@@ -1,5 +1,4 @@
 import { diasEntre, somarDias } from './forma.js';
-import { inicioDaSemana } from './semana.js';
 import { dataIsoValida } from './usuarios.js';
 
 /**
@@ -185,30 +184,6 @@ export function avaliarMetaPeso(meta, pesagens, hoje) {
     ritmoAtualKg: semanalKg,
     agressiva: ritmoNecessarioKg < 0 && (-ritmoNecessarioKg / atual.pesoKg) * 100 > PERDA_MAXIMA_SEMANAL_PCT,
   };
-}
-
-/**
- * Peso e treino por semana (segunda a domingo), da mais recente para a mais antiga: peso médio, carga (HRSS) e
- * calorias dos treinos. Semanas sem nenhum dado entram vazias, para a tabela não "pular" semanas.
- * @param {{ pesagens: any[], dias: Array<{ data: string, estresse: number }>, atividades: any[] }} dados
- */
-export function resumoSemanalDePeso({ pesagens = [], dias = [], atividades = [] }, hoje, semanas = 8) {
-  const linhas = [];
-  for (let i = 0; i < semanas; i++) {
-    const inicio = somarDias(inicioDaSemana(hoje), -7 * i);
-    const fim = somarDias(inicio, 6);
-    const dessa = (x) => x.data >= inicio && x.data <= fim;
-    const pesos = pesagens.filter((p) => dessa(p) && Number.isFinite(p.pesoKg));
-    const kcal = atividades.filter(dessa).reduce((s, a) => s + (Number.isFinite(a.calorias) ? a.calorias : 0), 0);
-    linhas.push({
-      inicio,
-      fim,
-      pesoMedioKg: pesos.length > 0 ? pesos.reduce((s, p) => s + p.pesoKg, 0) / pesos.length : null,
-      cargaHrss: dias.filter(dessa).reduce((s, d) => s + (Number.isFinite(d.estresse) ? d.estresse : 0), 0),
-      kcalTreino: kcal,
-    });
-  }
-  return linhas;
 }
 
 /**

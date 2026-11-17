@@ -74,6 +74,7 @@ export async function gerarSemanaDoUsuario(uid: string, apiKey: string, hoje: st
     estado: ctx?.estado ?? null,
     cargaBase: ctx?.cargaBase,
     feedback: ctx?.feedback as never,
+    bemEstar: ctx?.bemEstar ?? null,
     diasDeTreino: dias,
     diaLongao: entrada.diaLongao,
     horasPorSemana: entrada.horasPorSemana,

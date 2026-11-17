@@ -32,6 +32,8 @@ export * from './progressao.js';
 export * from './ia.js';
 export * from './peso.js';
 export * from './bemEstar.js';
+export * from './treinoCorpo.js';
+export * from './saude.js';
 export * from './medidas.js';
 export * from './recordesAtividades.js';
 export * from './frasesDoTreino.js';

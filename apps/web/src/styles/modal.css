@@ -2125,3 +2125,16 @@
   display: inline-flex;
   color: var(--primary);
 }
+
+/* medidas corporais: registrar e como medir abrem em janela larga, com rolagem própria */
+.modal-medidas {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.modal-medidas .medidas-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

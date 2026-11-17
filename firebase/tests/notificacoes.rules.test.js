@@ -128,6 +128,24 @@ describe('semana montada pela IA (semanaIa e planoIaAutomatico)', () => {
     await assertFails(como('ana').doc('preferencias/ana').set({ userId: 'ana', planoIaAutomatico: 'sim' }));
   });
 
+  it('o dono define a meta diária de passos (inteiro de 1.000 a 50.000)', async () => {
+    await assertSucceeds(como('ana').doc('preferencias/ana').set({ userId: 'ana', metaPassos: 10000 }));
+    await assertFails(como('ana').doc('preferencias/ana').set({ userId: 'ana', metaPassos: 500 }));
+    await assertFails(como('ana').doc('preferencias/ana').set({ userId: 'ana', metaPassos: 8000.5 }));
+    await assertFails(como('ana').doc('preferencias/ana').set({ userId: 'ana', metaPassos: '8000' }));
+  });
+
+  it('passos e sono (bemEstar): o dono lê, ninguém escreve', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc('bemEstar/ana_20261117').set({ userId: 'ana', data: '2026-11-17', passos: 5000, sonoSegundos: 25000 });
+    });
+    await assertSucceeds(como('ana').doc('bemEstar/ana_20261117').get());
+    await assertSucceeds(como('ana').collection('bemEstar').where('userId', '==', 'ana').get());
+    await assertFails(como('beto').doc('bemEstar/ana_20261117').get());
+    await assertFails(como('adm').doc('bemEstar/ana_20261117').get());
+    await assertFails(como('ana').doc('bemEstar/ana_20261118').set({ userId: 'ana', data: '2026-11-18', passos: 1 }));
+  });
+
   it('o tipo semanaIa é aceito nas preferências de notificação', async () => {
     await assertSucceeds(como('ana').doc('preferencias/ana').set({ userId: 'ana', notificacoes: { tipos: { semanaIa: false }, tiposPush: { semanaIa: true } } }));
   });

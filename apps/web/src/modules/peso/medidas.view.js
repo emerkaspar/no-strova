@@ -8,7 +8,7 @@ import { formatarData, formatarNumero } from '../../utils/formatters.js';
 import { criarAbas } from '../../utils/abas.js';
 import { graficoLinha } from '../../utils/graficoLinha.js';
 import { icone } from '../../utils/icones.js';
-import { confirmar } from '../../utils/modal.js';
+import { abrirModal, confirmar } from '../../utils/modal.js';
 import { cartao } from './cartaoIndicador.js';
 import { PERIODOS_DO_PESO } from './graficoPeso.js';
 import { criarGuiaDeMedidas } from './guiaMedidas.js';
@@ -37,6 +37,7 @@ const SERIES_CALCULADAS = Object.freeze([
 export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
   const popovers = criarPopoversDeMedidas();
   let campoDoGrafico = 'cinturaCm';
+  let linhasDoHistorico = 10; // o histórico mostra 10 medições por vez ("Ver mais" traz mais 10)
   let periodoId = '90d';
   let carregou = false;
   let abas = null;
@@ -46,12 +47,11 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
   // ---- painéis
   const painelResumo = h('div', { class: 'medidas-painel' });
   const painelEvolucao = h('div', { class: 'medidas-painel' });
-  const painelRegistro = h('div', { class: 'medidas-painel' });
-  const painelGuia = h('div', { class: 'medidas-painel' });
   const painelHistorico = h('div', { class: 'medidas-painel' });
 
-  const irParaRegistro = () => abas.selecionar('registrar');
-  const irParaGuia = () => abas.selecionar('como-medir');
+  // registrar e "como medir" abrem em janela (as abas ficam só com resumo, evolução e histórico)
+  const irParaRegistro = () => abrirRegistro();
+  const irParaGuia = (campoId = null) => abrirGuia(campoId);
 
   // ---- resumo
   function nota(valor, bomSeCair) {
@@ -67,7 +67,7 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
         painelResumo,
         estadoVazio(carregou ? 'Nenhuma medição ainda. Meça com a fita e registre para acompanhar a evolução além do peso.' : 'Carregando…'),
         carregou
-          ? h('div', { class: 'medidas-acoes' }, h('button', { class: 'btn', type: 'button', onClick: irParaGuia }, 'Ver como medir'), h('button', { class: 'btn btn-secundario', type: 'button', onClick: irParaRegistro }, 'Registrar medidas'))
+          ? h('div', { class: 'medidas-acoes' }, h('button', { class: 'btn', type: 'button', onClick: () => irParaGuia() }, 'Ver como medir'), h('button', { class: 'btn btn-secundario', type: 'button', onClick: () => irParaRegistro() }, 'Registrar medidas'))
           : null,
       );
       return;
@@ -272,10 +272,7 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
         type: 'button',
         'aria-label': `Como medir: ${m.rotulo}`,
         title: 'Como medir',
-        onClick: () => {
-          irParaGuia();
-          document.getElementById(`medidas-guia-${m.campo}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        },
+        onClick: () => irParaGuia(m.campo),
       },
       icone('info', 14),
     );
@@ -299,7 +296,7 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
           for (const [nome, input] of campos) entrada[nome] = input.value;
           await salvarMedidas({ uid: sessao.uid, entrada, hoje });
           for (const input of campos.values()) input.value = '';
-          msgRegistro.mostrar('Medidas registradas.', 'ok');
+          fecharRegistro?.(true);
         });
       },
     },
@@ -320,10 +317,52 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
     }
   }
 
-  montar(painelRegistro, formRegistro, msgRegistro.el);
-
-  // ---- como medir
-  montar(painelGuia, criarGuiaDeMedidas({ aoAbrirRegistro: irParaRegistro }));
+  // ---- janelas: registrar medidas e como medir
+  let registroAberto = false;
+  let fecharRegistro = null;
+  function abrirRegistro() {
+    if (registroAberto) return;
+    registroAberto = true;
+    msgRegistro.limpar();
+    atualizarPlaceholders();
+    abrirModal({
+      classe: 'modal-medidas',
+      rotulo: 'Registrar medidas',
+      conteudo: (fechar) => {
+        fecharRegistro = fechar;
+        return h(
+          'div',
+          { class: 'medidas-modal' },
+          h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Registrar medidas'), h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onClick: () => fechar(undefined) }, 'Fechar')),
+          formRegistro,
+          msgRegistro.el,
+        );
+      },
+    }).then(() => {
+      registroAberto = false;
+      fecharRegistro = null;
+    });
+  }
+  function abrirGuia(campoId = null) {
+    return abrirModal({
+      classe: 'modal-medidas',
+      rotulo: 'Como medir',
+      conteudo: (fechar) => {
+        if (campoId) setTimeout(() => document.getElementById(`medidas-guia-${campoId}`)?.scrollIntoView({ block: 'center' }), 60);
+        return h(
+          'div',
+          { class: 'medidas-modal' },
+          h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Como medir'), h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onClick: () => fechar(undefined) }, 'Fechar')),
+          criarGuiaDeMedidas({
+            aoAbrirRegistro: () => {
+              fechar(undefined);
+              setTimeout(abrirRegistro, 200);
+            },
+          }),
+        );
+      },
+    });
+  }
 
   // ---- histórico
   function desenharHistorico() {
@@ -342,7 +381,7 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
               h(
                 'tbody',
                 null,
-                ...lista.slice(0, 60).map((r) =>
+                ...lista.slice(0, linhasDoHistorico).map((r) =>
                   h(
                     'tr',
                     null,
@@ -376,19 +415,30 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
                 ),
               ),
             ),
-            lista.length > 60 ? h('p', { class: 'texto-secundario' }, `Mostrando as 60 mais recentes de ${lista.length}.`) : null,
+            lista.length > linhasDoHistorico
+              ? h(
+                  'button',
+                  {
+                    class: 'btn btn-secundario btn-pequeno',
+                    type: 'button',
+                    onClick: () => {
+                      linhasDoHistorico += 10;
+                      desenharHistorico();
+                    },
+                  },
+                  `Ver mais 10 (mostrando ${linhasDoHistorico} de ${lista.length})`,
+                )
+              : null,
           ),
     );
   }
 
   abas = criarAbas({
-    chave: 'peso-medidas',
+    chave: 'saude-medidas',
     rotuloAria: 'Medidas corporais',
     abas: [
       { id: 'resumo', nome: 'Resumo', icone: 'perfil', painel: painelResumo },
       { id: 'evolucao', nome: 'Evolução', icone: 'atividades', painel: painelEvolucao },
-      { id: 'registrar', nome: 'Registrar', icone: 'lapis', painel: painelRegistro },
-      { id: 'como-medir', nome: 'Como medir', icone: 'regua', painel: painelGuia },
       { id: 'historico', nome: 'Histórico', icone: 'calendario', painel: painelHistorico },
     ],
   });
@@ -396,7 +446,12 @@ export function criarSecaoMedidas({ sessao, dados, hoje, perfil, erroGeral }) {
   const el = h(
     'section',
     { class: 'card medidas-cartao' },
-    h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Medidas corporais')),
+    h(
+      'div',
+      { class: 'bloco-topo' },
+      h('h2', { class: 'titulo-bloco' }, 'Medidas corporais'),
+      h('div', { class: 'bloco-acoes' }, h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onClick: () => irParaGuia() }, 'Como medir'), h('button', { class: 'btn btn-pequeno', type: 'button', onClick: () => irParaRegistro() }, 'Registrar medidas')),
+    ),
     h('p', { class: 'texto-secundario' }, 'O peso sozinho não mostra se você perde gordura ou ganha músculo. Com a fita métrica e a balança, o app estima a gordura e a massa magra e mostra a evolução das medidas.'),
     abas.lista,
     ...abas.paineis,
