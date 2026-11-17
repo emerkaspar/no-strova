@@ -5277,27 +5277,8 @@ textarea {
   margin: 16px 0;
 }
 
-.prog-corpo {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 28px;
-  align-items: start;
-}
-
-.prog-grafico {
-  min-width: 0;
-}
-
-.prog-grafico .prog-chips {
-  margin-bottom: 8px;
-}
-
-.prog-lateral {
-  min-width: 0;
-}
-
-/* a tabela rola dentro do cartão em vez de vazar quando a coluna é estreita */
-.prog-lateral .tabela-rolavel {
+/* a tabela rola dentro do bloco em vez de vazar quando a tela é estreita */
+.an-bloco .tabela-rolavel {
   max-width: 100%;
   overflow-x: auto;
 }
@@ -5448,12 +5429,6 @@ textarea {
 
 .prog-form .campo[hidden] {
   display: none;
-}
-
-@media (max-width: 1100px) {
-  .prog-corpo {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* cores dos períodos comparados (o primeiro é o período em foco) */
@@ -5926,7 +5901,7 @@ textarea {
   margin: 0;
 }
 
-/* Painel de Desempenho (EF, batimentos por km, ritmo em FC fixa, desacoplamento, VDOT e RPE) */
+/* Painel de Desempenho (veredito, antes × agora, velocidade na mesma FC, desacoplamento, VDOT e RPE) */
 .dp-cartoes {
   margin: 4px 0 16px;
 }
@@ -5934,6 +5909,126 @@ textarea {
 .dp-titulo-grafico {
   margin: 24px 0 0;
   font-size: 1rem;
+}
+
+.dp-painel .ef-veredito {
+  margin-top: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-light);
+}
+
+.dp-painel .ef-veredito-numero small {
+  display: inline;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+/* Antes × agora: duas barras proporcionais por linha */
+.dp-comp-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dp-comp-linha {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.dp-comp-titulo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.dp-comp-titulo span {
+  font-size: 0.75rem;
+}
+
+.dp-comp-barras {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dp-comp-barra {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.dp-comp-rotulo {
+  color: var(--text-secondary);
+}
+
+.dp-comp-valor {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-comp-trilho {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-light);
+  overflow: hidden;
+}
+
+.dp-comp-enchimento {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.dp-comp-antes {
+  background: var(--text-secondary);
+  opacity: 0.55;
+}
+
+.dp-comp-agora {
+  background: var(--primary);
+}
+
+.dp-comp-melhor .dp-comp-agora {
+  background: var(--traj-melhor);
+}
+
+.dp-comp-pior .dp-comp-agora {
+  background: var(--traj-pior);
+}
+
+.dp-comp-delta {
+  min-width: 64px;
+  text-align: right;
+  font-size: 1rem;
+}
+
+.dp-comp-melhor .dp-comp-delta {
+  color: var(--traj-melhor);
+}
+
+.dp-comp-pior .dp-comp-delta {
+  color: var(--traj-pior);
+}
+
+@media (max-width: 767px) {
+  .dp-comp-linha {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dp-comp-barras {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 .dp-linha {
@@ -6005,6 +6100,92 @@ textarea {
   border-right: 5px solid transparent;
   border-top: 6px solid var(--c-marcador);
 }
+
+/* indicadores do cartão do objetivo: ritmo necessário e projeção do fim do período */
+.obj-indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.obj-ind {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.obj-ind-rotulo {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.obj-ind strong {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.obj-ind-nota {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.obj-ind-ok strong,
+.obj-ind-ok .obj-ind-nota {
+  color: var(--success);
+}
+
+.obj-ind-alerta strong,
+.obj-ind-alerta .obj-ind-nota {
+  color: var(--danger);
+}
+
+/* valor esperado até hoje: o pino fica só na altura da barra e o valor vai numa etiqueta logo abaixo */
+.obj-trilho-com-rotulo {
+  padding-bottom: 30px;
+}
+
+.obj-trilho-com-rotulo .obj-marcador {
+  bottom: auto;
+  height: 18px;
+}
+
+.obj-marcador-rotulo {
+  position: absolute;
+  top: 22px;
+  padding: 1px 9px;
+  transform: translateX(-50%);
+  color: var(--c-marcador, var(--text-secondary));
+  background: color-mix(in srgb, var(--c-marcador, var(--text-secondary)) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--c-marcador, var(--text-secondary)) 45%, transparent);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.obj-marcador-rotulo-esq {
+  transform: none;
+  margin-left: -10px;
+}
+
+.obj-marcador-rotulo-dir {
+  transform: translateX(-100%);
+  margin-left: 10px;
+}
+
+.obj-marcador-rotulo-atrasado { --c-marcador: var(--danger); }
+.obj-marcador-rotulo-adiantado { --c-marcador: var(--success); }
+.obj-marcador-rotulo-perto { --c-marcador: var(--serie-vel); }
 
 .obj-marcador-atrasado { --c-marcador: var(--danger); }
 .obj-marcador-adiantado { --c-marcador: var(--success); }

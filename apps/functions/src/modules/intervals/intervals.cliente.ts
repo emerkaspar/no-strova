@@ -143,6 +143,36 @@ export async function listarAtividades(
     .sort((a, b) => (a.inicio === b.inicio ? a.id.localeCompare(b.id) : a.inicio.localeCompare(b.inicio)));
 }
 
+/** Bem-estar de um dia no intervals.icu (Garmin, Huawei Health etc.): só passos e sono; null quando o dia não traz o dado. */
+export interface BemEstarDia {
+  /** Dia local, YYYY-MM-DD. */
+  data: string;
+  passos: number | null;
+  /** Tempo de sono em segundos. */
+  sonoSegundos: number | null;
+}
+
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Lê um item de `GET /athlete/0/wellness` (o `id` é a data). Descarta item sem data ou sem passos e sono (valores 0 viram null). */
+export function lerBemEstar(item: unknown): BemEstarDia | null {
+  if (typeof item !== "object" || item === null) return null;
+  const o = item as Record<string, unknown>;
+  const data = typeof o.id === "string" ? o.id.slice(0, 10) : "";
+  if (!DATA_ISO.test(data)) return null;
+  const positivo = (v: unknown, maximo: number): number | null => (typeof v === "number" && Number.isFinite(v) && v > 0 && v <= maximo ? Math.round(v) : null);
+  const passos = positivo(o.steps, 200_000);
+  const sonoSegundos = positivo(o.sleepSecs, 24 * 3600);
+  return passos === null && sonoSegundos === null ? null : { data, passos, sonoSegundos };
+}
+
+/** Passos e sono do período (datas locais YYYY-MM-DD), dos dias que trazem algum dos dois. */
+export async function listarBemEstar(chave: string, periodo: { de: string; ate: string }, requisitor: Requisitor = requisitorPadrao): Promise<BemEstarDia[]> {
+  const consulta = new URLSearchParams({ oldest: periodo.de, newest: periodo.ate });
+  const dados = await chamar(chave, "GET", `/athlete/0/wellness?${consulta}`, undefined, requisitor);
+  return (Array.isArray(dados) ? dados : []).map(lerBemEstar).filter((d): d is BemEstarDia => d !== null);
+}
+
 /**
  * Arquivo original da atividade (`GET /activity/{id}/file`), já descompactado se vier em gzip.
  * @returns o conteúdo, ou null quando o intervals.icu não tem arquivo dela (404/422)

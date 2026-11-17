@@ -278,6 +278,73 @@ export function avaliarObjetivo({ meta, periodo: instancia = null, atividades, c
   return { ...base, estado, atual, percentual, faltam: Math.max(0, meta.valorAlvo - atual), esperadoHoje, diasRestantes };
 }
 
+/** Unidade em que o ritmo necessário é mostrado: o ano em meses, o mês em semanas e a semana em dias (`dias` = dias da unidade). */
+export const UNIDADE_DO_RITMO = Object.freeze({
+  ano: Object.freeze({ dias: 365 / 12, nome: 'mês', fim: 'do ano' }),
+  mes: Object.freeze({ dias: 7, nome: 'semana', fim: 'do mês' }),
+  semana: Object.freeze({ dias: 1, nome: 'dia', fim: 'da semana' }),
+});
+
+/**
+ * Indicadores de um objetivo em andamento, para mostrar no cartão sem abrir os detalhes: o ritmo necessário para fechar a meta
+ * (na unidade de `UNIDADE_DO_RITMO`) e a projeção do fim do período mantendo o ritmo médio até agora. Só vale para métricas
+ * acumuladas (o Condicionamento não tem ritmo) e para períodos em andamento.
+ * @param {{ tipo: string, valorAlvo: number }} meta
+ * @param {ReturnType<typeof avaliarObjetivo>} av
+ * @returns {null | { ritmoNecessario: number|null, unidade: string, projecaoFim: number|null, periodoRotuloFim: string }}
+ */
+export function indicadoresDoObjetivo(meta, av) {
+  if (!TIPOS_DE_PROGRESSAO[meta.tipo]?.acumulado) return null;
+  if (!['adiantado', 'no-ritmo', 'atrasado'].includes(av.estado) || !Number.isFinite(av.atual)) return null;
+  const unidade = UNIDADE_DO_RITMO[av.periodo.tipo];
+  const corte = Math.max(1, av.periodo.dias - av.diasRestantes);
+  const minimo = av.periodo.tipo === 'ano' ? 7 : 2;
+  return {
+    ritmoNecessario: av.diasRestantes > 0 ? (av.faltam / av.diasRestantes) * unidade.dias : null,
+    unidade: unidade.nome,
+    projecaoFim: corte >= minimo && corte < av.periodo.dias ? (av.atual / corte) * av.periodo.dias : null,
+    periodoRotuloFim: unidade.fim,
+  };
+}
+
+/**
+ * Os últimos períodos de um objetivo, do mais antigo ao atual, para o histórico no cartão. Metas de semana e de mês: a última
+ * instância da meta e os períodos anteriores a ela; os que vieram antes da meta começar (`antes`) são medidos contra o alvo
+ * atual, só para dar referência. Meta do ano: o ano da meta e os anteriores, pela mesma métrica e pelos mesmos esportes
+ * (mostra se aquele ano teria batido a meta de hoje).
+ * @returns {Array<{ periodo: ReturnType<typeof periodoDe>, valor: number|null, percentual: number|null, estado: 'atingido'|'nao-atingido'|'em-andamento', atual: boolean, antes: boolean }>}
+ */
+export function periodosRecentesDaMeta({ meta, atividades, condicionamentoPorData = new Map(), hoje, quantos = 3 }) {
+  const juntar = (periodo, valor) => {
+    const atual = periodo.fim >= hoje;
+    const atingido = Number.isFinite(valor) && valor >= meta.valorAlvo;
+    return {
+      periodo,
+      valor: Number.isFinite(valor) ? valor : null,
+      percentual: Number.isFinite(valor) && meta.valorAlvo > 0 ? Math.min(100, (valor / meta.valorAlvo) * 100) : null,
+      estado: atingido ? 'atingido' : atual ? 'em-andamento' : 'nao-atingido',
+      atual,
+      antes: periodo.inicio < meta.inicio,
+    };
+  };
+  if (ehRecorrente(meta)) {
+    const ultimo = instanciasDaMeta(meta, hoje).slice(-1)[0] ?? periodoDe(meta.periodo, hoje);
+    return [...periodosAnteriores(ultimo, quantos - 1).reverse(), ultimo].map((periodo) => {
+      const av = avaliarObjetivo({ meta, periodo, atividades, condicionamentoPorData, hoje });
+      return juntar(periodo, av.atual);
+    });
+  }
+  const ano = Number(periodoDe('ano', meta.inicio).inicio.slice(0, 4));
+  const anos = [];
+  for (let a = ano - (quantos - 1); a <= ano; a++) anos.push(periodoDe('ano', `${a}-01-01`));
+  return anos.map((periodo) => {
+    const corte = diaDeCorte(periodo, hoje);
+    if (corte === 0) return juntar(periodo, null);
+    const serie = serieDoPeriodo({ periodo, tipo: meta.tipo, atividades, esportes: meta.esportes ?? [], condicionamentoPorData, hoje });
+    return juntar(periodo, serie.valores[corte - 1]);
+  });
+}
+
 /**
  * Estado de uma meta hoje: a instância atual (ou a última, se a meta já foi encerrada) e o histórico das anteriores.
  * Nas metas recorrentes, "atingidas" conta quantos períodos já terminaram ou estão atingidos.
@@ -300,5 +367,6 @@ export function resumoDaMeta({ meta, atividades, condicionamentoPorData = new Ma
     atingidas: avaliacoes.filter((a) => a.estado === 'atingido').length,
     naoAtingidas: avaliacoes.filter((a) => a.estado === 'nao-atingido').length,
     sequencia,
+    recentes: periodosRecentesDaMeta({ meta, atividades, condicionamentoPorData, hoje }),
   };
 }

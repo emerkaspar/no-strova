@@ -45,6 +45,12 @@ export const intervalsSincronizarAtividades = onCall(
   },
 );
 
+/** Traz passos e sono dos últimos dias (para a tela Saúde); a rotina diária faz o mesmo. */
+export const intervalsSincronizarBemEstar = onCall({ region: REGIAO, timeoutSeconds: 60, secrets: [GARMIN_CHAVE_CRIPTO] }, async (request) => {
+  const { uid } = await exigirAcesso(request);
+  return servico.sincronizarBemEstarManual(uid, GARMIN_CHAVE_CRIPTO.value());
+});
+
 /** Tempo máximo para começar usuários novos: a função tem 540 s, e o resto é folga para terminar o que estiver em andamento. */
 const ORCAMENTO_DA_ROTINA_MS = 420_000;
 

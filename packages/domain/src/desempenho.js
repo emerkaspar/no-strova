@@ -187,16 +187,25 @@ export function resumoDeDesempenho(pontos, { hoje, dias = JANELA_EFICIENCIA_DIAS
 }
 
 /**
+ * FC de referência: a mediana da FC média dos treinos comparáveis dos últimos 180 dias (arredondada).
+ * @returns {number|null} null com menos de 3 treinos
+ */
+export function fcDeReferencia(pontos, hoje) {
+  const base = noIntervalo(pontos, somarDias(hoje, -180), hoje);
+  if (base.length < 3) return null;
+  const ordenadas = base.map((p) => p.fcMedia).sort((a, b) => a - b);
+  const m = Math.floor(ordenadas.length / 2);
+  return Math.round(ordenadas.length % 2 ? ordenadas[m] : (ordenadas[m - 1] + ordenadas[m]) / 2);
+}
+
+/**
  * Ritmo em FC fixa: a FC "de referência" é a mediana da FC média dos treinos comparáveis (últimos 180 dias); a banda vai de
  * −`banda` a +`banda` bpm. Compara a velocidade média dos treinos dentro da banda na janela recente × anterior.
  * @returns {object|null} null com menos de 3 treinos para achar a referência
  */
 export function ritmoEmFcFixa(pontos, { hoje, dias = 60, banda = 5 }) {
-  const base = noIntervalo(pontos, somarDias(hoje, -180), hoje);
-  if (base.length < 3) return null;
-  const ordenadas = base.map((p) => p.fcMedia).sort((a, b) => a - b);
-  const m = Math.floor(ordenadas.length / 2);
-  const centro = Math.round(ordenadas.length % 2 ? ordenadas[m] : (ordenadas[m - 1] + ordenadas[m]) / 2);
+  const centro = fcDeReferencia(pontos, hoje);
+  if (centro === null) return null;
   const naBanda = pontos.filter((p) => Math.abs(p.fcMedia - centro) <= banda);
   const recenteDe = somarDias(hoje, -(dias - 1));
   const anteriorDe = somarDias(recenteDe, -dias);

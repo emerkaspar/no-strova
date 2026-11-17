@@ -29,7 +29,7 @@ const MENU = [
   { caminho: '#/progressao', rotulo: 'Progressão', icone: 'progressao' },
   { caminho: '#/recordes', rotulo: 'Recordes', icone: 'esporte' },
   { caminho: '#/treinos', rotulo: 'Treinos', icone: 'treinos' },
-  { caminho: '#/peso', rotulo: 'Peso', icone: 'peso' },
+  { caminho: '#/peso', rotulo: 'Saúde', icone: 'peso' },
   { caminho: '#/configuracao', rotulo: 'Configuração', icone: 'configuracao', soIcone: true },
 ];
 

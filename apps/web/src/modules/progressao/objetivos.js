@@ -1,4 +1,4 @@
-import { ehRecorrente, periodoDe, PERIODOS_DE_PROGRESSAO, resumoDaMeta, TIPOS_DE_PROGRESSAO } from '@no-strova/domain';
+import { ehRecorrente, indicadoresDoObjetivo, periodoDe, PERIODOS_DE_PROGRESSAO, resumoDaMeta, TIPOS_DE_PROGRESSAO } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarData, formatarNumero } from '../../utils/formatters.js';
 import { icone } from '../../utils/icones.js';
@@ -6,7 +6,7 @@ import { icone } from '../../utils/icones.js';
 const ESPORTES = { ciclismo: 'Ciclismo', corrida: 'Corrida', outro: 'Outros' };
 const ORDEM_DOS_PERIODOS = ['semana', 'mes', 'ano'];
 const TITULO_DO_GRUPO = Object.freeze({ semana: 'Objetivos da semana', mes: 'Objetivos do mês', ano: 'Objetivos do ano' });
-const ROTULO_ESTADO = Object.freeze({
+export const ROTULO_ESTADO = Object.freeze({
   atingido: 'Objetivo atingido',
   adiantado: 'Adiantado',
   'no-ritmo': 'No ritmo',
@@ -111,6 +111,63 @@ export function marcadorDoEsperado(meta, av) {
   return { posicao, cor, diferenca };
 }
 
+/**
+ * Nós do marcador do esperado: o pino sobre a barra e, logo abaixo dele, o valor esperado até hoje ("esperado 227 km").
+ * Perto das pontas o texto se alinha à borda para não vazar do cartão.
+ */
+export function nosDoMarcador(meta, av, marcador) {
+  if (!marcador) return [];
+  const borda = marcador.posicao < 14 ? ' obj-marcador-rotulo-esq' : marcador.posicao > 86 ? ' obj-marcador-rotulo-dir' : '';
+  const texto = `esperado ${formatarMetrica(meta.tipo, av.esperadoHoje)}`;
+  return [
+    h('span', { class: `obj-marcador obj-marcador-${marcador.cor}`, style: `left:${marcador.posicao}%`, title: `Esperado até hoje: ${formatarMetrica(meta.tipo, av.esperadoHoje)}`, 'aria-hidden': 'true' }),
+    h('span', { class: `obj-marcador-rotulo obj-marcador-rotulo-${marcador.cor}${borda}`, style: `left:${marcador.posicao}%`, 'aria-hidden': 'true' }, texto),
+  ];
+}
+
+/**
+ * Os principais indicadores de um objetivo em andamento, direto no cartão: o ritmo necessário para fechar a meta (por dia, semana
+ * ou mês, conforme o período) e a projeção do fim do período, comparada com a meta. Null quando não há o que mostrar.
+ */
+export function indicadoresDoCartao(meta, av) {
+  const ind = indicadoresDoObjetivo(meta, av);
+  if (!ind || (ind.ritmoNecessario === null && ind.projecaoFim === null)) return null;
+  const item = (rotulo, valor, nota, tom = '') =>
+    h('div', { class: `obj-ind${tom ? ` obj-ind-${tom}` : ''}` }, h('span', { class: 'obj-ind-rotulo' }, rotulo), h('strong', null, valor), nota ? h('span', { class: 'obj-ind-nota' }, nota) : null);
+  const itens = [];
+  if (ind.ritmoNecessario !== null) itens.push(item('Ritmo necessário', formatarMetrica(meta.tipo, ind.ritmoNecessario), `por ${ind.unidade}`));
+  if (ind.projecaoFim !== null) {
+    const diferenca = ind.projecaoFim - meta.valorAlvo;
+    const nota = Math.abs(diferenca) < 0.5 ? 'na meta' : `${formatarMetrica(meta.tipo, Math.abs(diferenca))} ${diferenca > 0 ? 'acima' : 'abaixo'} da meta`;
+    itens.push(item(`Projeção do fim ${ind.periodoRotuloFim}`, formatarMetrica(meta.tipo, ind.projecaoFim), nota, diferenca >= 0 ? 'ok' : 'alerta'));
+  }
+  return h('div', { class: 'obj-indicadores' }, itens);
+}
+
+/**
+ * Histórico curto no topo do cartão: os últimos 3 períodos do objetivo (semanas, meses ou anos) com o percentual e a cor do
+ * resultado. O período em andamento vem com o contorno de destaque. Null sem histórico (cartão compacto da Início).
+ */
+export function historicoDoCartao(meta, resumo) {
+  const lista = resumo.recentes;
+  if (!Array.isArray(lista) || lista.length === 0) return null;
+  const plural = { semana: 'semanas', mes: 'meses', ano: 'anos' }[meta.periodo];
+  return h(
+    'div',
+    { class: 'obj-recentes', role: 'group', 'aria-label': `Últimos ${plural}` },
+    lista.map((r) => {
+      const pct = r.percentual === null ? '—' : `${Math.round(r.percentual)}%`;
+      const situacao = { atingido: 'atingido', 'nao-atingido': 'não atingido', 'em-andamento': 'em andamento' }[r.estado];
+      return h(
+        'span',
+        { class: `an-instancia an-instancia-${r.estado === 'em-andamento' ? 'andamento' : r.estado}${r.atual ? ' an-instancia-foco' : ''}${r.antes && meta.periodo !== 'ano' ? ' an-instancia-antes' : ''}`, title: `${r.periodo.rotulo}: ${situacao}${r.valor === null ? '' : ` (${formatarMetrica(meta.tipo, r.valor)} de ${formatarMetrica(meta.tipo, meta.valorAlvo)})`}${r.antes && meta.periodo !== 'ano' ? ' · antes da meta começar' : ''}` },
+        h('span', { class: 'an-instancia-rotulo' }, r.periodo.rotulo.replace(/^Semana de /, '')),
+        h('strong', null, pct),
+      );
+    }),
+  );
+}
+
 /** Cartão de um objetivo (o mesmo na Progressão e na Início). `resumo.instancias` = 0 esconde o histórico das metas recorrentes. */
 export function cartaoDoObjetivo(meta, resumo, encerrada, selecionado, aoSelecionar, compacto = false, acoes = null) {
   const av = resumo.atual;
@@ -124,7 +181,7 @@ export function cartaoDoObjetivo(meta, resumo, encerrada, selecionado, aoSelecio
         ? `Começa em ${formatarData(av.periodo.inicio)}`
         : av.estado === 'nao-atingido'
           ? `Terminou com ${formatarMetrica(meta.tipo, av.atual)} (${pct}%)`
-          : `Faltam ${formatarMetrica(meta.tipo, av.faltam)} · ${av.diasRestantes} ${av.diasRestantes === 1 ? 'dia' : 'dias'} · esperado até hoje: ${formatarMetrica(meta.tipo, av.esperadoHoje)}`;
+          : `Faltam ${formatarMetrica(meta.tipo, av.faltam)} · ${av.diasRestantes} ${av.diasRestantes === 1 ? 'dia' : 'dias'}${marcadorDoEsperado(meta, av) ? '' : ` · esperado até hoje: ${formatarMetrica(meta.tipo, av.esperadoHoje)}`}`;
   // histórico das metas recorrentes: quantos períodos já renderam badge
   const historico = recorrente && resumo.instancias > 0
     ? `${resumo.atingidas} de ${resumo.instancias} ${periodo.plural} atingid${meta.periodo === 'mes' ? 'o' : 'a'}${resumo.atingidas === 1 ? '' : 's'}${resumo.sequencia > 1 ? ` · ${resumo.sequencia} seguid${meta.periodo === 'mes' ? 'os' : 'as'}` : ''}`
@@ -134,12 +191,13 @@ export function cartaoDoObjetivo(meta, resumo, encerrada, selecionado, aoSelecio
   const marcador = marcadorDoEsperado(meta, av);
   const botao = h(
     'button',
-    { class: `obj-cartao obj-${av.estado}${selecionado ? ' obj-selecionado' : ''}${encerrada ? ' obj-encerrada' : ''}`, type: 'button', 'aria-pressed': String(selecionado), title: 'Ver no gráfico' },
+    { class: `obj-cartao obj-${av.estado}${selecionado ? ' obj-selecionado' : ''}${encerrada ? ' obj-encerrada' : ''}`, type: 'button', 'aria-pressed': String(selecionado), title: 'Ver detalhes do objetivo' },
     h(
       'div',
       { class: 'obj-topo' },
       medalha(meta.periodo, av.estado === 'atingido' || resumo.atingidas > 0),
       compacto ? tituloCompacto(meta, quando, av.periodo.rotulo) : h('div', { class: 'obj-titulo' }, h('strong', null, nomeDoObjetivo(meta)), h('span', { class: 'texto-secundario' }, quando)),
+      compacto ? null : historicoDoCartao(meta, resumo),
       h('span', { class: `obj-estado obj-estado-${av.estado}` }, ROTULO_ESTADO[av.estado]),
     ),
     h(
@@ -151,13 +209,12 @@ export function cartaoDoObjetivo(meta, resumo, encerrada, selecionado, aoSelecio
     ),
     h(
       'div',
-      { class: 'obj-trilho' },
+      { class: `obj-trilho${marcador ? ' obj-trilho-com-rotulo' : ''}` },
       h('div', { class: 'obj-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct), 'aria-label': `Progresso do objetivo ${nomeDoObjetivo(meta)}` }, h('span', { style: `width:${pct}%` })),
-      marcador
-        ? h('span', { class: `obj-marcador obj-marcador-${marcador.cor}`, style: `left:${marcador.posicao}%`, title: `Esperado até hoje: ${formatarMetrica(meta.tipo, av.esperadoHoje)}`, 'aria-hidden': 'true' })
-        : null,
+      ...nosDoMarcador(meta, av, marcador),
     ),
     h('div', { class: 'texto-secundario obj-detalhe' }, detalhe),
+    indicadoresDoCartao(meta, av),
     historico ? h('div', { class: 'obj-historico' }, historico) : null,
   );
   botao.addEventListener('click', () => aoSelecionar(meta));

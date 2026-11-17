@@ -177,6 +177,20 @@
       ]
     },
     {
+      "collectionGroup": "bemEstar",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "metasPeso",
       "queryScope": "COLLECTION",
       "fields": [

@@ -13,6 +13,7 @@ import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js
 import { cartao } from './cartaoIndicador.js';
 import { criarGraficoPeso, PERIODOS_DO_PESO } from './graficoPeso.js';
 import { criarSecaoMedidas } from './medidas.view.js';
+import { criarSecaoPassosSono } from './passosSono.js';
 
 const DIAS_DE_TREINO = 70;
 
@@ -89,6 +90,7 @@ export function render(raiz, sessao) {
     const vigente = configVigenteEm(dados.configs, hoje) ?? dados.configs[dados.configs.length - 1] ?? null;
     return vigente?.sexo ?? null;
   };
+  const passosSono = criarSecaoPassosSono({ sessao, hoje });
   const medidas = criarSecaoMedidas({ sessao, dados, hoje, perfil: () => ({ sexo: sexo(), alturaCm: alturaCm() }), erroGeral });
 
   // ---- registro de pesagem
@@ -353,7 +355,7 @@ export function render(raiz, sessao) {
     h(
       'div',
       { class: 'ativ-pagina' },
-      paginaTopo({ icone: 'peso', titulo: 'Peso', subtitulo: 'Registre o peso, acompanhe a tendência e cruze com a carga de treino.' }),
+      paginaTopo({ icone: 'peso', titulo: 'Saúde', subtitulo: 'Peso, medidas, passos e sono: acompanhe a tendência e cruze com a carga de treino.' }),
       erroGeral.el,
       h('section', { class: 'card' }, h('div', { class: 'bloco-topo' }, h('h2', { class: 'titulo-bloco' }, 'Registrar peso')), formRegistro, msgRegistro.el),
       tiles,
@@ -361,6 +363,7 @@ export function render(raiz, sessao) {
       metaCartao,
       semanalCartao,
       historicoCartao,
+      passosSono.el,
       medidas.el,
     ),
   );
@@ -425,5 +428,6 @@ export function render(raiz, sessao) {
   return () => {
     cancelar.forEach((fn) => fn());
     medidas.fechar();
+    passosSono.fechar();
   };
 }

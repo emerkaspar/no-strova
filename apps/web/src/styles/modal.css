@@ -1911,3 +1911,217 @@
 .rt-periodo-linha .rt-delta-sobe {
   --serie: var(--success);
 }
+
+/* ---------- modal do objetivo (Progressão): situação, histórico, filtros, cartões, gráfico e tabela ---------- */
+.modal-objetivo {
+  width: min(1040px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 24px 28px 28px;
+  overflow-y: auto;
+}
+
+.obj-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.obj-modal-topo {
+  position: sticky;
+  top: -24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -24px -28px 0;
+  padding: 20px 28px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.obj-modal-titulo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.obj-modal-titulo h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.obj-modal-resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.obj-modal-resumo .obj-valores strong {
+  font-size: 2rem;
+}
+
+.prog-analise-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.prog-analise-modal .prog-controles {
+  margin: 8px 0 0;
+}
+
+.prog-analise-modal .prog-cartoes {
+  margin: 0;
+}
+
+.an-bloco {
+  min-width: 0;
+  padding: 18px 20px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.an-bloco h3,
+.an-instancias h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.an-bloco .prog-chips {
+  margin: 10px 0 8px;
+}
+
+.an-grafico-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.an-aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+/* faixa de períodos do objetivo: um botão por semana ou mês, colorido pelo resultado */
+.an-instancias-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.an-instancias-lista {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 6px;
+  overflow-x: auto;
+}
+
+.an-instancia {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 68px;
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.an-instancia strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.an-instancia-atingido {
+  border-color: var(--success);
+}
+
+.an-instancia-atingido strong {
+  color: var(--success);
+}
+
+.an-instancia-nao-atingido strong {
+  color: var(--danger);
+}
+
+.an-instancia-foco {
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+@media (max-width: 767px) {
+  .modal-objetivo {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: auto 0 0;
+    padding: 16px 16px 24px;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .obj-modal-topo {
+    top: -16px;
+    margin: -16px -16px 0;
+    padding: 16px;
+    flex-wrap: wrap;
+  }
+}
+
+/* histórico dos últimos períodos no topo do cartão do objetivo (mesmas pastilhas da faixa do modal) */
+.obj-recentes {
+  display: flex;
+  gap: 8px;
+}
+
+.obj-recentes .an-instancia {
+  min-width: 62px;
+  padding: 6px 10px;
+  cursor: inherit;
+}
+
+@media (max-width: 767px) {
+  .obj-topo:has(.obj-recentes) {
+    flex-wrap: wrap;
+  }
+
+  .obj-recentes {
+    order: 10;
+    flex-basis: 100%;
+  }
+}
+
+/* período anterior à meta: só referência, por isso mais discreto */
+.obj-recentes .an-instancia-antes {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.obj-icone-comparar {
+  display: inline-flex;
+  color: var(--primary);
+}

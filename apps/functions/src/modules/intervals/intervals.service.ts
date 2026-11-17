@@ -17,6 +17,7 @@ import {
   identificarArquivo,
   IntervalsErroApi,
   listarAtividades,
+  listarBemEstar,
   obterAtleta,
   obterLthr,
   type Requisitor,
@@ -377,6 +378,8 @@ export async function sincronizarUsuario(uid: string, segredo: string, requisito
     inicio = r.proximo;
     if (r.terminou) break;
   }
+  // passos e sono são complementares: se falharem, a sincronização das atividades não é prejudicada
+  await sincronizarBemEstar(uid, segredo, DIAS_BEM_ESTAR, requisitor).catch((err) => logger.warn("Falha ao sincronizar passos e sono", { uid, erro: String(err) }));
   await docConexao(uid).set(
     {
       ultimaAutomaticaEm: FieldValue.serverTimestamp(),
@@ -385,6 +388,55 @@ export async function sincronizarUsuario(uid: string, segredo: string, requisito
     { merge: true },
   );
   return totais;
+}
+
+/** Dias de passos e sono que cada sincronização traz (hoje e os anteriores): cobre dias que o relógio sincronizou com atraso. */
+export const DIAS_BEM_ESTAR = 14;
+const MAXIMO_DIAS_BEM_ESTAR = 90;
+
+/** Id do documento de bem-estar de um dia: um por usuário e dia, então sincronizar de novo substitui. */
+export const idDoBemEstar = (uid: string, data: string) => `${uid}_${data.replaceAll("-", "")}`;
+
+/**
+ * Traz passos e sono dos últimos dias do intervals.icu e grava em `bemEstar/{uid}_{yyyymmdd}` (só o Admin SDK escreve; o dono lê).
+ * Dia sem os dois dados não vira documento. Quem não tem relógio que envie bem-estar ao intervals.icu simplesmente recebe 0 dias.
+ * @returns quantos dias foram gravados
+ */
+export async function sincronizarBemEstar(uid: string, segredo: string, dias: number = DIAS_BEM_ESTAR, requisitor?: Requisitor): Promise<{ dias: number }> {
+  const quantos = Math.min(Math.max(Math.trunc(dias), 1), MAXIMO_DIAS_BEM_ESTAR);
+  const chave = await chaveDoUsuario(uid, segredo);
+  const ate = diaNoFuso(Date.now());
+  let lista;
+  try {
+    lista = await listarBemEstar(chave, { de: somarDias(ate, -(quantos - 1)), ate }, requisitor);
+  } catch (erro) {
+    throw traduzirErro(erro);
+  }
+  // só grava o que mudou: ler custa menos que escrever, e a maioria dos dias já está igual ao que o intervals.icu devolve
+  const refs = lista.map((d) => db.doc(`bemEstar/${idDoBemEstar(uid, d.data)}`));
+  const atuais = refs.length > 0 ? await db.getAll(...refs) : [];
+  const mudaram = lista.filter((d, i) => atuais[i].get("passos") !== d.passos || atuais[i].get("sonoSegundos") !== d.sonoSegundos || !atuais[i].exists);
+  if (mudaram.length > 0) {
+    const lote = db.batch(); // no máximo 90 dias, bem abaixo do limite de 500 operações por lote
+    for (const d of mudaram) {
+      lote.set(db.doc(`bemEstar/${idDoBemEstar(uid, d.data)}`), { userId: uid, data: d.data, passos: d.passos, sonoSegundos: d.sonoSegundos, atualizadoEm: FieldValue.serverTimestamp() });
+    }
+    await lote.commit();
+  }
+  await docConexao(uid).set({ ultimoBemEstarEm: Timestamp.now() }, { merge: true });
+  return { dias: lista.length };
+}
+
+/** Intervalo mínimo entre dois "Atualizar" do mesmo usuário (a rotina diária não passa por este limite, mas conta como uma sincronização). */
+export const INTERVALO_MINIMO_BEM_ESTAR_MS = 5 * 60 * 1000;
+
+/** "Atualizar" da tela Saúde: igual à sincronização, mas recusa pedidos a menos de 5 minutos da última. */
+export async function sincronizarBemEstarManual(uid: string, segredo: string, requisitor?: Requisitor): Promise<{ dias: number }> {
+  const ultima = (await docConexao(uid).get()).get("ultimoBemEstarEm");
+  if (ultima instanceof Timestamp && Date.now() - ultima.toMillis() < INTERVALO_MINIMO_BEM_ESTAR_MS) {
+    throw new HttpsError("resource-exhausted", "Passos e sono foram atualizados há pouco. Tente de novo em alguns minutos.");
+  }
+  return sincronizarBemEstar(uid, segredo, DIAS_BEM_ESTAR, requisitor);
 }
 
 const MSG_SEM_TREINOS = "Não há treinos planejados nesse período para enviar.";

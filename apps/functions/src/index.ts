@@ -12,7 +12,7 @@ export {
 export { painelAdesao } from "./modules/adesao/adesao.functions";
 export { ajustarTrechoDaAtividade, definirRotaDoTrajeto } from "./modules/atividades/trajetos.functions";
 export { garminConectar, garminDesconectar, garminSincronizar, garminSituacao } from "./modules/garmin/garmin.functions";
-export { intervalsAtualizarLthr, intervalsConectar, intervalsDesconectar, enviarTreinosIntervalsDiario, intervalsEnviarTreinos, intervalsLthr, intervalsSincronizarAtividades, intervalsSituacao, sincronizarIntervalsDiario } from "./modules/intervals/intervals.functions";
+export { intervalsAtualizarLthr, intervalsConectar, intervalsDesconectar, enviarTreinosIntervalsDiario, intervalsEnviarTreinos, intervalsLthr, intervalsSincronizarAtividades, intervalsSincronizarBemEstar, intervalsSituacao, sincronizarIntervalsDiario } from "./modules/intervals/intervals.functions";
 export { obterUrlAvatar } from "./modules/perfil/perfil.functions";
 export { reconstruirCalibracao } from "./modules/calibracao/calibracao.functions";
 export { limparArquivosOrfaos } from "./modules/atividades/orfaos.functions";

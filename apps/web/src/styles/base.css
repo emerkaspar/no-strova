@@ -18,6 +18,9 @@
   --primary-contrast: #0a0a0a; /* texto sobre botão primário: preto */
   --danger: #f87171;
   --success: #4ade80;
+  --ciano: #22d3ee; /* destaque secundário (ações de análise) */
+  --ciano-hover: #67e8f9;
+  --ciano-contrast: #06222a;
   /* séries do gráfico da atividade */
   --serie-alt: #4ade80;
   --serie-fc: #f87171;
@@ -46,6 +49,9 @@
   --primary-contrast: #ffffff;
   --danger: #b91c1c;
   --success: #15803d;
+  --ciano: #0e7490;
+  --ciano-hover: #155e75;
+  --ciano-contrast: #ffffff;
   --serie-alt: #15803d;
   --serie-fc: #c62828;
   --serie-vel: #1d4ed8;
@@ -247,6 +253,18 @@ a:focus-visible {
 .btn-secundario:hover:not(:disabled) {
   background: var(--surface-light);
   border-color: var(--text-secondary);
+}
+
+.btn-ciano {
+  background: var(--ciano);
+  color: var(--ciano-contrast);
+  border-color: var(--ciano);
+  font-weight: 700;
+}
+
+.btn-ciano:hover:not(:disabled) {
+  background: var(--ciano-hover);
+  border-color: var(--ciano-hover);
 }
 
 .btn-perigo {

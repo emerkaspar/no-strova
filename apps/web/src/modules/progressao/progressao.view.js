@@ -1,31 +1,16 @@
-import {
-  calcularSerieForma,
-  compararProgressao,
-  dataDoDiaDoPeriodo,
-  ehRecorrente,
-  instanciasDaMeta,
-  metaVale,
-  diaDoPeriodo,
-  PERIODOS_DE_PROGRESSAO,
-  periodoDe,
-  periodosAnteriores,
-  serieDoPeriodo,
-  TIPOS_DE_PROGRESSAO,
-  valorEsperadoDaMeta,
-} from '@no-strova/domain';
+import { calcularSerieForma, ehRecorrente, PERIODOS_DE_PROGRESSAO, periodoDe, TIPOS_DE_PROGRESSAO } from '@no-strova/domain';
 import { editarMeta, encerrarMetaDeProgressao, salvarMetaDeProgressao } from '../../application/progressao.js';
 import { observarAtividadesParaProgressao } from '../../infrastructure/atividadesRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { excluirMetaProgressao, observarMetasProgressao } from '../../infrastructure/metasProgressaoRepo.js';
 import { areaMensagem, executarComBotao } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
+import { icone } from '../../utils/icones.js';
 import { paginaTopo } from '../../utils/paginaTopo.js';
-import { seletor } from '../../utils/listaSuspensa.js';
-import { estadoVazio } from '../../utils/estadoVazio.js';
-import { formatarData, formatarNumero, hojeIso } from '../../utils/formatters.js';
-import { cartaoIndicador } from './cartaoIndicador.js';
+import { formatarNumero, hojeIso } from '../../utils/formatters.js';
+import { ESPORTES, estadoInicialDaAnalise } from './analise.js';
 import { criarPainelDesempenho } from './desempenho.js';
-import { graficoProgressao } from './graficoProgressao.js';
+import { abrirComparacao, abrirObjetivo } from './objetivoModal.js';
 import { painelDeObjetivos } from './objetivos.js';
 import { consumirMetaPedida } from './state.js';
 import { abrirModal, confirmar } from '../../utils/modal.js';
@@ -33,105 +18,29 @@ import { criarCartaoZonas } from './zonas.js';
 import { criarBlocoProjecao } from './projecaoPlano.js';
 
 const ANOS_DE_HISTORICO = 5;
-const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const DIAS_DA_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-const ESPORTES = [
-  ['ciclismo', 'Ciclismo'],
-  ['corrida', 'Corrida'],
-  ['outro', 'Outros'],
-];
-const ROTULO_ESTADO = Object.freeze({ atingida: 'Meta atingida', adiantada: 'Adiantada', 'no-ritmo': 'No ritmo', atrasada: 'Atrasada', 'sem-dados': 'Sem dados' });
-const GRAVIDADE_ESTADO = Object.freeze({ atingida: 'ok', adiantada: 'ok', 'no-ritmo': 'ok', atrasada: 'alerta' });
-const dois = (n) => String(n).padStart(2, '0');
 
 /** Seções da página, na ordem em que aparecem; a barra de abas no topo leva a elas (como no Plano). */
 const SECOES = [
   { id: 'projecao', rotulo: 'Projeção' },
   { id: 'objetivos', rotulo: 'Objetivos' },
-  { id: 'analise', rotulo: 'Análise' },
   { id: 'desempenho', rotulo: 'Desempenho' },
   { id: 'zonas', rotulo: 'Zonas' },
 ];
-
-/** Número com a unidade da métrica ("1.234 km", "12,5 h", "86,3"). */
-function formatarValor(tipo, v, { unidade = true } = {}) {
-  const cfg = TIPOS_DE_PROGRESSAO[tipo];
-  if (v === null || v === undefined || !Number.isFinite(v)) return '—';
-  const texto = formatarNumero(v, cfg.casas);
-  return unidade && cfg.unidade ? `${texto} ${cfg.unidade}` : texto;
-}
-
-const comSinal = (tipo, v) => {
-  if (v === null || v === undefined || !Number.isFinite(v)) return '—';
-  const cfg = TIPOS_DE_PROGRESSAO[tipo];
-  return `${v > 0 ? '+' : v < 0 ? '−' : ''}${formatarNumero(Math.abs(v), cfg.casas)}${cfg.unidade ? ` ${cfg.unidade}` : ''}`;
-};
-
-/** Rótulo enxuto de um período para a tabela: "Semana de 02/11" vira "02/11". */
-const rotuloCurto = (periodo) => periodo.rotulo.replace(/^Semana de /, '');
-
-/** Marcas do eixo X conforme o tipo de período. */
-function marcadoresDo(periodo) {
-  if (periodo.tipo === 'ano') {
-    const ano = periodo.inicio.slice(0, 4);
-    return MESES.map((rotulo, i) => ({ n: diaDoPeriodo(periodo, `${ano}-${dois(i + 1)}-01`), rotulo }));
-  }
-  if (periodo.tipo === 'mes') return [1, 5, 10, 15, 20, 25, 30].filter((n) => n <= periodo.dias).map((n) => ({ n, rotulo: String(n) }));
-  return DIAS_DA_SEMANA.map((rotulo, i) => ({ n: i + 1, rotulo }));
-}
-
-function rotuloDoPonto(periodo, n) {
-  const data = dataDoDiaDoPeriodo(periodo, n);
-  return periodo.tipo === 'semana' ? `${DIAS_DA_SEMANA[n - 1]}, ${formatarData(data)}` : formatarData(data);
-}
 
 export function render(raiz, sessao, params = {}) {
   const hoje = hojeIso();
   const anoHoje = Number(hoje.slice(0, 4));
   const dados = { atividades: [], dias: [], metas: [] };
   const carregou = { atividades: false, dias: false, metas: false };
-  let metaPedida = consumirMetaPedida(); // objetivo clicado na Início: abre já selecionado
-  let rolarAoDesenhar = false;
+  let objetivoParaAbrir = consumirMetaPedida(); // objetivo clicado na Início: abre o modal assim que os dados chegarem
   let secaoInicial = SECOES.some((x) => x.id === params.secao) ? params.secao : null; // rola até ela quando os dados chegarem
   let secaoVisivel = SECOES[0].id;
   let observador = null;
-  const estado = {
-    periodo: 'ano',
-    tipo: 'distancia',
-    esportes: new Set(),
-    metaId: null,
-    referenciaInicio: null, // início do período em foco quando vem de uma meta; null = o período atual
-    escolhidos: null, // ids dos períodos anteriores marcados no gráfico; null = padrão
-    formAberto: false,
-    metaPendente: null, // id da meta recém-criada, selecionada quando o listener a trouxer
-  };
-  let grafico = null;
+  // o formulário de meta parte do período, da métrica e dos esportes iniciais
+  const estado = { ...estadoInicialDaAnalise(), formAberto: false };
   const mensagem = areaMensagem();
   // criado uma vez: tem os próprios listeners e sobrevive aos redesenhos da página
   const blocoProjecao = criarBlocoProjecao({ uid: sessao.uid, hoje });
-
-  const metaSelecionada = () => dados.metas.find((m) => m.id === estado.metaId) ?? null;
-  const referencia = () => periodoDe(estado.periodo, estado.referenciaInicio ?? hoje);
-  const padraoDeAnteriores = () => (estado.periodo === 'ano' ? 2 : 3);
-
-  function limparGrafico() {
-    grafico?.destruir();
-    grafico = null;
-  }
-
-  function aplicarMeta(meta) {
-    estado.metaId = meta?.id ?? null;
-    if (!meta) {
-      estado.referenciaInicio = null;
-      estado.escolhidos = null;
-      return;
-    }
-    estado.periodo = meta.periodo;
-    estado.tipo = meta.tipo;
-    estado.esportes = new Set(meta.esportes ?? []);
-    estado.referenciaInicio = ehRecorrente(meta) ? (instanciasDaMeta(meta, hoje).slice(-1)[0]?.inicio ?? null) : meta.inicio;
-    estado.escolhidos = null;
-  }
 
   // ---- abas: a barra fixa leva às seções e destaca a que está na tela; a URL acompanha, sem recarregar ----
   const secaoEl = (id) => document.getElementById(`prog-${id}`);
@@ -177,67 +86,11 @@ export function render(raiz, sessao, params = {}) {
   }
 
   function desenhar() {
-    limparGrafico();
     if (!carregou.atividades || !carregou.dias || !carregou.metas) {
       raiz.replaceChildren(h('section', { class: 'card' }, h('h1', null, 'Progressão'), h('p', { class: 'vazio', role: 'status' }, 'Carregando…')));
       return;
     }
-    const cfg = TIPOS_DE_PROGRESSAO[estado.tipo];
-    const ref = referencia();
-    const candidatos = [ref, ...periodosAnteriores(ref, 5)];
-    const ids = estado.escolhidos ?? new Set(candidatos.slice(0, 1 + padraoDeAnteriores()).map((p) => p.id));
-    const mostrados = candidatos.filter((p) => p.id === ref.id || ids.has(p.id));
-
     const condicionamentoPorData = new Map(calcularSerieForma(dados.dias, { ate: hoje }).map((d) => [d.data, d.fitness]));
-    const esportes = [...estado.esportes];
-    const series = mostrados.map((periodo) => serieDoPeriodo({ periodo, tipo: estado.tipo, atividades: dados.atividades, esportes, condicionamentoPorData, hoje }));
-    const meta = metaSelecionada();
-    const metaDoPeriodo = meta && metaVale(meta, ref) ? meta : null;
-    const comp = compararProgressao({ series, referencia: ref, hoje, tipo: estado.tipo, meta: metaDoPeriodo });
-    const serieRef = series.find((s) => s.periodo.id === ref.id);
-
-    // ---- controles
-    const segmentos = h(
-      'div',
-      { class: 'prog-segmentos', role: 'group', 'aria-label': 'Período' },
-      Object.entries(PERIODOS_DE_PROGRESSAO).map(([id, p]) => {
-        const botao = h('button', { class: 'prog-segmento', type: 'button', 'aria-pressed': String(estado.periodo === id) }, p.rotulo);
-        botao.addEventListener('click', () => {
-          if (estado.periodo === id) return;
-          estado.periodo = id;
-          estado.referenciaInicio = null;
-          estado.escolhidos = null;
-          estado.metaId = null;
-          desenhar();
-        });
-        return botao;
-      }),
-    );
-
-    const seletorTipo = seletor({ id: 'prog-tipo', rotulo: 'Tipo de progresso', opcoes: Object.entries(TIPOS_DE_PROGRESSAO).map(([id, t]) => ({ valor: id, rotulo: t.rotulo })), valor: estado.tipo });
-    seletorTipo.addEventListener('change', () => {
-      estado.tipo = seletorTipo.value;
-      if (estado.tipo === 'condicionamento') estado.esportes = new Set();
-      estado.metaId = null;
-      desenhar();
-    });
-
-    const chipsEsporte = TIPOS_DE_PROGRESSAO[estado.tipo].acumulado
-      ? h(
-          'div',
-          { class: 'prog-chips', role: 'group', 'aria-label': 'Esportes' },
-          ESPORTES.map(([id, rotulo]) => {
-            const botao = h('button', { class: 'prog-chip', type: 'button', 'aria-pressed': String(estado.esportes.has(id)) }, rotulo);
-            botao.addEventListener('click', () => {
-              if (estado.esportes.has(id)) estado.esportes.delete(id);
-              else estado.esportes.add(id);
-              estado.metaId = null;
-              desenhar();
-            });
-            return botao;
-          }),
-        )
-      : h('span', { class: 'texto-secundario' }, 'Considera todos os esportes');
 
     // "Nova meta" fica no cabeçalho de Objetivos; editar, encerrar e excluir ficam em cada cartão de objetivo.
     const botaoNova = h('button', { class: estado.formAberto ? 'btn btn-secundario' : 'btn', type: 'button', 'aria-expanded': String(estado.formAberto) }, estado.formAberto ? 'Fechar' : '+ Nova meta');
@@ -245,6 +98,9 @@ export function render(raiz, sessao, params = {}) {
       estado.formAberto = !estado.formAberto;
       desenhar();
     });
+    // a análise livre (sem objetivo): compara o acumulado de períodos, métricas e esportes à escolha
+    const botaoComparar = h('button', { class: 'btn btn-ciano', type: 'button' }, icone('atividades', 16), ' Comparar períodos');
+    botaoComparar.addEventListener('click', () => abrirComparacao({ dados, hoje }));
     const acoesDoObjetivo = {
       editar: (m) =>
         abrirModal({ classe: 'modal-meta', rotulo: 'Editar meta', conteudo: (fechar) => formularioDeMeta(m, fechar) }),
@@ -262,117 +118,11 @@ export function render(raiz, sessao, params = {}) {
         mensagem.limpar();
         try {
           await excluirMetaProgressao(m.id);
-          if (estado.metaId === m.id) estado.metaId = null;
         } catch (err) {
           mensagem.mostrar(err.message || 'Não foi possível excluir a meta.');
         }
       },
     };
-
-    const controles = h(
-      'div',
-      { class: 'prog-controles' },
-      h('div', { class: 'prog-controle' }, h('span', { class: 'prog-rotulo' }, 'Período'), segmentos),
-      h('div', { class: 'prog-controle' }, h('label', { class: 'prog-rotulo', for: 'prog-tipo' }, 'Tipo de progresso'), seletorTipo),
-      h('div', { class: 'prog-controle' }, h('span', { class: 'prog-rotulo' }, 'Esportes'), chipsEsporte),
-    );
-
-    // ---- cartões de resumo
-    const valorRef = comp.linhas.find((l) => l.periodo.id === ref.id)?.valor ?? null;
-    const porSemana = ref.tipo === 'ano';
-    const cartoes = [
-      cartaoIndicador({ rotulo: cfg.acumulado ? `Acumulado · ${ref.rotulo}` : `Condicionamento · ${ref.rotulo}`, nomeIcone: 'atividades', valor: formatarValor(estado.tipo, valorRef), nota: `até ${formatarData(hoje <= ref.fim ? hoje : ref.fim)}` }),
-    ];
-    if (comp.meta) {
-      const m = comp.meta;
-      cartoes.push(
-        cartaoIndicador({ rotulo: 'Meta', nomeIcone: 'esporte', valor: formatarValor(estado.tipo, m.valorAlvo), nota: m.percentual === null ? null : `${formatarNumero(m.percentual, 0)}% concluída` }),
-        cartaoIndicador({ rotulo: 'Situação', nomeIcone: 'hrss', valor: ROTULO_ESTADO[m.estado], gravidade: GRAVIDADE_ESTADO[m.estado] ?? '', nota: `esperado até hoje: ${formatarValor(estado.tipo, m.esperadoHoje)}` }),
-        cartaoIndicador({ rotulo: 'Faltam', nomeIcone: 'distancia', valor: formatarValor(estado.tipo, m.faltam) }),
-      );
-      if (m.ritmoNecessarioPorDia !== null) {
-        const ritmo = porSemana ? m.ritmoNecessarioPorDia * 7 : m.ritmoNecessarioPorDia;
-        cartoes.push(cartaoIndicador({ rotulo: `Ritmo necessário`, nomeIcone: 'duracao', valor: `${formatarValor(estado.tipo, ritmo)}`, nota: porSemana ? 'por semana, até o fim do ano' : `por dia, até o fim d${ref.tipo === 'mes' ? 'o mês' : 'a semana'}` }));
-      }
-    }
-    if (comp.projecaoFim !== null) {
-      cartoes.push(cartaoIndicador({ rotulo: `Projeção do fim d${ref.tipo === 'ano' ? 'o ano' : ref.tipo === 'mes' ? 'o mês' : 'a semana'}`, nomeIcone: 'elevacao', valor: formatarValor(estado.tipo, comp.projecaoFim), nota: 'mantendo o ritmo médio até agora' }));
-    }
-    const anterior = comp.linhas.length > 1 ? comp.linhas.filter((l) => l.periodo.inicio < ref.inicio).slice(-1)[0] : null;
-    if (anterior && !comp.meta) {
-      cartoes.push(cartaoIndicador({ rotulo: `No mesmo ponto em ${anterior.periodo.rotulo}`, nomeIcone: 'plano', valor: formatarValor(estado.tipo, anterior.valor), nota: valorRef === null || anterior.valor === null ? null : `${comSinal(estado.tipo, valorRef - anterior.valor)} em relação a ${anterior.periodo.rotulo}` }));
-    }
-
-    // ---- períodos comparados (chips) e gráfico
-    const chipsPeriodos = h(
-      'div',
-      { class: 'prog-chips', role: 'group', 'aria-label': PERIODOS_DE_PROGRESSAO[ref.tipo].anteriores },
-      candidatos.map((p) => {
-        const i = mostrados.findIndex((x) => x.id === p.id);
-        const marcado = p.id === ref.id || ids.has(p.id);
-        const botao = h(
-          'button',
-          { class: `prog-chip${marcado ? ` gp-ano-${i % 5}` : ''}`, type: 'button', 'aria-pressed': String(marcado), disabled: p.id === ref.id, title: p.id === ref.id ? 'Período em foco' : 'Mostrar ou ocultar no gráfico' },
-          marcado ? h('i', { class: 'prog-chip-ponto' }) : null,
-          p.rotulo,
-        );
-        botao.addEventListener('click', () => {
-          const novo = new Set(ids);
-          if (novo.has(p.id)) novo.delete(p.id);
-          else novo.add(p.id);
-          estado.escolhidos = novo;
-          desenhar();
-        });
-        return botao;
-      }),
-    );
-
-    const projecao = comp.projecaoFim !== null && valorRef !== null ? { n0: comp.corte, v0: valorRef, n1: ref.dias, v1: comp.projecaoFim } : null;
-    grafico = graficoProgressao({
-      series: series.map((s) => ({ rotulo: s.periodo.rotulo, valores: s.valores, indice: mostrados.findIndex((p) => p.id === s.periodo.id) })),
-      total: ref.dias,
-      marcadores: marcadoresDo(ref),
-      rotuloDoPonto: (n) => rotuloDoPonto(ref, n),
-      acumulado: cfg.acumulado,
-      meta: metaDoPeriodo ? { valorAlvo: metaDoPeriodo.valorAlvo, esperado: (n) => valorEsperadoDaMeta(metaDoPeriodo, ref, serieRef, n) } : null,
-      projecao,
-      corte: comp.corte,
-      formatar: (v) => formatarValor(estado.tipo, v),
-      formatarEixo: (v) => formatarValor(estado.tipo, v, { unidade: false }),
-    });
-
-    // ---- tabela de comparação
-    const colunaRef = `Δ com ${rotuloCurto(ref)}`;
-    const classeDelta = (v) => (v === null ? '' : v > 0 ? 'prog-delta-pos' : v < 0 ? 'prog-delta-neg' : '');
-    const tabela = h(
-      'div',
-      { class: 'tabela-rolavel' },
-      h(
-        'table',
-        { class: 'prog-tabela' },
-        h('thead', null, h('tr', null, h('th', null, ref.tipo === 'semana' ? 'Semana de' : PERIODOS_DE_PROGRESSAO[ref.tipo].rotulo), h('th', null, 'Valor'), h('th', null, 'Δ anterior'), h('th', null, colunaRef), comp.meta ? h('th', null, 'Δ com a meta') : null)),
-        h(
-          'tbody',
-          null,
-          [...comp.linhas].reverse().map((l) => {
-            const i = mostrados.findIndex((p) => p.id === l.periodo.id);
-            return h(
-              'tr',
-              { class: l.periodo.id === ref.id ? 'prog-linha-ref' : '' },
-              h('td', { class: `gp-ano-${i % 5} prog-periodo`, title: l.periodo.rotulo }, h('i', { class: 'prog-chip-ponto' }), rotuloCurto(l.periodo)),
-              h('td', null, formatarValor(estado.tipo, l.valor)),
-              h('td', { class: classeDelta(l.deltaAnterior) }, comSinal(estado.tipo, l.deltaAnterior)),
-              h('td', { class: classeDelta(l.deltaReferencia) }, l.periodo.id === ref.id ? 'ø' : comSinal(estado.tipo, l.deltaReferencia)),
-              comp.meta ? h('td', { class: classeDelta(l.deltaMeta) }, comSinal(estado.tipo, l.deltaMeta)) : null,
-            );
-          }),
-        ),
-      ),
-    );
-
-    const temDados = series.some((s) => s.valores.some((v) => Number.isFinite(v) && v > 0));
-    const nomeDoPeriodo = ref.tipo === 'semana' ? ref.rotulo : `${PERIODOS_DE_PROGRESSAO[ref.tipo].rotulo.toLowerCase()} ${ref.rotulo}`;
-    const tituloGrafico = `${cfg.rotulo}${cfg.acumulado ? ' acumulada' : ''} · ${nomeDoPeriodo}${comp.meta ? ` · meta ${formatarValor(estado.tipo, comp.meta.valorAlvo)}` : ''}`;
 
     const secao = (id, ...filhos) => h('div', { class: 'prog-secao', id: `prog-${id}` }, ...filhos);
     raiz.replaceChildren(
@@ -387,36 +137,20 @@ export function render(raiz, sessao, params = {}) {
           h(
             'section',
             { class: 'card' },
-            h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Objetivos'), botaoNova),
+            h('div', { class: 'prog-secao-topo' }, h('h2', null, 'Objetivos'), h('div', { class: 'linha-botoes' }, botaoComparar, botaoNova)),
             estado.formAberto ? formularioDeMeta() : null,
             painelDeObjetivos({
               metas: dados.metas,
               atividades: dados.atividades,
               condicionamentoPorData,
               hoje,
-              selecionadaId: estado.metaId,
+              selecionadaId: null,
               acoes: acoesDoObjetivo,
-              aoSelecionar: (m) => {
-                aplicarMeta(m);
-                desenhar();
-                raiz.querySelector('.prog-analise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              },
+              // o objetivo abre em um modal, com a análise dele (gráficos, comparativos e filtros)
+              aoSelecionar: (m) => abrirObjetivo({ meta: m, dados, hoje, acoes: acoesDoObjetivo }),
             }),
             mensagem.el,
           ),
-        ),
-        secao(
-          'analise',
-          h('section', { class: 'card prog-analise' }, h('h2', null, 'Análise por período'), controles),
-          h('div', { class: 'ativ-recordes-grade ativ-indicadores prog-cartoes' }, cartoes),
-          temDados || !cfg.acumulado
-            ? h(
-                'section',
-                { class: 'card prog-corpo' },
-                h('div', { class: 'prog-grafico' }, h('h2', null, tituloGrafico), chipsPeriodos, grafico.el),
-                h('div', { class: 'prog-lateral' }, h('h2', null, `${formatarData(ref.inicio).slice(0, 5)} → ${formatarData(hoje <= ref.fim ? hoje : ref.fim).slice(0, 5)}`), tabela),
-              )
-            : h('section', { class: 'card' }, estadoVazio('Nenhuma atividade encontrada neste período com os filtros escolhidos.')),
         ),
         secao('desempenho', criarPainelDesempenho({ atividades: dados.atividades, hoje })),
         secao('zonas', criarCartaoZonas({ atividades: dados.atividades, hoje })),
@@ -424,14 +158,16 @@ export function render(raiz, sessao, params = {}) {
     );
     observarSecoes();
     // rota de uma seção (#/progressao/desempenho): só rola quando os dados chegaram, para a página já ter a altura final
-    if (secaoInicial && !rolarAoDesenhar) {
+    if (secaoInicial) {
       const id = secaoInicial;
       secaoInicial = null;
       requestAnimationFrame(() => irParaSecao(id, 'auto'));
     }
-    if (rolarAoDesenhar && raiz.querySelector('.prog-corpo')) {
-      rolarAoDesenhar = false;
-      raiz.querySelector('.prog-corpo').scrollIntoView({ block: 'start' });
+    // objetivo pedido pela Início: abre o modal uma única vez
+    if (objetivoParaAbrir) {
+      const meta = dados.metas.find((m) => m.id === objetivoParaAbrir);
+      objetivoParaAbrir = null;
+      if (meta) abrirObjetivo({ meta, dados, hoje, acoes: acoesDoObjetivo });
     }
   }
 
@@ -517,27 +253,15 @@ export function render(raiz, sessao, params = {}) {
         if (editando) {
           const tipoNovo = tipo.valor();
           const esportesNovos = TIPOS_DE_PROGRESSAO[tipoNovo].acumulado ? [...escolhidos] : [];
-          const id = await editarMeta({ uid: sessao.uid, meta: metaEdicao, metas: dados.metas, valorAlvo: valor.value, tipo: tipoNovo, esportes: esportesNovos, hoje });
-          // se o objetivo editado era o que está no gráfico, o gráfico acompanha a mudança
-          if (estado.metaId === metaEdicao.id) {
-            if (id !== metaEdicao.id) estado.metaPendente = id; // nova vigência: seleciona quando o listener a trouxer
-            else {
-              estado.tipo = tipoNovo;
-              estado.esportes = new Set(esportesNovos);
-            }
-          }
+          await editarMeta({ uid: sessao.uid, meta: metaEdicao, metas: dados.metas, valorAlvo: valor.value, tipo: tipoNovo, esportes: esportesNovos, hoje });
           fecharModal?.(true);
           desenhar();
           return;
         }
         // ano: o ano escolhido; semana e mês: a vigência começa no período atual
         const inicio = periodo.valor() === 'ano' ? `${ano.value}-01-01` : hoje;
-        const id = await salvarMetaDeProgressao({ uid: sessao.uid, metas: dados.metas, hoje, entrada: { periodo: periodo.valor(), inicio, tipo: tipo.valor(), valorAlvo: valor.value, esportes: [...escolhidos] } });
+        await salvarMetaDeProgressao({ uid: sessao.uid, metas: dados.metas, hoje, entrada: { periodo: periodo.valor(), inicio, tipo: tipo.valor(), valorAlvo: valor.value, esportes: [...escolhidos] } });
         estado.formAberto = false;
-        // a meta nova chega pelo listener; guarda o id para selecioná-la assim que aparecer
-        estado.metaPendente = id;
-        const naLista = dados.metas.find((m) => m.id === id);
-        if (naLista) aplicarMeta(naLista);
         desenhar();
       });
     });
@@ -573,22 +297,6 @@ export function render(raiz, sessao, params = {}) {
       (lista) => {
         dados.metas = lista;
         carregou.metas = true;
-        if (metaPedida) {
-          const pedida = lista.find((m) => m.id === metaPedida);
-          metaPedida = null;
-          if (pedida) {
-            aplicarMeta(pedida);
-            rolarAoDesenhar = true;
-          }
-        }
-        if (estado.metaPendente) {
-          const nova = lista.find((m) => m.id === estado.metaPendente);
-          if (nova) {
-            aplicarMeta(nova);
-            estado.metaPendente = null;
-          }
-        }
-        if (estado.metaId && !lista.some((m) => m.id === estado.metaId)) aplicarMeta(null);
         desenhar();
       },
       aoErro,
@@ -600,6 +308,5 @@ export function render(raiz, sessao, params = {}) {
     observador?.disconnect();
     cancelar.forEach((fn) => fn());
     blocoProjecao.destruir();
-    limparGrafico();
   };
 }

@@ -225,6 +225,12 @@ service cloud.firestore {
       allow update: if acessoLiberado() && donoDoRegistro() && pesagemValida();
     }
 
+    // Passos e sono de um dia (vindos do intervals.icu): o dono lê; só a sincronização (Admin SDK) grava.
+    match /bemEstar/{id} {
+      allow read: if acessoLiberado() && donoDoRegistro();
+      allow write: if false;
+    }
+
     // Preferências de notificação (dentro de preferencias/{uid}): tipos ligados/desligados e intervalos dos lembretes.
     // Os tipos e os limites espelham TIPOS_NOTIFICACAO e LIMITES_INTERVALO em packages/domain/src/notificacoes.js.
     function tipoNotifOk(t, campo) {
