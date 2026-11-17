@@ -29,6 +29,17 @@ describe('resumoSaude', () => {
     expect(r.passos.pctMeta).toBeCloseTo(((14 * 9000 + 16 * 6000) / 30 / 8000) * 100, 5);
     expect(r.peso).toMatchObject({ atualKg: 91, variacaoKg: -2 });
     expect(r.carga.total).toBe(300);
+    // as séries das mini-linhas trazem a data de cada ponto
+    expect(r.sono.serie[0]).toMatchObject({ data: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), valor: expect.any(Number) });
+    expect(r.peso.serie).toEqual([{ data: '2026-11-15', fim: '2026-11-15', valor: 91 }]);
+    expect(r.carga.granularidade).toBe('dia');
+    expect(r.carga.referenciaPorGrupo).toBeNull(); // sem carga no período anterior
+  });
+
+  it('a carga do período anterior vira a linha de comparação (por dia, semana ou mês)', () => {
+    const r = resumoSaude({ estresse: [{ data: '2026-10-05', estresse: 300 }, { data: '2026-11-10', estresse: 100 }], hoje: HOJE, dias: 30 });
+    expect(r.carga.granularidade).toBe('dia');
+    expect(r.carga.referenciaPorGrupo).toBeCloseTo(300 / 30, 5);
   });
 
   it('sem período anterior quando o período é todo o histórico', () => {

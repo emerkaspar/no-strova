@@ -81,6 +81,25 @@ describe('resumo da saúde', () => {
     r.atualizar(); // redesenhar não pode falhar
   });
 
+  it('cada mini-gráfico tem uma referência para comparar e uma dica ao passar o mouse', () => {
+    const d = dadosDeExemplo();
+    const dados = { pesagens: d.pesagens, bemEstar: d.bemEstar, dias: d.estresse };
+    const r = criarResumoDaSaude({ dados, hoje: HOJE, periodo: () => ({ dias: 60 }), metaPassos: () => 8000, perderPeso: () => true });
+    const blocos = r.el.querySelectorAll('.saude-mini-bloco');
+    expect(blocos).toHaveLength(4);
+    expect(r.el.querySelectorAll('.saude-mini-faixa')).toHaveLength(1); // faixa ideal do sono
+    expect(r.el.querySelectorAll('.saude-mini-ref').length).toBeGreaterThanOrEqual(2); // meta de passos e início do peso
+    expect([...blocos].every((b) => b.querySelector('.saude-mini-legenda'))).toBe(true);
+    const area = r.el.querySelector('.saude-card-sono .saude-mini-area');
+    area.dispatchEvent(new MouseEvent('pointermove', { clientX: 40, bubbles: true }));
+    const dica = area.querySelector('.saude-mini-dica');
+    expect(dica.hidden).toBe(false);
+    expect(dica.textContent).toMatch(/\d{2}\/\d{2}/);
+    expect(dica.textContent).toMatch(/\d h/);
+    area.dispatchEvent(new MouseEvent('pointerleave', { bubbles: true }));
+    expect(dica.hidden).toBe(true);
+  });
+
   it('funciona sem nenhum dado', () => {
     const r = criarResumoDaSaude({ dados: { pesagens: [], bemEstar: [], dias: [] }, hoje: HOJE, periodo: () => ({ dias: null }), metaPassos: () => 8000, perderPeso: () => null });
     expect(r.el.textContent).toContain('Ainda não há dados suficientes');

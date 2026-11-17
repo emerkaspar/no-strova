@@ -40,7 +40,7 @@ export function resumoSaude({ pesagens = [], bemEstar = [], estresse = [], metaP
     data: atual?.data ?? null,
     variacaoKg,
     semanalKg: variacaoKg !== null && semanas >= 1 ? variacaoKg / semanas : null,
-    serie: dentroDoPeriodo.map((p) => p.pesoKg),
+    serie: dentroDoPeriodo.map((p) => ({ data: p.data, fim: p.data, valor: p.pesoKg })),
   };
 
   // ---- sono e passos (médias só dos dias com registro)
@@ -48,13 +48,15 @@ export function resumoSaude({ pesagens = [], bemEstar = [], estresse = [], metaP
   const passos = bemEstar.filter((b) => b.passos > 0);
   const mediaSono = media(sonos.filter(noPeriodo).map((b) => b.sonoSegundos));
   const mediaPassos = media(passos.filter(noPeriodo).map((b) => b.passos));
-  const grupos = agruparTreinoECorpo({ pesagens: [], bemEstar, estresse }, hoje, { dias }).grupos;
+  const { grupos, granularidade } = agruparTreinoECorpo({ pesagens: [], bemEstar, estresse }, hoje, { dias });
+  /** Cada ponto das mini-linhas: o grupo (dia, semana ou mês) com início, fim e valor. */
+  const ponto = (g, valor) => ({ data: g.inicio, fim: g.fim, valor });
   const sono = {
     mediaS: mediaSono,
     noites: sonos.filter(noPeriodo).length,
     anteriorS: media(sonos.filter(noAnterior).map((b) => b.sonoSegundos)),
     faixa: mediaSono === null ? null : faixaDoSono(mediaSono),
-    serie: grupos.map((g) => g.sonoMedioS).filter((v) => v !== null),
+    serie: grupos.filter((g) => g.sonoMedioS !== null).map((g) => ponto(g, g.sonoMedioS)),
   };
   const passosResumo = {
     media: mediaPassos,
@@ -62,7 +64,7 @@ export function resumoSaude({ pesagens = [], bemEstar = [], estresse = [], metaP
     anterior: media(passos.filter(noAnterior).map((b) => b.passos)),
     pctMeta: mediaPassos === null ? null : (mediaPassos / metaPassos) * 100,
     meta: metaPassos,
-    serie: grupos.map((g) => g.passosMedio).filter((v) => v !== null),
+    serie: grupos.filter((g) => g.passosMedio !== null).map((g) => ponto(g, g.passosMedio)),
   };
 
   // ---- carga de treino (HRSS por semana)
@@ -76,7 +78,10 @@ export function resumoSaude({ pesagens = [], bemEstar = [], estresse = [], metaP
     porSemana,
     anteriorPorSemana,
     variacaoPct: anteriorPorSemana ? variacaoPct(porSemana, anteriorPorSemana) : null,
-    serie: grupos.map((g) => g.cargaHrss),
+    // média por ponto (dia, semana ou mês) do período anterior: a linha de comparação da mini-linha
+    referenciaPorGrupo: inicioAnterior === null || totalAnterior <= 0 ? null : totalAnterior / (tamanho / { dia: 1, semana: 7, mes: 30.44 }[granularidade]),
+    granularidade,
+    serie: grupos.map((g) => ponto(g, g.cargaHrss)),
   };
 
   return { dias, inicio, fim: hoje, peso, sono, passos: passosResumo, carga };
