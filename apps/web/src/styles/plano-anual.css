@@ -861,6 +861,14 @@
   font-size: 11px;
 }
 
+.cg-plano .cg-rotulo-fitness {
+  fill: var(--cg-fitness);
+}
+
+.cg-plano .cg-rotulo-fadiga {
+  fill: var(--cg-fadiga);
+}
+
 .cg-plano .cg-titulo-painel {
   fill: var(--pp-tinta);
   font-size: 11px;

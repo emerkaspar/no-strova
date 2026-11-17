@@ -2522,6 +2522,15 @@ textarea {
   letter-spacing: 0.08em;
 }
 
+/* eixos do painel de Condicionamento e Fadiga: cada rótulo na cor da sua linha */
+.cg-rotulo-fitness {
+  fill: var(--cg-fitness);
+}
+
+.cg-rotulo-fadiga {
+  fill: var(--cg-fadiga);
+}
+
 .cg-linha {
   fill: none;
   stroke-linejoin: round;
@@ -2530,12 +2539,12 @@ textarea {
 
 .cg-fitness {
   stroke: var(--cg-fitness);
-  stroke-width: 3;
+  stroke-width: 2;
 }
 
 .cg-fadiga {
   stroke: var(--cg-fadiga);
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .cg-peso {
@@ -2549,7 +2558,7 @@ textarea {
 
 .cg-grad-topo {
   stop-color: var(--cg-fitness);
-  stop-opacity: 0.28;
+  stop-opacity: 0.3;
 }
 
 .cg-grad-base {
@@ -5887,6 +5896,11 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* bloco da projeção: a barra fixa cobre o topo da rolagem, como nas demais seções */
+#prog-projecao {
+  scroll-margin-top: 60px;
 }
 
 .prog-pagina > .card,

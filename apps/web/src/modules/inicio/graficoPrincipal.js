@@ -6,7 +6,7 @@ const NS = 'http://www.w3.org/2000/svg';
 // o Plano ocupa a largura toda do cartão (sem coluna lateral), então o gráfico é mais largo e os textos do SVG ficam no tamanho real
 const L_INICIO = 760;
 const L_PLANO = 1000;
-const MARGEM = { esquerda: 40, direita: 14 };
+const MARGEM = { esquerda: 40, direita: 40 };
 
 /**
  * Posição dos painéis. No Início: condicionamento e fadiga, Forma (com a faixa de atividades acima das barras) e peso.
@@ -17,7 +17,7 @@ function layoutDoModo(plano) {
   // o Plano não tem a coluna de peso nem os ícones, então os painéis ficam mais altos e o gráfico acompanha a coluna lateral
   // (e os painéis ganham mais respiro entre si, para o título de cada um não encostar no gráfico de cima)
   const respiro = plano ? 34 : 28;
-  const cond = { topo: plano ? 24 : 20, alto: plano ? 140 : 170 };
+  const cond = { topo: plano ? 24 : 20, alto: plano ? 170 : 240 };
   const forma = { topo: cond.topo + cond.alto + respiro, alto: (plano ? 105 : 120) + faixa };
   const terceiro = { topo: forma.topo + forma.alto + respiro, alto: plano ? 56 : 90 };
   const fim = terceiro.topo + terceiro.alto;
@@ -30,7 +30,14 @@ function layoutDoModo(plano) {
   };
 }
 const LIMITE_ESCALA_FORMA = 40;
-const PASSOS_CONDICIONAMENTO = [1, 2, 5, 10, 20, 25, 50, 100, 200];
+const PASSOS_CONDICIONAMENTO = [1, 2, 2.5, 5, 10, 15, 20, 25, 30, 40, 50, 100, 200];
+const DIVISOES_CONDICIONAMENTO = 4;
+
+/** Escala "bonita" com 4 divisões iguais: a grade serve ao eixo do Condicionamento e ao da Fadiga ao mesmo tempo. */
+function escalaCondicionamento(maximo) {
+  const passo = PASSOS_CONDICIONAMENTO.find((p) => (maximo * 1.1) / (p * DIVISOES_CONDICIONAMENTO) <= 1) ?? 200;
+  return { passo, topo: passo * DIVISOES_CONDICIONAMENTO };
+}
 const ESCALA_REGUA = { min: -40, max: 40 };
 const LIMITES_REGUA = [25, 5, -10, -30];
 
@@ -281,10 +288,16 @@ export function criarGraficoPrincipal({
     // ---- escalas ----
     // As escalas se ajustam aos dados: com valores baixos, uma escala fixa de 0 a 100 deixaria as linhas coladas no fundo.
     const metaCondNaJanela = plano && metaCondicionamento && metaCondicionamento.dataAlvo >= dias[0].data && metaCondicionamento.dataAlvo <= dias[n - 1].data ? metaCondicionamento : null;
-    const maxCond = Math.max(1, ...dias.flatMap((d) => [d.fitness, d.fadiga]), ...(metaCondNaJanela ? [metaCondNaJanela.condicionamentoAlvo + TOLERANCIA_META_CONDICIONAMENTO] : []));
-    const passoCond = PASSOS_CONDICIONAMENTO.find((p) => (maxCond * 1.1) / p <= 4) ?? 200;
-    const topoCond = Math.ceil((maxCond * 1.1) / passoCond) * passoCond;
+    // Condicionamento (eixo à esquerda) e Fadiga (eixo à direita) têm escalas próprias, com a grade em comum:
+    // a Fadiga sobe e desce bem mais que o Condicionamento, e numa escala só a subida dele ficava achatada.
+    const maxCond = Math.max(1, ...dias.map((d) => d.fitness), ...(metaCondNaJanela ? [metaCondNaJanela.condicionamentoAlvo + TOLERANCIA_META_CONDICIONAMENTO] : []));
+    const maxFadiga = Math.max(1, ...dias.map((d) => d.fadiga));
+    const escalaCond = escalaCondicionamento(maxCond);
+    const escalaFadiga = escalaCondicionamento(maxFadiga);
+    const passoCond = escalaCond.passo;
+    const topoCond = escalaCond.topo;
     const yCond = (v) => PAINEL.cond.topo + (1 - v / topoCond) * PAINEL.cond.alto;
+    const yFadiga = (v) => PAINEL.cond.topo + (1 - v / escalaFadiga.topo) * PAINEL.cond.alto;
     const metaNaJanela = plano && meta && meta.dataAlvo >= dias[0].data && meta.dataAlvo <= dias[n - 1].data ? meta : null;
     // a escala da Forma inclui o alvo e a sua tolerância, para a meta nunca ficar fora do gráfico
     const formas = [...dias.map((d) => d.forma), ...(metaNaJanela ? [metaNaJanela.formaAlvo - TOLERANCIA_META, metaNaJanela.formaAlvo + TOLERANCIA_META] : [])];
@@ -327,12 +340,15 @@ export function criarGraficoPrincipal({
       if (plano) raizSvg.append(svg('text', { x: L - MARGEM.direita, y: PAINEL.cond.topo - 8, 'text-anchor': 'end', class: 'cg-futuro-rotulo' }, 'PROJEÇÃO'));
     }
 
-    // painel 1: grade 0–100 (ou mais, se a fadiga passar)
+    // painel 1: grade comum; rótulos do Condicionamento à esquerda e da Fadiga à direita, cada um na cor da sua linha
     raizSvg.append(svg('text', { x: MARGEM.esquerda, y: PAINEL.cond.topo - 6, class: 'cg-titulo-painel' }, 'CONDICIONAMENTO E FADIGA'));
-    for (let v = 0; v <= topoCond + 1e-9; v += passoCond) {
+    for (let k = 0; k <= DIVISOES_CONDICIONAMENTO; k++) {
+      const vCond = k * passoCond;
+      const vFadiga = k * escalaFadiga.passo;
       raizSvg.append(
-        svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: yCond(v), y2: yCond(v), class: 'cg-grade' }),
-        svg('text', { x: MARGEM.esquerda - 8, y: yCond(v) + 4, 'text-anchor': 'end', class: 'cg-rotulo' }, formatarNumero(v, 0)),
+        svg('line', { x1: MARGEM.esquerda, x2: L - MARGEM.direita, y1: yCond(vCond), y2: yCond(vCond), class: 'cg-grade' }),
+        svg('text', { x: MARGEM.esquerda - 8, y: yCond(vCond) + 4, 'text-anchor': 'end', class: 'cg-rotulo cg-rotulo-fitness' }, formatarNumero(vCond, 0)),
+        svg('text', { x: L - MARGEM.direita + 8, y: yCond(vCond) + 4, 'text-anchor': 'start', class: 'cg-rotulo cg-rotulo-fadiga' }, formatarNumero(vFadiga, 0)),
       );
     }
     const pontos = (campo, y, de, ate) =>
@@ -347,9 +363,9 @@ export function criarGraficoPrincipal({
     );
     const caminhoArea = `M ${px(0).toFixed(1)},${yCond(0)} L ${pontos('fitness', yCond, 0, indiceHoje).replaceAll(' ', ' L ')} L ${px(indiceHoje).toFixed(1)},${yCond(0)} Z`;
     raizSvg.append(defs, svg('path', { d: caminhoArea, fill: `url(#${idGradiente})`, class: 'cg-area' }));
-    for (const campo of ['fadiga', 'fitness']) {
-      raizSvg.append(svg('polyline', { points: pontos(campo, yCond, 0, indiceHoje), class: `cg-linha cg-${campo}` }));
-      if (temFuturo) raizSvg.append(svg('polyline', { points: pontos(campo, yCond, indiceHoje, n - 1), class: `cg-linha cg-${campo} cg-tracejada` }));
+    for (const [campo, y] of [['fadiga', yFadiga], ['fitness', yCond]]) {
+      raizSvg.append(svg('polyline', { points: pontos(campo, y, 0, indiceHoje), class: `cg-linha cg-${campo}` }));
+      if (temFuturo) raizSvg.append(svg('polyline', { points: pontos(campo, y, indiceHoje, n - 1), class: `cg-linha cg-${campo} cg-tracejada` }));
     }
 
     // meta de Condicionamento: faixa de tolerância (±3), linha do alvo desde hoje e o losango na data da meta
@@ -464,7 +480,8 @@ export function criarGraficoPrincipal({
       const iForma = indiceDoMaior((d) => Math.abs(d.forma));
       const limiteCond = (y) => Math.min(yCond(0) - 9, Math.max(PAINEL.cond.topo + 9, y));
       // o selo fica do lado de fora da linha mais alta do dia, para não cobrir a outra linha
-      const lado = (d, campo, outro) => (d[campo] >= d[outro] ? -1 : 1);
+      // (com escalas próprias, a comparação é pela posição na tela, não pelo valor)
+      const lado = (d, campo, outro) => ((campo === 'fadiga' ? yFadiga(d.fadiga) : yCond(d.fitness)) <= (outro === 'fadiga' ? yFadiga(d.fadiga) : yCond(d.fitness)) ? -1 : 1);
       const yFormaMaior = yForma(dias[iForma].forma);
       const ySeloForma = Math.min(PAINEL.forma.topo + PAINEL.forma.alto - 9, Math.max(PAINEL.forma.topo + FAIXA_ATIVIDADES + 9, dias[iForma].forma < 0 ? yFormaMaior + 11 : yFormaMaior - 11));
       destaques.push(
@@ -474,7 +491,7 @@ export function criarGraficoPrincipal({
       );
       raizSvg.append(
         seloDestaque('trofeu', px(iCond), limiteCond(yCond(dias[iCond].fitness) + lado(dias[iCond], 'fitness', 'fadiga') * 12)),
-        seloDestaque('cansaco', px(iFadiga), limiteCond(yCond(dias[iFadiga].fadiga) + lado(dias[iFadiga], 'fadiga', 'fitness') * 12)),
+        seloDestaque('cansaco', px(iFadiga), limiteCond(yFadiga(dias[iFadiga].fadiga) + lado(dias[iFadiga], 'fadiga', 'fitness') * 12)),
         seloDestaque('zonas', px(iForma), ySeloForma),
       );
     }
@@ -665,7 +682,7 @@ export function criarGraficoPrincipal({
       guia.setAttribute('x1', x);
       guia.setAttribute('x2', x);
       guia.setAttribute('visibility', 'visible');
-      for (const [ponto, y] of [[pontoCond, yCond(d.fitness)], [pontoFadiga, yCond(d.fadiga)], [pontoForma, yForma(d.forma)]]) {
+      for (const [ponto, y] of [[pontoCond, yCond(d.fitness)], [pontoFadiga, yFadiga(d.fadiga)], [pontoForma, yForma(d.forma)]]) {
         ponto.setAttribute('cx', x);
         ponto.setAttribute('cy', y);
         ponto.setAttribute('visibility', 'visible');

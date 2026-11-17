@@ -32,6 +32,7 @@ import { painelDeObjetivos, prateleiraDeConquistas } from './objetivos.js';
 import { consumirMetaPedida } from './state.js';
 import { abrirModal, confirmar } from '../../utils/modal.js';
 import { criarCartaoZonas } from './zonas.js';
+import { criarBlocoProjecao } from './projecaoPlano.js';
 
 const ANOS_DE_HISTORICO = 5;
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -47,6 +48,7 @@ const dois = (n) => String(n).padStart(2, '0');
 
 /** Seções da página, na ordem em que aparecem; a barra de abas no topo leva a elas (como no Plano). */
 const SECOES = [
+  { id: 'projecao', rotulo: 'Projeção' },
   { id: 'objetivos', rotulo: 'Objetivos' },
   { id: 'analise', rotulo: 'Análise' },
   { id: 'desempenho', rotulo: 'Desempenho' },
@@ -110,6 +112,8 @@ export function render(raiz, sessao, params = {}) {
   };
   let grafico = null;
   const mensagem = areaMensagem();
+  // criado uma vez: tem os próprios listeners e sobrevive aos redesenhos da página
+  const blocoProjecao = criarBlocoProjecao({ uid: sessao.uid, hoje });
 
   const metaSelecionada = () => dados.metas.find((m) => m.id === estado.metaId) ?? null;
   const referencia = () => periodoDe(estado.periodo, estado.referenciaInicio ?? hoje);
@@ -382,6 +386,7 @@ export function render(raiz, sessao, params = {}) {
         { class: 'prog-pagina' },
         paginaTopo({ icone: 'progressao', titulo: 'Progressão', subtitulo: 'Acompanhe seus objetivos, compare o acumulado com os períodos anteriores e veja se o seu desempenho está evoluindo.' }),
         criarAbas(),
+        blocoProjecao.el,
         secao(
           'objetivos',
           h(
@@ -617,6 +622,7 @@ export function render(raiz, sessao, params = {}) {
     clearTimeout(temporizador);
     observador?.disconnect();
     cancelar.forEach((fn) => fn());
+    blocoProjecao.destruir();
     limparGrafico();
   };
 }

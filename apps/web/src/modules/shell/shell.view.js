@@ -39,7 +39,7 @@ function resolverRota(hash, admin) {
   const plano = /^#\/plano\/(projecao|calendario|provas|acompanhamento)$/.exec(hash);
   if (plano) return { menu: '#/plano', render: renderPlano, params: { secao: plano[1] } };
   // as seções da Progressão (abas no topo da página) também têm rota própria: a tela rola até a seção
-  const progressao = /^#\/progressao\/(objetivos|analise|desempenho|conquistas|zonas)$/.exec(hash);
+  const progressao = /^#\/progressao\/(projecao|objetivos|analise|desempenho|conquistas|zonas)$/.exec(hash);
   if (progressao) return { menu: '#/progressao', render: renderProgressao, params: { secao: progressao[1] } };
   switch (hash) {
     case '#/forma':

@@ -5,7 +5,6 @@ import { modelosProprios } from '../../application/modelos.js';
 import { montarPlanoAnual } from '../../application/provas.js';
 import { agruparPorDia, dataInicialDoHistorico, montarProjecao } from '../../application/plano.js';
 import { observarAtividadesDesde } from '../../infrastructure/atividadesRepo.js';
-import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
 import { observarConfigs } from '../../infrastructure/configsRepo.js';
 import { observarEstresseDiario } from '../../infrastructure/estresseRepo.js';
 import { observarModelos } from '../../infrastructure/modelosRepo.js';
@@ -30,8 +29,6 @@ import { criarCartaoMetaCondicionamento } from './metaCondicionamento.js';
 import { criarCartaoPlanoAnual } from './planoAnual.js';
 import { criarCartaoProvas } from './provas.js';
 import { criarPainelIa } from './sugestaoIa.js';
-import { criarTreinoDoDia } from '../inicio/treinoDoDia.js';
-import { criarCartaoProjecao } from './projecao.js';
 import { estadoPlano } from './state.js';
 
 /** Rótulo do período mostrado: "2 a 8 de novembro" (semana) ou "novembro de 2026" (mês). */
@@ -44,7 +41,7 @@ function rotuloDoPeriodo(visao, ancora) {
 /** Seções da página, na ordem em que aparecem; a barra de âncoras no topo leva a elas. */
 const SECOES = [
   { id: 'calendario', rotulo: 'Calendário' },
-  { id: 'projecao', rotulo: 'Projeção' },
+  { id: 'projecao', rotulo: 'Metas' },
   { id: 'provas', rotulo: 'Eventos' },
 ];
 /** Rotas antigas (#/plano/acompanhamento) rolam até a seção que herdou o conteúdo. */
@@ -78,7 +75,6 @@ export function render(raiz, sessao, params = {}) {
   let observador = null;
 
   const ancora = () => estadoPlano.ancora ?? hoje;
-  const treinoDoDia = criarTreinoDoDia(dados, hoje);
   // criados uma vez: guardam o formulário, a prova escolhida e o rascunho aberto quando chegam dados novos
   const cartaoProvas = criarCartaoProvas({ uid: sessao.uid, hoje });
   const cartaoPlanoAnual = criarCartaoPlanoAnual({ uid: sessao.uid, hoje });
@@ -452,6 +448,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
     const ativaMaisProxima = (lista) => lista.filter((m) => m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? -1 : 1))[0] ?? null;
     const metaCondAtiva = ativaMaisProxima(dados.metasCondicionamento);
     const anterioresCond = dados.metasCondicionamento.filter((m) => !m.ativa).sort((a, b) => (a.dataAlvo < b.dataAlvo ? 1 : -1)).slice(0, 5);
+    // o gráfico da projeção mora no topo da Progressão; aqui ficam as metas, que usam a mesma avaliação
     const { serie, avaliacao, avaliacaoCondicionamento } = montarProjecao({
       dias: dados.dias,
       treinos: dados.treinos,
@@ -463,22 +460,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
     });
     const condicionamentoAtual = serie.find((d) => d.data === hoje)?.fitness ?? null;
     secProjecao.replaceChildren(
-      criarCartaoProjecao({
-        serie,
-        hoje,
-        meta: metaAtiva,
-        avaliacao,
-        metaCondicionamento: metaCondAtiva,
-        avaliacaoCondicionamento,
-        treinoDoDia,
-        // clicar num dia com atividade abre a atividade (modal para escolher, se houver mais de uma); nos demais, o treino planejado
-        // dele ou um novo treino naquela data (o editor fica na seção do Calendário e a tela rola até ele)
-        aoClicarDia: (data) => {
-          if (abrirAtividadeDoDia(data, dados.atividades)) return;
-          abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);
-        },
-      }),
-      // as duas metas num único bloco, em largura total, logo abaixo do gráfico (uma por linha, separadas por um filete)
+      // as duas metas num único bloco, em largura total (uma por linha, separadas por um filete)
       h(
         'section',
         { class: 'card plano-metas', 'aria-label': 'Metas' },
@@ -545,7 +527,7 @@ Os treinos já realizados e o de hoje não são afetados.`,
       h(
         'div',
         { class: 'pagina-topo-grupo' },
-        paginaTopo({ icone: 'plano', titulo: 'Plano de treino', subtitulo: 'Planeje os treinos, veja a projeção da Forma, acompanhe os eventos e as metas e confira o que foi feito.' }),
+        paginaTopo({ icone: 'plano', titulo: 'Plano de treino', subtitulo: 'Planeje os treinos, defina as metas e acompanhe os eventos. A projeção da Forma fica no topo da Progressão.' }),
         aviso,
       ),
       ancoras,
