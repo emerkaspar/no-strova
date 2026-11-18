@@ -7,10 +7,11 @@ import { salvarPerfilAlimentar } from '../infrastructure/alimentacaoRepo.js';
  * `alimentacaoIa/{uid}`). Retorna `{ restantes, escopo, saida }`. Lança Error em português.
  * @param {'dia'|'semana'} escopo
  * @param {string} [observacao] pedido extra curto (ex.: "sem fogão hoje")
+ * @param {string[]|null} [refeicoes] quais refeições gerar (ver `REFEICOES_ESCOLHIVEIS`); sem a lista valem as do perfil
  */
-export function pedirSugestaoAlimentar(escopo, observacao = '') {
+export function pedirSugestaoAlimentar(escopo, observacao = '', refeicoes = null) {
   const texto = observacao.trim();
-  return sugerirAlimentacao({ escopo, ...(texto ? { observacao: texto } : {}) });
+  return sugerirAlimentacao({ escopo, ...(texto ? { observacao: texto } : {}), ...(refeicoes ? { refeicoes } : {}) });
 }
 
 /** Valida e salva o perfil alimentar. Lança Error com as mensagens de validação. */

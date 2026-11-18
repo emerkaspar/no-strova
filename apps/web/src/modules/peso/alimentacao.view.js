@@ -9,6 +9,9 @@ import {
   objetivoEfetivo,
   orientacaoDoTipoDeDia,
   PERFIL_ALIMENTAR_PADRAO,
+  REFEICOES_ESCOLHIVEIS,
+  REFEICOES_PADRAO,
+  validarRefeicoesEscolhidas,
 } from '@no-strova/domain';
 import { pedirSugestaoAlimentar, salvarPerfilDeAlimentacao } from '../../application/alimentacao.js';
 import { restantesDaIa } from '../../application/ia.js';
@@ -115,6 +118,31 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
 
   const perfilEfetivo = () => ({ ...PERFIL_ALIMENTAR_PADRAO, ...(perfil ?? {}) });
   const chavesFavoritas = () => new Set(favoritas.map((f) => f.chave));
+  const refeicoesEscolhidas = () => {
+    const r = validarRefeicoesEscolhidas(perfilEfetivo().refeicoes);
+    return r.valido ? r.valores : [...REFEICOES_PADRAO];
+  };
+
+  /** Liga ou desliga uma refeição na escolha do que gerar e guarda no perfil. Sempre fica pelo menos uma. */
+  async function alternarRefeicao(chave) {
+    const atuais = refeicoesEscolhidas();
+    const novas = atuais.includes(chave) ? atuais.filter((r) => r !== chave) : [...atuais, chave];
+    if (novas.length === 0) {
+      mensagem.mostrar('Deixe pelo menos uma refeição marcada.');
+      return;
+    }
+    mensagem.limpar();
+    const anterior = perfil;
+    perfil = { ...perfilEfetivo(), refeicoes: validarRefeicoesEscolhidas(novas).valores };
+    desenhar();
+    try {
+      await salvarPerfilDeAlimentacao(sessao.uid, perfil);
+    } catch {
+      perfil = anterior;
+      mensagem.mostrar('Não foi possível guardar a escolha. Tente novamente.');
+      desenhar();
+    }
+  }
 
   async function alternarFavorita(item) {
     const chave = chaveDeReceita(item);
@@ -132,7 +160,8 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
       botao,
       mensagem,
       async () => {
-        const r = await pedirSugestaoAlimentar(escopo, observacao.input.value);
+        // "amanhã" é sempre lanche para levar; nos outros, vale a escolha da tela (mandada junto, sem esperar o salvamento do perfil)
+        const r = await pedirSugestaoAlimentar(escopo, observacao.input.value, escopo === 'amanha' ? null : refeicoesEscolhidas());
         restantes = r.restantes;
       },
       'Gerando… pode levar alguns segundos',
@@ -186,6 +215,7 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
               restricoes: restricoes.value,
               contexto: contexto.value,
               refeicoesPorDia: refeicoes.input.value,
+              refeicoes: p.refeicoes, // a escolha do que gerar não é deste formulário: mantém a atual
             });
             fechar(true);
           });
@@ -241,7 +271,7 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
     botaoGerar.addEventListener('click', () => gerar(botaoGerar));
     const chips = h(
       'div',
-      { class: 'ativ-grupo', role: 'group', 'aria-label': 'Escopo das ideias' },
+      { class: 'ativ-grupo alim-escopo', role: 'group', 'aria-label': 'Escopo das ideias' },
       ...[
         ['dia', 'Hoje'],
         ['amanha', 'Amanhã'],
@@ -260,6 +290,21 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
       ),
       h('p', { class: 'texto-secundario' }, `Ideias de lanches para o trabalho e receitas para casa, ajustadas ao seu treino, ao seu cansaço e ao seu sono. Objetivo: ${OBJETIVOS_ALIMENTARES[objetivo].toLowerCase()}.`),
       chips,
+      escopo === 'amanha'
+        ? h('p', { class: 'texto-secundario' }, 'Lanches para fazer hoje à noite e levar ao trabalho amanhã, pensados no treino de amanhã.')
+        : h(
+            'div',
+            { class: 'alim-refeicoes' },
+            h('span', { class: 'texto-secundario', id: 'alim-refeicoes-rotulo' }, 'O que gerar:'),
+            h(
+              'div',
+              { class: 'ativ-grupo', role: 'group', 'aria-labelledby': 'alim-refeicoes-rotulo' },
+              ...Object.entries(REFEICOES_ESCOLHIVEIS).map(([chave, rotulo]) => {
+                const marcada = refeicoesEscolhidas().includes(chave);
+                return h('button', { type: 'button', class: `ativ-chip${marcada ? ' ativo' : ''}`, 'aria-pressed': String(marcada), onClick: () => alternarRefeicao(chave) }, rotulo);
+              }),
+            ),
+          ),
       h('div', { class: 'alim-pedido' }, observacao.raiz, botaoGerar),
       restantes === undefined ? null : h('p', { class: 'texto-secundario' }, restantes === null ? 'Sem limite de sugestões de IA hoje.' : restantes === 0 ? 'As sugestões de IA de hoje acabaram. Volte amanhã.' : `${restantes} sugestão(ões) de IA restante(s) hoje, somadas às dos treinos.`),
       mensagem.el,

@@ -8,8 +8,8 @@ export function observarPerfilAlimentar(uid, aoDados, aoErro) {
 
 /** Grava (substitui) o perfil já validado por `validarPerfilAlimentar`. */
 export function salvarPerfilAlimentar(uid, valores) {
-  const { objetivo, usarMetaDePeso, restricoes, contexto, refeicoesPorDia } = valores;
-  return gravarDocumento(`perfilAlimentar/${uid}`, { userId: uid, objetivo, usarMetaDePeso, restricoes, contexto, refeicoesPorDia });
+  const { objetivo, usarMetaDePeso, restricoes, contexto, refeicoesPorDia, refeicoes } = valores;
+  return gravarDocumento(`perfilAlimentar/${uid}`, { userId: uid, objetivo, usarMetaDePeso, restricoes, contexto, refeicoesPorDia, refeicoes });
 }
 
 /**

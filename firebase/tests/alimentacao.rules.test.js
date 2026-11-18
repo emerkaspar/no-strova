@@ -51,6 +51,14 @@ describe('perfilAlimentar', () => {
     await assertFails(como('ana').doc('perfilAlimentar/ana').set(perfil({ extra: 1 })));
   });
 
+  it('aceita a escolha de refeições e recusa lista vazia, valor inválido ou o bloco antigo', async () => {
+    await assertSucceeds(como('ana').doc('perfilAlimentar/ana').set(perfil({ refeicoes: ['levar', 'jantar'] })));
+    await assertFails(como('ana').doc('perfilAlimentar/ana').set(perfil({ refeicoes: [] })));
+    await assertFails(como('ana').doc('perfilAlimentar/ana').set(perfil({ refeicoes: ['lanchonete'] })));
+    await assertFails(como('ana').doc('perfilAlimentar/ana').set(perfil({ refeicoes: 'levar' })));
+    await assertFails(como('ana').doc('perfilAlimentar/ana').set(perfil({ refeicoes: ['casa'] })));
+  });
+
   it('não grava nem lê o perfil de outro usuário, nem o admin', async () => {
     await assertFails(como('ana').doc('perfilAlimentar/beto').set(perfil({ userId: 'beto' })));
     await env.withSecurityRulesDisabled((ctx) => ctx.firestore().doc('perfilAlimentar/ana').set(perfil()));
@@ -72,6 +80,11 @@ describe('receitasFavoritas', () => {
   it('o dono cria com o id certo e lê', async () => {
     await assertSucceeds(como('ana').doc('receitasFavoritas/ana_levar_torrada').set(favorita()));
     await assertSucceeds(como('ana').doc('receitasFavoritas/ana_levar_torrada').get());
+  });
+
+  it('aceita as refeições novas e o bloco antigo', async () => {
+    await assertSucceeds(como('ana').doc('receitasFavoritas/ana_jantar_omelete').set(favorita({ chave: 'jantar_omelete', item: { ...favorita().item, bloco: 'jantar' } })));
+    await assertSucceeds(como('ana').doc('receitasFavoritas/ana_casa_bolo').set(favorita({ chave: 'casa_bolo', item: { ...favorita().item, bloco: 'casa' } })));
   });
 
   it('recusa id que não bate com a chave, item inválido e outro dono', async () => {

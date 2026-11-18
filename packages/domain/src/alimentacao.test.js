@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chaveDeReceita, nomesParaEvitar, objetivoEfetivo, PERFIL_ALIMENTAR_PADRAO, tipoDeDia, validarPerfilAlimentar, validarSugestaoAlimentar } from './alimentacao.js';
+import { chaveDeReceita, nomesParaEvitar, objetivoEfetivo, PERFIL_ALIMENTAR_PADRAO, tipoDeDia, validarPerfilAlimentar, validarRefeicoesEscolhidas, validarSugestaoAlimentar } from './alimentacao.js';
 
 const item = (extra = {}) => ({
   bloco: 'levar',
@@ -27,6 +27,24 @@ describe('validarPerfilAlimentar', () => {
     expect(validarPerfilAlimentar({ objetivo: 'secar' }).valido).toBe(false);
     expect(validarPerfilAlimentar({ refeicoesPorDia: 12 }).valido).toBe(false);
     expect(validarPerfilAlimentar({ contexto: 'x'.repeat(601) }).valido).toBe(false);
+  });
+});
+
+describe('refeições escolhidas', () => {
+  it('o padrão não tem almoço', () => {
+    const r = validarPerfilAlimentar({});
+    expect(r.valores.refeicoes).toEqual(['levar', 'padaria', 'jantar', 'posTreino']);
+    expect(r.valores.refeicoes).not.toContain('almoco');
+  });
+  it('aceita a escolha, sem repetir e na ordem da tela', () => {
+    expect(validarRefeicoesEscolhidas(['jantar', 'levar', 'levar']).valores).toEqual(['levar', 'jantar']);
+    expect(validarPerfilAlimentar({ refeicoes: ['almoco'] }).valores.refeicoes).toEqual(['almoco']);
+  });
+  it('recusa lista vazia, inválida ou com o bloco antigo "casa"', () => {
+    expect(validarRefeicoesEscolhidas([]).valido).toBe(false);
+    expect(validarRefeicoesEscolhidas('levar').valido).toBe(false);
+    expect(validarRefeicoesEscolhidas(['casa']).valido).toBe(false);
+    expect(validarPerfilAlimentar({ refeicoes: [] }).valido).toBe(false);
   });
 });
 
@@ -86,6 +104,17 @@ describe('validarSugestaoAlimentar', () => {
     const r = validarSugestaoAlimentar({ itens: [item({ dia: 'Segunda' }), item({ nome: 'Outro', dia: 'Qualquer' }), item({ nome: 'Sem dia' })] }, { escopo: 'semana' });
     expect(r.itens).toHaveLength(1);
     expect(r.itens[0].dia).toBe('segunda');
+  });
+  it('descarta as refeições que o usuário não escolheu (sem almoço)', () => {
+    const r = validarSugestaoAlimentar(
+      { itens: [item(), item({ bloco: 'almoco', nome: 'Arroz e feijão' }), item({ bloco: 'jantar', nome: 'Omelete' })] },
+      { refeicoes: ['levar', 'jantar'] },
+    );
+    expect(r.itens.map((i) => i.bloco)).toEqual(['levar', 'jantar']);
+  });
+  it('na semana, lanche de trabalho não vale no fim de semana', () => {
+    const r = validarSugestaoAlimentar({ itens: [item({ dia: 'sábado' }), item({ nome: 'Jantar de sábado', bloco: 'jantar', dia: 'sábado' })] }, { escopo: 'semana', refeicoes: ['levar', 'jantar'] });
+    expect(r.itens.map((i) => i.bloco)).toEqual(['jantar']);
   });
   it('em "amanhã" aceita só lanches para levar e limita a 4', () => {
     const levar = ['Torrada', 'Iogurte', 'Wrap', 'Bolinho', 'Ovo'].map((nome, i) => item({ nome, tipo: i % 2 ? 'doce' : 'salgado', ingredientes: [nome, 'pão'] }));

@@ -80,10 +80,15 @@ describe('página Saúde', () => {
     const alim = raiz.querySelector('#saude-alimentacao');
     expect(alim.querySelectorAll('.alim-item')).toHaveLength(3);
     expect([...alim.querySelectorAll('.alim-grupo-titulo')].map((t) => t.textContent)).toEqual(['Lanche para levar', 'Lanche na padaria', 'Receita para fazer em casa']);
-    expect([...alim.querySelectorAll('.ativ-chip')].map((b) => b.textContent)).toEqual(['Hoje', 'Amanhã', 'Semana']);
-    alim.querySelectorAll('.ativ-chip')[1].click();
+    expect([...alim.querySelectorAll('.alim-escopo .ativ-chip')].map((b) => b.textContent)).toEqual(['Hoje', 'Amanhã', 'Semana']);
+    // o que gerar: o almoço existe como opção, mas não vem marcado
+    const refeicoes = [...alim.querySelectorAll('.alim-refeicoes .ativ-chip')];
+    expect(refeicoes.map((b) => b.textContent)).toEqual(['Lanche para levar', 'Lanche na padaria', 'Café da manhã', 'Almoço', 'Jantar', 'Pós-treino ou ceia']);
+    expect(refeicoes.filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent)).toEqual(['Lanche para levar', 'Lanche na padaria', 'Jantar', 'Pós-treino ou ceia']);
+    alim.querySelectorAll('.alim-escopo .ativ-chip')[1].click();
     expect(alim.textContent).toContain('Gerar lanches para amanhã');
-    alim.querySelectorAll('.ativ-chip')[0].click();
+    expect(alim.querySelector('.alim-refeicoes')).toBeNull(); // "amanhã" é sempre lanche para levar
+    alim.querySelectorAll('.alim-escopo .ativ-chip')[0].click();
     expect(alim.textContent).toContain('Objetivo: emagrecer');
     expect(alim.textContent).toContain('Gerar de novo');
     expect(alim.querySelector('.alim-orientacao').textContent).toContain('Treino moderado');

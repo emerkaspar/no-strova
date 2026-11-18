@@ -9,11 +9,42 @@ export const AVISO_ALIMENTACAO = 'Sugestão gerada por IA, em linhas gerais. Nã
 
 export const OBJETIVOS_ALIMENTARES = Object.freeze({ emagrecer: 'Emagrecer', manter: 'Manter o peso', ganhar: 'Ganhar massa' });
 
-export const BLOCOS_ALIMENTARES = Object.freeze({
+/**
+ * Refeições que o usuário pode escolher para a IA gerar (na ordem em que aparecem na tela). O almoço existe como opção, mas
+ * não vem marcado: quem já tem o almoço resolvido não precisa dele.
+ */
+export const REFEICOES_ESCOLHIVEIS = Object.freeze({
   levar: 'Lanche para levar',
   padaria: 'Lanche na padaria',
+  cafe: 'Café da manhã',
+  almoco: 'Almoço',
+  jantar: 'Jantar',
+  posTreino: 'Pós-treino ou ceia',
+});
+
+/** Refeições geradas quando o usuário ainda não escolheu (sem o almoço). */
+export const REFEICOES_PADRAO = Object.freeze(['levar', 'padaria', 'jantar', 'posTreino']);
+
+/** Todos os blocos que uma sugestão pode ter: as refeições escolhíveis e `casa`, o bloco genérico das sugestões antigas. */
+export const BLOCOS_ALIMENTARES = Object.freeze({
+  ...REFEICOES_ESCOLHIVEIS,
   casa: 'Receita para fazer em casa',
 });
+
+/** Refeições de casa (não vão ao trabalho): as únicas que valem no fim de semana na sugestão da semana. */
+export const REFEICOES_DE_CASA = Object.freeze(['cafe', 'almoco', 'jantar', 'posTreino']);
+
+/**
+ * Valida a lista de refeições escolhidas: só as escolhíveis, sem repetir, na ordem da tela. Precisa de pelo menos uma.
+ * @returns {{ valido: boolean, erros: string[], valores: string[]|null }}
+ */
+export function validarRefeicoesEscolhidas(entrada) {
+  if (!Array.isArray(entrada)) return { valido: false, erros: ['Escolha pelo menos uma refeição para gerar.'], valores: null };
+  if (entrada.some((r) => !Object.hasOwn(REFEICOES_ESCOLHIVEIS, r))) return { valido: false, erros: ['Há uma refeição inválida na escolha.'], valores: null };
+  const valores = Object.keys(REFEICOES_ESCOLHIVEIS).filter((k) => entrada.includes(k));
+  if (valores.length === 0) return { valido: false, erros: ['Escolha pelo menos uma refeição para gerar.'], valores: null };
+  return { valido: true, erros: [], valores };
+}
 
 export const TIPOS_DE_SABOR = Object.freeze(['salgado', 'doce']);
 
@@ -25,9 +56,9 @@ export const LIMITES_ALIMENTACAO = Object.freeze({
   contextoMax: 600,
   refeicoesMin: 3,
   refeicoesMax: 6,
-  itensDia: 6,
+  itensDia: 9,
   itensAmanha: 4,
-  itensSemana: 21,
+  itensSemana: 35,
   ingredientesMax: 15,
   passosMax: 8,
 });
@@ -43,6 +74,7 @@ export const PERFIL_ALIMENTAR_PADRAO = Object.freeze({
   restricoes: Object.freeze([]),
   contexto: CONTEXTO_ALIMENTAR_PADRAO,
   refeicoesPorDia: 5,
+  refeicoes: REFEICOES_PADRAO,
 });
 
 const colapsar = (s) => s.trim().replace(/\s+/g, ' ');
@@ -55,7 +87,8 @@ function inteiro(v) {
 
 /**
  * Valida o perfil alimentar. `restricoes` aceita lista ou texto separado por vírgula ou quebra de linha.
- * @returns {{ valido: boolean, erros: string[], valores: { objetivo: string, usarMetaDePeso: boolean, restricoes: string[], contexto: string, refeicoesPorDia: number }|null }}
+ * `refeicoesPorDia` é quantas refeições a pessoa faz; `refeicoes` é quais delas a IA deve gerar.
+ * @returns {{ valido: boolean, erros: string[], valores: { objetivo: string, usarMetaDePeso: boolean, restricoes: string[], contexto: string, refeicoesPorDia: number, refeicoes: string[] }|null }}
  */
 export function validarPerfilAlimentar(entrada) {
   const L = LIMITES_ALIMENTACAO;
@@ -76,8 +109,12 @@ export function validarPerfilAlimentar(entrada) {
   const refeicoes = entrada?.refeicoesPorDia === undefined ? PERFIL_ALIMENTAR_PADRAO.refeicoesPorDia : inteiro(entrada.refeicoesPorDia);
   if (refeicoes === null || refeicoes < L.refeicoesMin || refeicoes > L.refeicoesMax) erros.push(`Informe de ${L.refeicoesMin} a ${L.refeicoesMax} refeições por dia.`);
 
+  // refeições que a IA gera (sem a escolha, valem as padrão: sem almoço)
+  const escolhidas = entrada?.refeicoes === undefined ? { valido: true, valores: [...REFEICOES_PADRAO], erros: [] } : validarRefeicoesEscolhidas(entrada.refeicoes);
+  erros.push(...escolhidas.erros);
+
   if (erros.length > 0) return { valido: false, erros, valores: null };
-  return { valido: true, erros, valores: { objetivo, usarMetaDePeso, restricoes, contexto, refeicoesPorDia: refeicoes } };
+  return { valido: true, erros, valores: { objetivo, usarMetaDePeso, restricoes, contexto, refeicoesPorDia: refeicoes, refeicoes: escolhidas.valores } };
 }
 
 /**
@@ -149,10 +186,12 @@ function listaDeTextos(v, maxItens, maxTexto) {
  * Confere a saída da IA. Descarta itens inválidos, repetidos, que citam uma restrição ou que prometem efeito médico, e avisa
  * quando falta variedade (só salgado, só doce ou fruta demais).
  * @param {any} saida `{ resumo, itens: [{ bloco, dia?, nome, tipo, porQue, tempoMin, ingredientes, preparo, equipamento, vespera }] }`
- * @param {{ escopo: 'dia'|'amanha'|'semana', restricoes?: string[] }} contexto `amanha` aceita só lanches para levar ao trabalho (bloco `levar`)
+ * @param {{ escopo: 'dia'|'amanha'|'semana', restricoes?: string[], refeicoes?: string[] }} contexto `amanha` aceita só lanches para
+ *   levar ao trabalho (bloco `levar`). `refeicoes` são as escolhidas pelo usuário: o que vier de outro bloco é descartado
+ *   (sem a lista, vale qualquer bloco, como nas sugestões antigas).
  * @returns {{ valido: boolean, resumo: string, itens: any[], avisos: string[], aviso: string }}
  */
-export function validarSugestaoAlimentar(saida, { escopo = 'dia', restricoes = [] } = {}) {
+export function validarSugestaoAlimentar(saida, { escopo = 'dia', restricoes = [], refeicoes = null } = {}) {
   const L = LIMITES_ALIMENTACAO;
   const avisos = [];
   const proibidos = restricoes.map(normalizar).filter((r) => r.length >= 3);
@@ -167,6 +206,8 @@ export function validarSugestaoAlimentar(saida, { escopo = 'dia', restricoes = [
     const tipo = bruto?.tipo;
     if (nome.length < 2 || !Object.hasOwn(BLOCOS_ALIMENTARES, bloco) || !TIPOS_DE_SABOR.includes(tipo)) continue;
     if (escopo === 'amanha' && bloco !== 'levar') continue; // "lanche para amanhã" é o que se faz hoje para levar
+    if (escopo !== 'amanha' && refeicoes && !refeicoes.includes(bloco)) continue; // o usuário não pediu esta refeição (ex.: almoço)
+    if (escopo === 'semana' && !REFEICOES_DE_CASA.includes(bloco) && bruto?.dia && ['sábado', 'domingo'].includes(String(bruto.dia).trim().toLowerCase())) continue; // lanche de trabalho não vale no fim de semana
     const ingredientes = listaDeTextos(bruto?.ingredientes, L.ingredientesMax, 80);
     const preparo = listaDeTextos(bruto?.preparo, L.passosMax, 240);
     if (ingredientes.length === 0) continue;

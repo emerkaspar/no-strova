@@ -426,14 +426,16 @@ service cloud.firestore {
     // contexto fixo e refeições por dia. Só o dono lê e escreve.
     function perfilAlimentarValido() {
       let p = request.resource.data;
-      return p.keys().hasOnly(['userId', 'objetivo', 'usarMetaDePeso', 'restricoes', 'contexto', 'refeicoesPorDia'])
+      return p.keys().hasOnly(['userId', 'objetivo', 'usarMetaDePeso', 'restricoes', 'contexto', 'refeicoesPorDia', 'refeicoes'])
         && p.keys().hasAll(['userId', 'objetivo', 'usarMetaDePeso', 'restricoes', 'contexto', 'refeicoesPorDia'])
         && p.userId == request.auth.uid
         && p.objetivo in ['emagrecer', 'manter', 'ganhar']
         && p.usarMetaDePeso is bool
         && p.restricoes is list && p.restricoes.size() <= 20
         && p.contexto is string && p.contexto.size() <= 600
-        && p.refeicoesPorDia is int && p.refeicoesPorDia >= 3 && p.refeicoesPorDia <= 6;
+        && p.refeicoesPorDia is int && p.refeicoesPorDia >= 3 && p.refeicoesPorDia <= 6
+        && (!('refeicoes' in p) || (p.refeicoes is list && p.refeicoes.size() >= 1 && p.refeicoes.size() <= 6
+          && p.refeicoes.hasOnly(['levar', 'padaria', 'cafe', 'almoco', 'jantar', 'posTreino'])));
     }
 
     match /perfilAlimentar/{uid} {
@@ -457,7 +459,7 @@ service cloud.firestore {
         && r.chave is string && r.chave.size() >= 3 && r.chave.size() <= 80
         && r.item is map
         && r.item.keys().hasOnly(['bloco', 'dia', 'nome', 'tipo', 'porQue', 'tempoMin', 'ingredientes', 'preparo', 'equipamento', 'vespera'])
-        && r.item.bloco in ['levar', 'padaria', 'casa']
+        && r.item.bloco in ['levar', 'padaria', 'cafe', 'almoco', 'jantar', 'posTreino', 'casa']
         && r.item.tipo in ['salgado', 'doce']
         && r.item.nome is string && r.item.nome.size() >= 2 && r.item.nome.size() <= 80
         && r.item.ingredientes is list && r.item.ingredientes.size() <= 15
