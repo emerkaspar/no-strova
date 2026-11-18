@@ -63,6 +63,11 @@ interface DiaDoPlano {
 }
 
 const OBSERVACAO_MAX = 200;
+const TENTATIVAS = 3;
+const ESPERA_ENTRE_TENTATIVAS_MS = 4000;
+
+/** Erro 503 do Gemini (alta demanda): passa sozinho, vale tentar de novo. */
+const geminiIndisponivel = (err: unknown): boolean => /503|UNAVAILABLE|high demand/i.test(String((err as Error)?.message ?? ""));
 
 /**
  * Sugere lanches (para levar e da padaria) e receitas em casa para o dia ou para a semana, pelo treino planejado, pelo
@@ -163,13 +168,21 @@ export async function sugerirAlimentacaoDoUsuario(uid: string, bruto: Record<str
   const restantes = await reservarChamada(uid, hoje);
   let validado = validarSugestaoAlimentar({ itens: [] }, { escopo });
   try {
-    for (let tentativa = 0; tentativa < 2 && !validado.valido; tentativa += 1) {
-      const saidaIa = await gerarSaidaEstruturada(apiKey, { sistema: SISTEMA_ALIMENTACAO, prompt, schema: schemaAlimentacao, temperatura: 0.7 });
-      validado = validarSugestaoAlimentar(saidaIa, { escopo, restricoes: p.restricoes });
+    // até 3 tentativas: o Gemini às vezes responde 503 (alta demanda, passageiro) ou devolve algo sem itens utilizáveis
+    for (let tentativa = 0; tentativa < TENTATIVAS && !validado.valido; tentativa += 1) {
+      try {
+        const saidaIa = await gerarSaidaEstruturada(apiKey, { sistema: SISTEMA_ALIMENTACAO, prompt, schema: schemaAlimentacao, temperatura: 0.7 });
+        validado = validarSugestaoAlimentar(saidaIa, { escopo, restricoes: p.restricoes });
+      } catch (err) {
+        if (!geminiIndisponivel(err) || tentativa === TENTATIVAS - 1) throw err;
+        logger.warn("Gemini indisponível (alimentação); tentando de novo", { tentativa: tentativa + 1 });
+        await new Promise((r) => setTimeout(r, ESPERA_ENTRE_TENTATIVAS_MS * (tentativa + 1)));
+      }
     }
   } catch (err) {
     logger.error("Falha ao chamar o Gemini (alimentação)", err);
     await devolverChamada(uid, hoje);
+    if (geminiIndisponivel(err)) throw new HttpsError("unavailable", "O Gemini está com muita demanda agora. Tente de novo em alguns minutos (a tentativa não foi descontada).");
     if (semCreditoNoGemini(err)) throw new HttpsError("failed-precondition", "A conta do Gemini está sem créditos. Adicione créditos ou ative o faturamento no Google AI Studio e tente de novo (a tentativa não foi descontada).");
     throw new HttpsError("aborted", "Não foi possível gerar a sugestão agora. Tente novamente em instantes (a tentativa não foi descontada).");
   }
