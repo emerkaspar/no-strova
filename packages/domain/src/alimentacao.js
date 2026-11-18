@@ -26,6 +26,7 @@ export const LIMITES_ALIMENTACAO = Object.freeze({
   refeicoesMin: 3,
   refeicoesMax: 6,
   itensDia: 6,
+  itensAmanha: 4,
   itensSemana: 21,
   ingredientesMax: 15,
   passosMax: 8,
@@ -148,7 +149,7 @@ function listaDeTextos(v, maxItens, maxTexto) {
  * Confere a saída da IA. Descarta itens inválidos, repetidos, que citam uma restrição ou que prometem efeito médico, e avisa
  * quando falta variedade (só salgado, só doce ou fruta demais).
  * @param {any} saida `{ resumo, itens: [{ bloco, dia?, nome, tipo, porQue, tempoMin, ingredientes, preparo, equipamento, vespera }] }`
- * @param {{ escopo: 'dia'|'semana', restricoes?: string[] }} contexto
+ * @param {{ escopo: 'dia'|'amanha'|'semana', restricoes?: string[] }} contexto `amanha` aceita só lanches para levar ao trabalho (bloco `levar`)
  * @returns {{ valido: boolean, resumo: string, itens: any[], avisos: string[], aviso: string }}
  */
 export function validarSugestaoAlimentar(saida, { escopo = 'dia', restricoes = [] } = {}) {
@@ -158,13 +159,14 @@ export function validarSugestaoAlimentar(saida, { escopo = 'dia', restricoes = [
   const vistos = new Set();
   const itens = [];
   let descartadosPorRestricao = 0;
-  const maximo = escopo === 'semana' ? L.itensSemana : L.itensDia;
+  const maximo = escopo === 'semana' ? L.itensSemana : escopo === 'amanha' ? L.itensAmanha : L.itensDia;
 
   for (const bruto of Array.isArray(saida?.itens) ? saida.itens : []) {
     const nome = textoCurto(bruto?.nome, 80);
     const bloco = bruto?.bloco;
     const tipo = bruto?.tipo;
     if (nome.length < 2 || !Object.hasOwn(BLOCOS_ALIMENTARES, bloco) || !TIPOS_DE_SABOR.includes(tipo)) continue;
+    if (escopo === 'amanha' && bloco !== 'levar') continue; // "lanche para amanhã" é o que se faz hoje para levar
     const ingredientes = listaDeTextos(bruto?.ingredientes, L.ingredientesMax, 80);
     const preparo = listaDeTextos(bruto?.preparo, L.passosMax, 240);
     if (ingredientes.length === 0) continue;

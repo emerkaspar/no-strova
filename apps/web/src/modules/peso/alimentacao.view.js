@@ -22,7 +22,13 @@ import { abrirModal } from '../../utils/modal.js';
 const montar = (el, ...filhos) => el.replaceChildren(...filhos.filter((f) => f !== null && f !== undefined));
 
 const ROTULO_EQUIPAMENTO = Object.freeze({ torradeira: 'Torradeira', geladeira: 'Geladeira', fogao: 'Fogão', forno: 'Forno' });
-const capitalizar = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Textos de cada escopo: o botão de gerar e o que falta quando ainda não há nada. "Amanhã" = o que fazer hoje para levar ao trabalho. */
+const TEXTOS_DO_ESCOPO = Object.freeze({
+  dia: { gerar: 'Gerar ideias de hoje', vazio: 'ideias para hoje' },
+  amanha: { gerar: 'Gerar lanches para amanhã', vazio: 'lanches para amanhã' },
+  semana: { gerar: 'Gerar cardápio da semana', vazio: 'cardápio da semana' },
+});
+const capitalizar =(s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Cartão de uma sugestão: nome, selos, por que, e a receita (ou o que pedir na padaria) numa área que abre e fecha. */
 function cartaoDaSugestao(item, { favorita, aoFavoritar, abertas, idAberto }) {
@@ -77,7 +83,7 @@ function cartaoDaSugestao(item, { favorita, aoFavoritar, abertas, idAberto }) {
 
 /** Agrupa os itens: por bloco no dia; por dia da semana (a partir da data da geração) na semana. */
 function agrupar(itens, escopo, dataGeracao) {
-  if (escopo === 'dia') {
+  if (escopo !== 'semana') {
     return Object.entries(BLOCOS_ALIMENTARES)
       .map(([bloco, rotulo]) => ({ titulo: rotulo, itens: itens.filter((i) => i.bloco === bloco) }))
       .filter((g) => g.itens.length > 0);
@@ -192,7 +198,7 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
   function listaDeSugestoes() {
     const doc = sugestoes?.[escopo] ?? null;
     if (!doc) {
-      return estadoVazio(escopo === 'dia' ? 'Ainda não há ideias para hoje. Toque em "Gerar ideias de hoje".' : 'Ainda não há cardápio da semana. Toque em "Gerar cardápio da semana".');
+      return estadoVazio(`Ainda não há ${TEXTOS_DO_ESCOPO[escopo].vazio}. Toque em "${TEXTOS_DO_ESCOPO[escopo].gerar}".`);
     }
     const orientacao = orientacaoDoTipoDeDia(doc.tipoDeDia);
     const antiga = doc.data !== hoje;
@@ -201,8 +207,8 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
     return h(
       'div',
       { class: 'alim-resultado' },
-      h('p', { class: 'texto-secundario' }, `Gerado ${antiga ? `em ${formatarData(doc.data)}` : 'hoje'}${antiga ? ' · gere de novo para ajustar ao treino de hoje.' : ''}`),
-      orientacao && escopo === 'dia' ? h('p', { class: 'alim-orientacao' }, h('strong', null, orientacao.rotulo), ` · ${orientacao.orientacao}`) : null,
+      h('p', { class: 'texto-secundario' }, `Gerado ${antiga ? `em ${formatarData(doc.data)}` : 'hoje'}${antiga ? ` · gere de novo para ajustar ao treino de ${escopo === 'amanha' ? 'amanhã' : 'hoje'}.` : ''}`),
+      orientacao && escopo !== 'semana' ? h('p', { class: 'alim-orientacao' }, h('strong', null, orientacao.rotulo), ` · ${orientacao.orientacao}`) : null,
       doc.saida?.resumo ? h('p', null, doc.saida.resumo) : null,
       ...(doc.saida?.avisos ?? []).map((a) => h('p', { class: 'texto-secundario', role: 'status' }, a)),
       ...grupos.map((g) =>
@@ -231,13 +237,14 @@ export function criarSecaoAlimentacao({ sessao, hoje, perderPeso }) {
   function desenhar() {
     const objetivo = objetivoEfetivo(perfilEfetivo(), perderPeso());
     const jaTem = Boolean(sugestoes?.[escopo]);
-    const botaoGerar = h('button', { class: 'btn', type: 'button', disabled: gerando || restantes === 0 }, jaTem ? 'Gerar de novo' : escopo === 'dia' ? 'Gerar ideias de hoje' : 'Gerar cardápio da semana');
+    const botaoGerar = h('button', { class: 'btn', type: 'button', disabled: gerando || restantes === 0 }, jaTem ? 'Gerar de novo' : TEXTOS_DO_ESCOPO[escopo].gerar);
     botaoGerar.addEventListener('click', () => gerar(botaoGerar));
     const chips = h(
       'div',
       { class: 'ativ-grupo', role: 'group', 'aria-label': 'Escopo das ideias' },
       ...[
         ['dia', 'Hoje'],
+        ['amanha', 'Amanhã'],
         ['semana', 'Semana'],
       ].map(([id, rotulo]) =>
         h('button', { type: 'button', class: `ativ-chip${escopo === id ? ' ativo' : ''}`, 'aria-pressed': String(escopo === id), onClick: () => { escopo = id; desenhar(); } }, rotulo),

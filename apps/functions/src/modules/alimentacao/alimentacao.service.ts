@@ -50,7 +50,7 @@ const schemaAlimentacao = z.object({
 
 export interface SugestaoAlimentar {
   restantes: number | null;
-  escopo: "dia" | "semana";
+  escopo: "dia" | "amanha" | "semana";
   saida: { resumo: string; itens: unknown[]; avisos: string[]; aviso: string };
 }
 
@@ -76,7 +76,7 @@ const geminiIndisponivel = (err: unknown): boolean => /503|UNAVAILABLE|high dema
  */
 export async function sugerirAlimentacaoDoUsuario(uid: string, bruto: Record<string, unknown>, apiKey: string): Promise<SugestaoAlimentar> {
   const escopo = bruto.escopo;
-  if (escopo !== "dia" && escopo !== "semana") throw new HttpsError("invalid-argument", "Escolha sugestões para o dia ou para a semana.");
+  if (escopo !== "dia" && escopo !== "amanha" && escopo !== "semana") throw new HttpsError("invalid-argument", "Escolha sugestões para hoje, para amanhã ou para a semana.");
   const observacao = typeof bruto.observacao === "string" ? bruto.observacao.trim().replace(/\s+/g, " ") : "";
   if (observacao.length > OBSERVACAO_MAX) throw new HttpsError("invalid-argument", `A observação pode ter até ${OBSERVACAO_MAX} caracteres.`);
   const hoje = diaNoFuso(Date.now());
@@ -113,15 +113,16 @@ export async function sugerirAlimentacaoDoUsuario(uid: string, bruto: Record<str
     .map((d) => d.data())
     .filter((t) => t.status === "planejado" || t.status === "realizado");
   const quantosDias = escopo === "semana" ? 7 : 1;
+  const deslocamento = escopo === "amanha" ? 1 : 0; // "amanhã" olha o treino de amanhã, e a carga de hoje vira o "ontem" dele
   const dias: DiaDoPlano[] = Array.from({ length: quantosDias }, (_, i) => {
-    const data = somarDias(hoje, i);
+    const data = somarDias(hoje, i + deslocamento);
     const treinos = planejados
       .filter((t) => t.data === data)
       .map((t) => ({ duracaoMin: Number(t.duracaoMin) > 0 ? Number(t.duracaoMin) : null, zona: typeof t.zona === "string" ? t.zona : null }));
     const tipo = tipoDeDia({
       treinosHoje: treinos,
       estresseOntem: estresse.get(somarDias(data, -1)) ?? null,
-      forma: i === 0 && forma ? forma.forma : null,
+      forma: i + deslocamento === 0 && forma ? forma.forma : null,
       sonoMediaHoras: bemEstar.resumo?.mediaSonoHoras7Dias ?? null,
     });
     return { dia: NOMES_DIA[diaDaSemana(data)], data, tipo: tipo.tipo, orientacao: tipo.orientacao, treinos };
@@ -146,7 +147,11 @@ export async function sugerirAlimentacaoDoUsuario(uid: string, bruto: Record<str
   const pedido =
     escopo === "dia"
       ? `Sugira de 5 a 6 itens para HOJE (${dias[0].dia}): 2 de "levar", 1 a 2 de "padaria" e 2 de "casa" (um jantar e um prato de pós-treino ou ceia, conforme o treino).\n`
-      : `Sugira o cardápio dos próximos 7 dias, começando hoje (${dias[0].dia}). Para cada dia de segunda a sexta: 1 lanche de trabalho (bloco "levar" ou "padaria"; "padaria" no máximo 2 vezes na semana) e 1 receita de "casa" para o jantar. ` +
+      : escopo === "amanha"
+        ? `Sugira de 3 a 4 lanches, TODOS do bloco "levar", para a pessoa FAZER HOJE À NOITE (ou de manhã bem cedo) e LEVAR AO TRABALHO AMANHÃ (${dias[0].dia}, ${dias[0].tipo === "descanso" ? "sem treino" : `dia de ${dias[0].tipo}`}). ` +
+          `Pelo menos 1 salgado e 1 doce. Precisam aguentar a geladeira até amanhã, se comer bem na mesa do escritório (com torradeira e geladeira no trabalho) e dar para fazer em até 15 minutos (o limite de 10 minutos abaixo não vale aqui). ` +
+          `Marque "vespera" como true em todos. Se amanhã for sábado ou domingo, pense em lanches para levar a um passeio ou ao treino. Considere o treino de amanhã (antes, durante e depois) e o que foi gasto hoje.\n`
+        :`Sugira o cardápio dos próximos 7 dias, começando hoje (${dias[0].dia}). Para cada dia de segunda a sexta: 1 lanche de trabalho (bloco "levar" ou "padaria"; "padaria" no máximo 2 vezes na semana) e 1 receita de "casa" para o jantar. ` +
         `Para sábado e domingo: 1 receita de "casa" por dia. Preencha o campo "dia" de todos os itens, com o dia da semana em minúsculas.\n`;
 
   const prompt =
@@ -195,7 +200,7 @@ export async function sugerirAlimentacaoDoUsuario(uid: string, bruto: Record<str
   await db.doc(`alimentacaoIa/${uid}`).set(
     {
       userId: uid,
-      [escopo]: { data: hoje, objetivo, tipoDeDia: dias[0].tipo, saida, geradoEm: FieldValue.serverTimestamp() },
+      [escopo]: { data: hoje, paraData: dias[0].data, objetivo, tipoDeDia: dias[0].tipo, saida, geradoEm: FieldValue.serverTimestamp() },
     },
     { merge: true },
   );

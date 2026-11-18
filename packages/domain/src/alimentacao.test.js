@@ -87,6 +87,12 @@ describe('validarSugestaoAlimentar', () => {
     expect(r.itens).toHaveLength(1);
     expect(r.itens[0].dia).toBe('segunda');
   });
+  it('em "amanhã" aceita só lanches para levar e limita a 4', () => {
+    const levar = ['Torrada', 'Iogurte', 'Wrap', 'Bolinho', 'Ovo'].map((nome, i) => item({ nome, tipo: i % 2 ? 'doce' : 'salgado', ingredientes: [nome, 'pão'] }));
+    const r = validarSugestaoAlimentar({ itens: [item({ bloco: 'casa', nome: 'Jantar' }), item({ bloco: 'padaria', nome: 'Café', preparo: [] }), ...levar] }, { escopo: 'amanha' });
+    expect(r.itens.map((i) => i.bloco)).toEqual(['levar', 'levar', 'levar', 'levar']);
+    expect(r.itens).toHaveLength(4);
+  });
   it('é inválido sem itens', () => expect(validarSugestaoAlimentar({ itens: [] }).valido).toBe(false));
 });
 
