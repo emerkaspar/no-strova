@@ -422,6 +422,55 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Perfil alimentar (guia de alimentação na página Saúde), um documento por usuário (id = uid): objetivo, restrições,
+    // contexto fixo e refeições por dia. Só o dono lê e escreve.
+    function perfilAlimentarValido() {
+      let p = request.resource.data;
+      return p.keys().hasOnly(['userId', 'objetivo', 'usarMetaDePeso', 'restricoes', 'contexto', 'refeicoesPorDia'])
+        && p.keys().hasAll(['userId', 'objetivo', 'usarMetaDePeso', 'restricoes', 'contexto', 'refeicoesPorDia'])
+        && p.userId == request.auth.uid
+        && p.objetivo in ['emagrecer', 'manter', 'ganhar']
+        && p.usarMetaDePeso is bool
+        && p.restricoes is list && p.restricoes.size() <= 20
+        && p.contexto is string && p.contexto.size() <= 600
+        && p.refeicoesPorDia is int && p.refeicoesPorDia >= 3 && p.refeicoesPorDia <= 6;
+    }
+
+    match /perfilAlimentar/{uid} {
+      allow read: if acessoLiberado() && request.auth.uid == uid;
+      allow create, update: if acessoLiberado() && request.auth.uid == uid && perfilAlimentarValido();
+      allow delete: if false;
+    }
+
+    // Últimas sugestões de comida geradas pela IA (um documento por usuário: campos `dia` e `semana`). Só o servidor grava.
+    match /alimentacaoIa/{uid} {
+      allow read: if acessoLiberado() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Receitas favoritas (id = `${uid}_${chave da receita}`). O dono cria, lê e apaga; não edita.
+    function receitaFavoritaValida() {
+      let r = request.resource.data;
+      return r.keys().hasOnly(['userId', 'chave', 'item', 'criadoEm'])
+        && r.keys().hasAll(['userId', 'chave', 'item'])
+        && r.userId == request.auth.uid
+        && r.chave is string && r.chave.size() >= 3 && r.chave.size() <= 80
+        && r.item is map
+        && r.item.keys().hasOnly(['bloco', 'dia', 'nome', 'tipo', 'porQue', 'tempoMin', 'ingredientes', 'preparo', 'equipamento', 'vespera'])
+        && r.item.bloco in ['levar', 'padaria', 'casa']
+        && r.item.tipo in ['salgado', 'doce']
+        && r.item.nome is string && r.item.nome.size() >= 2 && r.item.nome.size() <= 80
+        && r.item.ingredientes is list && r.item.ingredientes.size() <= 15
+        && r.item.preparo is list && r.item.preparo.size() <= 8
+        && (!('criadoEm' in r) || r.criadoEm is timestamp);
+    }
+
+    match /receitasFavoritas/{id} {
+      allow read, delete: if acessoLiberado() && donoDoRegistro();
+      allow create: if acessoLiberado() && receitaFavoritaValida() && id == request.auth.uid + '_' + request.resource.data.chave;
+      allow update: if false;
+    }
+
     match /iaRascunhos/{id} {
       allow read: if acessoLiberado() && donoDoRegistro();
       allow write: if false;

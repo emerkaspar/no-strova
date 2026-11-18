@@ -86,7 +86,7 @@ export async function lerLimiteDiario(): Promise<number | null> {
 }
 
 /** Reserva uma chamada da cota do dia; lança resource-exhausted quando acabou. Retorna quantas restam (null = sem limite). */
-async function reservarChamada(uid: string, hoje: string): Promise<number | null> {
+export async function reservarChamada(uid: string, hoje: string): Promise<number | null> {
   const limite = await lerLimiteDiario();
   const ref = refUso(uid, hoje);
   return db.runTransaction(async (tx) => {
@@ -100,7 +100,7 @@ async function reservarChamada(uid: string, hoje: string): Promise<number | null
 }
 
 /** Devolve a chamada reservada quando a IA falhou (o usuário não paga a cota por erro do serviço). */
-async function devolverChamada(uid: string, hoje: string): Promise<void> {
+export async function devolverChamada(uid: string, hoje: string): Promise<void> {
   try {
     await refUso(uid, hoje).set({ chamadas: FieldValue.increment(-1) }, { merge: true });
   } catch (err) {
@@ -118,7 +118,7 @@ export async function chamadasRestantes(uid: string): Promise<number | null> {
 }
 
 /** Erro 402 do Gemini: créditos pré-pagos esgotados ou faturamento desativado. */
-function semCreditoNoGemini(err: unknown): boolean {
+export function semCreditoNoGemini(err: unknown): boolean {
   return /402|prepayment|payment required/i.test(String((err as Error)?.message ?? ""));
 }
 
@@ -206,14 +206,14 @@ const REGRA_SONO =
  * Passos e sono dos últimos 14 dias (vindos do intervals.icu) para o contexto da IA, mais o fator de carga que o sono pede
  * (null quando não há motivo). Sem registros, `resumo` é null e o prompt ignora o assunto. Só números resumidos: nada de datas soltas.
  */
-interface ResumoBemEstarParaIa {
+export interface ResumoBemEstarParaIa {
   mediaSonoHoras7Dias: number | null;
   noitesComRegistro7Dias: number;
   sonoDaUltimaNoiteHoras: number | null;
   mediaPassos7Dias: number | null;
 }
 
-async function bemEstarRecente(uid: string, hoje: string): Promise<{ resumo: ResumoBemEstarParaIa | null; fator: number | null }> {
+export async function bemEstarRecente(uid: string, hoje: string): Promise<{ resumo: ResumoBemEstarParaIa | null; fator: number | null }> {
   const snap = await db.collection("bemEstar").where("userId", "==", uid).where("data", ">=", somarDias(hoje, -14)).get();
   const dias = snap.docs.map((d) => ({
     data: d.get("data") as string,

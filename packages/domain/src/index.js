@@ -52,3 +52,4 @@ export * from './treinosDeBase.js';
 export * from './iaPlanoAnual.js';
 export * from './notificacoes.js';
 export * from './semanaIa.js';
+export * from './alimentacao.js';

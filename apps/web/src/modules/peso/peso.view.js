@@ -14,6 +14,7 @@ import { abrirModal } from '../../utils/modal.js';
 import { paginaTopo } from '../../utils/paginaTopo.js';
 import { criarGraficoPeso, PERIODOS_DO_PESO } from './graficoPeso.js';
 import { criarHistoricoDePesagens } from './historicoPesagens.js';
+import { criarSecaoAlimentacao } from './alimentacao.view.js';
 import { criarSecaoMedidas } from './medidas.view.js';
 import { abrirRegistroDePeso } from './registroPeso.js';
 import { criarResumoDaSaude } from './resumoDaSaude.js';
@@ -25,6 +26,7 @@ const SECOES = [
   { id: 'peso', rotulo: 'Peso' },
   { id: 'sono-passos', rotulo: 'Sono, passos e treino' },
   { id: 'medidas', rotulo: 'Medidas' },
+  { id: 'alimentacao', rotulo: 'Alimentação' },
 ];
 
 /** Troca os filhos de um cartão ignorando null (replaceChildren escreveria "null" na tela). */
@@ -116,6 +118,7 @@ export function render(raiz, sessao, params = {}) {
   const historico = criarHistoricoDePesagens({ uid: sessao.uid, aoErro: (m) => erroGeral.mostrar(m) });
   const indice = criarIndiceDeSecoes({ raiz, secoes: SECOES, prefixo: 'saude-', rotaBase: '#/peso', rotuloAria: 'Seções da página Saúde' });
   const medidas = criarSecaoMedidas({ sessao, dados, hoje, perfil: () => ({ sexo: sexo(), alturaCm: alturaCm() }), erroGeral });
+  const alimentacao = criarSecaoAlimentacao({ sessao, hoje, perderPeso });
 
   // ---- gráfico do peso (o período vem do seletor único da página)
   function desenharGrafico() {
@@ -292,13 +295,14 @@ export function render(raiz, sessao, params = {}) {
     h(
       'div',
       { class: 'ativ-pagina' },
-      paginaTopo({ icone: 'saude', titulo: 'Saúde', subtitulo: 'Peso, sono, passos e medidas do corpo, cruzados com a sua carga de treino.' }),
+      paginaTopo({ icone: 'saude', titulo: 'Saúde', subtitulo: 'Peso, sono, passos, medidas e alimentação, cruzados com a sua carga de treino.' }),
       controles,
       erroGeral.el,
       secao('resumo', resumo.el),
       secao('peso', lateral, graficoCartao, historico.el),
       secao('sono-passos', sonoPassos.el),
       secao('medidas', medidas.el),
+      secao('alimentacao', alimentacao.el),
     ),
   );
   indice.observar();
@@ -314,6 +318,7 @@ export function render(raiz, sessao, params = {}) {
         dados.pesagens = lista;
         carregou.pesagens = true;
         desenhar();
+        alimentacao.desenhar(); // o objetivo mostrado segue a meta de peso
       },
       aoErro,
     ),
@@ -323,6 +328,7 @@ export function render(raiz, sessao, params = {}) {
         dados.metas = lista;
         carregou.metas = true;
         desenhar();
+        alimentacao.desenhar();
       },
       aoErro,
     ),
@@ -390,5 +396,6 @@ export function render(raiz, sessao, params = {}) {
     indice.parar();
     medidas.fechar();
     sonoPassos.fechar();
+    alimentacao.fechar();
   };
 }

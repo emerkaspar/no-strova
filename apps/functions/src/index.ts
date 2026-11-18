@@ -28,6 +28,7 @@ export {
   listarUsuarios,
 } from "./modules/auth/auth.functions";
 export { onAtividadeWrite, reconstruirEstresseDiario } from "./modules/estresse/estresse.functions";
+export { sugerirAlimentacao } from "./modules/alimentacao/alimentacao.functions";
 export { decidirRascunho, gerarSemanaComIa, iaChamadasRestantes, sugerirPlanoAnual, sugerirTreinoDoTrajeto, sugerirTreinos, sugerirTreinoUnico } from "./modules/ia/ia.functions";
 export { marcarConquistasComoVistas, onMetaProgressaoWrite } from "./modules/objetivos/objetivos.functions";
 export {

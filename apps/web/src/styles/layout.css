@@ -10127,3 +10127,128 @@ a.rec-card-quando:hover {
 .saude-mini-bloco {
   margin: 2px 0 0;
 }
+
+/* alimentação (página Saúde): ideias de lanches e receitas geradas pela IA */
+.alim {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alim-pedido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.alim-pedido .campo {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.alim-resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alim-orientacao {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 12px;
+  background: var(--surface-light);
+}
+
+.alim-grupo-titulo {
+  margin: 8px 0;
+  font-size: 1rem;
+}
+
+.alim-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.alim-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-light);
+}
+
+.alim-item p {
+  margin: 0;
+}
+
+.alim-item-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.alim-item-nome {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.alim-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alim-estrela {
+  flex: none;
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.alim-estrela.ativa {
+  color: var(--primary);
+}
+
+.alim-receita summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.alim-receita h5 {
+  margin: 10px 0 4px;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.alim-receita ul,
+.alim-receita ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.alim-favoritas summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+  .alim-grade {
+    grid-template-columns: 1fr;
+  }
+}

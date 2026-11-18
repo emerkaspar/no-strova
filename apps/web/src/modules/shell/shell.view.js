@@ -44,7 +44,7 @@ function resolverRota(hash, admin) {
   const progressao = /^#\/progressao\/(projecao|objetivos|analise|desempenho|zonas)$/.exec(hash);
   if (progressao) return { menu: '#/progressao', render: renderProgressao, params: { secao: progressao[1] } };
   // as seções da Saúde (índice fixo no topo da página) também têm rota própria: a tela rola até a seção
-  const saude = /^#\/peso\/(resumo|peso|sono-passos|medidas)$/.exec(hash);
+  const saude = /^#\/peso\/(resumo|peso|sono-passos|medidas|alimentacao)$/.exec(hash);
   if (saude) return { menu: '#/peso', render: renderPeso, params: { secao: saude[1] } };
   switch (hash) {
     case '#/forma':
