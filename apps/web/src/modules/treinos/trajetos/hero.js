@@ -8,6 +8,7 @@ import { formatarNumero } from '../../../utils/formatters.js';
 import { icone } from '../../../utils/icones.js';
 import { FAIXAS_DE_INCLINACAO, perfilDoTerreno } from './perfilTerreno.js';
 import { abrirTreinoAdaptado } from './treinoAdaptado.js';
+import { abrirTreinosEmLote } from './treinosEmLote.js';
 
 const chip = (nomeIcone, rotulo, valor, classe = '') =>
   h('div', { class: `traj-chip ${classe}`.trim() }, h('span', { class: 'traj-chip-icone' }, icone(nomeIcone, 16)), h('div', null, h('p', { class: 'traj-chip-rotulo' }, rotulo), h('p', { class: 'traj-chip-valor' }, valor)));
@@ -177,6 +178,20 @@ export function criarHeroDoTrajeto({ trajeto, passagens, rota, esporte, uid, niv
     if (r?.salvo) aoCriarTreino?.(r);
   });
 
+  // segundo botão (azul): 5, 10 ou 20 treinos diversificados de uma vez
+  const botaoLote = h(
+    'button',
+    { class: 'traj-cta traj-cta-azul', type: 'button', disabled: !temRotaDeReferencia, 'aria-describedby': temRotaDeReferencia ? null : 'traj-cta-dica' },
+    h('span', { class: 'traj-cta-icone' }, icone('ia', 26)),
+    h('span', { class: 'traj-cta-texto' }, h('strong', null, 'Criar vários treinos com IA'), h('small', null, '5, 10 ou 20 treinos diferentes, variando foco, estratégia e nível.')),
+    h('span', { class: 'traj-cta-seta' }, icone('seta', 22)),
+  );
+  botaoLote.addEventListener('click', async () => {
+    const r = await abrirTreinosEmLote({ uid, trajeto: { id: trajeto.id, nome: trajeto.nome }, esporte });
+    if (r?.salvos) aoCriarTreino?.(r);
+  });
+  const ctas = h('div', { class: 'traj-ctas' }, botao, botaoLote);
+
   const n = passagens.length;
   const subtitulo = n === 0 ? 'Nenhuma atividade neste trajeto ainda.' : `${n} ${n === 1 ? 'passagem' : 'passagens'}${rota ? ', medidas no trecho que acompanha a rota de referência' : ', medidas na atividade inteira (defina a rota de referência para medir só o trecho)'}.`;
 
@@ -190,7 +205,7 @@ export function criarHeroDoTrajeto({ trajeto, passagens, rota, esporte, uid, niv
     mapaWrap,
     perfilEl,
     chips,
-    botao,
+    ctas,
     temRotaDeReferencia ? null : h('p', { class: 'dica', id: 'traj-cta-dica' }, 'O botão libera quando o trajeto tem uma rota de referência.'),
   );
   return { el, destruir: () => { ativo = false; editor?.destruir(); } };

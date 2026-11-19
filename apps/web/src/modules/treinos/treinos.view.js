@@ -7,7 +7,6 @@ import { observarModelos } from '../../infrastructure/modelosRepo.js';
 import { observarTreinos } from '../../infrastructure/planoRepo.js';
 import { observarPreferencias } from '../../infrastructure/calibracaoRepo.js';
 import { observarSemanaIa } from '../../infrastructure/semanaIaRepo.js';
-import { criarAbas } from '../../utils/abas.js';
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { paginaTopo } from '../../utils/paginaTopo.js';
@@ -22,11 +21,19 @@ import { criarSecaoSugestoes } from './sugestoes.js';
 import { estadoTreinos, salvarRecolhidas } from './state.js';
 import { criarSecaoTrajetos } from './trajetos/aba.js';
 
+/** Seções da página, na ordem em que aparecem; a barra fixa no topo leva a elas (como na Progressão). */
+const ANCORAS = [
+  { id: 'semana', rotulo: 'Esta semana' },
+  { id: 'biblioteca', rotulo: 'Biblioteca' },
+  { id: 'meus', rotulo: 'Meus treinos' },
+  { id: 'trajetos', rotulo: 'Trajetos de Treino' },
+];
+
 /** Quantos dias de histórico a sugestão considera (o suficiente para a regra de não repetir em 6 semanas). */
 const DIAS_DE_HISTORICO = 45;
 
 /**
- * Treinos, numa página só: sugestões para a semana (por regras), a evolução nos trajetos do usuário, a biblioteca do sistema
+ * Treinos, numa página só (sem abas): sugestões para a semana (por regras), a evolução nos trajetos do usuário, a biblioteca do sistema
  * (ciclismo e corrida, por foco e nível) e os treinos próprios, com construtor. As seções podem ser recolhidas (o app lembra)
  * e um índice fixo leva a cada uma. Cada treino pode ir para o plano ou para o relógio (.fit).
  */
@@ -35,7 +42,10 @@ export function render(raiz, sessao) {
   const dados = { treinos: [], configs: [], modelos: [], dias: [], preferencias: null, semanaIa: null };
   const carregou = { treinos: false, configs: false, modelos: false, dias: false, preferencias: false, semanaIa: false };
   let ativa = true;
+  let secaoVisivel = ANCORAS[0].id;
+  let observador = null;
   const cancelar = [];
+  cancelar.push(() => observador?.disconnect());
 
   const nivel = () => dados.preferencias?.nivelTreinos ?? 'intermediario';
   /** O usuário liga "Montar minha semana com IA" no Perfil de treino (e tem a IA liberada): a semana é criada sozinha. */
@@ -48,11 +58,10 @@ export function render(raiz, sessao) {
     esporte: estadoTreinos.esporte,
     nivel,
     // treino adaptado salvo: leva o usuário a "Meus treinos", onde ele já aparece com a tag do trajeto
-    aoCriarTreino: () => {
-      estadoTreinos.aba = 'treinos';
+    aoCriarTreino: (r) => {
       definirRecolhida('meus', false);
       estadoTreinos.rolarPara = 'meus';
-      mensagem.mostrar('Treino salvo em Meus treinos, com o nome do trajeto.', 'ok');
+      mensagem.mostrar(r?.salvos > 1 ? `${r.salvos} treinos salvos em Meus treinos, com o nome do trajeto.` : 'Treino salvo em Meus treinos, com o nome do trajeto.', 'ok');
       desenhar();
     },
   });
@@ -109,9 +118,7 @@ export function render(raiz, sessao) {
    * cartão (o painel de um trajeto), e some junto quando a seção é recolhida.
    */
   function secao(id, { titulo, acoes = null, corpo, fora = null }) {
-    // com a semana automática ligada, "Esta semana" abre recolhida em cada visita: o usuário a abre de propósito
-    const forcada = id === 'semana' && semanaAutomatica() && !estadoTreinos.semanaAutoAberta;
-    const recolhida = forcada || estaRecolhida(id);
+    const recolhida = estaRecolhida(id);
     const corpoId = `treinos-corpo-${id}`;
     const botao = h(
       'button',
@@ -121,12 +128,7 @@ export function render(raiz, sessao) {
         'aria-expanded': String(!recolhida),
         'aria-controls': corpoId,
         onClick: () => {
-          if (forcada) {
-            estadoTreinos.semanaAutoAberta = true;
-            if (estaRecolhida(id)) definirRecolhida(id, false);
-          } else {
-            definirRecolhida(id, !recolhida);
-          }
+          definirRecolhida(id, !recolhida);
           desenhar();
           raiz.querySelector(`#treinos-${id} .treinos-secao-titulo`)?.focus();
         },
@@ -207,9 +209,51 @@ export function render(raiz, sessao) {
     );
   }
 
-  /** Esporte, na barra fixa. Vale para a página inteira. */
+  /** Barra de âncoras: leva à seção e destaca a que está na parte de cima da tela. */
+  function criarAncoras() {
+    return h(
+      'nav',
+      { class: 'plano-ancoras', 'aria-label': 'Seções de treinos' },
+      ...ANCORAS.map((x) =>
+        h('button', { class: 'plano-ancora', type: 'button', 'data-secao': x.id, 'aria-current': secaoVisivel === x.id ? 'true' : null, onClick: () => raiz.querySelector(`#treinos-${x.id}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) }, x.rotulo),
+      ),
+    );
+  }
+
+  /** A página é redesenhada a cada dado novo, então o observador das seções é refeito. */
+  function observarSecoes() {
+    observador?.disconnect();
+    observador = null;
+    if (typeof IntersectionObserver === 'undefined') return;
+    const visiveis = new Set();
+    observador = new IntersectionObserver(
+      (entradas) => {
+        for (const e of entradas) {
+          if (e.isIntersecting) visiveis.add(e.target.dataset.secao);
+          else visiveis.delete(e.target.dataset.secao);
+        }
+        const atual = ANCORAS.find((x) => visiveis.has(x.id))?.id;
+        if (atual && atual !== secaoVisivel) {
+          secaoVisivel = atual;
+          raiz.querySelectorAll('.plano-ancora').forEach((b) => b.setAttribute('aria-current', String(b.dataset.secao === atual)));
+        }
+      },
+      // só conta a faixa de cima da tela (abaixo da barra fixa)
+      { rootMargin: '-80px 0px -60% 0px' },
+    );
+    for (const x of ANCORAS) {
+      const el = raiz.querySelector(`#treinos-${x.id}`);
+      if (el) {
+        el.dataset.secao = x.id;
+        observador.observe(el);
+      }
+    }
+  }
+
+  /** Âncoras e esporte, na barra fixa. O esporte vale para a página inteira. */
   function desenharControles() {
     controles.replaceChildren(
+      criarAncoras(),
       h('div', { class: 'treinos-controle' }, h('span', { class: 'treinos-controle-rotulo' }, 'Esporte'), segmentado('Esporte', [['ciclismo', 'Ciclismo'], ['corrida', 'Corrida']], estadoTreinos.esporte, (v) => {
         estadoTreinos.esporte = v;
         estadoTreinos.recusados = [];
@@ -352,27 +396,15 @@ export function render(raiz, sessao) {
         corpo: corpoMeus,
       }),
     );
-    // "Trajetos de Treino" fica na própria aba; o painel do trajeto escolhido abre logo abaixo dos badges
+    // "Trajetos de Treino" vem depois das seções de treinos; o painel do trajeto escolhido abre logo abaixo dos badges
     const painelTrajetos = h(
       'div',
       { class: 'pilha' },
       h('section', { class: 'treinos-secao pilha', id: 'treinos-trajetos' }, h('div', { class: 'card' }, h('h2', null, 'Trajetos de Treino'), trajetos.el), trajetos.painelEl),
     );
 
-    // a aba em uso vem do estado da sessão; um pedido de rolagem leva à aba onde a seção está
-    const anterior = estadoTreinos.aba;
-    const abas = criarAbas({
-      chave: 'ns:treinos:aba',
-      rotuloAria: 'Treinos e trajetos',
-      aoSelecionar: (id) => { estadoTreinos.aba = id; },
-      abas: [
-        { id: 'treinos', nome: 'Treinos', icone: 'treinos', painel: painelTreinos },
-        { id: 'trajetos', nome: 'Trajetos de Treino', icone: 'rota', painel: painelTrajetos },
-      ],
-    });
-    const desejada = estadoTreinos.rolarPara ? (estadoTreinos.rolarPara === 'trajetos' ? 'trajetos' : 'treinos') : anterior;
-    if (desejada === 'treinos' || desejada === 'trajetos') abas.selecionar(desejada);
-    secoes.replaceChildren(abas.lista, ...abas.paineis);
+    secoes.replaceChildren(painelTreinos, painelTrajetos);
+    observarSecoes();
   }
 
   function desenhar() {

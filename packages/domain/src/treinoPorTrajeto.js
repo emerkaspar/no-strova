@@ -206,6 +206,33 @@ export function segmentarTerreno(perfil, opcoes = {}) {
   return { segmentos, resumo, perfil: { dM: marcos.map((d) => Math.round(d)), alt: alt.map((a) => arredondar(a)) } };
 }
 
+/** Quantos treinos o app cria de uma vez para um trajeto ("Criar vários treinos"). */
+export const QUANTIDADES_EM_LOTE = Object.freeze([5, 10, 20]);
+
+/** Estratégias que valem num lote (o "Zerar o trajeto" é um treino único, sem variação). */
+export const ESTRATEGIAS_EM_LOTE = Object.freeze(Object.keys(ESTRATEGIAS_TRAJETO).filter((e) => e !== ESTRATEGIA_RECORDE));
+
+/**
+ * Plano de variações de um lote: para cada treino, o foco, a estratégia e o nível. O código decide a combinação (a IA só
+ * escolhe as zonas), para o lote ser realmente diversificado: os pares foco × estratégia não se repetem enquanto houver
+ * combinações (11 focos × 3 estratégias = 33) e a estratégia gira a cada rodada de focos. Os níveis se alternam.
+ * @param {{ quantidade: number, focos?: string[], estrategias?: string[], niveis?: string[] }} p
+ * @returns {Array<{ indice: number, foco: string, estrategia: string, nivel: string }>}
+ */
+export function planejarVariacoes({ quantidade, focos = FOCOS_PARA_TRAJETO, estrategias = ESTRATEGIAS_EM_LOTE, niveis = ['intermediario'] }) {
+  const F = focos.length;
+  const E = estrategias.length;
+  const N = niveis.length;
+  if (!Number.isInteger(quantidade) || quantidade < 1 || F === 0 || E === 0 || N === 0) return [];
+  const total = F * E;
+  return Array.from({ length: quantidade }, (_, i) => {
+    const j = i % total;
+    const fi = j % F;
+    const ei = (Math.floor(j / F) + fi) % E;
+    return { indice: i, foco: focos[fi], estrategia: estrategias[ei], nivel: niveis[i % N] };
+  });
+}
+
 /** Zona de esforço do foco (a zona do trabalho forte) e o teto que a IA não pode ultrapassar. */
 export const zonaDeEsforcoDoFoco = (foco) => ZONA_DE_ESFORCO[foco] ?? 'Z4';
 export const tetoDeZonaDoFoco = (foco) => TETO_DE_ZONA[foco] ?? 'Z5';

@@ -1,6 +1,6 @@
 /* Página de Treinos: barra fixa de esporte e nível, e seções que se recolhem. Só variáveis de tema. */
 
-/* ---------- barra fixa: esporte e nível ---------- */
+/* ---------- barra fixa: âncoras das seções e esporte ---------- */
 .treinos-barra {
   position: sticky;
   top: 0;
@@ -14,12 +14,24 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* as âncoras moram dentro da barra fixa: não precisam ser fixas, nem ter fundo e borda próprios */
+.treinos-barra .plano-ancoras {
+  position: static;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
 .treinos-controles {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 24px;
   margin: 0;
+}
+
+.treinos-controles .plano-ancoras {
+  max-width: 100%;
 }
 
 .treinos-controle {

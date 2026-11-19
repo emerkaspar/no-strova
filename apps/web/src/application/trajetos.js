@@ -1,5 +1,5 @@
 import { parciaisDoTrecho, passagensDoTrajeto, perfilDaPassagem, perfilDoTrajeto, podioDoTrajeto, resumoDoTrajeto, rotaValida, segmentarTerreno } from '@no-strova/domain';
-import { ajustarTrechoDaAtividade, definirRotaDoTrajeto, sugerirTreinoDoTrajeto } from '../core/functions.js';
+import { ajustarTrechoDaAtividade, definirRotaDoTrajeto, sugerirTreinoDoTrajeto, sugerirTreinosDoTrajetoEmLote } from '../core/functions.js';
 import { lerSerieDetalhe } from '../infrastructure/atividadesRepo.js';
 import { salvarModeloProprio } from './treinos.js';
 
@@ -89,6 +89,20 @@ export async function ajustarTrecho({ atividadeId, modo, iniKm = null, fimKm = n
  */
 export function gerarTreinoDoTrajeto({ trajetoId, foco, nivel, estrategia, observacao, usarIa }) {
   return sugerirTreinoDoTrajeto({ trajetoId, foco, nivel, estrategia, observacao: observacao || undefined, usarIa });
+}
+
+/**
+ * Vários treinos (5, 10 ou 20) diversificados para o trajeto, num só pedido (uma só sugestão de IA). Nada é gravado até
+ * `salvarTreinosDoTrajeto`. Lança Error em português.
+ */
+export function gerarTreinosDoTrajetoEmLote({ trajetoId, quantidade, estrategias, foco, nivel, observacao, usarIa }) {
+  return sugerirTreinosDoTrajetoEmLote({ trajetoId, quantidade, estrategias, foco: foco || undefined, nivel, observacao: observacao || undefined, usarIa });
+}
+
+/** Salva os treinos escolhidos do lote em "Meus treinos", todos com a tag do trajeto. Retorna quantos foram salvos. */
+export async function salvarTreinosDoTrajeto({ uid, treinos, trajeto }) {
+  for (const treino of treinos) await salvarTreinoDoTrajeto({ uid, treino, trajeto });
+  return treinos.length;
 }
 
 /** Salva o treino gerado em "Meus treinos", com a tag do trajeto. Retorna o id do modelo. */

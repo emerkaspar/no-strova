@@ -10,17 +10,13 @@ export const SECOES = Object.freeze([
   { id: 'meus', rotulo: 'Meus treinos' },
 ]);
 
-const CHAVE_RECOLHIDAS = 'ns:treinos:recolhidas';
+// v2: o padrão agora é tudo aberto (a v1 guardava a Biblioteca recolhida na primeira visita)
+const CHAVE_RECOLHIDAS = 'ns:treinos:recolhidas:v2';
 
-/** Seções recolhidas guardadas no navegador. Na primeira visita tudo abre, e a Biblioteca (a mais longa) passa a vir recolhida nas próximas. */
+/** Seções recolhidas guardadas no navegador. Sem escolha salva, todas abrem. */
 function lerRecolhidas() {
   try {
-    const bruto = localStorage.getItem(CHAVE_RECOLHIDAS);
-    if (bruto === null) {
-      localStorage.setItem(CHAVE_RECOLHIDAS, JSON.stringify(['biblioteca']));
-      return [];
-    }
-    const lista = JSON.parse(bruto);
+    const lista = JSON.parse(localStorage.getItem(CHAVE_RECOLHIDAS) ?? '[]');
     return Array.isArray(lista) ? lista.filter((id) => SECOES.some((s) => s.id === id)) : [];
   } catch {
     // navegador sem armazenamento (janela privada, dados bloqueados): tudo aberto
@@ -53,11 +49,7 @@ export const estadoTreinos = {
   desmarcadas: [],
   /** ids das seções recolhidas */
   recolhidas: lerRecolhidas(),
-  /** semana automática (IA) ligada: o usuário abriu "Esta semana" e liberou as sugestões manuais nesta sessão */
-  semanaAutoAberta: false,
   semanaManualLiberada: false,
-  /** aba aberta ('treinos' ou 'trajetos'); null segue a última aba lembrada no navegador */
-  aba: null,
   /** seção para onde a tela deve rolar ao abrir (uma vez) */
   rolarPara: null,
   /** seção Trajetos: o trajeto aberto, a métrica do gráfico, as passagens marcadas para comparar (até 2), o filtro de clima e a ordem da tabela */
@@ -72,7 +64,6 @@ function novoEstadoDosTrajetos() {
 export function prepararEvolucaoDoTrajeto({ esporte, trajetoId }) {
   estadoTreinos.esporte = esporte;
   estadoTreinos.trajetos = { ...novoEstadoDosTrajetos(), aberto: trajetoId };
-  estadoTreinos.aba = 'trajetos';
   estadoTreinos.rolarPara = 'trajetos';
 }
 
@@ -87,7 +78,6 @@ export function reiniciarEstadoTreinos() {
     semente: null,
     recusados: [],
     desmarcadas: [],
-    aba: null,
     rolarPara: null,
     trajetos: novoEstadoDosTrajetos(),
   });

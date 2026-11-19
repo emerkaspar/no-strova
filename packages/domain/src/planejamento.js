@@ -176,7 +176,7 @@ function somarPorDia(itens) {
 /**
  * Estresse de cada dia para a projeção, pelas regras do produto:
  *  - dias passados: só o realizado;
- *  - hoje: só o realizado (o treino planejado de hoje não conta até ser feito);
+ *  - hoje: o maior entre o realizado e o planejado;
  *  - dias futuros: o planejado.
  * Só treinos com status "planejado" contam: o vinculado (realizado) já está no realizado e o pulado não soma.
  * @param {{ realizado: Array<{data: string, estresse: number}>, treinos: TreinoPlanejado[], configs: any[], hoje: string }} entrada
@@ -194,9 +194,8 @@ export function estressesParaProjecao({ realizado, treinos, configs, hoje, calib
   for (const data of new Set([...feito.keys(), ...previsto.keys()])) {
     const r = feito.get(data) ?? 0;
     const p = previsto.get(data) ?? 0;
-    // hoje só vale o que foi feito: o treino planejado de hoje ainda não aconteceu e não entra na conta
-    const estresse = data <= hoje ? r : p;
-    if (estresse > 0) resultado.push({ data, estresse, origem: data > hoje ? 'planejado' : 'realizado' });
+    const estresse = data < hoje ? r : data === hoje ? Math.max(r, p) : p;
+    if (estresse > 0) resultado.push({ data, estresse, origem: data > hoje || (data === hoje && p > r) ? 'planejado' : 'realizado' });
   }
 
   // Dias futuros sem treino previsto seguem o ritmo médio do atleta (o treino previsto do dia substitui a média).

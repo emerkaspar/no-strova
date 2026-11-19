@@ -5,7 +5,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { REGIAO } from "../../shared/config";
 import { exigirAcesso, exigirRecurso, lerObjeto } from "../../shared/guards";
 import { gerarSemanasAutomaticas } from "./semanaAutomatica.service";
-import { chamadasRestantes, decidirRascunhoDoUsuario, sugerirPlanoAnualDoUsuario, sugerirTreinoDoTrajetoDoUsuario, sugerirTreinoUnicoDoUsuario, sugerirTreinosDoUsuario } from "./ia.service";
+import { chamadasRestantes, decidirRascunhoDoUsuario, sugerirPlanoAnualDoUsuario, sugerirTreinoDoTrajetoDoUsuario, sugerirTreinosDoTrajetoEmLoteDoUsuario, sugerirTreinoUnicoDoUsuario, sugerirTreinosDoUsuario } from "./ia.service";
 
 /** Chave da API do Gemini no Secret Manager: `firebase functions:secrets:set GEMINI_API_KEY`. */
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
@@ -43,6 +43,17 @@ export const sugerirTreinoDoTrajeto = onCall(opcoes, async (request) => {
   }
   const { uid } = await exigirRecurso(request, RECURSOS.IA);
   return sugerirTreinoDoTrajetoDoUsuario(uid, dados, dados.usarIa === false ? null : chave());
+});
+
+/**
+ * Vários treinos (5, 10 ou 20) diversificados para um trajeto, num só pedido: o código planeja foco × estratégia × nível e,
+ * com IA, uma única chamada escolhe as zonas de todos. Sem IA (`usarIa: false`) valem as regras. Não grava nada.
+ * Cota: 1 chamada de IA, só quando usa a IA.
+ */
+export const sugerirTreinosDoTrajetoEmLote = onCall(opcoes, async (request) => {
+  const dados = lerObjeto(request.data);
+  const { uid } = await exigirRecurso(request, RECURSOS.IA);
+  return sugerirTreinosDoTrajetoEmLoteDoUsuario(uid, dados, dados.usarIa === false ? null : chave());
 });
 
 /** Rascunho do plano anual com IA: escolhe treinos para as próximas semanas, o código confere as regras. Cota: 1 chamada de IA. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decisoesPadrao, ESTRATEGIAS_TRAJETO, FOCOS_PARA_TRAJETO, fcMediaPorSegmento, metaDoRecorde, montarTreinoDoTerreno, montarTreinoRecorde, normalizarDecisoes, perfilDoTrajeto, ritmoDoTrecho, segmentarTerreno, zonaPelaFc } from './treinoPorTrajeto.js';
+import { planejarVariacoes, QUANTIDADES_EM_LOTE, decisoesPadrao, ESTRATEGIAS_TRAJETO, FOCOS_PARA_TRAJETO, fcMediaPorSegmento, metaDoRecorde, montarTreinoDoTerreno, montarTreinoRecorde, normalizarDecisoes, perfilDoTrajeto, ritmoDoTrecho, segmentarTerreno, zonaPelaFc } from './treinoPorTrajeto.js';
 import { duracaoTotalS, expandirPassos } from './treinosEstruturados.js';
 
 /** Série detalhada sintética: pontos a cada 5 s a 3 m/s; `trechos` = [[metros, inclinação em %]]. */
@@ -252,5 +252,27 @@ describe('zerar o trajeto (recorde)', () => {
     expect(montarTreinoRecorde([], contexto).valido).toBe(false);
     expect(montarTreinoRecorde(segmentos, { ...contexto, recordeS: 0 }).valido).toBe(false);
     expect(FOCOS_PARA_TRAJETO).not.toContain('recorde');
+  });
+});
+
+describe('planejarVariacoes (lote de treinos do trajeto)', () => {
+  it.each(QUANTIDADES_EM_LOTE)('cria %i treinos diferentes entre si (foco × estratégia)', (quantidade) => {
+    const plano = planejarVariacoes({ quantidade });
+    expect(plano).toHaveLength(quantidade);
+    expect(new Set(plano.map((p) => `${p.foco}|${p.estrategia}`)).size).toBe(quantidade);
+    expect(plano.every((p) => FOCOS_PARA_TRAJETO.includes(p.foco) && p.estrategia !== 'recorde')).toBe(true);
+  });
+
+  it('alterna os níveis pedidos e respeita focos e estratégias escolhidos', () => {
+    const plano = planejarVariacoes({ quantidade: 6, focos: ['limiar', 'tempo'], estrategias: ['subidas'], niveis: ['iniciante', 'avancado'] });
+    expect(plano.map((p) => p.nivel)).toEqual(['iniciante', 'avancado', 'iniciante', 'avancado', 'iniciante', 'avancado']);
+    expect(new Set(plano.map((p) => p.foco))).toEqual(new Set(['limiar', 'tempo']));
+  });
+
+  it('repete as combinações só quando acabam, e devolve vazio para pedido inválido', () => {
+    const plano = planejarVariacoes({ quantidade: 5, focos: ['limiar'], estrategias: ['subidas', 'equilibrada'] });
+    expect(plano.map((p) => p.estrategia)).toEqual(['subidas', 'equilibrada', 'subidas', 'equilibrada', 'subidas']);
+    expect(planejarVariacoes({ quantidade: 0 })).toEqual([]);
+    expect(planejarVariacoes({ quantidade: 3, focos: [] })).toEqual([]);
   });
 });

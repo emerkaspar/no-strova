@@ -196,6 +196,7 @@ function diasEntreIso(a, b) {
  *   hoje: string,
  *   treinoDoDia?: (data: string) => string|string[]|null,
  *   esportesDoDia?: (data: string) => string[],
+ *   planejadoHoje?: boolean  (há treino ainda planejado para hoje: a barra de Forma de hoje muda de cor)
  *   previstoDoDia?: (data: string) => number  (esforço previsto do treino vinculado ao dia; compara com o feito nas barras de Forma)
  *   pesos?: Array<{ data: string, kg: number }>,
  *   metaPeso?: { dataAlvo: string, kg: number }|null,
@@ -214,6 +215,7 @@ export function criarGraficoPrincipal({
   treinoDoDia = () => null,
   esportesDoDia = () => [],
   previstoDoDia = () => 0,
+  planejadoHoje = false,
   pesos = [],
   metaPeso = null,
   bemEstar = [],
@@ -377,6 +379,8 @@ export function criarGraficoPrincipal({
     raizSvg.append(defs, svg('path', { d: caminhoArea, fill: `url(#${idGradiente})`, class: 'cg-area' }));
     for (const [campo, y] of [['fadiga', yFadiga], ['fitness', yCond]]) {
       raizSvg.append(svg('polyline', { points: pontos(campo, y, 0, indiceHoje), class: `cg-linha cg-${campo}` }));
+      // treino de hoje ainda por fazer: o trecho de ontem para hoje muda de cor até o treino ser feito
+      if (planejadoHoje && indiceHoje > 0) raizSvg.append(svg('polyline', { points: pontos(campo, y, indiceHoje - 1, indiceHoje), class: `cg-linha cg-${campo} cg-pendente` }));
       if (temFuturo) raizSvg.append(svg('polyline', { points: pontos(campo, y, indiceHoje, n - 1), class: `cg-linha cg-${campo} cg-tracejada` }));
     }
 
@@ -412,7 +416,7 @@ export function criarGraficoPrincipal({
         y: Math.min(y0, y1).toFixed(1),
         width: larguraBarra.toFixed(1),
         height: Math.max(1, Math.abs(y1 - y0)).toFixed(1),
-        class: `cg-barra cg-zona-${d.faixa}${d.projetado ? ' cg-barra-futura' : ''}`,
+        class: `cg-barra cg-zona-${d.faixa}${d.projetado ? ' cg-barra-futura' : ''}${planejadoHoje && d.data === hoje ? ' cg-barra-hoje-planejado' : ''}`,
       });
       return barra;
     });
@@ -781,8 +785,8 @@ export function criarGraficoPrincipal({
         linhaPrevisto,
         ...treinos.map((t) => linhaDeTreino(t, 'cg-treino-linha cg-dica-treino')),
         linhaDica('Condicionamento', formatarNumero(d.fitness, 1), 'cg-dica-fitness'),
-        linhaDica('Fadiga', formatarNumero(d.fadiga, 1)),
-        linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`),
+        linhaDica('Fadiga', formatarNumero(d.fadiga, 1), 'cg-dica-fadiga'),
+        linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`, `cg-dica-forma cg-zona-${d.faixa}`),
         linhaMetaCond,
         linhaMeta,
         ...destaques.filter((s) => s.indice === i).map((s) => h('div', { class: 'cg-dica-destaque' }, seloSolto(s.tipo), h('div', null, h('span', null, s.texto), h('p', null, s.sentido)))),

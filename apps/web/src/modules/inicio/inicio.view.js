@@ -24,7 +24,7 @@ import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
 import { blocoAtividades, blocoComparativo, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoRegistroDePeso, blocoSemana, tituloDoTreino } from './blocos.js';
 import { DIAS_DE_PLANO, rotuloDoDia } from './graficoPrincipal.js';
-import { criarPrevistoDoDia, criarTreinoDoDia } from './treinoDoDia.js';
+import { criarPrevistoDoDia, criarTreinoDoDia, temTreinoPlanejadoHoje } from './treinoDoDia.js';
 
 /** Dias de histórico de atividades e treinos para nomear o treino de cada dia no gráfico (cobre o período de 10 sem). */
 const DIAS_DE_HISTORICO = 70;
@@ -85,12 +85,15 @@ export function render(raiz, sessao) {
   function desenhar() {
     if (!ativa) return;
     const c = dados.carregou;
-    // O destaque usa só o realizado: a Forma de hoje não depende do plano.
     const serieReal = c.dias ? montarSerie(dados.dias, hoje) : [];
     const planoPronto = c.dias && c.treinos && c.configs && c.calibracao;
     const serieComPlano = planoPronto
       ? montarProjecao({ dias: dados.dias, treinos: dados.treinos, configs: dados.configs, meta: null, hoje, limiteDias: DIAS_DE_PLANO, calibracao: dados.calibracao }).serie
       : [];
+
+    // Indicadores "de hoje" (Condicionamento e Forma): a série até hoje, já com o treino planejado de hoje (o plano conta hoje).
+    // A Forma de hoje não depende do treino de hoje (usa a Fadiga de ontem); o Condicionamento sim.
+    const serieHoje = planoPronto ? serieComPlano.filter((d) => !d.projetado) : serieReal;
 
     // Treinos ainda por fazer nesta semana (hoje em diante), com o estresse estimado.
     const treinosDaSemana = dados.treinos.filter((t) => t.status === 'planejado' && t.data >= hoje && t.data >= segunda);
@@ -115,7 +118,7 @@ export function render(raiz, sessao) {
       h(
         'div',
         { class: 'inicio-coluna' },
-        blocoForma({ serie: serieReal, carregou: c.dias, semHrss: c.dias && dados.dias.length > 0 && serieReal.length === 0, clima: dados.clima, climaMotivo: dados.climaMotivo, aoBuscarClima: buscarClima }),
+        blocoForma({ serie: serieHoje, carregou: c.dias, semHrss: c.dias && dados.dias.length > 0 && serieReal.length === 0, clima: dados.clima, climaMotivo: dados.climaMotivo, aoBuscarClima: buscarClima }),
         comDados
           ? blocoMinis({
               proximo: proximoDoPlano(),
@@ -127,7 +130,7 @@ export function render(raiz, sessao) {
               dicaZona: { dica: dicaDoDia, faixaBpm: configHoje ? faixaDeFcDaZona(dicaDoDia.zona, configHoje) : null },
               metaCondicionamento: metaCond,
               avaliacaoCondicionamento: projecaoDaMeta?.avaliacaoCondicionamento ?? null,
-              condicionamentoAtual: serieReal.length > 0 ? serieReal[serieReal.length - 1].fitness : null,
+              condicionamentoAtual: serieHoje.length > 0 ? serieHoje[serieHoje.length - 1].fitness : null,
             })
           : null,
       ),
@@ -184,6 +187,7 @@ export function render(raiz, sessao) {
       treinoDoDia,
       esportesDoDia,
       previstoDoDia,
+      planejadoHoje: temTreinoPlanejadoHoje(dados, hoje),
       pesos,
       metaPeso,
       bemEstar: dados.bemEstar,
@@ -191,7 +195,7 @@ export function render(raiz, sessao) {
       prontidaoHoje: prontidaoDeHoje({
         bemEstar: dados.bemEstar,
         hoje,
-        forma: serieReal.length > 0 ? serieReal[serieReal.length - 1].forma : null,
+        forma: serieHoje.length > 0 ? serieHoje[serieHoje.length - 1].forma : null,
         diasTreinandoSeguidos: descansoERecuperacao(diasComTreino, hoje).diasTreinandoSeguidos,
       }),
       // clicar num dia com atividade abre a atividade (ou um modal para escolher, se houver mais de uma)

@@ -965,6 +965,53 @@
   transform: translateX(4px);
 }
 
+/* dois botões em destaque lado a lado (treino adaptado e vários treinos com IA) */
+.traj-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.traj-ctas .traj-cta {
+  flex: 1 1 340px;
+  width: auto;
+}
+
+.traj-cta-azul {
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
+}
+
+.traj-cta-azul:hover:not(:disabled) {
+  box-shadow: 0 14px 34px color-mix(in srgb, #2563eb 46%, transparent);
+}
+
+/* lista dos treinos do lote */
+.lote-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.lote-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.lote-item-corpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 @media (max-width: 560px) {
   .traj-cta {
     padding: 14px 16px;

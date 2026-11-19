@@ -2553,7 +2553,19 @@ textarea {
 }
 
 .cg-tracejada {
-  stroke-dasharray: 7 6;
+  stroke-dasharray: 3 2.6; /* tracejado fino, em linha com o das barras projetadas */
+  stroke-linecap: butt;
+}
+
+/* trecho de ontem para hoje enquanto o treino de hoje ainda não foi feito: amarelo e tracejado fino, para mostrar que está por fazer */
+.cg-linha.cg-pendente {
+  stroke: #f5c400;
+  stroke-dasharray: 3 2.6;
+}
+
+/* Condicionamento e Fadiga projetados: cinza-azulado, igual às barras de Forma projetadas */
+.cg-linha.cg-tracejada {
+  stroke: #8d99ae;
 }
 
 /* feito × previsto nas barras de Forma: listras sutis (abaixo do previsto) e degradê laranja (acima) */
@@ -2561,8 +2573,8 @@ textarea {
 .cg-barra-falta {
   fill: var(--surface);
   stroke: var(--cg-cor);
-  stroke-width: 1;
-  stroke-dasharray: 2 1.5;
+  stroke-width: 0.8;
+  stroke-dasharray: 1.4 1.4;
   opacity: 1;
 }
 
@@ -2607,8 +2619,8 @@ textarea {
 
 .cg-barra-futura {
   fill: none;
-  stroke-width: 1.4;
-  stroke-dasharray: 3 2;
+  stroke-width: 1;
+  stroke-dasharray: 1.6 1.6; /* tracejado fino: o plano parece leve ao lado do realizado */
 }
 
 .cg-barra-ativa {
@@ -2784,6 +2796,17 @@ textarea {
 
 .cg-dica-fitness span {
   color: var(--cg-fitness);
+  font-weight: 700;
+}
+
+.cg-dica-fadiga span {
+  color: var(--cg-fadiga);
+  font-weight: 700;
+}
+
+/* Forma no popover: na cor da zona do dia (as barras de Forma não têm linha) */
+.cg-dica-forma span {
+  color: var(--cg-cor);
   font-weight: 700;
 }
 
@@ -3448,9 +3471,22 @@ textarea {
 .cg-estresse-futuro {
   fill: none;
   stroke: var(--text-secondary);
-  stroke-width: 1.2;
-  stroke-dasharray: 3 2;
+  stroke-width: 1;
+  stroke-dasharray: 1.6 1.6;
   opacity: 0.9;
+}
+
+/* barra de Forma de hoje com treino ainda planejado: cor própria (cinza-azulado), fora das cores das zonas */
+.cg-barra.cg-barra-futura {
+  --cg-cor: #8d99ae; /* o projetado (dias futuros) fica em cinza-azulado */
+}
+
+/* hoje com treino ainda por fazer: amarelo, com preenchimento leve e contorno tracejado fino */
+.cg-barra.cg-barra-hoje-planejado {
+  --cg-cor: #f5c400;
+  fill-opacity: 0.3;
+  stroke-width: 1;
+  stroke-dasharray: 1.6 1.6;
 }
 
 .cg-meta-faixa {

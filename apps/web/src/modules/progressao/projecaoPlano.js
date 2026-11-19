@@ -9,7 +9,7 @@ import { observarMetas, observarMetasCondicionamento, observarTreinos } from '..
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
-import { criarPrevistoDoDia, criarTreinoDoDia } from '../inicio/treinoDoDia.js';
+import { criarPrevistoDoDia, criarTreinoDoDia, temTreinoPlanejadoHoje } from '../inicio/treinoDoDia.js';
 import { abrirTreinoModal } from '../plano/treinoModal.js';
 import { criarCartaoProjecao } from '../plano/projecao.js';
 
@@ -76,6 +76,7 @@ export function criarBlocoProjecao({ uid, hoje }) {
         avaliacaoCondicionamento,
         treinoDoDia,
         previstoDoDia,
+        planejadoHoje: temTreinoPlanejadoHoje(dados, hoje),
         aoClicarDia: (data) => {
           if (abrirAtividadeDoDia(data, dados.atividades)) return;
           abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);

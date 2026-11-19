@@ -37,3 +37,6 @@ export function criarPrevistoDoDia(dados) {
   return (data) =>
     dados.treinos.filter((t) => t.data === data && t.status === 'realizado').reduce((s, t) => s + (estresseDoTreino(t, dados.configs ?? [], dados.calibracao ?? null) || 0), 0);
 }
+
+/** Há treino ainda planejado (não feito) para hoje? A barra de Forma de hoje muda de cor nesse caso. */
+export const temTreinoPlanejadoHoje = (dados, hoje) => dados.treinos.some((t) => t.data === hoje && t.status === 'planejado');

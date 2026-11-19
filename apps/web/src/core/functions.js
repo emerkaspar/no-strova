@@ -49,6 +49,7 @@ export const sugerirTreinos = callable('sugerirTreinos');
 export const sugerirPlanoAnual = callable('sugerirPlanoAnual');
 export const sugerirTreinoUnico = callable('sugerirTreinoUnico');
 export const sugerirTreinoDoTrajeto = callable('sugerirTreinoDoTrajeto');
+export const sugerirTreinosDoTrajetoEmLote = callable('sugerirTreinosDoTrajetoEmLote');
 export const sugerirAlimentacao = callable('sugerirAlimentacao');
 export const calcularMelhoresEsforcos = callable('calcularMelhoresEsforcos');
 export const marcarConquistasComoVistas = callable('marcarConquistasComoVistas');

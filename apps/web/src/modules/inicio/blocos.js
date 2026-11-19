@@ -121,7 +121,7 @@ export function blocoForma({ serie, carregou, semHrss = false, clima = null, cli
  * 2. Gráfico principal: Condicionamento, fadiga e forma com o plano projetado, Peso e meta e a coluna lateral do
  * dia selecionado (ver graficoPrincipal.js). `serie` vem de montarProjecao (itens com `projetado`).
  */
-export function blocoGrafico({ serie, carregou, hoje, treinoDoDia, esportesDoDia, previstoDoDia, pesos = [], metaPeso = null, bemEstar = [], metaPassos, prontidaoHoje = null, aoClicarDia = null, diaClicavel = null }) {
+export function blocoGrafico({ serie, carregou, hoje, treinoDoDia, esportesDoDia, previstoDoDia, planejadoHoje, pesos = [], metaPeso = null, bemEstar = [], metaPassos, prontidaoHoje = null, aoClicarDia = null, diaClicavel = null }) {
   if (!carregou || serie.length === 0) {
     return h(
       'section',
@@ -130,7 +130,7 @@ export function blocoGrafico({ serie, carregou, hoje, treinoDoDia, esportesDoDia
       estadoVazio(carregou ? SEM_HRSS : 'Carregando…'),
     );
   }
-  return criarGraficoPrincipal({ serie, hoje, treinoDoDia, esportesDoDia, previstoDoDia, pesos, metaPeso, bemEstar, metaPassos, prontidaoHoje, aoClicarDia, diaClicavel });
+  return criarGraficoPrincipal({ serie, hoje, treinoDoDia, esportesDoDia, previstoDoDia, planejadoHoje, pesos, metaPeso, bemEstar, metaPassos, prontidaoHoje, aoClicarDia, diaClicavel });
 }
 
 function tituloDaSemana(semana) {
