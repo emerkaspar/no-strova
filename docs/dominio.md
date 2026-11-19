@@ -83,7 +83,7 @@ Diferenciais em relação ao Elevate:
 ## Cálculo e plano
 - **Atividade sem FC:** com FC média, estima-se o HRSS por FC média + duração. Sem nenhuma FC, o usuário informa a zona/intensidade e o app estima. O estresse pode sempre ser sobrescrito pelo usuário.
 - **Intensidade do treino planejado:** zona predominante Z1–Z5, com override manual do estresse estimado.
-- **Passado, hoje e futuro na projeção:** passado usa só o realizado; hoje usa o maior entre planejado e realizado; futuro usa o planejado.
+- **Passado, hoje e futuro na projeção:** passado e hoje usam só o realizado (o treino planejado de hoje só entra na conta depois de feito); futuro usa o planejado.
 - **Vínculo planejado × realizado:** o app sugere (mesmo dia e esporte) e o usuário confirma. Treino vinculado não soma duas vezes.
 - **Curva única** de Condicionamento/Fadiga/Forma na v1 (sem filtro por esporte).
 - **Condicionamento inicial = 0.** EMA como no Elevate: `ema = ema + (estresse − ema) × (1 − e^(−1/N))`, com N = 42 (Condicionamento) e N = 7 (Fadiga).
@@ -579,7 +579,7 @@ Referência: mockup do Início enviado em 03/11/2026. Implementado em `apps/web/
 
 **Nomes na interface (só o texto exibido muda; os ids internos `fitness`, `freshness`, `neutral`, `optimal`, `overload` continuam no código):** Fitness → **Condicionamento**; Fatigue → **Fadiga**; Form → **Forma**; zonas **Transição** (> +25), **Descansado** (+5 a +25, antes "Freshness"), **Neutra** (−10 a +5), **Ótima** (−30 a −10), **Sobrecarga** (< −30). Outros termos: "Esforço do dia (HRSS)", "Plano", "Projeção", "Hoje", "Realizado", "Planejado". Os rótulos das zonas vêm de `FAIXAS_FORMA` (`packages/domain/src/forma.js`).
 
-**Regras de cálculo (inalteradas):** Forma de um dia = Condicionamento − Fadiga do dia anterior; o passado usa o realizado, hoje usa o maior entre planejado e realizado, o futuro usa o plano (`montarProjecao`, com até 28 dias de plano no Início).
+**Regras de cálculo (inalteradas):** Forma de um dia = Condicionamento − Fadiga do dia anterior; o passado e hoje usam só o realizado, o futuro usa o plano (`montarProjecao`, com até 28 dias de plano no Início).
 
 **Layout:** gráfico à esquerda (~70%) e coluna lateral à direita; abaixo de 900 px a coluna vai para baixo do gráfico. Os painéis compartilham o mesmo eixo X (calendário), com divisória tracejada em **Hoje** e fundo levemente mais claro nos dias futuros. O seletor de período fica no topo: **6 sem** (28 dias realizados + até 14 de plano), **10 sem** (padrão: 42 + 28), **6 meses** (154 + 28) e **1 ano** (337 + 28); o plano mostrado vai até onde houver treinos planejados. A escolha é lembrada enquanto a página estiver aberta.
 

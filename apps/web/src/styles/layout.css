@@ -2556,6 +2556,37 @@ textarea {
   stroke-dasharray: 7 6;
 }
 
+/* feito × previsto nas barras de Forma: listras sutis (abaixo do previsto) e degradê laranja (acima) */
+/* menos esforço que o previsto: ponta "esvaziada" (contorno tracejado) e uma listra marcando até onde chegou */
+.cg-barra-falta {
+  fill: var(--surface);
+  stroke: var(--cg-cor);
+  stroke-width: 1;
+  stroke-dasharray: 2 1.5;
+  opacity: 1;
+}
+
+.cg-listra {
+  stroke: var(--text-primary);
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+
+/* degradê de laranja forte (perto do zero) a vermelho (na ponta), opaco: cobre a cor da zona da barra, sem deixar ela aparecer por baixo */
+.cg-excesso-forte {
+  stop-color: #e02d1b;
+  stop-opacity: 1;
+}
+
+.cg-excesso-suave {
+  stop-color: #f57c10;
+  stop-opacity: 1;
+}
+
+.cg-barra-falta,
+.cg-barra-excesso {
+  pointer-events: none;
+}
 .cg-grad-topo {
   stop-color: var(--cg-fitness);
   stop-opacity: 0.3;

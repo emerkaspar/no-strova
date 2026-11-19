@@ -27,3 +27,13 @@ export function criarTreinoDoDia(dados, hoje) {
     return linhas;
   };
 }
+
+/**
+ * Função "previsto do dia": o esforço dos treinos do plano vinculados às atividades feitas no dia (status "realizado"),
+ * para comparar com o feito nas barras de Forma. Lê `dados.treinos`, `dados.configs` e `dados.calibracao` na hora da chamada.
+ * @param {{ treinos: any[], configs?: any[], calibracao?: any }} dados
+ */
+export function criarPrevistoDoDia(dados) {
+  return (data) =>
+    dados.treinos.filter((t) => t.data === data && t.status === 'realizado').reduce((s, t) => s + (estresseDoTreino(t, dados.configs ?? [], dados.calibracao ?? null) || 0), 0);
+}

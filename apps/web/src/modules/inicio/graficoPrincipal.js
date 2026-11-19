@@ -196,6 +196,7 @@ function diasEntreIso(a, b) {
  *   hoje: string,
  *   treinoDoDia?: (data: string) => string|string[]|null,
  *   esportesDoDia?: (data: string) => string[],
+ *   previstoDoDia?: (data: string) => number  (esforço previsto do treino vinculado ao dia; compara com o feito nas barras de Forma)
  *   pesos?: Array<{ data: string, kg: number }>,
  *   metaPeso?: { dataAlvo: string, kg: number }|null,
  *   modo?: 'inicio'|'plano',
@@ -212,6 +213,7 @@ export function criarGraficoPrincipal({
   hoje,
   treinoDoDia = () => null,
   esportesDoDia = () => [],
+  previstoDoDia = () => 0,
   pesos = [],
   metaPeso = null,
   bemEstar = [],
@@ -366,6 +368,10 @@ export function criarGraficoPrincipal({
       'defs',
       null,
       svg('linearGradient', { id: idGradiente, x1: 0, y1: 0, x2: 0, y2: 1 }, svg('stop', { offset: '0%', class: 'cg-grad-topo' }), svg('stop', { offset: '100%', class: 'cg-grad-base' })),
+      // listras horizontais sutis (o que faltou para o previsto) e degradê de laranja a vermelho (o que passou do previsto)
+      // a ponta da barra é a parte mais forte: para cima nas barras positivas, para baixo nas negativas
+      svg('linearGradient', { id: `${idGradiente}-excesso-cima`, x1: 0, y1: 0, x2: 0, y2: 1 }, svg('stop', { offset: '0%', class: 'cg-excesso-forte' }), svg('stop', { offset: '100%', class: 'cg-excesso-suave' })),
+      svg('linearGradient', { id: `${idGradiente}-excesso-baixo`, x1: 0, y1: 1, x2: 0, y2: 0 }, svg('stop', { offset: '0%', class: 'cg-excesso-forte' }), svg('stop', { offset: '100%', class: 'cg-excesso-suave' })),
     );
     const caminhoArea = `M ${px(0).toFixed(1)},${yCond(0)} L ${pontos('fitness', yCond, 0, indiceHoje).replaceAll(' ', ' L ')} L ${px(indiceHoje).toFixed(1)},${yCond(0)} Z`;
     raizSvg.append(defs, svg('path', { d: caminhoArea, fill: `url(#${idGradiente})`, class: 'cg-area' }));
@@ -411,6 +417,36 @@ export function criarGraficoPrincipal({
       return barra;
     });
     raizSvg.append(...barras);
+
+    // Feito × previsto nas barras de Forma (Início e Plano, em dias já realizados com treino previsto vinculado):
+    // abaixo do previsto, a ponta da barra fica vazada com uma listra; acima, um degradê de laranja a vermelho.
+    dias.forEach((d, i) => {
+      if (d.projetado || !(d.estresse > 0)) return;
+      const previsto = previstoDoDia(d.data);
+      if (!(previsto > 0) || Math.abs(d.estresse - previsto) / previsto < 0.03) return;
+      const y0 = yForma(0);
+      const y1 = yForma(d.forma);
+      const alturaBarra = Math.max(1, Math.abs(y1 - y0));
+      const abaixo = d.estresse < previsto;
+      const fracao = abaixo ? 1 - d.estresse / previsto : (d.estresse - previsto) / d.estresse;
+      const altura = Math.min(alturaBarra, Math.max(2, alturaBarra * Math.min(0.7, fracao)));
+      const paraBaixo = y1 > y0; // forma negativa: a ponta da barra fica embaixo
+      const topo = paraBaixo ? Math.max(y0, y1) - altura : Math.min(y0, y1);
+      const x = (px(i) - larguraBarra / 2).toFixed(1);
+      if (abaixo) {
+        // menos esforço que o previsto: a ponta da barra "esvazia" (contorno tracejado, o que faltou) e uma só
+        // listra, mais larga que a barra, marca até onde o esforço chegou
+        const yMarca = paraBaixo ? topo : topo + altura;
+        raizSvg.append(
+          svg('rect', { x, y: topo.toFixed(1), width: larguraBarra.toFixed(1), height: altura.toFixed(1), class: `cg-barra-falta cg-zona-${d.faixa}` }),
+          svg('line', { x1: (px(i) - larguraBarra / 2 - 1.5).toFixed(1), x2: (px(i) + larguraBarra / 2 + 1.5).toFixed(1), y1: yMarca.toFixed(1), y2: yMarca.toFixed(1), class: 'cg-listra' }),
+        );
+      } else {
+        // o contorno do laranja usa o mesmo degradê: cobre o contorno (na cor da zona) da barra de Forma por baixo
+        const tinta = `url(#${idGradiente}-excesso-${paraBaixo ? 'baixo' : 'cima'})`;
+        raizSvg.append(svg('rect', { x, y: topo.toFixed(1), width: larguraBarra.toFixed(1), height: altura.toFixed(1), fill: tinta, stroke: tinta, 'stroke-width': 1, class: 'cg-barra-excesso' }));
+      }
+    });
 
     // No Plano, o terceiro painel é o estresse do dia: barras cheias no realizado, tracejadas no plano.
     if (plano) {
@@ -738,8 +774,11 @@ export function criarGraficoPrincipal({
           Math.abs(diferenca) <= TOLERANCIA_META ? 'dentro da meta' : diferenca < 0 ? `faltam ${formatarNumero(Math.abs(diferenca), 1)}` : `${formatarNumero(diferenca, 1)} acima`;
         linhaMeta = linhaDica('Meta de forma', `${sinalDaForma(metaNaJanela.formaAlvo)} · ${textoDiferenca}`, 'cg-dica-meta');
       }
+      const previstoDia = d.projetado || !(d.estresse > 0) ? 0 : previstoDoDia(d.data);
+      const linhaPrevisto = previstoDia > 0 ? linhaDica('Feito × previsto', `${formatarNumero(d.estresse, 0)} de ${formatarNumero(previstoDia, 0)}`) : null;
       dica.replaceChildren(...[
         h('p', { class: 'cg-dica-topo' }, `${statusDoDia(d.data, hoje)} · ${rotuloDoDia(d.data)}`),
+        linhaPrevisto,
         ...treinos.map((t) => linhaDeTreino(t, 'cg-treino-linha cg-dica-treino')),
         linhaDica('Condicionamento', formatarNumero(d.fitness, 1), 'cg-dica-fitness'),
         linhaDica('Fadiga', formatarNumero(d.fadiga, 1)),

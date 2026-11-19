@@ -24,7 +24,7 @@ import { formatarData, hojeIso } from '../../utils/formatters.js';
 import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
 import { blocoAtividades, blocoComparativo, blocoForma, blocoGrafico, blocoMinis, blocoPeso, blocoRegistroDePeso, blocoSemana, tituloDoTreino } from './blocos.js';
 import { DIAS_DE_PLANO, rotuloDoDia } from './graficoPrincipal.js';
-import { criarTreinoDoDia } from './treinoDoDia.js';
+import { criarPrevistoDoDia, criarTreinoDoDia } from './treinoDoDia.js';
 
 /** Dias de histórico de atividades e treinos para nomear o treino de cada dia no gráfico (cobre o período de 10 sem). */
 const DIAS_DE_HISTORICO = 70;
@@ -67,6 +67,7 @@ export function render(raiz, sessao) {
   raiz.replaceChildren(h('div', { class: 'inicio' }, topo, grafico, linha));
 
   const treinoDoDia = criarTreinoDoDia(dados, hoje);
+  const previstoDoDia = criarPrevistoDoDia(dados);
 
   const esportesDoDia = (data) => dados.atividades.filter((a) => a.data === data).map((a) => a.esporte);
 
@@ -182,6 +183,7 @@ export function render(raiz, sessao) {
       hoje,
       treinoDoDia,
       esportesDoDia,
+      previstoDoDia,
       pesos,
       metaPeso,
       bemEstar: dados.bemEstar,

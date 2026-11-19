@@ -9,7 +9,7 @@ import { observarMetas, observarMetasCondicionamento, observarTreinos } from '..
 import { areaMensagem } from '../../utils/componentes.js';
 import { h } from '../../utils/dom.js';
 import { abrirAtividadeDoDia } from '../atividades/abrirDoDia.js';
-import { criarTreinoDoDia } from '../inicio/treinoDoDia.js';
+import { criarPrevistoDoDia, criarTreinoDoDia } from '../inicio/treinoDoDia.js';
 import { abrirTreinoModal } from '../plano/treinoModal.js';
 import { criarCartaoProjecao } from '../plano/projecao.js';
 
@@ -30,6 +30,7 @@ export function criarBlocoProjecao({ uid, hoje }) {
   const corpo = h('div');
   const el = h('div', { class: 'pilha', id: 'prog-projecao' }, mensagem.el, corpo);
   const treinoDoDia = criarTreinoDoDia(dados, hoje);
+  const previstoDoDia = criarPrevistoDoDia(dados);
 
   async function abrirEditor(treino, data) {
     mensagem.limpar();
@@ -74,6 +75,7 @@ export function criarBlocoProjecao({ uid, hoje }) {
         metaCondicionamento: metaCondAtiva,
         avaliacaoCondicionamento,
         treinoDoDia,
+        previstoDoDia,
         aoClicarDia: (data) => {
           if (abrirAtividadeDoDia(data, dados.atividades)) return;
           abrirEditor(dados.treinos.find((t) => t.data === data && t.status === 'planejado') ?? null, data);

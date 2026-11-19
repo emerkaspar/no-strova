@@ -9,10 +9,10 @@ import { criarGraficoPrincipal } from '../inicio/graficoPrincipal.js';
  * @param {{
  *   serie: any[], hoje: string, meta: any|null, avaliacao: any|null,
  *   metaCondicionamento: any|null, avaliacaoCondicionamento: any|null,
- *   treinoDoDia: (data: string) => any, aoClicarDia: (data: string) => void
+ *   treinoDoDia: (data: string) => any, previstoDoDia?: (data: string) => number, aoClicarDia: (data: string) => void
  * }} p
  */
-export function criarCartaoProjecao({ serie, hoje, meta, avaliacao, metaCondicionamento = null, avaliacaoCondicionamento = null, treinoDoDia, aoClicarDia, diaClicavel = null }) {
+export function criarCartaoProjecao({ serie, hoje, meta, avaliacao, metaCondicionamento = null, avaliacaoCondicionamento = null, treinoDoDia, previstoDoDia, aoClicarDia, diaClicavel = null }) {
   if (serie.length < 2) {
     return h(
       'section',
@@ -25,6 +25,7 @@ export function criarCartaoProjecao({ serie, hoje, meta, avaliacao, metaCondicio
     serie,
     hoje,
     treinoDoDia,
+    previstoDoDia,
     modo: 'plano',
     meta: meta && avaliacao && avaliacao.estado !== 'sem-dados' ? meta : null,
     metaCondicionamento: metaCondicionamento && avaliacaoCondicionamento && avaliacaoCondicionamento.estado !== 'sem-dados' ? metaCondicionamento : null,
