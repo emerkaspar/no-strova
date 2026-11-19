@@ -140,6 +140,27 @@ export function catalogoParaIa(esporte = 'ambos', nivelMaximo = 'avancado', prop
   return [...doCatalogo, ...propriosParaIa(proprios, esporte)];
 }
 
+/**
+ * Treino único do dia ("+" do calendário): "Meus treinos" primeiro, mas só se servir ao dia. Se a IA escolheu um treino do
+ * catálogo e há um treino próprio igualmente adequado, devolve o próprio; senão, null (a escolha da IA fica).
+ * "Igualmente adequado" = já passou pelos filtros de carga, descanso e nível da lista dos candidatos, cabe na carga da semana
+ * (`cabeNaSemana`), tem o mesmo tipo de esforço (intensidade) do escolhido, estresse até 25% de diferença e, com tempo pedido, é
+ * pelo menos tão próximo dele quanto o escolhido (sem tempo pedido, duração até 30% de diferença). Treino de trajeto não entra.
+ * @param {{ id: string|null, intensidade: string, estresse: number, duracaoMin: number, proprio?: boolean }} escolhido
+ * @param {Array<{ id: string, intensidade: string, estresse: number, duracaoMin: number, proprio?: boolean, trajeto?: string, cabeNaSemana?: boolean }>} candidatos
+ * @param {{ duracaoPedida?: number|null }} [opcoes]
+ */
+export function preferirProprioParaODia(escolhido, candidatos, { duracaoPedida = null } = {}) {
+  if (!escolhido || escolhido.proprio === true) return null;
+  const proximo = (m) => (duracaoPedida === null ? Math.abs(m.duracaoMin - escolhido.duracaoMin) / Math.max(1, escolhido.duracaoMin) <= 0.3 : Math.abs(m.duracaoMin - duracaoPedida) <= Math.abs(escolhido.duracaoMin - duracaoPedida));
+  return (
+    (candidatos ?? [])
+      .filter((m) => m.proprio === true && !m.trajeto && m.id !== escolhido.id && m.cabeNaSemana !== false && m.intensidade === escolhido.intensidade)
+      .filter((m) => Math.abs(m.estresse - escolhido.estresse) <= escolhido.estresse * 0.25 && proximo(m))
+      .sort((a, b) => Math.abs(a.estresse - escolhido.estresse) - Math.abs(b.estresse - escolhido.estresse))[0] ?? null
+  );
+}
+
 /** Duração mínima e máxima (min) que o usuário pode pedir para um treino único. */
 export const LIMITES_DURACAO_PEDIDA = Object.freeze({ min: 15, max: 360 });
 
@@ -216,13 +237,15 @@ export function cargaBaseSemanal(dias, hoje, perfil = {}) {
  * @param {{
  *   hoje: string, entrada: ReturnType<typeof validarEntradaDeTreinos>['valores'],
  *   ocupados?: string[], intensosAnteriores?: string[], cargaBase: number, estimarEstresse: (modelo: any) => number,
- *   estresseJaPlanejadoPorSemana?: Record<string, number>, nivel?: string, proprios?: any[]
+ *   estresseJaPlanejadoPorSemana?: Record<string, number>, nivel?: string, proprios?: any[], priorizarProprios?: boolean
  * }} ctx `ocupados`: datas que já têm treino; `intensosAnteriores`: datas de treinos intensos já no plano ou recentes;
- *   `proprios`: os treinos próprios do usuário que a IA pôde escolher (o mesmo cardápio dado a ela)
+ *   `proprios`: os treinos próprios do usuário que a IA pôde escolher (o mesmo cardápio dado a ela);
+ *   `priorizarProprios`: (semana automática) mais da metade dos treinos de a semana deve vir de "Meus treinos", e o código troca
+ *   os do catálogo por treinos próprios compatíveis até chegar lá (ou até acabarem as opções)
  * @returns {{ itens: any[], avisos: string[], cargaPorSemana: Record<string, number> }}
  */
 export function validarSugestaoDeTreinos(saida, ctx) {
-  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {}, nivel = 'intermediario', proprios = [] } = ctx;
+  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {}, nivel = 'intermediario', proprios = [], priorizarProprios = false } = ctx;
   const avisos = [];
   const diasEscolhidos = new Set(entrada.diasDaSemana);
   const catalogo = new Map(catalogoParaIa(entrada.esporte, nivel, proprios).map((m) => [m.id, m]));
@@ -414,6 +437,59 @@ export function validarSugestaoDeTreinos(saida, ctx) {
     mantidos.push(it);
   }
   if (variados > 0) avisos.push(`${variados} treino(s) repetido(s) foram trocados por outros do mesmo tipo, para variar.`);
+
+  // Meus treinos primeiro (semana automática): mais da metade dos treinos da semana (7 dias) vem dos treinos próprios do atleta.
+  // Troca os do catálogo por treinos próprios do mesmo esporte e do mesmo tipo (intensos só por intensos, os demais só por não
+  // intensos), que caibam nas horas e na carga da semana, sem repetir treino em menos de 14 dias. Treino de trajeto não entra.
+  if (priorizarProprios) {
+    const ehProprio = (id) => catalogo.get(id)?.proprio === true;
+    const doAtleta = [...catalogo.values()].filter((m) => m.proprio === true && !m.trajeto);
+    // blocos de 7 dias a partir de amanhã (a semana que a IA montou, que pode cruzar o fim da semana do calendário)
+    const porBloco = new Map();
+    for (const it of itens) {
+      const bloco = Math.floor(diasEntre(primeiro, it.data) / 7);
+      porBloco.set(bloco, [...(porBloco.get(bloco) ?? []), it]);
+    }
+    let priorizados = 0;
+    let faltaramOpcoes = false;
+    for (const lista of porBloco.values()) {
+      const alvo = Math.floor(lista.length / 2) + 1;
+      while (lista.filter((it) => ehProprio(it.modeloId)).length < alvo) {
+        let trocou = false;
+        // primeiro os treinos leves e moderados do catálogo (menos risco para a regra dos intensos)
+        const doCatalogoNaSemana = lista.filter((it) => !ehProprio(it.modeloId)).sort((a, b) => Number(a.intensidade === 'alta') - Number(b.intensidade === 'alta'));
+        for (const it of doCatalogoNaSemana) {
+          const emUso = (id) => itens.some((o) => o !== it && o.modeloId === id && Math.abs(diasEntre(o.data, it.data)) < 14);
+          const inicio = inicioDaSemana(it.data);
+          const limite = limiteDeCarga(inicio);
+          const ehLongao = entrada.diaLongao !== null && diaDaSemana(it.data) === entrada.diaLongao;
+          const cargaSemSelf = estadoDaSemana(inicio).carga - it.estresse;
+          const opcao = doAtleta
+            .filter((m) => m.esporte === it.esporte && (it.intensidade === 'alta') === (m.intensidade === 'alta') && !emUso(m.id))
+            .filter((m) => minutosDaSemana(inicio, it) + m.duracaoMin <= limiteMin)
+            .filter((m) => !ehLongao || m.duracaoMin >= it.duracaoMin)
+            .map((m) => ({ ref: m, estresse: estimar(m.id) }))
+            .filter((m) => m.estresse > 0 && (it.intensidade === 'alta' || cargaSemSelf + m.estresse <= limite || m.estresse <= it.estresse))
+            .sort((a, b) => (usos.get(a.ref.id) ?? 0) - (usos.get(b.ref.id) ?? 0) || Math.abs(a.ref.duracaoMin - it.duracaoMin) - Math.abs(b.ref.duracaoMin - it.duracaoMin))[0];
+          if (!opcao) continue;
+          usos.set(it.modeloId, Math.max(0, (usos.get(it.modeloId) ?? 1) - 1));
+          usos.set(opcao.ref.id, (usos.get(opcao.ref.id) ?? 0) + 1);
+          estadoDaSemana(inicio).carga = cargaSemSelf + opcao.estresse;
+          cargaPorSemana[inicio] = estadoDaSemana(inicio).carga;
+          Object.assign(it, { modeloId: opcao.ref.id, nome: opcao.ref.nome, foco: opcao.ref.foco, duracaoMin: opcao.ref.duracaoMin, estresse: Math.round(opcao.estresse), motivo: 'Um dos seus treinos de "Meus treinos", priorizado na semana.' });
+          priorizados += 1;
+          trocou = true;
+          break;
+        }
+        if (!trocou) {
+          faltaramOpcoes = true;
+          break;
+        }
+      }
+    }
+    if (priorizados > 0) avisos.push(`${priorizados} treino(s) do catálogo foram trocados por treinos seus de "Meus treinos", que têm prioridade na semana.`);
+    if (faltaramOpcoes) avisos.push('Você tem poucos treinos em "Meus treinos" compatíveis com esta semana (esporte, tipo de esforço, horas e carga), então não deu para ter mais da metade deles. Criar mais treinos próprios ajuda.');
+  }
 
   // Longão: o treino mais longo da semana fica no dia do longão (troca de data, se nenhum dos dois for intenso).
   if (entrada.diaLongao !== null) {

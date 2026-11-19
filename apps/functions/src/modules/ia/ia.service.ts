@@ -24,6 +24,7 @@ import {
   NIVEIS,
   perfilDoTrajeto,
   planejarVariacoes,
+  preferirProprioParaODia,
   QUANTIDADES_EM_LOTE,
   segmentarTerreno,
   tetoDeZonaDoFoco,
@@ -309,6 +310,10 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
     `- VARIEDADE: não repita o mesmo treino em menos de 14 dias e alterne os focos (tempo, fartlek, progressivo, limiar, subidas…); o catálogo já está limitado ao nível do atleta.\n` +
     `- Use SOMENTE treinos da lista "catalogo" (campo id), nunca invente; um treino por dia; não use os diasJaOcupados.\n` +
     regraDosProprios(proprios.length) +
+    (automatico && proprios.length > 0
+      ? `- PRIORIDADE (semana automática): MAIS DA METADE dos treinos da semana deve ser da lista com "proprio": true (mínimo de metade dos treinos + 1; use todos os próprios compatíveis, sem trajeto, antes de completar com o catálogo). Escolha o resto do catálogo só para equilibrar intensidade, carga e longão. Não é para usar só os próprios.
+`
+      : "") +
     `- Prefira o nível iniciante se o histórico for pequeno; trabalhe a meta de Condicionamento, se houver.\n` +
     REGRA_FEEDBACK +
     REGRA_SONO +
@@ -329,7 +334,7 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
 
   const configHoje = configVigenteEm(configs, hoje);
   const estimarEstresse = (modelo: Record<string, unknown>) => Number(estresseDoTreino({ ...treinoPlanejadoDoModelo(modelo, hoje), status: "planejado" } as never, configHoje ? configs : [], null)) || 0;
-  const validado = validarSugestaoDeTreinos(saidaIa, { hoje, entrada, ocupados, intensosAnteriores, cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana, nivel, proprios });
+  const validado = validarSugestaoDeTreinos(saidaIa, { hoje, entrada, ocupados, intensosAnteriores, cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana, nivel, proprios, priorizarProprios: automatico });
   const saida = { resumo: saidaIa.resumo.slice(0, 600), itens: validado.itens, avisos: validado.avisos, aviso: AVISO_IA };
 
   const ref = db.collection("iaRascunhos").doc();
@@ -354,7 +359,7 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
 
 const formatarDataBr = (iso: string) => iso.split("-").reverse().join("/");
 
-interface ItemDoCatalogo { id: string; nome: string; esporte: string; foco: string; intensidade: string; duracaoMin: number }
+interface ItemDoCatalogo { id: string; nome: string; esporte: string; foco: string; intensidade: string; duracaoMin: number; proprio?: boolean; trajeto?: string }
 
 const schemaTreinoUnico = z.object({
   modeloId: z.string().nullable().describe("O id EXATO de um treino da lista do catálogo. Nulo somente se for pedir um treino novo para o trajeto (novoParaOTrajeto)."),
@@ -552,6 +557,9 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
     `Regras:\n` +
     `- Use SOMENTE um id da lista "catalogo" (já filtrada por nível, esporte, carga e descanso). Não invente.\n` +
     regraDosProprios(proprios.length) +
+    (proprios.length > 0
+      ? `- PRIORIDADE: dê preferência aos itens "proprio": true ("Meus treinos"), MAS só escolha um deles se for realmente ideal para este dia: precisa ter cabeNaSemana true, não colar um treino forte em outro, combinar com a Fadiga, a Forma, o sentimento, o sono e a agenda, e com o tempo desejado (se houver). Se nenhum treino próprio for ideal, escolha do catálogo e não force um treino seu. Entre dois treinos igualmente bons para o dia, fique com o próprio.\n`
+      : "") +
     `- Considere a carga: com Fadiga alta ou Forma negativa, prefira treino leve ou de recuperação; com Forma positiva e boa disposição, pode escolher um treino mais exigente.\n` +
     `- Considere o sentimento (feedbackRecente), se existir.\n` +
     `- Olhe a "agendaEmVolta" (treinos já feitos e JÁ PLANEJADOS nos próximos dias; diasDoTreinoPedido negativo = antes do dia, positivo = depois): ` +
@@ -643,6 +651,19 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
     }
   }
   if (!escolhido) throw new HttpsError("failed-precondition", "Não há treino disponível para o seu nível e esporte.");
+  // "Meus treinos" primeiro, só quando servem ao dia: se a IA ficou com um treino do catálogo e há um treino seu igualmente adequado
+  // (mesmo esforço, carga e duração parecidas, cabe na semana, já filtrado por descanso e nível), o código fica com o seu
+  let motivoDoProprio: string | null = null;
+  if (!trajeto && escolhido.id !== null) {
+    const idEscolhido = escolhido.id;
+    const escolhidoDaLista = catalogoGenerico.find((m: { id: string }) => m.id === idEscolhido) as ItemDoCatalogo | undefined;
+    const doAtleta = preferirProprioParaODia({ ...escolhido, id: idEscolhido, proprio: escolhidoDaLista?.proprio === true }, catalogoGenerico as never, { duracaoPedida }) as (ItemDoCatalogo & { estresse: number }) | null;
+    if (doAtleta) {
+      escolhido = { id: doAtleta.id, nome: doAtleta.nome, esporte: doAtleta.esporte, foco: doAtleta.foco, intensidade: doAtleta.intensidade, duracaoMin: doAtleta.duracaoMin, estresse: doAtleta.estresse };
+      motivoDoProprio = `Um dos seus treinos de "Meus treinos", escolhido por servir ao dia (carga, descanso e agenda) tão bem quanto a sugestão do catálogo.`;
+      avisos.push(`Troquei a sugestão do catálogo por "${doAtleta.nome}", de "Meus treinos", que serve igual ao dia.`);
+    }
+  }
   // quantas voltas no trajeto: um treino feito para o trajeto cobre UMA volta (repete-se até o tempo pedido); um treino de
   // catálogo é maior que o trajeto, então o trajeto é repetido até completar a duração do treino
   let minutosDoTreinoNasVoltas = escolhido.duracaoMin;
@@ -676,7 +697,7 @@ export async function sugerirTreinoUnicoDoUsuario(uid: string, bruto: Record<str
   }
   const item = {
     data, modeloId: escolhido.id, nome: escolhido.nome, esporte: escolhido.esporte, foco: escolhido.foco, intensidade: escolhido.intensidade,
-    duracaoMin: escolhido.duracaoMin, estresse: escolhido.estresse, motivo: saidaIa.motivo.trim().slice(0, 300),
+    duracaoMin: escolhido.duracaoMin, estresse: escolhido.estresse, motivo: motivoDoProprio ?? saidaIa.motivo.trim().slice(0, 300),
     ...(novoTreino ? { novoTreino } : {}),
     ...(voltas > 1 ? { voltas } : {}),
     ...(trajeto ? { trajetoId, trajetoNome: String(trajeto.nome ?? "Trajeto") } : {}),

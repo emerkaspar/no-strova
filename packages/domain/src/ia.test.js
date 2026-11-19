@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avisosDaCargaPedida, catalogoParaIa, lerDuracaoPedida, maisProximosDaDuracao, MAXIMO_DE_PROPRIOS_NA_IA, propriosParaIa, validarEntradaDeTreinos, validarSugestaoDeTreinos } from './ia.js';
+import { avisosDaCargaPedida, catalogoParaIa, lerDuracaoPedida, maisProximosDaDuracao, MAXIMO_DE_PROPRIOS_NA_IA, preferirProprioParaODia, propriosParaIa, validarEntradaDeTreinos, validarSugestaoDeTreinos } from './ia.js';
 
 const passos = [{ tipo: 'bloco', papel: 'principal', duracaoS: 2400, zona: 'Z2' }];
 const meu = (extra = {}) => ({ id: 'MeuTreinoAbC123', nome: 'Rolê da orla', esporte: 'ciclismo', foco: 'resistencia', nivel: 'avancado', passos, origem: 'proprio', ...extra });
@@ -89,5 +89,70 @@ describe('tempo pedido para o treino único', () => {
     expect(avisosDaCargaPedida({ estresse: 50, duracaoMin: 60 }, base)).toEqual([]);
     expect(avisosDaCargaPedida({ estresse: 50, duracaoMin: 90 }, { ...base, duracaoPedida: 60 }).join(' ')).toMatch(/pediu 60 min/);
     expect(avisosDaCargaPedida({ estresse: 500, duracaoMin: 90 }, { cargaBase: 0 })).toEqual([]);
+  });
+});
+
+describe('semana automática: Meus treinos primeiro', () => {
+  const hoje = '2026-11-04'; // quarta-feira (dias 1, 3 e 5 = quinta, sábado e terça)
+  const entrada = validarEntradaDeTreinos({ semanas: 1, diasDaSemana: [1, 3, 5], horasPorSemana: 10, esporte: 'ciclismo' }).valores;
+  const meus = ['A', 'B', 'C'].map((x) => meu({ id: `Meu${x}`, nome: `Meu ${x}`, foco: 'resistencia' }));
+  const ctx = (extra = {}) => ({ hoje, entrada, cargaBase: 0, estimarEstresse: () => 40, nivel: 'iniciante', proprios: meus, ...extra });
+  const doCatalogo = { treinos: [
+    { data: '2026-11-05', modeloId: 'tempo-20-ciclismo', motivo: 'a' },
+    { data: '2026-11-07', modeloId: 'fart-leve-ciclismo', motivo: 'b' },
+    { data: '2026-11-10', modeloId: 'tempo-20-ciclismo', motivo: 'c' },
+  ] };
+  const proprios = (r) => r.itens.filter((i) => i.modeloId.startsWith('Meu'));
+
+  it('sem a prioridade, os treinos do catálogo ficam como a IA escolheu', () => {
+    expect(proprios(validarSugestaoDeTreinos(doCatalogo, ctx()))).toHaveLength(0);
+  });
+
+  it('com a prioridade, mais da metade da semana vira treinos próprios (2 de 3), sem repetir', () => {
+    const r = validarSugestaoDeTreinos(doCatalogo, ctx({ priorizarProprios: true }));
+    expect(r.itens).toHaveLength(3);
+    expect(proprios(r).length).toBeGreaterThan(r.itens.length / 2);
+    expect(new Set(r.itens.map((i) => i.modeloId)).size).toBe(r.itens.length);
+    expect(r.avisos.join(' ')).toMatch(/Meus treinos/);
+  });
+
+  it('com poucos treinos próprios, usa os que há e avisa; treino de trajeto não entra', () => {
+    const r = validarSugestaoDeTreinos(doCatalogo, ctx({ priorizarProprios: true, proprios: [meu({ id: 'MeuA' }), meu({ id: 'DoTrajeto', trajetoNome: 'Brochier/Paris' })] }));
+    expect(proprios(r)).toHaveLength(1);
+    expect(r.itens.some((i) => i.modeloId === 'DoTrajeto')).toBe(false);
+    expect(r.avisos.join(' ')).toMatch(/poucos treinos/);
+  });
+
+  it('não troca um treino intenso por um leve (respeita a regra dos intensos)', () => {
+    const r = validarSugestaoDeTreinos({ treinos: [{ data: '2026-11-05', modeloId: 'vo2-4x2-ciclismo', motivo: 'forte' }] }, ctx({ priorizarProprios: true }));
+    expect(r.itens.find((i) => i.data === '2026-11-05').modeloId).toBe('vo2-4x2-ciclismo');
+  });
+});
+
+describe('preferirProprioParaODia (treino único do dia)', () => {
+  const escolhido = { id: 'tempo-20-ciclismo', intensidade: 'moderada', estresse: 60, duracaoMin: 60 };
+  const meuX = (extra = {}) => ({ id: 'MeuX', proprio: true, intensidade: 'moderada', estresse: 62, duracaoMin: 65, cabeNaSemana: true, ...extra });
+
+  it('troca pelo treino próprio que serve igual ao dia (mesmo esforço, carga e duração parecidas)', () => {
+    expect(preferirProprioParaODia(escolhido, [meuX()])?.id).toBe('MeuX');
+  });
+  it('escolhe o próprio de carga mais próxima', () => {
+    expect(preferirProprioParaODia(escolhido, [meuX({ id: 'longe', estresse: 70 }), meuX({ id: 'perto', estresse: 59 })])?.id).toBe('perto');
+  });
+  it.each([
+    ['esforço diferente', { intensidade: 'alta' }],
+    ['carga muito diferente', { estresse: 90 }],
+    ['não cabe na semana', { cabeNaSemana: false }],
+    ['duração muito diferente', { duracaoMin: 120 }],
+    ['treino de trajeto', { trajeto: 'Volta da Lagoa' }],
+  ])('não troca quando o próprio não serve ao dia (%s)', (_, extra) => {
+    expect(preferirProprioParaODia(escolhido, [meuX(extra)])).toBeNull();
+  });
+  it('com tempo pedido, o próprio precisa ficar tão perto do tempo quanto o escolhido', () => {
+    expect(preferirProprioParaODia(escolhido, [meuX({ duracaoMin: 75 })], { duracaoPedida: 90 })?.id).toBe('MeuX');
+    expect(preferirProprioParaODia(escolhido, [meuX({ duracaoMin: 45 })], { duracaoPedida: 90 })).toBeNull();
+  });
+  it('se a IA já escolheu um treino próprio, nada muda', () => {
+    expect(preferirProprioParaODia({ ...escolhido, proprio: true }, [meuX()])).toBeNull();
   });
 });
