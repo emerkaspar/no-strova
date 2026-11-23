@@ -2776,6 +2776,22 @@ textarea {
 }
 
 /* Linhas das metas: o rótulo em cima e o valor embaixo, porque o texto ("faltam 16,2") é longo */
+/* rótulo com ícone: o ícone herda a cor do rótulo e todos ficam alinhados pelo mesmo tamanho e espaçamento */
+.cg-dica-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cg-dica-rotulo .icone {
+  flex: none;
+}
+
+.cg-dica-hrss span {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
 .cg-dica-linha.cg-dica-meta {
   flex-direction: column;
   gap: 0;

@@ -1,6 +1,7 @@
 import { FAIXAS_FORMA, faixaDoSono, faixaDosPassos, formatarSono, TOLERANCIA_META, TOLERANCIA_META_CONDICIONAMENTO } from '@no-strova/domain';
 import { h } from '../../utils/dom.js';
 import { formatarForma, formatarNumero } from '../../utils/formatters.js';
+import { icone } from '../../utils/icones.js';
 import { criarCartaoBemEstar } from './cartaoBemEstar.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -734,8 +735,9 @@ export function criarGraficoPrincipal({
     lateral.mostrar(dias[indiceHoje]);
 
     // ---- hover e toque ----
-    const linhaDica = (rotulo, valor, classe) =>
-      h('div', { class: `cg-dica-linha${classe ? ` ${classe}` : ''}` }, h('span', null, rotulo), h('strong', null, valor));
+    // todo rótulo do tooltip leva um ícone de traço (herda a cor do rótulo), para as linhas ficarem alinhadas e coerentes
+    const linhaDica = (rotulo, valor, classe, nomeIcone) =>
+      h('div', { class: `cg-dica-linha${classe ? ` ${classe}` : ''}` }, h('span', { class: 'cg-dica-rotulo' }, nomeIcone ? icone(nomeIcone, 15) : null, rotulo), h('strong', null, valor));
 
     function destacar(i) {
       const d = dias[i];
@@ -769,31 +771,31 @@ export function criarGraficoPrincipal({
         const diferenca = d.fitness - metaCondNaJanela.condicionamentoAlvo;
         const textoDiferenca =
           Math.abs(diferenca) <= TOLERANCIA_META_CONDICIONAMENTO ? 'dentro da meta' : diferenca < 0 ? `faltam ${formatarNumero(Math.abs(diferenca), 1)}` : `${formatarNumero(diferenca, 1)} acima`;
-        linhaMetaCond = linhaDica('Meta de Condicionamento', `${formatarNumero(metaCondNaJanela.condicionamentoAlvo, 1)} · ${textoDiferenca}`, 'cg-dica-meta cg-dica-meta-cond');
+        linhaMetaCond = linhaDica('Meta de Condicionamento', `${formatarNumero(metaCondNaJanela.condicionamentoAlvo, 1)} · ${textoDiferenca}`, 'cg-dica-meta cg-dica-meta-cond', 'alvo');
       }
       let linhaMeta = null;
       if (metaNaJanela && d.data >= hoje && d.data <= metaNaJanela.dataAlvo) {
         const diferenca = d.forma - metaNaJanela.formaAlvo;
         const textoDiferenca =
           Math.abs(diferenca) <= TOLERANCIA_META ? 'dentro da meta' : diferenca < 0 ? `faltam ${formatarNumero(Math.abs(diferenca), 1)}` : `${formatarNumero(diferenca, 1)} acima`;
-        linhaMeta = linhaDica('Meta de forma', `${sinalDaForma(metaNaJanela.formaAlvo)} · ${textoDiferenca}`, 'cg-dica-meta');
+        linhaMeta = linhaDica('Meta de forma', `${sinalDaForma(metaNaJanela.formaAlvo)} · ${textoDiferenca}`, 'cg-dica-meta', 'alvo');
       }
       const previstoDia = d.projetado || !(d.estresse > 0) ? 0 : previstoDoDia(d.data);
-      const linhaPrevisto = previstoDia > 0 ? linhaDica('Feito × previsto', `${formatarNumero(d.estresse, 0)} de ${formatarNumero(previstoDia, 0)}`) : null;
+      const linhaPrevisto = previstoDia > 0 ? linhaDica('Feito × previsto', `${formatarNumero(d.estresse, 0)} de ${formatarNumero(previstoDia, 0)}`, null, 'plano') : null;
       dica.replaceChildren(...[
         h('p', { class: 'cg-dica-topo' }, `${statusDoDia(d.data, hoje)} · ${rotuloDoDia(d.data)}`),
         linhaPrevisto,
         ...treinos.map((t) => linhaDeTreino(t, 'cg-treino-linha cg-dica-treino')),
-        d.projetado || !(d.estresse > 0) ? null : linhaDica('HRSS', formatarNumero(d.estresse, 0), 'cg-dica-hrss'),
-        linhaDica('Condicionamento', formatarNumero(d.fitness, 1), 'cg-dica-fitness'),
-        linhaDica('Fadiga', formatarNumero(d.fadiga, 1), 'cg-dica-fadiga'),
-        linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`, `cg-dica-forma cg-zona-${d.faixa}`),
+        d.projetado || !(d.estresse > 0) ? null : linhaDica('HRSS', formatarNumero(d.estresse, 0), 'cg-dica-hrss', 'hrss'),
+        linhaDica('Condicionamento', formatarNumero(d.fitness, 1), 'cg-dica-fitness', 'progressao'),
+        linhaDica('Fadiga', formatarNumero(d.fadiga, 1), 'cg-dica-fadiga', 'sensacaoBateria3'),
+        linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`, `cg-dica-forma cg-zona-${d.faixa}`, 'medidor'),
         linhaMetaCond,
         linhaMeta,
         ...destaques.filter((s) => s.indice === i).map((s) => h('div', { class: 'cg-dica-destaque' }, seloSolto(s.tipo), h('div', null, h('span', null, s.texto), h('p', null, s.sentido)))),
-        passosDoDia ? linhaDica('Passos', `${formatarNumero(passosDoDia, 0)} · ${TEXTO_PASSOS[faixaDosPassos(passosDoDia, metaPassos)]}`, 'gps-dica-passos') : null,
-        sonoDoDia ? linhaDica('Sono', `${formatarSono(sonoDoDia)} · ${TEXTO_SONO[faixaDoSono(sonoDoDia)]}`, 'gps-dica-sono') : null,
-        kg !== null ? linhaDica('Peso', `${formatarNumero(kg, 1)} kg`, 'cg-dica-peso') : kgMeta !== null ? linhaDica('Meta', `${formatarNumero(kgMeta, 1)} kg`, 'cg-dica-peso') : null,
+        passosDoDia ? linhaDica('Passos', `${formatarNumero(passosDoDia, 0)} · ${TEXTO_PASSOS[faixaDosPassos(passosDoDia, metaPassos)]}`, 'gps-dica-passos', 'passos') : null,
+        sonoDoDia ? linhaDica('Sono', `${formatarSono(sonoDoDia)} · ${TEXTO_SONO[faixaDoSono(sonoDoDia)]}`, 'gps-dica-sono', 'lua') : null,
+        kg !== null ? linhaDica('Peso', `${formatarNumero(kg, 1)} kg`, 'cg-dica-peso', 'peso') : kgMeta !== null ? linhaDica('Meta', `${formatarNumero(kgMeta, 1)} kg`, 'cg-dica-peso', 'alvo') : null,
       ].filter(Boolean));
       dica.hidden = false;
       const pct = (x / L) * 100;

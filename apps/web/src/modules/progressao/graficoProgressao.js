@@ -1,5 +1,6 @@
 import { h } from '../../utils/dom.js';
 import { passoDoEixo } from '../../utils/graficoLinha.js';
+import { icone } from '../../utils/icones.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const ALTURA = 380;
@@ -112,7 +113,7 @@ export function graficoProgressao({ series, total, marcadores, rotuloDoPonto, hr
       guia.setAttribute('visibility', 'visible');
       const linhas = [h('strong', { class: 'gp-dica-x' }, rotuloDoPonto(n))];
       const hrss = hrssDoPonto(n);
-      if (hrss > 0) linhas.push(h('div', { class: 'gp-dica-linha gp-dica-hrss' }, h('span', null, 'HRSS do dia'), h('b', null, Math.round(hrss).toLocaleString('pt-BR'))));
+      if (hrss > 0) linhas.push(h('div', { class: 'gp-dica-linha gp-dica-hrss' }, icone('hrss', 14), h('span', null, 'HRSS do dia'), h('b', null, Math.round(hrss).toLocaleString('pt-BR'))));
       for (const s of [...series].sort((a, b) => a.indice - b.indice)) {
         const v = s.valores[Math.min(n, s.valores.length) - 1];
         linhas.push(h('div', { class: `gp-dica-linha gp-ano-${s.indice % 5}` }, h('i', { class: 'gp-dica-ponto' }), h('span', null, s.rotulo), h('b', null, Number.isFinite(v) ? formatar(v) : '—')));
