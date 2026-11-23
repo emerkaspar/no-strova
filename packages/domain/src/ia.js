@@ -1,9 +1,10 @@
 import { modelosDoCatalogo } from './catalogoTreinos.js';
+import { lerMinutosPorDia } from './onboarding.js';
 import { diasEntre, somarDias } from './forma.js';
 import { diaDaSemana, inicioDaSemana, NOMES_DIA } from './semana.js';
 import { REGRAS_SUGESTAO } from './sugestaoTreinos.js';
 import { dataIsoValida } from './usuarios.js';
-import { FOCOS, resumirTreino } from './treinosEstruturados.js';
+import { FOCOS, repetirVoltas, resumirTreino } from './treinosEstruturados.js';
 
 /**
  * Regras da IA (Fase 6). A IA só sugere; tudo o que ela devolve passa por aqui antes de virar rascunho, e os limites de
@@ -40,6 +41,12 @@ export function pisoDaCargaBase({ nivel, horasSemana } = {}) {
   return Math.round(Math.min(P.teto, Math.max(doNivel, dasHoras)));
 }
 
+/**
+ * Tempo do dia de treino: o treino deve durar de 80% a 120% do tempo que o atleta tem naquele dia (até 20% a mais é aceito).
+ * Treino de trajeto cobre uma volta; no plano automático o trajeto é repetido (voltas) para fechar o tempo.
+ */
+export const JANELA_DO_DIA = Object.freeze({ piso: 0.8, teto: 1.2 });
+
 export const AVISO_IA = 'Sugestão gerada por IA: revise antes de aceitar. Não substitui orientação de médico, nutricionista ou treinador.';
 
 function numero(valor) {
@@ -61,12 +68,12 @@ export const NOMES_DIAS_DA_SEMANA = NOMES_DIA;
 /**
  * Valida o pedido de sugestão de treinos. Os dias de treino são escolhidos pelo usuário (`diasDaSemana`, índices de
  * 0 = segunda a 6 = domingo; sem eles, vale `diasPorSemana` de segunda em diante) e o dia do longão (`diaLongao`) é um deles.
- * @returns {{ valido: boolean, erros: string[], valores: { semanas: number, diasDaSemana: number[], diasPorSemana: number, diaLongao: number|null, horasPorSemana: number, esporte: 'ciclismo'|'corrida'|'ambos', observacao: string }|null }}
+ * @returns {{ valido: boolean, erros: string[], valores: { semanas: number, diasDaSemana: number[], diasPorSemana: number, diaLongao: number|null, horasPorSemana: number, minutosPorDia: Record<string, number>|null, esporte: 'ciclismo'|'corrida'|'ambos', observacao: string }|null }}
  */
 export function validarEntradaDeTreinos(entrada) {
   const erros = [];
   const semanas = numero(entrada?.semanas);
-  const horas = numero(entrada?.horasPorSemana);
+  let horas = numero(entrada?.horasPorSemana);
   if (semanas === null || !Number.isInteger(semanas) || semanas < 1 || semanas > LIMITES_IA.semanasMax) erros.push(`Escolha de 1 a ${LIMITES_IA.semanasMax} semanas.`);
   let dias;
   if (Array.isArray(entrada?.diasDaSemana)) {
@@ -78,13 +85,17 @@ export function validarEntradaDeTreinos(entrada) {
   if (dias.length === 0) erros.push('Escolha pelo menos um dia da semana para treinar.');
   const longao = numero(entrada?.diaLongao);
   if (longao !== null && !dias.includes(longao)) erros.push('O dia do longão precisa ser um dos dias de treino escolhidos.');
-  if (horas === null || horas < 1 || horas > 25) erros.push('Informe de 1 a 25 horas de treino por semana.');
+  // com o tempo de cada dia de treino, o total semanal é a soma deles
+  const porDia = lerMinutosPorDia(entrada?.minutosPorDia, dias);
+  if (porDia.erro && dias.length > 0) erros.push(porDia.erro);
+  if (porDia.mapa) horas = Math.min(25, Math.max(1, Math.round((porDia.total / 60) * 2) / 2));
+  else if (horas === null || horas < 1 || horas > 25) erros.push('Informe de 1 a 25 horas de treino por semana.');
   const esporte = entrada?.esporte ?? 'ambos';
   if (!['ciclismo', 'corrida', 'ambos'].includes(esporte)) erros.push('Escolha ciclismo, corrida ou os dois.');
   const observacao = typeof entrada?.observacao === 'string' ? entrada.observacao.trim().replace(/\s+/g, ' ') : '';
   if (observacao.length > 300) erros.push('A observação pode ter até 300 caracteres.');
   if (erros.length > 0) return { valido: false, erros, valores: null };
-  return { valido: true, erros, valores: { semanas, diasDaSemana: dias, diasPorSemana: dias.length, diaLongao: longao, horasPorSemana: horas, esporte, observacao } };
+  return { valido: true, erros, valores: { semanas, diasDaSemana: dias, diasPorSemana: dias.length, diaLongao: longao, horasPorSemana: horas, minutosPorDia: porDia.mapa, esporte, observacao } };
 }
 
 const ORDEM_DE_NIVEL = Object.freeze({ iniciante: 0, intermediario: 1, avancado: 2 });
@@ -237,15 +248,18 @@ export function cargaBaseSemanal(dias, hoje, perfil = {}) {
  * @param {{
  *   hoje: string, entrada: ReturnType<typeof validarEntradaDeTreinos>['valores'],
  *   ocupados?: string[], intensosAnteriores?: string[], cargaBase: number, estimarEstresse: (modelo: any) => number,
- *   estresseJaPlanejadoPorSemana?: Record<string, number>, nivel?: string, proprios?: any[], priorizarProprios?: boolean
+ *   estresseJaPlanejadoPorSemana?: Record<string, number>, nivel?: string, proprios?: any[], priorizarProprios?: boolean,
+ *   variarTrajetos?: boolean, permitirVoltas?: boolean
  * }} ctx `ocupados`: datas que já têm treino; `intensosAnteriores`: datas de treinos intensos já no plano ou recentes;
  *   `proprios`: os treinos próprios do usuário que a IA pôde escolher (o mesmo cardápio dado a ela);
  *   `priorizarProprios`: (semana automática) mais da metade dos treinos de a semana deve vir de "Meus treinos", e o código troca
- *   os do catálogo por treinos próprios compatíveis até chegar lá (ou até acabarem as opções)
+ *   os do catálogo por treinos próprios compatíveis até chegar lá (ou até acabarem as opções);
+ *   `variarTrajetos`: no máximo um treino por trajeto na semana (a semana não gira em torno de um trajeto só);
+ *   `permitirVoltas`: com o tempo do dia (`entrada.minutosPorDia`), um treino de trajeto curto é repetido em voltas até fechar o tempo
  * @returns {{ itens: any[], avisos: string[], cargaPorSemana: Record<string, number> }}
  */
 export function validarSugestaoDeTreinos(saida, ctx) {
-  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {}, nivel = 'intermediario', proprios = [], priorizarProprios = false } = ctx;
+  const { hoje, entrada, ocupados = [], intensosAnteriores = [], cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana = {}, nivel = 'intermediario', proprios = [], priorizarProprios = false, variarTrajetos = false, permitirVoltas = false } = ctx;
   const avisos = [];
   const diasEscolhidos = new Set(entrada.diasDaSemana);
   const catalogo = new Map(catalogoParaIa(entrada.esporte, nivel, proprios).map((m) => [m.id, m]));
@@ -256,7 +270,18 @@ export function validarSugestaoDeTreinos(saida, ctx) {
   const primeiraSegunda = inicioDaSemana(primeiro);
   const usadas = new Set(ocupados);
   const dataBr = (d) => d.split('-').reverse().join('/');
-  const limiteMin = entrada.horasPorSemana * 60;
+  // tempo de cada dia (opcional): janela de 80% a 120%; o total da semana aceita os mesmos 20% a mais
+  const minutosPorDia = entrada.minutosPorDia ?? null;
+  const tempoDoDia = (data) => minutosPorDia?.[String(diaDaSemana(data))] ?? null;
+  const cabeNoTeto = (dur, data) => {
+    const t = tempoDoDia(data);
+    return t === null || dur <= Math.round(t * JANELA_DO_DIA.teto);
+  };
+  const cabeNoDia = (dur, data) => {
+    const t = tempoDoDia(data);
+    return t === null || (dur >= Math.round(t * JANELA_DO_DIA.piso) && dur <= Math.round(t * JANELA_DO_DIA.teto));
+  };
+  const limiteMin = entrada.horasPorSemana * 60 * (minutosPorDia ? JANELA_DO_DIA.teto : 1);
   const estresseDe = new Map();
   const estimar = (id) => {
     if (!estresseDe.has(id)) estresseDe.set(id, estimarEstresse(modelos.get(id)));
@@ -311,14 +336,14 @@ export function validarSugestaoDeTreinos(saida, ctx) {
     semana.minutos += ref.duracaoMin;
     semana.carga += estresse;
     cargaPorSemana[inicio] = semana.carga;
-    itens.push({ data, modeloId: ref.id, nome: ref.nome, esporte: ref.esporte, foco: ref.foco, intensidade: ref.intensidade, duracaoMin: ref.duracaoMin, estresse: Math.round(estresse), motivo });
+    itens.push({ data, modeloId: ref.id, nome: ref.nome, esporte: ref.esporte, foco: ref.foco, intensidade: ref.intensidade, duracaoMin: ref.duracaoMin, estresse: Math.round(estresse), motivo, ...(ref.trajeto ? { trajeto: ref.trajeto } : {}), ...(ref.voltas > 1 ? { voltas: ref.voltas } : {}) });
   };
   /** Treinos leves (não intensos) do esporte que cabem nas horas da semana, com o estresse de cada um. */
-  const leves = (esporte, inicio) => {
+  const leves = (esporte, inicio, data) => {
     const semana = estadoDaSemana(inicio);
     return [...catalogo.values()]
       // o código também completa dias vazios e trocar por um treino leve: um treino de trajeto só entra se a IA o escolheu
-      .filter((m) => m.esporte === esporte && m.intensidade !== 'alta' && !m.trajeto && semana.minutos + m.duracaoMin <= limiteMin)
+      .filter((m) => m.esporte === esporte && m.intensidade !== 'alta' && !m.trajeto && semana.minutos + m.duracaoMin <= limiteMin && cabeNoTeto(m.duracaoMin, data))
       .map((m) => ({ ref: m, estresse: estimar(m.id) }))
       .filter((m) => m.estresse > 0);
   };
@@ -327,10 +352,13 @@ export function validarSugestaoDeTreinos(saida, ctx) {
     const inicio = inicioDaSemana(data);
     const semana = estadoDaSemana(inicio);
     const limite = limiteDeCarga(inicio);
-    const lista = leves(esporte, inicio);
+    const lista = leves(esporte, inicio, data);
     if (lista.length === 0) return null;
     const ehLongao = entrada.diaLongao !== null && diaDaSemana(data) === entrada.diaLongao;
-    const cabem = lista.filter((m) => semana.carga + m.estresse <= limite);
+    const cabemNaCarga = lista.filter((m) => semana.carga + m.estresse <= limite);
+    // com o tempo do dia, os treinos dentro da janela de 80% a 120% vêm primeiro
+    const naJanela = cabemNaCarga.filter((m) => cabeNoDia(m.ref.duracaoMin, data));
+    const cabem = naJanela.length > 0 ? naJanela : cabemNaCarga;
     // variedade primeiro: o treino menos usado até aqui; depois, o mais longo (longão) ou o mais forte que cabe
     const ordem = (a, b) => (usos.get(a.ref.id) ?? 0) - (usos.get(b.ref.id) ?? 0) || (ehLongao ? b.ref.duracaoMin - a.ref.duracaoMin : b.estresse - a.estresse);
     const preferidos = cabem.filter((m) => !naSemana.has(m.ref.id)).sort(ordem);
@@ -350,6 +378,45 @@ export function validarSugestaoDeTreinos(saida, ctx) {
     if (usadas.has(c.data)) {
       avisos.push(`${rotulo}: o dia já tem treino e foi descartado.`);
       continue;
+    }
+    // variar trajetos: um treino adaptado a trajeto por trajeto na semana
+    if (variarTrajetos && ref.trajeto && itens.some((it) => it.trajeto === ref.trajeto && inicioDaSemana(it.data) === inicio)) {
+      avisos.push(`${rotulo}: já há um treino do trajeto "${ref.trajeto}" nesta semana e este foi descartado, para variar os trajetos.`);
+      continue;
+    }
+    // tempo do dia: o treino fica entre 80% e 120% dele (trajeto curto ganha voltas; senão troca por um treino do mesmo tipo)
+    const tDia = tempoDoDia(c.data);
+    if (tDia !== null && !cabeNoDia(ref.duracaoMin, c.data)) {
+      const curto = ref.duracaoMin < Math.round(tDia * JANELA_DO_DIA.piso);
+      let ajustado = null;
+      if (curto && ref.trajeto && permitirVoltas && ref.duracaoMin > 0) {
+        for (const n of [Math.round(tDia / ref.duracaoMin), Math.floor(tDia / ref.duracaoMin), Math.ceil(tDia / ref.duracaoMin)]) {
+          const repetido = n >= 2 && cabeNoDia(ref.duracaoMin * n, c.data) ? repetirVoltas(modelos.get(ref.id), n) : null;
+          if (!repetido) continue;
+          ajustado = { ref: { ...ref, duracaoMin: ref.duracaoMin * n, voltas: n }, estresse: estimarEstresse(repetido), motivoExtra: `O trajeto se repete em ${n} voltas para fechar os ${tDia} min do dia.` };
+          break;
+        }
+      }
+      if (!ajustado) {
+        const daSemana = nomesNaSemana(inicio);
+        const alternativa = [...catalogo.values()]
+          .filter((m) => m.esporte === ref.esporte && m.intensidade === ref.intensidade && m.id !== ref.id && !m.trajeto && cabeNoDia(m.duracaoMin, c.data) && !daSemana.has(m.id) && semana.minutos + m.duracaoMin <= limiteMin)
+          .map((m) => ({ ref: m, estresse: estimar(m.id) }))
+          .filter((m) => m.estresse > 0)
+          .sort((a, b) => (usos.get(a.ref.id) ?? 0) - (usos.get(b.ref.id) ?? 0) || Math.abs(a.ref.duracaoMin - tDia) - Math.abs(b.ref.duracaoMin - tDia))[0];
+        if (alternativa) ajustado = { ...alternativa, motivoExtra: `Trocado por um treino do mesmo tipo que cabe nos ${tDia} min do dia.` };
+      }
+      if (ajustado) {
+        avisos.push(`${rotulo}: ajustado ao tempo do dia (${tDia} min)${ajustado.ref.voltas ? ` com ${ajustado.ref.voltas} voltas` : `, trocado por "${ajustado.ref.nome}"`}.`);
+        ref = ajustado.ref;
+        estresse = ajustado.estresse;
+        c.motivo = ajustado.motivoExtra;
+      } else if (!curto) {
+        avisos.push(`${rotulo}: passa dos ${tDia} min do dia (mais 20%) e foi descartado.`);
+        continue;
+      } else {
+        avisos.push(`${rotulo}: dura menos que 80% dos ${tDia} min do dia e não há treino maior do mesmo tipo; foi mantido.`);
+      }
     }
     if (semana.minutos + ref.duracaoMin > limiteMin) {
       avisos.push(`${rotulo}: passaria de ${entrada.horasPorSemana} h na semana e foi descartado.`);
@@ -415,7 +482,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
       let troca = null;
       for (const janela of [14, 7, 3]) {
         const alternativas = [...catalogo.values()]
-          .filter((m) => m.esporte === it.esporte && m.intensidade === it.intensidade && m.id !== it.modeloId && !repetidoEm(m.id, janela) && minutosDaSemana(inicio, it) + m.duracaoMin <= limiteMin)
+          .filter((m) => m.esporte === it.esporte && m.intensidade === it.intensidade && m.id !== it.modeloId && !repetidoEm(m.id, janela) && minutosDaSemana(inicio, it) + m.duracaoMin <= limiteMin && cabeNoDia(m.duracaoMin, it.data))
           .filter((m) => janela === 14 || (usos.get(m.id) ?? 0) < usoAtual)
           .map((m) => ({ ref: m, estresse: estimar(m.id) }))
           .filter((m) => m.estresse > 0 && (it.intensidade === 'alta' || cargaSemSelf + m.estresse <= limite || m.estresse <= it.estresse))
@@ -431,6 +498,8 @@ export function validarSugestaoDeTreinos(saida, ctx) {
         estadoDaSemana(inicio).carga = cargaSemSelf + troca.estresse;
         cargaPorSemana[inicio] = estadoDaSemana(inicio).carga;
         Object.assign(it, { modeloId: troca.ref.id, nome: troca.ref.nome, foco: troca.ref.foco, duracaoMin: troca.ref.duracaoMin, estresse: Math.round(troca.estresse), motivo: 'Trocado para variar os treinos.' });
+        delete it.voltas;
+        delete it.trajeto;
         variados += 1;
       }
     }
@@ -466,7 +535,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
           const cargaSemSelf = estadoDaSemana(inicio).carga - it.estresse;
           const opcao = doAtleta
             .filter((m) => m.esporte === it.esporte && (it.intensidade === 'alta') === (m.intensidade === 'alta') && !emUso(m.id))
-            .filter((m) => minutosDaSemana(inicio, it) + m.duracaoMin <= limiteMin)
+            .filter((m) => minutosDaSemana(inicio, it) + m.duracaoMin <= limiteMin && cabeNoDia(m.duracaoMin, it.data))
             .filter((m) => !ehLongao || m.duracaoMin >= it.duracaoMin)
             .map((m) => ({ ref: m, estresse: estimar(m.id) }))
             .filter((m) => m.estresse > 0 && (it.intensidade === 'alta' || cargaSemSelf + m.estresse <= limite || m.estresse <= it.estresse))
@@ -477,6 +546,8 @@ export function validarSugestaoDeTreinos(saida, ctx) {
           estadoDaSemana(inicio).carga = cargaSemSelf + opcao.estresse;
           cargaPorSemana[inicio] = estadoDaSemana(inicio).carga;
           Object.assign(it, { modeloId: opcao.ref.id, nome: opcao.ref.nome, foco: opcao.ref.foco, duracaoMin: opcao.ref.duracaoMin, estresse: Math.round(opcao.estresse), motivo: 'Um dos seus treinos de "Meus treinos", priorizado na semana.' });
+          delete it.voltas;
+          delete it.trajeto;
           priorizados += 1;
           trocou = true;
           break;
@@ -503,6 +574,7 @@ export function validarSugestaoDeTreinos(saida, ctx) {
       const maisLongo = [...lista].sort((a, b) => b.duracaoMin - a.duracaoMin)[0];
       if (!doLongao || !maisLongo || maisLongo === doLongao || maisLongo.duracaoMin <= doLongao.duracaoMin) continue;
       if (doLongao.intensidade === 'alta' || maisLongo.intensidade === 'alta') continue;
+      if (!cabeNoDia(doLongao.duracaoMin, maisLongo.data) || !cabeNoDia(maisLongo.duracaoMin, doLongao.data)) continue; // respeita o tempo de cada dia
       [doLongao.data, maisLongo.data] = [maisLongo.data, doLongao.data];
       // o motivo escrito para o dia antigo deixaria de fazer sentido
       doLongao.motivo = 'Treino reposicionado para o dia do longão.';

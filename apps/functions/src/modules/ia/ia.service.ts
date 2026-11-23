@@ -289,7 +289,13 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
   const contexto = {
     hoje,
     periodo: { de: somarDias(hoje, 1), ate: somarDias(hoje, 7 * entrada.semanas) },
-    pedido: { ...entrada, diasEscolhidos: entrada.diasDaSemana.map((d: number) => NOMES_DIA[d]), diaDoLongao: entrada.diaLongao === null ? null : NOMES_DIA[entrada.diaLongao] },
+    pedido: {
+      ...entrada,
+      diasEscolhidos: entrada.diasDaSemana.map((d: number) => NOMES_DIA[d]),
+      diaDoLongao: entrada.diaLongao === null ? null : NOMES_DIA[entrada.diaLongao],
+      // tempo que o atleta tem em cada dia de treino (nome do dia → minutos)
+      ...(entrada.minutosPorDia ? { tempoDisponivelPorDiaMin: Object.fromEntries(entrada.diasDaSemana.map((d: number) => [NOMES_DIA[d], entrada.minutosPorDia![String(d)]])) } : {}),
+    },
     estadoAtual: hojeForma ? { condicionamento: Math.round(hojeForma.fitness * 10) / 10, fadiga: Math.round(hojeForma.fadiga * 10) / 10, forma: Math.round(hojeForma.forma * 10) / 10 } : null,
     cargaSemanalMedia4Semanas: Math.round(cargaBase),
     metaCondicionamento: metaCond ? { alvo: metaCond.condicionamentoAlvo, data: metaCond.dataAlvo } : null,
@@ -307,6 +313,11 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
     (entrada.diaLongao !== null ? `- ${NOMES_DIA[entrada.diaLongao]} é o dia do LONGÃO: coloque nele o treino mais longo (maior duracaoMin) da semana, em ritmo leve a moderado.\n` : "") +
     `- No máximo 2 treinos de intensidade "alta" por semana, com pelo menos 48 h entre eles; nenhum depois de uma Forma muito negativa.\n` +
     `- A carga semanal deve subir no máximo 10% por semana sobre a média das últimas 4 semanas; alterne semanas de carga e de recuperação.\n` +
+    (entrada.minutosPorDia
+      ? `- TEMPO DE CADA DIA: o atleta informou quanto tempo tem em cada dia (pedido.tempoDisponivelPorDiaMin). A duracaoMin do treino de cada dia deve ficar entre 80% e 120% desse tempo (nunca mais de 20% acima). ` +
+        (automatico ? `Um treino com "trajeto" cobre UMA volta: o app repete as voltas para completar o tempo do dia, então ele pode ser mais curto que o tempo do dia.\n` : "\n")
+      : "") +
+    `- TRAJETOS: use no máximo UM treino por trajeto na semana (item com "trajeto") e nunca vários do mesmo trajeto; varie entre trajetos diferentes ou use treinos sem trajeto.\n` +
     `- VARIEDADE: não repita o mesmo treino em menos de 14 dias e alterne os focos (tempo, fartlek, progressivo, limiar, subidas…); o catálogo já está limitado ao nível do atleta.\n` +
     `- Use SOMENTE treinos da lista "catalogo" (campo id), nunca invente; um treino por dia; não use os diasJaOcupados.\n` +
     regraDosProprios(proprios.length) +
@@ -334,7 +345,7 @@ export async function sugerirTreinosDoUsuario(uid: string, bruto: Record<string,
 
   const configHoje = configVigenteEm(configs, hoje);
   const estimarEstresse = (modelo: Record<string, unknown>) => Number(estresseDoTreino({ ...treinoPlanejadoDoModelo(modelo, hoje), status: "planejado" } as never, configHoje ? configs : [], null)) || 0;
-  const validado = validarSugestaoDeTreinos(saidaIa, { hoje, entrada, ocupados, intensosAnteriores, cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana, nivel, proprios, priorizarProprios: automatico });
+  const validado = validarSugestaoDeTreinos(saidaIa, { hoje, entrada, ocupados, intensosAnteriores, cargaBase, estimarEstresse, estresseJaPlanejadoPorSemana, nivel, proprios, priorizarProprios: automatico, variarTrajetos: true, permitirVoltas: automatico });
   const saida = { resumo: saidaIa.resumo.slice(0, 600), itens: validado.itens, avisos: validado.avisos, aviso: AVISO_IA };
 
   const ref = db.collection("iaRascunhos").doc();

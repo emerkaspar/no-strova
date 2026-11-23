@@ -237,6 +237,23 @@ export function validarTreinoEstruturado(entrada) {
 export const ESPORTES_COMPATIVEIS = ESPORTES_TREINO.filter((e) => ESPORTES_VALIDOS.includes(e));
 
 /**
+ * Repete os passos de um treino de trajeto (uma volta) `voltas` vezes, para fechar o tempo do dia: o nome e a descrição registram
+ * as voltas. Devolve o modelo com os passos repetidos (mantém o `id`), ou null se não der (menos de 2 voltas ou mais de 30 passos).
+ * @param {{ id?: string, nome: string, esporte: string, foco: string, nivel: string, descricao?: string, passos: any[], trajetoId?: string, trajetoNome?: string }} modelo
+ * @param {number} voltas
+ */
+export function repetirVoltas(modelo, voltas) {
+  if (!modelo || !Array.isArray(modelo.passos) || !Number.isInteger(voltas) || voltas < 2) return null;
+  const r = validarTreinoEstruturado({
+    ...modelo,
+    nome: `${String(modelo.nome).slice(0, LIMITES_TREINO_ESTRUTURADO.nome.max - 12)} · ${voltas} voltas`,
+    descricao: `Dê ${voltas} voltas no trajeto, sem parar entre elas (os passos se repetem a cada volta). ${String(modelo.descricao ?? '')}`.slice(0, LIMITES_TREINO_ESTRUTURADO.descricao?.max ?? 500),
+    passos: Array.from({ length: voltas }, () => modelo.passos).flat(),
+  });
+  return r.valido && r.valores ? { ...modelo, ...r.valores } : null;
+}
+
+/**
  * Entrada do treino planejado a partir de um modelo e uma data. A duração e a zona vêm dos passos; o treino guarda
  * uma cópia dos passos, então mudar ou apagar o modelo depois não altera o plano.
  */

@@ -5,6 +5,7 @@ import {
   estimarEstresseEstruturado,
   modeloPorId,
   RECURSOS,
+  repetirVoltas,
   somarDias,
   temRecurso,
   textoDoAvisoDaSemana,
@@ -49,9 +50,13 @@ export async function gerarSemanaDoUsuario(uid: string, apiKey: string, hoje: st
     await registrar("falhou", { erro: "Defina os seus dias de treino no Perfil de treino para a IA montar a semana." });
     return "falhou";
   }
+  // tempo de cada dia de treino (só vale se todos os dias de treino têm tempo; senão a semana usa as horas totais)
+  const minutosPref = pref.minutosPorDia && typeof pref.minutosPorDia === "object" ? (pref.minutosPorDia as Record<string, unknown>) : null;
+  const minutosPorDia = minutosPref && dias.every((d) => typeof minutosPref[String(d)] === "number") ? Object.fromEntries(dias.map((d) => [String(d), minutosPref[String(d)] as number])) : null;
   const entrada = {
     semanas: 1,
     diasDaSemana: dias,
+    ...(minutosPorDia ? { minutosPorDia } : {}),
     diaLongao: typeof pref.diaLongao === "number" ? pref.diaLongao : null,
     horasPorSemana: typeof pref.horasSemana === "number" ? pref.horasSemana : 6,
     esporte: pref.esportePrincipal === "ciclismo" || pref.esportePrincipal === "corrida" ? pref.esportePrincipal : "ambos",
@@ -67,7 +72,7 @@ export async function gerarSemanaDoUsuario(uid: string, apiKey: string, hoje: st
     return "falhou";
   }
 
-  const itens = (rascunho.saida.itens as Array<{ data: string; modeloId: string; nome: string; foco: string; duracaoMin: number; estresse: number; motivo: string }>).filter((i) => i.data >= inicio && i.data <= fim);
+  const itens = (rascunho.saida.itens as Array<{ data: string; modeloId: string; nome: string; foco: string; duracaoMin: number; estresse: number; motivo: string; voltas?: number; trajeto?: string }>).filter((i) => i.data >= inicio && i.data <= fim);
   const ctx = rascunho.contextoResumo;
   const consideracoes = consideracoesDaSemana({
     nivel: ctx?.nivel ?? "intermediario",
@@ -89,7 +94,10 @@ export async function gerarSemanaDoUsuario(uid: string, apiKey: string, hoje: st
   const configs = await carregarConfigs(uid);
   const lote = db.batch();
   for (const item of itens) {
-    const modelo = modeloPorId(item.modeloId, ctx?.proprios ?? []);
+    const base = modeloPorId(item.modeloId, ctx?.proprios ?? []);
+    if (!base) continue;
+    // treino de trajeto com voltas: repete os passos do trajeto para fechar o tempo do dia
+    const modelo = item.voltas && item.voltas > 1 ? repetirVoltas(base, item.voltas) : base;
     if (!modelo) continue;
     const r = validarTreinoPlanejado(treinoPlanejadoDoModelo(modelo, item.data));
     if (!r.valido || !r.valores) {

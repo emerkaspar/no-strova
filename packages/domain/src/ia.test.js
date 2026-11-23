@@ -156,3 +156,48 @@ describe('preferirProprioParaODia (treino único do dia)', () => {
     expect(preferirProprioParaODia({ ...escolhido, proprio: true }, [meuX()])).toBeNull();
   });
 });
+
+describe('tempo de cada dia e variação de trajetos', () => {
+  const hoje = '2026-11-04'; // quarta-feira; quinta = 2026-11-05 (dia 3), sexta = 2026-11-06 (dia 4)
+  const curto = (extra = {}) => ({ id: 'Trajeto30', nome: 'Volta curta', esporte: 'ciclismo', foco: 'resistencia', nivel: 'avancado', origem: 'proprio', trajetoNome: 'Orla', passos: [{ tipo: 'bloco', papel: 'principal', duracaoS: 1800, zona: 'Z2' }], ...extra });
+  const pedido = (extra = {}) => validarEntradaDeTreinos({ semanas: 1, diasDaSemana: [3], minutosPorDia: { 3: 60 }, esporte: 'ciclismo', ...extra }).valores;
+  const ctx = (entrada, proprios, extra = {}) => ({ hoje, entrada, cargaBase: 0, estimarEstresse: () => 40, nivel: 'avancado', proprios, ...extra });
+  const sugestao = (...ids) => ({ treinos: ids.map((id, i) => ({ data: i === 0 ? '2026-11-05' : '2026-11-06', modeloId: id, motivo: 'ok' })) });
+
+  it('a entrada com tempo por dia deriva as horas da semana', () => {
+    const v = validarEntradaDeTreinos({ semanas: 1, diasDaSemana: [1, 3], minutosPorDia: { 1: 60, 3: 90 }, esporte: 'ambos' });
+    expect(v.valido).toBe(true);
+    expect(v.valores.horasPorSemana).toBe(2.5);
+    expect(v.valores.minutosPorDia).toEqual({ 1: 60, 3: 90 });
+    expect(validarEntradaDeTreinos({ semanas: 1, diasDaSemana: [1, 3], minutosPorDia: { 1: 60 }, esporte: 'ambos' }).valido).toBe(false);
+  });
+
+  it('treino de trajeto curto ganha voltas para fechar o tempo do dia (plano automático)', () => {
+    const r = validarSugestaoDeTreinos(sugestao('Trajeto30'), ctx(pedido(), [curto()], { permitirVoltas: true }));
+    expect(r.itens[0]).toMatchObject({ modeloId: 'Trajeto30', voltas: 2, duracaoMin: 60, trajeto: 'Orla' });
+  });
+
+  it('sem voltas permitidas, o treino curto é trocado por um que caiba entre 80% e 120% do dia', () => {
+    const r = validarSugestaoDeTreinos(sugestao('Trajeto30'), ctx(pedido(), [curto()]));
+    const item = r.itens.find((i) => i.data === '2026-11-05');
+    expect(item.modeloId).not.toBe('Trajeto30');
+    expect(item.duracaoMin).toBeGreaterThanOrEqual(48);
+    expect(item.duracaoMin).toBeLessThanOrEqual(72);
+  });
+
+  it('todo treino da semana respeita o tempo do dia (80% a 120%)', () => {
+    const r = validarSugestaoDeTreinos({ treinos: [] }, ctx(pedido({ minutosPorDia: { 3: 90 } }), []));
+    expect(r.itens).toHaveLength(1);
+    expect(r.itens[0].duracaoMin).toBeGreaterThanOrEqual(72);
+    expect(r.itens[0].duracaoMin).toBeLessThanOrEqual(108);
+  });
+
+  it('no máximo um treino por trajeto na semana', () => {
+    const outro = curto({ id: 'Trajeto30b', nome: 'Outra volta curta' });
+    const entrada = pedido({ diasDaSemana: [3, 4], minutosPorDia: { 3: 60, 4: 60 } });
+    const r = validarSugestaoDeTreinos(sugestao('Trajeto30', 'Trajeto30b'), ctx(entrada, [curto(), outro], { permitirVoltas: true, variarTrajetos: true }));
+    expect(r.itens.filter((i) => i.trajeto === 'Orla')).toHaveLength(1);
+    expect(r.avisos.some((a) => a.includes('para variar os trajetos'))).toBe(true);
+    expect(r.itens).toHaveLength(2); // o dia liberado foi completado com um treino que não é de trajeto
+  });
+});

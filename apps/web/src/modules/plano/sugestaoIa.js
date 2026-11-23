@@ -64,6 +64,12 @@ export function criarPainelIa({ uid, hoje, obterContexto, aoAceitar = () => {} }
   }
   desenharDias();
   const horas = campo({ id: 'ia-horas', rotulo: 'Horas por semana', inputmode: 'decimal', value: '6' });
+  // tempo de cada dia do perfil de treino: vale enquanto o usuário não mexer nas horas por semana
+  let minutosDoPerfil = null;
+  let usarTempoDoPerfil = true;
+  horas.input.addEventListener('input', () => {
+    usarTempoDoPerfil = false;
+  });
   const esporte = selecao({
     id: 'ia-esporte',
     rotulo: 'Esporte',
@@ -85,6 +91,7 @@ export function criarPainelIa({ uid, hoje, obterContexto, aoAceitar = () => {} }
         desenharDias();
       }
       if (Number.isFinite(p.horasSemana)) horas.input.value = String(p.horasSemana).replace('.', ',');
+      if (p.minutosPorDia && typeof p.minutosPorDia === 'object') minutosDoPerfil = p.minutosPorDia;
       if (p.esportePrincipal) esporte.select.value = p.esportePrincipal;
     })
     .catch(() => {});
@@ -237,7 +244,10 @@ export function criarPainelIa({ uid, hoje, obterContexto, aoAceitar = () => {} }
               const resposta = await pedirRascunhoAnualDaIa({ provaId: prova.id, observacao: observacao.input.value.trim() });
               mostrarRascunhoDaProva(resposta, prova);
             } else {
-              const r = await pedirTreinosDaIa({ semanas: semanas.select.value, diasDaSemana: [...escolhidos], diaLongao: longaoSelecionado.valor === '' ? null : Number(longaoSelecionado.valor), horasPorSemana: horas.input.value, esporte: esporte.select.value, observacao: observacao.input.value });
+              // com o tempo do perfil para todos os dias escolhidos, o pedido leva o tempo de cada dia (as horas por semana viram a soma)
+              const temTempoDeTodos = usarTempoDoPerfil && minutosDoPerfil && [...escolhidos].every((d) => minutosDoPerfil[String(d)] > 0);
+              const minutosPorDia = temTempoDeTodos ? Object.fromEntries([...escolhidos].map((d) => [String(d), minutosDoPerfil[String(d)]])) : undefined;
+              const r = await pedirTreinosDaIa({ semanas: semanas.select.value, diasDaSemana: [...escolhidos], diaLongao: longaoSelecionado.valor === '' ? null : Number(longaoSelecionado.valor), horasPorSemana: horas.input.value, ...(minutosPorDia ? { minutosPorDia } : {}), esporte: esporte.select.value, observacao: observacao.input.value });
               mostrarRascunho(r);
             }
           } catch (err) {

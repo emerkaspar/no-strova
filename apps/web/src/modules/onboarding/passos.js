@@ -80,6 +80,8 @@ export function estadoInicial(sessao, dados) {
     dias: new Set(p.diasTreino ?? []),
     longao: p.diaLongao ?? null,
     horas: p.horasSemana ?? 6,
+    // tempo de cada dia de treino, em minutos (dia 0 = segunda … 6 = domingo)
+    minutos: { ...(p.minutosPorDia ?? {}) },
     planoIa: p.planoIaAutomatico === true,
     usoGarmin: p.usoGarmin ?? '',
     querMeta: Boolean(meta),
@@ -320,8 +322,43 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
   const resumoSemana = h('p', { class: 'wz-chip', 'aria-live': 'polite' });
   const grade = h('div', { class: 'wz-dias', role: 'group', 'aria-label': 'Dias da semana em que você quer treinar' });
   const linhaLongao = h('div', { class: 'campo' });
-  const horasSaida = h('output', { class: 'wz-horas-valor', for: 'wz-horas' });
-  const horasRange = h('input', { id: 'wz-horas', type: 'range', min: String(LIMITES_ROTINA.horasMin), max: String(LIMITES_ROTINA.horasMax), step: '0.5', value: String(estado.horas) });
+  const listaTempos = h('div', { class: 'campo wz-tempos' });
+  // sem tempo salvo para o dia, parte das horas por semana que já valiam (ou de 6 h), dividida pelos dias, em passos de 15 min
+  const tempoPadrao = (nDias) => Math.min(LIMITES_ROTINA.minutosDiaMax, Math.max(30, Math.round(((estado.horas ?? 6) * 60) / Math.max(1, nDias) / 15) * 15));
+  const formatarTempo = (min) => `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')}` : ''}`;
+  /** Total semanal em horas (meias horas), a soma do tempo dos dias de treino. */
+  function atualizarResumoSemana() {
+    const ordenados = [...estado.dias].sort((a, b) => a - b);
+    const total = ordenados.reduce((t, d) => t + (estado.minutos[d] ?? 0), 0);
+    estado.horas = Math.min(LIMITES_ROTINA.horasMax, Math.max(LIMITES_ROTINA.horasMin, Math.round((total / 60) * 2) / 2));
+    const n = ordenados.length;
+    resumoSemana.textContent =
+      n === 0 ? 'Nenhum dia? Descanso total, então.' : `${n} ${n === 1 ? 'dia' : 'dias'} · ${formatarTempo(total)} por semana${estado.longao === null ? '' : ` · longão de ${NOMES[estado.longao]}`}`;
+  }
+  function desenharTempos(ordenados) {
+    listaTempos.replaceChildren(
+      h('span', { class: 'wz-rotulo' }, 'Quanto tempo você tem em cada dia?'),
+      h('p', { class: 'wz-nota' }, 'O treino do dia fica entre 80% e 120% desse tempo.'),
+      ...ordenados.map((d) => {
+        if (!(estado.minutos[d] > 0)) estado.minutos[d] = tempoPadrao(ordenados.length);
+        const total = estado.minutos[d];
+        const horasEntrada = h('input', { type: 'number', class: 'wz-tempo-campo', min: '0', max: String(LIMITES_ROTINA.minutosDiaMax / 60), step: '1', inputmode: 'numeric', value: String(Math.floor(total / 60)), 'aria-label': `Horas de ${NOMES[d]}` });
+        const minutosEntrada = h('input', { type: 'number', class: 'wz-tempo-campo', min: '0', max: '59', step: '5', inputmode: 'numeric', value: String(total % 60), 'aria-label': `Minutos de ${NOMES[d]}` });
+        const atualizar = () => {
+          estado.minutos[d] = Math.max(0, Math.floor(Number(horasEntrada.value) || 0)) * 60 + Math.max(0, Math.floor(Number(minutosEntrada.value) || 0));
+          atualizarResumoSemana();
+        };
+        horasEntrada.addEventListener('input', atualizar);
+        minutosEntrada.addEventListener('input', atualizar);
+        return h(
+          'div',
+          { class: 'wz-tempo-dia' },
+          h('span', { class: 'wz-tempo-nome' }, NOMES[d].charAt(0).toUpperCase() + NOMES[d].slice(1), estado.longao === d ? h('small', null, ' · longão') : null),
+          h('span', { class: 'wz-tempo-entradas' }, horasEntrada, h('span', null, 'h'), minutosEntrada, h('span', null, 'min')),
+        );
+      }),
+    );
+  }
   function desenharSemana() {
     const ordenados = [...estado.dias].sort((a, b) => a - b);
     if (estado.longao !== null && !estado.dias.has(estado.longao)) estado.longao = null;
@@ -368,11 +405,8 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
         ),
       ),
     );
-    const n = ordenados.length;
-    const horas = formatarNumero(estado.horas, estado.horas % 1 === 0 ? 0 : 1);
-    resumoSemana.textContent =
-      n === 0 ? 'Nenhum dia? Descanso total, então.' : `${n} ${n === 1 ? 'dia' : 'dias'} · ${horas} h por semana${estado.longao === null ? '' : ` · longão de ${NOMES[estado.longao]}`}`;
-    horasSaida.textContent = `${horas} h`;
+    desenharTempos(ordenados);
+    atualizarResumoSemana();
   }
   // gerar a semana com IA automaticamente (desligado por padrão); só para quem tem a IA liberada
   const liberadoIa = temRecurso(sessao.perfil, RECURSOS.IA);
@@ -392,10 +426,6 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
         ),
       )
     : null;
-  horasRange.addEventListener('input', () => {
-    estado.horas = Number(horasRange.value);
-    desenharSemana();
-  });
   desenharSemana();
   const semana = {
     id: 'semana',
@@ -408,12 +438,12 @@ export function criarPassos({ uid, sessao, dados, estado, irPara, concluir, revi
       { class: 'wz-campos' },
       h('div', { class: 'campo' }, h('span', { class: 'wz-rotulo' }, 'Dias de treino'), grade),
       linhaLongao,
-      h('div', { class: 'campo' }, h('label', { class: 'wz-rotulo', for: 'wz-horas' }, 'Horas por semana'), h('div', { class: 'wz-horas' }, horasRange, horasSaida)),
+      listaTempos,
       resumoSemana,
       campoPlanoIa,
     ),
     async continuar() {
-      await salvarPassoSemana({ uid, entrada: { diasTreino: [...estado.dias], diaLongao: estado.longao, horasSemana: estado.horas, esportePrincipal: estado.esporte }, planoIaAutomatico: liberadoIa ? estado.planoIa : undefined });
+      await salvarPassoSemana({ uid, entrada: { diasTreino: [...estado.dias], diaLongao: estado.longao, horasSemana: estado.horas, minutosPorDia: estado.minutos, esportePrincipal: estado.esporte }, planoIaAutomatico: liberadoIa ? estado.planoIa : undefined });
     },
   };
 

@@ -8,7 +8,31 @@ import { calcularIdade, dataIsoValida } from './usuarios.js';
 
 export const ESTADOS_ONBOARDING = Object.freeze({ CONCLUIDO: 'concluido', PULADO: 'pulado' });
 
-export const LIMITES_ROTINA = Object.freeze({ horasMin: 1, horasMax: 25 });
+export const LIMITES_ROTINA = Object.freeze({ horasMin: 1, horasMax: 25, minutosDiaMin: 15, minutosDiaMax: 360 });
+
+/**
+ * Tempo que o atleta tem em cada dia de treino (`minutosPorDia`, mapa dia → minutos; dias 0 = segunda … 6 = domingo).
+ * Só vale para os dias de treino; devolve null quando nenhum dia tem tempo informado e `erro` se algum dia de treino ficou sem tempo
+ * (ou fora de 15 min a 6 h). `total` é a soma em minutos.
+ * @param {any} bruto
+ * @param {number[]} diasTreino
+ * @returns {{ mapa: Record<string, number>|null, total: number, erro: string|null }}
+ */
+export function lerMinutosPorDia(bruto, diasTreino) {
+  if (!bruto || typeof bruto !== 'object') return { mapa: null, total: 0, erro: null };
+  const { minutosDiaMin, minutosDiaMax } = LIMITES_ROTINA;
+  const mapa = {};
+  let total = 0;
+  for (const d of diasTreino) {
+    const m = numero(bruto[d] ?? bruto[String(d)]);
+    if (m === null || !Number.isInteger(m) || m < minutosDiaMin || m > minutosDiaMax) {
+      return { mapa: null, total: 0, erro: `Informe o tempo de cada dia de treino, de ${minutosDiaMin} minutos a ${minutosDiaMax / 60} horas.` };
+    }
+    mapa[String(d)] = m;
+    total += m;
+  }
+  return { mapa, total, erro: null };
+}
 
 export const ESPORTES_PRINCIPAIS = Object.freeze(['ciclismo', 'corrida', 'ambos']);
 
@@ -56,7 +80,7 @@ function numero(valor) {
 
 /**
  * Valida a rotina semanal. Dias de 0 (segunda) a 6 (domingo); o longão é um dos dias de treino (ou nenhum).
- * @returns {{ valido: boolean, erros: string[], valores: { diasTreino: number[], diaLongao: number|null, horasSemana: number, esportePrincipal: string }|null }}
+ * @returns {{ valido: boolean, erros: string[], valores: { diasTreino: number[], diaLongao: number|null, horasSemana: number, minutosPorDia: Record<string, number>|null, esportePrincipal: string }|null }}
  */
 export function validarRotina(entrada) {
   const erros = [];
@@ -68,15 +92,19 @@ export function validarRotina(entrada) {
   const diaLongao = longaoBruto === null ? null : longaoBruto;
   if (diaLongao !== null && !diasTreino.includes(diaLongao)) erros.push('O dia do longão precisa ser um dos dias de treino.');
 
-  const horas = numero(entrada?.horasSemana);
+  // com o tempo de cada dia, o total semanal é a soma deles (limitado ao máximo de horas por semana)
+  const porDia = lerMinutosPorDia(entrada?.minutosPorDia, diasTreino);
+  if (porDia.erro && diasTreino.length > 0) erros.push(porDia.erro);
   const { horasMin, horasMax } = LIMITES_ROTINA;
-  if (horas === null || horas < horasMin || horas > horasMax) erros.push(`Informe de ${horasMin} a ${horasMax} horas de treino por semana.`);
+  let horas = numero(entrada?.horasSemana);
+  if (porDia.mapa) horas = Math.min(horasMax, Math.max(horasMin, Math.round((porDia.total / 60) * 2) / 2));
+  else if (horas === null || horas < horasMin || horas > horasMax) erros.push(`Informe de ${horasMin} a ${horasMax} horas de treino por semana.`);
 
   const esportePrincipal = entrada?.esportePrincipal ?? 'ambos';
   if (!ESPORTES_PRINCIPAIS.includes(esportePrincipal)) erros.push('Escolha ciclismo, corrida ou os dois.');
 
   if (erros.length > 0) return { valido: false, erros, valores: null };
-  return { valido: true, erros, valores: { diasTreino, diaLongao, horasSemana: Math.round(horas * 2) / 2, esportePrincipal } };
+  return { valido: true, erros, valores: { diasTreino, diaLongao, horasSemana: Math.round(horas * 2) / 2, minutosPorDia: porDia.mapa, esportePrincipal } };
 }
 
 /**

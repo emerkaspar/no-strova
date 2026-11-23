@@ -97,8 +97,9 @@ export function salvarPassoGarmin({ uid, uso }) {
 export async function salvarPassoSemana({ uid, entrada, planoIaAutomatico }) {
   const r = validarRotina(entrada);
   if (!r.valido) throw new Error(r.erros.join(' '));
-  const { diasTreino, diaLongao, horasSemana } = r.valores;
-  await salvarPreferencias(uid, { diasTreino, diaLongao, horasSemana, ...(typeof planoIaAutomatico === 'boolean' ? { planoIaAutomatico } : {}) });
+  const { diasTreino, diaLongao, horasSemana, minutosPorDia } = r.valores;
+  // o Firestore mescla os mapas: dias que deixaram de ser de treino podem ficar no documento, mas só os dias de treino valem
+  await salvarPreferencias(uid, { diasTreino, diaLongao, horasSemana, minutosPorDia, ...(typeof planoIaAutomatico === 'boolean' ? { planoIaAutomatico } : {}) });
   return r.valores;
 }
 

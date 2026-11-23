@@ -34,7 +34,7 @@ describe('validarRotina', () => {
   it('normaliza dias (únicos e ordenados) e horas', () => {
     const r = validarRotina(base);
     expect(r.valido).toBe(true);
-    expect(r.valores).toEqual({ diasTreino: [1, 3, 5], diaLongao: 5, horasSemana: 6.5, esportePrincipal: 'ciclismo' });
+    expect(r.valores).toEqual({ diasTreino: [1, 3, 5], diaLongao: 5, horasSemana: 6.5, minutosPorDia: null, esportePrincipal: 'ciclismo' });
   });
 
   it('aceita sem longão e assume os dois esportes', () => {
@@ -50,6 +50,29 @@ describe('validarRotina', () => {
     expect(validarRotina({ ...base, horasSemana: 0 }).valido).toBe(false);
     expect(validarRotina({ ...base, horasSemana: 26 }).valido).toBe(false);
     expect(validarRotina({ ...base, esportePrincipal: 'natacao' }).valido).toBe(false);
+  });
+});
+
+describe('validarRotina com tempo por dia', () => {
+  const base = { diasTreino: [1, 3, 5], diaLongao: 5, minutosPorDia: { 1: 60, 3: '45', 5: 150 }, esportePrincipal: 'corrida' };
+
+  it('o total semanal é a soma dos dias (em meias horas) e só os dias de treino ficam no mapa', () => {
+    const r = validarRotina({ ...base, minutosPorDia: { ...base.minutosPorDia, 6: 90 }, horasSemana: 20 });
+    expect(r.valido).toBe(true);
+    expect(r.valores.minutosPorDia).toEqual({ 1: 60, 3: 45, 5: 150 });
+    expect(r.valores.horasSemana).toBe(4.5); // 255 min = 4,25 h, arredondado para meia hora
+  });
+
+  it('recusa dia de treino sem tempo ou com tempo fora de 15 min a 6 h', () => {
+    expect(validarRotina({ ...base, minutosPorDia: { 1: 60, 3: 45 } }).valido).toBe(false);
+    expect(validarRotina({ ...base, minutosPorDia: { 1: 10, 3: 45, 5: 150 } }).valido).toBe(false);
+    expect(validarRotina({ ...base, minutosPorDia: { 1: 60, 3: 45, 5: 400 } }).valido).toBe(false);
+  });
+
+  it('o total fica limitado a 25 horas por semana', () => {
+    const dias = [0, 1, 2, 3, 4, 5, 6];
+    const r = validarRotina({ diasTreino: dias, minutosPorDia: Object.fromEntries(dias.map((d) => [d, 360])) });
+    expect(r.valores.horasSemana).toBe(25);
   });
 });
 
