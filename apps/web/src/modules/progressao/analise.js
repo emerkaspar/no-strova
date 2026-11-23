@@ -103,6 +103,9 @@ export function criarAnalise({ dados, hoje, estado, prefixo = 'md' }) {
   const raiz = h('div', { class: 'prog-analise-modal' });
   let grafico = null;
   const condicionamentoPorData = new Map(calcularSerieForma(dados.dias, { ate: hoje }).map((d) => [d.data, d.fitness]));
+  // HRSS (estresse) somado por dia, para o tooltip do gráfico
+  const hrssPorData = new Map();
+  for (const { data, estresse } of dados.dias ?? []) if (Number.isFinite(estresse) && estresse > 0) hrssPorData.set(data, (hrssPorData.get(data) ?? 0) + estresse);
   const metaDoModal = dados.metas.find((m) => m.id === estado.metaId) ?? null;
 
   const metaSelecionada = () => dados.metas.find((m) => m.id === estado.metaId) ?? null;
@@ -271,6 +274,7 @@ export function criarAnalise({ dados, hoje, estado, prefixo = 'md' }) {
       total: ref.dias,
       marcadores: marcadoresDo(ref),
       rotuloDoPonto: (n) => rotuloDoPonto(ref, n),
+      hrssDoPonto: (n) => hrssPorData.get(dataDoDiaDoPeriodo(ref, n)) ?? 0,
       acumulado: cfg.acumulado,
       meta: metaDoPeriodo ? { valorAlvo: metaDoPeriodo.valorAlvo, esperado: (n) => valorEsperadoDaMeta(metaDoPeriodo, ref, serieRef, n) } : null,
       projecao,

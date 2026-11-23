@@ -22,6 +22,7 @@ function svg(nome, atributos = {}, ...filhos) {
  * @param {number} p.total quantidade de dias do período em foco (eixo X)
  * @param {Array<{ n: number, rotulo: string }>} p.marcadores marcas do eixo X (meses, dias do mês ou dias da semana)
  * @param {(n: number) => string} p.rotuloDoPonto texto do dia `n` (1 = primeiro dia) no tooltip
+ * @param {(n: number) => number} [p.hrssDoPonto] HRSS do dia `n` do período em foco (0 = sem atividade; some do tooltip)
  * @param {boolean} p.acumulado desenha em degraus
  * @param {{ valorAlvo: number, esperado: (n: number) => number }|null} p.meta
  * @param {{ n0: number, v0: number, n1: number, v1: number }|null} p.projecao
@@ -30,7 +31,7 @@ function svg(nome, atributos = {}, ...filhos) {
  * @param {(v: number) => string} [p.formatarEixo] valor sem unidade (eixo Y)
  * @returns {{ el: HTMLElement, destruir: () => void }}
  */
-export function graficoProgressao({ series, total, marcadores, rotuloDoPonto, acumulado, meta, projecao, corte, formatar, formatarEixo = formatar }) {
+export function graficoProgressao({ series, total, marcadores, rotuloDoPonto, hrssDoPonto = () => 0, acumulado, meta, projecao, corte, formatar, formatarEixo = formatar }) {
   const palco = h('div', { class: 'gp-palco' });
   const el = h('div', { class: 'gp' }, palco);
 
@@ -110,6 +111,8 @@ export function graficoProgressao({ series, total, marcadores, rotuloDoPonto, ac
       guia.setAttribute('x2', px(n));
       guia.setAttribute('visibility', 'visible');
       const linhas = [h('strong', { class: 'gp-dica-x' }, rotuloDoPonto(n))];
+      const hrss = hrssDoPonto(n);
+      if (hrss > 0) linhas.push(h('div', { class: 'gp-dica-linha gp-dica-hrss' }, h('span', null, 'HRSS do dia'), h('b', null, Math.round(hrss).toLocaleString('pt-BR'))));
       for (const s of [...series].sort((a, b) => a.indice - b.indice)) {
         const v = s.valores[Math.min(n, s.valores.length) - 1];
         linhas.push(h('div', { class: `gp-dica-linha gp-ano-${s.indice % 5}` }, h('i', { class: 'gp-dica-ponto' }), h('span', null, s.rotulo), h('b', null, Number.isFinite(v) ? formatar(v) : '—')));

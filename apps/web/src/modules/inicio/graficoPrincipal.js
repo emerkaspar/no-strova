@@ -784,6 +784,7 @@ export function criarGraficoPrincipal({
         h('p', { class: 'cg-dica-topo' }, `${statusDoDia(d.data, hoje)} · ${rotuloDoDia(d.data)}`),
         linhaPrevisto,
         ...treinos.map((t) => linhaDeTreino(t, 'cg-treino-linha cg-dica-treino')),
+        d.projetado || !(d.estresse > 0) ? null : linhaDica('HRSS', formatarNumero(d.estresse, 0), 'cg-dica-hrss'),
         linhaDica('Condicionamento', formatarNumero(d.fitness, 1), 'cg-dica-fitness'),
         linhaDica('Fadiga', formatarNumero(d.fadiga, 1), 'cg-dica-fadiga'),
         linhaDica('Forma', `${sinalDaForma(d.forma)} · ${faixa?.rotulo ?? ''}`, `cg-dica-forma cg-zona-${d.faixa}`),

@@ -5632,6 +5632,11 @@ textarea {
   flex: none;
 }
 
+.gp-dica-hrss {
+  color: var(--text-secondary);
+  padding-bottom: 6px;
+}
+
 .gp-dica-meta {
   --c: var(--text-secondary);
   color: var(--text-secondary);
