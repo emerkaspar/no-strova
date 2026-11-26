@@ -337,3 +337,128 @@ a.rcd-card-hist:hover {
     transform: none;
   }
 }
+
+/* ------------------------------------------------------------------------------------------------
+   Top 10 de um recorde (modules/recordes/ranking.modal.js). Reaproveita o esqueleto .fb do modal "Como foi?".
+   ------------------------------------------------------------------------------------------------ */
+
+.rcd-card-clicavel {
+  cursor: pointer;
+}
+
+.rcd-card-clicavel:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.modal-ranking {
+  width: min(1100px, calc(100vw - 24px));
+}
+
+.rk-corpo {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.rk-rolagem {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.rk-tabela {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rk-tabela th {
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--surface-light);
+  border-bottom: 1px solid var(--border);
+}
+
+.rk-tabela td {
+  padding: 12px 14px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.rk-tabela tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.rk-linha {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.rk-linha:hover,
+.rk-linha:focus-visible {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  outline: 0;
+}
+
+.rk-linha-podio {
+  background: color-mix(in srgb, var(--podio) 9%, transparent);
+}
+
+.rk-linha-podio td:first-child {
+  box-shadow: inset 3px 0 0 var(--podio);
+}
+
+.rk-col-pos {
+  width: 56px;
+  text-align: center !important;
+}
+
+.rk-pos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.rk-pos-podio {
+  color: var(--podio);
+  background: color-mix(in srgb, var(--podio) 18%, transparent);
+  border-radius: 50%;
+}
+
+.rk-data {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rk-clima {
+  display: inline-flex;
+  color: var(--primary);
+}
+
+.rk-tabela .rk-destaque {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.rk-tabela th.rk-destaque {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-light));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-linha {
+    transition: none;
+  }
+}

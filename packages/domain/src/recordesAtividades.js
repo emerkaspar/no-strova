@@ -84,6 +84,22 @@ export function recordesDasAtividades(atividades) {
   return recordes;
 }
 
+/**
+ * As melhores atividades por um campo (o ranking de um recorde): `[{ posicao, valor, atividade }]`, da 1ª em diante.
+ * `menorVence` serve aos tempos e à temperatura mais fria; `aceitaZero` aceita valor 0 ou negativo (temperatura).
+ * No empate fica a mais antiga na frente. Posições iguais não dividem colocação: a lista já vem ordenada.
+ * @param {Array<any>} atividades
+ * @param {string} campo
+ * @param {{ menorVence?: boolean, aceitaZero?: boolean, limite?: number }} [opcoes]
+ */
+export function rankingDasAtividades(atividades, campo, { menorVence = false, aceitaZero = false, limite = 10 } = {}) {
+  return atividades
+    .filter((a) => Number.isFinite(a[campo]) && (aceitaZero || a[campo] > 0) && !(campo === 'ventoKmh' && a[campo] <= 0))
+    .sort((a, b) => (a[campo] === b[campo] ? String(a.data).localeCompare(String(b.data)) : menorVence ? a[campo] - b[campo] : b[campo] - a[campo]))
+    .slice(0, limite)
+    .map((atividade, i) => ({ posicao: i + 1, valor: atividade[campo], atividade }));
+}
+
 /** Velocidade média em m/s: distância ÷ tempo em movimento (ou a duração, sem ele); null sem distância ou tempo. */
 export function velocidadeMediaMs(atividade) {
   const tempo = atividade.tempoMovimentoS > 0 ? atividade.tempoMovimentoS : atividade.duracaoS;

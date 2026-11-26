@@ -16,16 +16,16 @@ export const GRUPOS_DE_RECORDE = [
 
 /** Cartões de recorde: rótulo, campo, ícone e como formatar o valor. */
 export const CARDS_DE_RECORDE = [
-  { id: 'distancia', grupo: 'marcas', rotulo: 'Distância', rotuloCompleto: 'Maior distância', icone: 'distancia', formatar: (v) => formatarDistancia(v) },
-  { id: 'duracao', grupo: 'marcas', rotulo: 'Tempo', rotuloCompleto: 'Maior tempo', icone: 'duracao', formatar: (v) => formatarDuracao(v) },
-  { id: 'elevacao', grupo: 'marcas', rotulo: 'Elevação', rotuloCompleto: 'Maior elevação', icone: 'elevacao', formatar: metros },
-  { id: 'hrss', grupo: 'marcas', rotulo: 'HRSS', rotuloCompleto: 'Maior HRSS', icone: 'hrss', formatar: (v) => formatarNumero(v, 1) },
-  { id: 'fcMax', grupo: 'marcas', rotulo: 'FC máxima', rotuloCompleto: 'Maior FC máxima', icone: 'fc', formatar: (v) => `${formatarNumero(v, 0)} bpm` },
-  { id: 'potencia', grupo: 'potencia', rotulo: 'Potência média', rotuloCompleto: 'Maior potência média · Ciclismo', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} W`, campo: 'potenciaMediaW' },
-  { id: 'potencia20min', grupo: 'potencia', rotulo: 'Melhor 20 min', rotuloCompleto: 'Melhor 20 min de potência · Ciclismo', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} W`, campo: 'potenciaMax20minW' },
-  { id: 'quente', grupo: 'clima', rotulo: 'Mais quente', rotuloCompleto: 'Atividade mais quente', icone: 'sol', formatar: (v) => `${formatarNumero(v, 1)} °C`, campo: 'temperaturaMediaC', aceitaZero: true },
-  { id: 'fria', grupo: 'clima', rotulo: 'Mais fria', rotuloCompleto: 'Atividade mais fria', icone: 'floco', formatar: (v) => `${formatarNumero(v, 1)} °C`, campo: 'temperaturaMediaC', aceitaZero: true },
-  { id: 'vento', grupo: 'clima', rotulo: 'Vento médio', rotuloCompleto: 'Maior vento médio', icone: 'vento', formatar: (v) => `${formatarNumero(v, 1)} km/h`, campo: 'ventoKmh' },
+  { id: 'distancia', grupo: 'marcas', rotulo: 'Distância', rotuloCompleto: 'Maior distância', icone: 'distancia', formatar: (v) => formatarDistancia(v), ranking: { campo: 'distanciaM' } },
+  { id: 'duracao', grupo: 'marcas', rotulo: 'Tempo', rotuloCompleto: 'Maior tempo', icone: 'duracao', formatar: (v) => formatarDuracao(v), ranking: { campo: 'duracaoS' } },
+  { id: 'elevacao', grupo: 'marcas', rotulo: 'Elevação', rotuloCompleto: 'Maior elevação', icone: 'elevacao', formatar: metros, ranking: { campo: 'altimetriaM' } },
+  { id: 'hrss', grupo: 'marcas', rotulo: 'HRSS', rotuloCompleto: 'Maior HRSS', icone: 'hrss', formatar: (v) => formatarNumero(v, 1), ranking: { campo: 'hrss' } },
+  { id: 'fcMax', grupo: 'marcas', rotulo: 'FC máxima', rotuloCompleto: 'Maior FC máxima', icone: 'fc', formatar: (v) => `${formatarNumero(v, 0)} bpm`, ranking: { campo: 'fcMax' } },
+  { id: 'potencia', grupo: 'potencia', rotulo: 'Potência média', rotuloCompleto: 'Maior potência média · Ciclismo', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} W`, campo: 'potenciaMediaW', ranking: { campo: 'potenciaMediaW' } },
+  { id: 'potencia20min', grupo: 'potencia', rotulo: 'Melhor 20 min', rotuloCompleto: 'Melhor 20 min de potência · Ciclismo', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} W`, campo: 'potenciaMax20minW', ranking: { campo: 'potenciaMax20minW' } },
+  { id: 'quente', grupo: 'clima', rotulo: 'Mais quente', rotuloCompleto: 'Atividade mais quente', icone: 'sol', formatar: (v) => `${formatarNumero(v, 1)} °C`, campo: 'temperaturaMediaC', aceitaZero: true, ranking: { campo: 'temperaturaMediaC', aceitaZero: true } },
+  { id: 'fria', grupo: 'clima', rotulo: 'Mais fria', rotuloCompleto: 'Atividade mais fria', icone: 'floco', formatar: (v) => `${formatarNumero(v, 1)} °C`, campo: 'temperaturaMediaC', aceitaZero: true, ranking: { campo: 'temperaturaMediaC', aceitaZero: true, menorVence: true } },
+  { id: 'vento', grupo: 'clima', rotulo: 'Vento médio', rotuloCompleto: 'Maior vento médio', icone: 'vento', formatar: (v) => `${formatarNumero(v, 1)} km/h`, campo: 'ventoKmh', ranking: { campo: 'ventoKmh' } },
   { id: 'semanaPesada', grupo: 'carga', rotulo: 'Semana pesada', rotuloCompleto: 'Semana mais pesada', icone: 'hrss', formatar: (v) => `${formatarNumero(v, 0)} HRSS` },
   { id: 'sequencia', grupo: 'carga', rotulo: 'Sequência', rotuloCompleto: 'Maior sequência', icone: 'plano', formatar: (v) => `${v} semana${v === 1 ? '' : 's'}` },
   { id: 'condicionamento', grupo: 'carga', rotulo: 'Condicionamento', rotuloCompleto: 'Maior Condicionamento', icone: 'atividades', formatar: (v) => formatarNumero(v, 1), geral: true },
@@ -33,7 +33,7 @@ export const CARDS_DE_RECORDE = [
 
 /** Cartões de melhor 5 km e 10 km de um esporte (um par por esporte mostrado). */
 export const cartoesDeEsforco = (esporte) =>
-  esforcosDoEsporte(esporte).map((e) => ({ id: `${e.id}-${esporte}`, grupo: 'esforcos', rotulo: e.rotulo, rotuloCompleto: `Melhor ${e.rotulo} · ${ROTULO_ESPORTE[esporte] ?? esporte}`, rotuloIcone: esporte, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: e.metros, esporte }));
+  esforcosDoEsporte(esporte).map((e) => ({ id: `${e.id}-${esporte}`, grupo: 'esforcos', rotulo: e.rotulo, rotuloCompleto: `Melhor ${e.rotulo} · ${ROTULO_ESPORTE[esporte] ?? esporte}`, rotuloIcone: esporte, icone: 'duracao', formatar: tempoDeEsforco, esforcoM: e.metros, esporte, ranking: { campo: e.campo, menorVence: true } }));
 
 /**
  * Calcula os recordes de uma lista de atividades. O Condicionamento não vem de uma atividade: é o pico da curva diária (vale para

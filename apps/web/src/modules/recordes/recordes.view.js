@@ -16,6 +16,7 @@ import { paginaTopo } from '../../utils/paginaTopo.js';
 import { ritmoTexto } from '../atividades/esforcos.js';
 import { prateleiraDeConquistas } from '../progressao/objetivos.js';
 import { calcularRecordes, CARDS_DE_RECORDE, cartoesDeEsforco, GRUPOS_DE_RECORDE } from './cartoes.js';
+import { abrirRankingDoRecorde } from './ranking.modal.js';
 import { estadoRecordes } from './state.js';
 
 /** O cálculo do histórico roda sozinho uma vez por abertura do app (o botão continua para tentar de novo). */
@@ -221,9 +222,31 @@ export function render(raiz, sessao) {
       const ehHistorico = Boolean(r && hist && r.atividade.id === hist.atividade.id);
       const aux = r && !r.atividade.semLink && c.esforcoM ? ritmoTexto(r.atividade.esporte, r.valor, c.esforcoM) : null;
       const ouro = ehHistorico && !todos;
+      // com registro e regra de ranking, o cartão abre o top 10 (os links de dentro continuam abrindo a atividade)
+      const abreRanking = Boolean(r && c.ranking);
+      const abrir = () => abrirRankingDoRecorde({ cartao: c, atividades: visiveis() });
       return h(
         'article',
-        { class: `rcd-card${r ? '' : ' rcd-card-vazio'}${ouro ? ' rcd-card-historico' : ''}${ehNovo(c) ? ' rcd-card-novo' : ''}` },
+        {
+          class: `rcd-card${r ? '' : ' rcd-card-vazio'}${ouro ? ' rcd-card-historico' : ''}${ehNovo(c) ? ' rcd-card-novo' : ''}${abreRanking ? ' rcd-card-clicavel' : ''}`,
+          ...(abreRanking
+            ? {
+                role: 'button',
+                tabindex: '0',
+                title: 'Ver as 10 melhores marcas',
+                'aria-label': `${c.rotuloCompleto ?? c.rotulo}: ver as 10 melhores marcas`,
+                onClick: (e) => {
+                  if (!e.target.closest('a')) abrir();
+                },
+                onKeydown: (e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+                    e.preventDefault();
+                    abrir();
+                  }
+                },
+              }
+            : {}),
+        },
         h(
           'div',
           { class: 'rcd-card-topo' },
